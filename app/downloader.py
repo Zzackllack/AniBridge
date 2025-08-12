@@ -1,5 +1,5 @@
-from typing import Optional, Literal
 from pathlib import Path
+from typing import Optional, Literal, Callable
 import re
 from pathlib import Path
 import yt_dlp
@@ -11,6 +11,7 @@ from aniworld.models import Anime, Episode  # type: ignore
 
 Language = Literal["German Dub", "German Sub", "English Sub"]
 Provider = Literal["VOE", "Vidoza", "Doodstream", "Filemoon", "Vidmoly", "Streamtape", "LoadX", "SpeedFiles", "Luluvdo"]
+ProgressCb = Callable[[dict], None]  # bekommt yt-dlp progress dict
 
 class DownloadError(Exception):
     pass
@@ -50,6 +51,7 @@ def download_direct_url(
     *,
     title_hint: Optional[str] = None,
     cookiefile: Optional[Path] = None,
+    progress_cb: Optional[ProgressCb] = None,
 ) -> Path:
     """
     Lädt mit yt-dlp. Gibt finalen Dateipfad zurück.
@@ -61,11 +63,20 @@ def download_direct_url(
         "outtmpl": outtmpl,
         "retries": 5,
         "continuedl": True,
-        "noprogress": True,
         "concurrent_fragment_downloads": 4,
         "quiet": True,
-        "merge_output_format": "mkv",  # gute Default-Container
+        "noprogress": True,  # CLI-Progress aus, wir nutzen hooks
+        "merge_output_format": "mkv",
     }
+
+    if progress_cb:
+        def _hook(d: dict):
+            try:
+                progress_cb(d)
+            except Exception:
+                pass
+        ydl_opts["progress_hooks"] = [_hook]
+
     if cookiefile:
         ydl_opts["cookiefile"] = str(cookiefile)
 
@@ -85,9 +96,12 @@ def download_episode(
     dest_dir: Path,
     title_hint: Optional[str] = None,
     cookiefile: Optional[Path] = None,
+    progress_cb: Optional[ProgressCb] = None,
 ) -> Path:
     ep = build_episode(link=link, slug=slug, season=season, episode=episode)
     direct = get_direct_url(ep, provider, language)
-    # sinnvolle Default-Benennung
-    hint = title_hint or f"{slug or 'episode'}-S{season:02d}E{episode:02d}-{language}-{provider}" if slug and season and episode else title_hint
-    return download_direct_url(direct, dest_dir, title_hint=hint, cookiefile=cookiefile)
+    hint = title_hint or (f"{slug}-S{season:02d}E{episode:02d}-{language}-{provider}"
+                          if slug and season and episode else title_hint)
+    return download_direct_url(
+        direct, dest_dir, title_hint=hint, cookiefile=cookiefile, progress_cb=progress_cb
+    )
