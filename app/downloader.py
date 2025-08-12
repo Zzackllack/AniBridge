@@ -1,7 +1,6 @@
 from typing import Optional, Literal
 from pathlib import Path
 import re
-import os
 from pathlib import Path
 import yt_dlp
 
@@ -9,8 +8,6 @@ import yt_dlp
 # from aniworld.models import Anime, Episode
 # -> get_direct_link(provider, language)
 from aniworld.models import Anime, Episode  # type: ignore
-
-DEFAULT_DOWNLOAD_DIR = Path(os.getenv("ANIBRIDGE_DOWNLOAD_DIR", "./data/downloads/anime")).resolve()
 
 Language = Literal["German Dub", "German Sub", "English Sub"]
 Provider = Literal["VOE", "Vidoza", "Doodstream", "Filemoon", "Vidmoly", "Streamtape", "LoadX", "SpeedFiles", "Luluvdo"]
@@ -85,7 +82,7 @@ def download_episode(
     episode: Optional[int] = None,
     provider: Provider = "VOE",
     language: Language = "German Dub",
-    dest_dir: Path = DEFAULT_DOWNLOAD_DIR,
+    dest_dir: Path,
     title_hint: Optional[str] = None,
     cookiefile: Optional[Path] = None,
 ) -> Path:

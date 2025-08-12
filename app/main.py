@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from pathlib import Path
 from app.downloader import download_episode, Provider, Language
+from app.config import DOWNLOAD_DIR
 
 app = FastAPI(title="AniBridge-Minimal")
 
@@ -27,7 +28,7 @@ def api_download(req: DownloadRequest):
             episode=req.episode,
             provider=req.provider,
             language=req.language,
-            dest_dir=Path("/data/downloads/anime"),
+            dest_dir=DOWNLOAD_DIR,
             title_hint=req.title_hint,
         )
         return DownloadResponse(path=str(dest))
