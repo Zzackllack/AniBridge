@@ -1,10 +1,12 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 from app.downloader import download_episode, Provider, Language
 from app.config import DOWNLOAD_DIR
 from app.models import store, Job
 import errno
+import asyncio
 
 app = FastAPI(title="AniBridge-Minimal")
 
@@ -102,6 +104,37 @@ def get_job(job_id: str):
         message=job.message,
         result_path=str(job.result_path) if job.result_path else None,
     )
+
+@app.get("/jobs/{job_id}/events")
+async def job_events(job_id: str, request: Request):
+    async def eventgen():
+        last = None
+        while True:
+            if await request.is_disconnected():
+                break
+            job = store.get(job_id)
+            if not job:
+                yield "event: error\ndata: not_found\n\n"
+                break
+            payload = {
+                "id": job.id,
+                "status": job.status,
+                "progress": job.progress,
+                "downloaded_bytes": job.downloaded_bytes,
+                "total_bytes": job.total_bytes,
+                "speed": job.speed,
+                "eta": job.eta,
+                "message": job.message,
+                "result_path": str(job.result_path) if job.result_path else None,
+            }
+            # sende bei Änderung ~2/s
+            if payload != last:
+                yield f"data: {payload}\n\n"
+                last = payload
+            if job.status in ("completed", "failed"):
+                break
+            await asyncio.sleep(0.5)
+    return StreamingResponse(eventgen(), media_type="text/event-stream")
 
 if __name__ == "__main__":
     import uvicorn
