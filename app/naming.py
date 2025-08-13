@@ -1,4 +1,3 @@
-# app/naming.py
 from __future__ import annotations
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any
@@ -6,11 +5,8 @@ import json
 import re
 import subprocess
 
-from app.config import SOURCE_TAG, ANIWORLD_ALPHABET_HTML
-from app.title_resolver import resolve_series_title, load_title_index_from_file
-
-# Stelle sicher, dass der Index einmal geladen wird (kein Muss, aber schneller bei vielen Jobs)
-load_title_index_from_file(ANIWORLD_ALPHABET_HTML)
+from app.config import SOURCE_TAG, RELEASE_GROUP
+from app.title_resolver import resolve_series_title
 
 LANG_TAG_MAP = {
     "German Dub": "GER",
@@ -120,17 +116,21 @@ def build_release_name(
     vcodec: Optional[str],
     language: str,
     source_tag: str = SOURCE_TAG,
+    release_group: str = RELEASE_GROUP,
 ) -> str:
     series_part = _series_component(series_title)
-    se_part = ""
-    if season is not None and episode is not None:
-        se_part = f"S{int(season):02d}E{int(episode):02d}"
+    se_part = f"S{int(season):02d}E{int(episode):02d}" if (season is not None and episode is not None) else ""
     qual_part = _map_height_to_quality(height)
     codec_part = _map_codec_name(vcodec)
-    lang_part = LANG_TAG_MAP.get(language, _safe_component(language))  # robust fallback
+    lang_part = LANG_TAG_MAP.get(language, _safe_component(language))
 
-    parts = [p for p in [series_part, se_part, qual_part, source_tag, codec_part, lang_part] if p]
-    return ".".join(parts)
+    # Standard-Reihenfolge & Release-Group am Ende mit '-'
+    # Beispiel: Series.S01E01.1080p.WEB.H264.GER-ANIWORLD
+    base = ".".join([p for p in [series_part, se_part, qual_part, source_tag, codec_part, lang_part] if p])
+    group = release_group.strip()
+    if group:
+        base = f"{base}-{group.upper()}"
+    return base
 
 def rename_to_release(
     *,
@@ -144,7 +144,7 @@ def rename_to_release(
     # 1) Serien-Titel bestimmen
     display_title = None
     if slug:
-        display_title = resolve_series_title(slug, html_file=ANIWORLD_ALPHABET_HTML)
+        display_title = resolve_series_title(slug)
     if not display_title and slug:
         # Fallback: slug "demon-slayer-kimetsu-no-yaiba" → "Demon Slayer Kimetsu no Yaiba"
         display_title = slug.replace("-", " ").title()

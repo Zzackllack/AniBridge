@@ -2,9 +2,9 @@ import os
 from pathlib import Path
 
 IN_DOCKER = Path("/.dockerenv").exists()
-DEFAULT_DIR = Path("/data/downloads/anime") if IN_DOCKER else (Path.cwd() / "data" / "downloads" / "anime")
 
 # Wohin wird heruntergeladen
+DEFAULT_DIR = Path("/data/downloads/anime") if IN_DOCKER else (Path.cwd() / "data" / "downloads" / "anime")
 DOWNLOAD_DIR = Path(os.getenv("DOWNLOAD_DIR", DEFAULT_DIR))
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -12,10 +12,17 @@ DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR = Path(os.getenv("DATA_DIR", Path.cwd() / "data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# Optional: lokaler Snapshot von https://aniworld.to/animes-alphabet
-# -> lege ihn z.B. unter ./data/aniworld-alphabeth.html ab oder setze Pfad per ENV
+# Titelquelle (Slug -> Display-Title)
+# Option A: lokale HTML-Datei (Snapshot der Alphabet-Seite)
 ANIWORLD_ALPHABET_HTML = Path(os.getenv("ANIWORLD_ALPHABET_HTML", DATA_DIR / "aniworld-alphabeth.html"))
+# Option B: Live von der Website holen (immer up-to-date)
+ANIWORLD_ALPHABET_URL = os.getenv("ANIWORLD_ALPHABET_URL", "https://aniworld.to/animes-alphabet").strip()
 
-# Tag für die Quelle im Release-Namen
-# Üblich: "WEB" oder "WEB-DL"
+# TTL (Stunden) für Live-Index; 0 = nie neu laden (nur einmal pro Prozess)
+ANIWORLD_TITLES_REFRESH_HOURS = float(os.getenv("ANIWORLD_TITLES_REFRESH_HOURS", "24"))
+
+# Quelle/Source-Tag im Release-Namen (typisch: WEB, WEB-DL)
 SOURCE_TAG = os.getenv("SOURCE_TAG", "WEB")
+
+# Release Group (am Ende nach Bindestrich angehängt)
+RELEASE_GROUP = os.getenv("RELEASE_GROUP", "aniworld")

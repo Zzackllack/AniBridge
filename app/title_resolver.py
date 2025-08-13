@@ -1,13 +1,18 @@
-# app/title_resolver.py
 from __future__ import annotations
-from typing import Dict, Optional
-from bs4 import BeautifulSoup  # type: ignore
+from typing import Dict, Optional, Tuple
 from pathlib import Path
-import re
 from functools import lru_cache
+from time import time
 
-# Wir lesen die lokal gespeicherte Aniworld-„Alphabet“-Seite.
-# Struktur: <div id="seriesContainer"> ... <ul><li><a data-alternative-title="..." href="/anime/stream/<slug>">DisplayTitle</a></li> ...
+import re
+import requests  # type: ignore
+from bs4 import BeautifulSoup  # type: ignore
+
+from app.config import (
+    ANIWORLD_ALPHABET_HTML,
+    ANIWORLD_ALPHABET_URL,
+    ANIWORLD_TITLES_REFRESH_HOURS,
+)
 
 HREF_RE = re.compile(r"/anime/stream/([^/?#]+)")
 
@@ -28,24 +33,74 @@ def build_index_from_html(html_text: str) -> Dict[str, str]:
             result[slug] = title
     return result
 
-@lru_cache(maxsize=1)
-def load_title_index_from_file(path: Path) -> Dict[str, str]:
+# -------- Live-Fetch + Cache --------
+
+_cached_index: Dict[str, str] | None = None
+_cached_at: float | None = None
+
+def _should_refresh(now: float) -> bool:
+    if _cached_index is None:
+        return True
+    if ANIWORLD_TITLES_REFRESH_HOURS <= 0:
+        return False
+    if _cached_at is None:
+        return True
+    return (now - _cached_at) > ANIWORLD_TITLES_REFRESH_HOURS * 3600.0
+
+def _fetch_index_from_url() -> Dict[str, str]:
+    resp = requests.get(ANIWORLD_ALPHABET_URL, timeout=20)
+    resp.raise_for_status()
+    return build_index_from_html(resp.text)
+
+def _load_index_from_file(path: Path) -> Dict[str, str]:
     if not path.exists():
         return {}
-    try:
-        html_text = path.read_text(encoding="utf-8", errors="ignore")
-        return build_index_from_html(html_text)
-    except Exception:
-        return {}
+    html_text = path.read_text(encoding="utf-8", errors="ignore")
+    return build_index_from_html(html_text)
 
-def resolve_series_title(slug: Optional[str], *, html_file: Optional[Path] = None) -> Optional[str]:
+def load_or_refresh_index() -> Dict[str, str]:
     """
-    Liefert den Display-Titel zur aniworld-Slug, falls in der Alphabetliste vorhanden.
+    Bevorzugt Live-URL (falls konfiguriert), sonst lokale Datei.
+    Nutzt In-Memory-Cache mit TTL und Fallback-Strategie.
     """
+    global _cached_index, _cached_at
+    now = time()
+
+    # Refresh-Bedingung prüfen
+    if not _should_refresh(now):
+        return _cached_index or {}
+
+    # 1) Versuche Live-URL (falls gesetzt/nicht leer)
+    index: Dict[str, str] = {}
+    url = (ANIWORLD_ALPHABET_URL or "").strip()
+    if url:
+        try:
+            index = _fetch_index_from_url()
+            if index:
+                _cached_index = index
+                _cached_at = now
+                return index
+        except Exception:
+            # Fallback auf Datei
+            pass
+
+    # 2) Fallback: Lokale Datei
+    try:
+        index = _load_index_from_file(ANIWORLD_ALPHABET_HTML)
+        if index:
+            _cached_index = index
+            _cached_at = now
+            return index
+    except Exception:
+        pass
+
+    # 3) Nichts gefunden
+    _cached_index = _cached_index or {}
+    _cached_at = _cached_at or now
+    return _cached_index
+
+def resolve_series_title(slug: Optional[str]) -> Optional[str]:
     if not slug:
         return None
-    index = load_title_index_from_file(html_file) if html_file else load_title_index_from_file.cache_info() and load_title_index_from_file.__wrapped__  # type: ignore
-    # Fallback auf globalen Default (via last used file in cache)
-    if isinstance(index, dict):
-        return index.get(slug)
-    return None
+    index = load_or_refresh_index()
+    return index.get(slug)
