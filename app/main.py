@@ -34,8 +34,8 @@ class JobStatusResponse(BaseModel):
     result_path: str | None = None
 
 def _progress_updater(job_id: str):
+    last_progress = {"downloaded": 0, "total": 0, "speed": 0.0, "eta": 0}
     def _cb(d: dict):
-        # yt-dlp states: 'downloading', 'finished', 'error'
         status = d.get("status")
         downloaded = int(d.get("downloaded_bytes") or 0)
         total = d.get("total_bytes") or d.get("total_bytes_estimate")
@@ -48,6 +48,20 @@ def _progress_updater(job_id: str):
                 progress = max(0.0, min(100.0, downloaded / total * 100.0))
             except Exception:
                 pass
+        if (
+            last_progress["downloaded"] != downloaded or
+            last_progress["total"] != total or
+            last_progress["speed"] != speed or
+            last_progress["eta"] != eta
+        ):
+            mb_speed = float(speed) / (1024 * 1024) if speed else 0.0
+            print(f"[{job_id}] {progress:.2f}% {mb_speed:.2f} MB/s ETA {eta:.2f}s")
+            if status == "finished":
+                print(f"[{job_id}] Download completed.")
+            last_progress["downloaded"] = downloaded
+            last_progress["total"] = total
+            last_progress["speed"] = speed
+            last_progress["eta"] = eta
 
         store.update(job_id,
                      status="downloading" if status != "finished" else "downloading",
