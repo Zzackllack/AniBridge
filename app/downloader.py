@@ -1,13 +1,14 @@
 from pathlib import Path
-from typing import Optional, Literal, Callable
+from typing import Optional, Literal, Callable, Tuple, Dict, Any
 import re
-from pathlib import Path
 import yt_dlp
 
 # Lib-API laut Doku:
 # from aniworld.models import Anime, Episode
 # -> get_direct_link(provider, language)
 from aniworld.models import Anime, Episode  # type: ignore
+
+from app.naming import rename_to_release
 
 Language = Literal["German Dub", "German Sub", "English Sub"]
 Provider = Literal["VOE", "Vidoza", "Doodstream", "Filemoon", "Vidmoly", "Streamtape", "LoadX", "SpeedFiles", "Luluvdo"]
@@ -45,21 +46,21 @@ def get_direct_url(ep: Episode, provider: Provider, language: Language) -> str:
         raise DownloadError("No direct link returned from provider.")
     return url
 
-def download_direct_url(
+def _ydl_download(
     direct_url: str,
     dest_dir: Path,
     *,
     title_hint: Optional[str] = None,
     cookiefile: Optional[Path] = None,
     progress_cb: Optional[ProgressCb] = None,
-) -> Path:
+) -> Tuple[Path, Dict[str, Any]]:
     """
-    Lädt mit yt-dlp. Gibt finalen Dateipfad zurück.
+    Lädt mit yt-dlp und gibt (Dateipfad, info) zurück.
     """
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     outtmpl = str(dest_dir / (_sanitize_filename(title_hint or "%(title)s") + ".%(ext)s"))
-    ydl_opts = {
+    ydl_opts: Dict[str, Any] = {
         "outtmpl": outtmpl,
         "retries": 5,
         "continuedl": True,
@@ -82,8 +83,10 @@ def download_direct_url(
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(direct_url, download=True)
+        if info is None:
+            raise DownloadError("yt-dlp did not return info dict.")
         filename = ydl.prepare_filename(info)
-    return Path(filename)
+    return (Path(filename), info)
 
 def download_episode(
     *,
@@ -102,6 +105,18 @@ def download_episode(
     direct = get_direct_url(ep, provider, language)
     hint = title_hint or (f"{slug}-S{season:02d}E{episode:02d}-{language}-{provider}"
                           if slug and season and episode else title_hint)
-    return download_direct_url(
+
+    temp_path, info = _ydl_download(
         direct, dest_dir, title_hint=hint, cookiefile=cookiefile, progress_cb=progress_cb
     )
+
+    # Nach dem Download: in Release-Schema umbenennen
+    final_path = rename_to_release(
+        path=temp_path,
+        info=info,
+        slug=slug,
+        season=season,
+        episode=episode,
+        language=language,
+    )
+    return final_path
