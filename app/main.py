@@ -1,14 +1,32 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+# app/main.py
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
-from app.downloader import download_episode, Provider, Language
-from app.config import DOWNLOAD_DIR
-from app.models import store, Job
+from sqlmodel import Session
 import errno
 import asyncio
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="AniBridge-Minimal")
+from app.downloader import download_episode, Provider, Language
+from app.config import DOWNLOAD_DIR
+from app.models import (
+    Job, get_session, create_db_and_tables, cleanup_dangling_jobs,
+    create_job, get_job as db_get_job, update_job as db_update_job, engine
+)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: DB anlegen, hängende Jobs bereinigen
+    create_db_and_tables()
+    with Session(engine) as s:
+        cleaned = cleanup_dangling_jobs(s)
+        if cleaned:
+            print(f"[startup] Reset {cleaned} dangling jobs to 'failed'")
+    yield
+    # Shutdown: nichts nötig
+
+app = FastAPI(title="AniBridge-Minimal", lifespan=lifespan)
 
 class DownloadRequest(BaseModel):
     link: str | None = Field(default=None)
@@ -55,26 +73,30 @@ def _progress_updater(job_id: str):
             last_progress["eta"] != eta
         ):
             mb_speed = float(speed) / (1024 * 1024) if speed else 0.0
-            print(f"[{job_id}] {progress:.2f}% {mb_speed:.2f} MB/s ETA {eta:.2f}s")
-            if status == "finished":
-                print(f"[{job_id}] Download completed.")
+            print(f"[{job_id}] {progress:.2f}% {mb_speed:.2f} MB/s ETA {float(eta) if eta else 0:.2f}s")
             last_progress["downloaded"] = downloaded
             last_progress["total"] = total
             last_progress["speed"] = speed
             last_progress["eta"] = eta
 
-        store.update(job_id,
-                     status="downloading" if status != "finished" else "downloading",
-                     downloaded_bytes=downloaded,
-                     total_bytes=int(total) if total else None,
-                     speed=float(speed) if speed else None,
-                     eta=int(eta) if eta else None,
-                     progress=progress)
+        # DB-Update
+        with Session(engine) as s:
+            db_update_job(
+                s, job_id,
+                status="downloading" if status != "finished" else "downloading",
+                downloaded_bytes=downloaded,
+                total_bytes=int(total) if total else None,
+                speed=float(speed) if speed else None,
+                eta=int(eta) if eta else None,
+                progress=progress,
+            )
     return _cb
 
 def _run_download(job_id: str, req: DownloadRequest):
     try:
-        store.update(job_id, status="downloading", message=None)
+        with Session(engine) as s:
+            db_update_job(s, job_id, status="downloading", message=None)
+
         dest = download_episode(
             link=req.link,
             slug=req.slug,
@@ -86,25 +108,28 @@ def _run_download(job_id: str, req: DownloadRequest):
             title_hint=req.title_hint,
             progress_cb=_progress_updater(job_id),
         )
-        store.update(job_id, status="completed", progress=100.0, result_path=dest)
+
+        with Session(engine) as s:
+            db_update_job(s, job_id, status="completed", progress=100.0, result_path=str(dest))
     except OSError as e:
-        if e.errno in (errno.EACCES, errno.EROFS):
-            store.update(job_id, status="failed", message=f"Download dir not writable: {e}")
-        else:
-            store.update(job_id, status="failed", message=str(e))
+        with Session(engine) as s:
+            if e.errno in (errno.EACCES, errno.EROFS):
+                db_update_job(s, job_id, status="failed", message=f"Download dir not writable: {e}")
+            else:
+                db_update_job(s, job_id, status="failed", message=str(e))
     except Exception as e:
-        store.update(job_id, status="failed", message=str(e))
+        with Session(engine) as s:
+            db_update_job(s, job_id, status="failed", message=str(e))
 
 @app.post("/downloader/download", response_model=EnqueueResponse)
-def enqueue_download(req: DownloadRequest, background: BackgroundTasks):
-    # sofort Job anlegen, NICHT blockieren
-    job = store.create()
+def enqueue_download(req: DownloadRequest, background: BackgroundTasks, session: Session = Depends(get_session)):
+    job = create_job(session)
     background.add_task(_run_download, job.id, req)
     return EnqueueResponse(job_id=job.id)
 
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)
-def get_job(job_id: str):
-    job = store.get(job_id)
+def get_job(job_id: str, session: Session = Depends(get_session)):
+    job = db_get_job(session, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="job not found")
     return JobStatusResponse(
@@ -116,17 +141,17 @@ def get_job(job_id: str):
         speed=job.speed,
         eta=job.eta,
         message=job.message,
-        result_path=str(job.result_path) if job.result_path else None,
+        result_path=job.result_path,
     )
 
 @app.get("/jobs/{job_id}/events")
-async def job_events(job_id: str, request: Request):
+async def job_events(job_id: str, request: Request, session: Session = Depends(get_session)):
     async def eventgen():
         last = None
         while True:
             if await request.is_disconnected():
                 break
-            job = store.get(job_id)
+            job = db_get_job(session, job_id)
             if not job:
                 yield "event: error\ndata: not_found\n\n"
                 break
@@ -139,9 +164,8 @@ async def job_events(job_id: str, request: Request):
                 "speed": job.speed,
                 "eta": job.eta,
                 "message": job.message,
-                "result_path": str(job.result_path) if job.result_path else None,
+                "result_path": job.result_path,
             }
-            # sende bei Änderung ~2/s
             if payload != last:
                 yield f"data: {payload}\n\n"
                 last = payload
