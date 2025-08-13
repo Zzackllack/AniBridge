@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Literal, Callable, Tuple, Dict, Any
+from typing import Optional, Literal, Callable, Tuple, Dict, Any, List
 import re
 import yt_dlp
 
@@ -9,6 +9,7 @@ import yt_dlp
 from aniworld.models import Anime, Episode  # type: ignore
 
 from app.naming import rename_to_release
+from app.config import PROVIDER_ORDER
 
 Language = Literal["German Dub", "German Sub", "English Sub"]
 Provider = Literal["VOE", "Vidoza", "Doodstream", "Filemoon", "Vidmoly", "Streamtape", "LoadX", "SpeedFiles", "Luluvdo"]
@@ -37,14 +38,50 @@ def build_episode(
         return Episode(slug=slug, season=season, episode=episode)
     raise ValueError("Provide either link OR (slug, season, episode).")
 
-def get_direct_url(ep: Episode, provider: Provider, language: Language) -> str:
+def _try_get_direct(ep: Episode, provider_name: str, language: Language) -> Optional[str]:
     """
-    Ruft den unmittelbaren Video-Link vom Hoster ab.
+    Einzelnen Provider testen. Gibt URL oder None zurück.
     """
-    url = ep.get_direct_link(provider, language)  # Lib-API lt. Doku
-    if not url:
-        raise DownloadError("No direct link returned from provider.")
-    return url
+    try:
+        url = ep.get_direct_link(provider_name, language)  # Lib-API
+        if url:
+            return url
+    except Exception:
+        # still weiterprobieren
+        pass
+    return None
+
+def get_direct_url_with_fallback(
+    ep: Episode,
+    *,
+    preferred: Optional[str],
+    language: Language,
+) -> Tuple[str, str]:
+    """
+    Liefert (direct_url, chosen_provider).
+    Reihenfolge: preferred -> ENV PROVIDER_ORDER (ohne Duplikate).
+    """
+    tried: List[str] = []
+
+    # preferred zuerst (wenn gesetzt)
+    if preferred:
+        p = preferred.strip()
+        if p:
+            tried.append(p)
+            url = _try_get_direct(ep, p, language)
+            if url:
+                return url, p
+
+    # dann global definierte Reihenfolge
+    for p in PROVIDER_ORDER:
+        if p in tried:
+            continue
+        tried.append(p)
+        url = _try_get_direct(ep, p, language)
+        if url:
+            return url, p
+
+    raise DownloadError(f"No direct link found. Tried providers: {', '.join(tried) or 'none'}")
 
 def _ydl_download(
     direct_url: str,
@@ -94,20 +131,32 @@ def download_episode(
     slug: Optional[str] = None,
     season: Optional[int] = None,
     episode: Optional[int] = None,
-    provider: Provider = "VOE",
+    provider: Optional[Provider] = "VOE", 
     language: Language = "German Dub",
     dest_dir: Path,
     title_hint: Optional[str] = None,
     cookiefile: Optional[Path] = None,
     progress_cb: Optional[ProgressCb] = None,
 ) -> Path:
+    """
+    Versucht zuerst 'provider' (wenn übergeben), dann die Reihenfolge aus PROVIDER_ORDER (ENV).
+    """
     ep = build_episode(link=link, slug=slug, season=season, episode=episode)
-    direct = get_direct_url(ep, provider, language)
-    hint = title_hint or (f"{slug}-S{season:02d}E{episode:02d}-{language}-{provider}"
-                          if slug and season and episode else title_hint)
+
+    # Fallback-Strategie
+    direct, chosen = get_direct_url_with_fallback(ep, preferred=provider, language=language)
+
+    # Sinnvolle Default-Benennung für den temporären Download
+    base_hint = title_hint
+    if not base_hint and slug and season and episode:
+        base_hint = f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
 
     temp_path, info = _ydl_download(
-        direct, dest_dir, title_hint=hint, cookiefile=cookiefile, progress_cb=progress_cb
+        direct,
+        dest_dir,
+        title_hint=base_hint,
+        cookiefile=cookiefile,
+        progress_cb=progress_cb
     )
 
     # Nach dem Download: in Release-Schema umbenennen

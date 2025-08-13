@@ -26,3 +26,12 @@ SOURCE_TAG = os.getenv("SOURCE_TAG", "WEB")
 
 # Release Group (am Ende nach Bindestrich angehängt)
 RELEASE_GROUP = os.getenv("RELEASE_GROUP", "aniworld")
+
+# ---- Provider-Fallback ----
+# Kommagetrennte Liste, z. B. "VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza"
+# Reihenfolge = Priorität
+_default_order = "VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza"
+_raw = os.getenv("PROVIDER_ORDER", _default_order)
+
+# normalisieren: split, trim, nur nicht-leere nehmen, Groß/Kleinschreibung egal
+PROVIDER_ORDER = [p.strip() for p in _raw.split(",") if p.strip()]
