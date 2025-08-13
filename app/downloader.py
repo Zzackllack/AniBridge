@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Optional, Literal, Callable, Tuple, Dict, Any, List
 import re
+import threading
 import yt_dlp
 
 # Lib-API laut Doku:
@@ -90,9 +91,11 @@ def _ydl_download(
     title_hint: Optional[str] = None,
     cookiefile: Optional[Path] = None,
     progress_cb: Optional[ProgressCb] = None,
+    stop_event: Optional[threading.Event] = None,
 ) -> Tuple[Path, Dict[str, Any]]:
     """
     Lädt mit yt-dlp und gibt (Dateipfad, info) zurück.
+    Cancel/Abbruch: wenn stop_event gesetzt wird, heben wir im Hook eine Exception aus.
     """
     dest_dir.mkdir(parents=True, exist_ok=True)
 
@@ -105,15 +108,22 @@ def _ydl_download(
         "quiet": True,
         "noprogress": True,  # CLI-Progress aus, wir nutzen hooks
         "merge_output_format": "mkv",
+        # Additional options for fragment reliability and concurrency
+
     }
 
-    if progress_cb:
-        def _hook(d: dict):
+    def _compound_hook(d: dict):
+        # Cancel?
+        if stop_event is not None and stop_event.is_set():
+            # yt-dlp sauber abbrechen: Exception werfen
+            raise DownloadError("Cancelled")
+        if progress_cb:
             try:
                 progress_cb(d)
             except Exception:
                 pass
-        ydl_opts["progress_hooks"] = [_hook]
+
+    ydl_opts["progress_hooks"] = [_compound_hook]
 
     if cookiefile:
         ydl_opts["cookiefile"] = str(cookiefile)
@@ -137,9 +147,11 @@ def download_episode(
     title_hint: Optional[str] = None,
     cookiefile: Optional[Path] = None,
     progress_cb: Optional[ProgressCb] = None,
+    stop_event: Optional[threading.Event] = None,
 ) -> Path:
     """
-    Versucht zuerst 'provider' (wenn übergeben), dann die Reihenfolge aus PROVIDER_ORDER (ENV).
+    Parallele-safe: keine globalen Zustände, alles via Parameter.
+    stop_event erlaubt Cancel.
     """
     ep = build_episode(link=link, slug=slug, season=season, episode=episode)
 
@@ -156,7 +168,8 @@ def download_episode(
         dest_dir,
         title_hint=base_hint,
         cookiefile=cookiefile,
-        progress_cb=progress_cb
+        progress_cb=progress_cb,
+        stop_event=stop_event,
     )
 
     # Nach dem Download: in Release-Schema umbenennen

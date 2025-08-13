@@ -35,3 +35,9 @@ _raw = os.getenv("PROVIDER_ORDER", _default_order)
 
 # normalisieren: split, trim, nur nicht-leere nehmen, Groß/Kleinschreibung egal
 PROVIDER_ORDER = [p.strip() for p in _raw.split(",") if p.strip()]
+
+# --- Parallelität ---
+# Anzahl gleichzeitiger Downloads (Thread-Pool-Größe)
+MAX_CONCURRENCY = int(os.getenv("MAX_CONCURRENCY", "3"))
+if MAX_CONCURRENCY < 1:
+    MAX_CONCURRENCY = 1

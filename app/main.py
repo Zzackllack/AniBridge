@@ -1,4 +1,3 @@
-# app/main.py
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -7,24 +6,41 @@ from sqlmodel import Session
 import errno
 import asyncio
 from contextlib import asynccontextmanager
+from concurrent.futures import ThreadPoolExecutor, Future
+import threading
 
 from app.downloader import download_episode, Provider, Language
-from app.config import DOWNLOAD_DIR
+from app.config import DOWNLOAD_DIR, MAX_CONCURRENCY
 from app.models import (
     Job, get_session, create_db_and_tables, cleanup_dangling_jobs,
     create_job, get_job as db_get_job, update_job as db_update_job, engine
 )
 
+# ---- Thread-Pool und Cancel-Registry ----
+EXECUTOR: ThreadPoolExecutor | None = None
+RUNNING: dict[str, tuple[Future, threading.Event]] = {}
+RUNNING_LOCK = threading.Lock()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: DB anlegen, hängende Jobs bereinigen
+    global EXECUTOR
+    # Startup
     create_db_and_tables()
     with Session(engine) as s:
         cleaned = cleanup_dangling_jobs(s)
         if cleaned:
             print(f"[startup] Reset {cleaned} dangling jobs to 'failed'")
+    EXECUTOR = ThreadPoolExecutor(max_workers=MAX_CONCURRENCY, thread_name_prefix="anibridge")
+    print(f"[startup] ThreadPoolExecutor started with max_workers={MAX_CONCURRENCY}")
     yield
-    # Shutdown: nichts nötig
+    # Shutdown: Executor schließen, laufende Jobs canceln
+    with RUNNING_LOCK:
+        for job_id, (fut, ev) in RUNNING.items():
+            ev.set()
+        RUNNING.clear()
+    if EXECUTOR:
+        EXECUTOR.shutdown(wait=False, cancel_futures=True)
+        print("[shutdown] Executor shutdown requested")
 
 app = FastAPI(title="AniBridge-Minimal", lifespan=lifespan)
 
@@ -33,7 +49,7 @@ class DownloadRequest(BaseModel):
     slug: str | None = Field(default=None)
     season: int | None = None
     episode: int | None = None
-    provider: Provider = "VOE"
+    provider: Provider | None = "VOE"
     language: Language = "German Dub"
     title_hint: str | None = None
 
@@ -51,9 +67,12 @@ class JobStatusResponse(BaseModel):
     message: str | None = None
     result_path: str | None = None
 
-def _progress_updater(job_id: str):
-    last_progress = {"downloaded": 0, "total": 0, "speed": 0.0, "eta": 0}
+def _progress_updater(job_id: str, stop_event: threading.Event):
+    last = {"downloaded": 0, "total": 0, "speed": 0.0, "eta": 0}
     def _cb(d: dict):
+        # Cancel frühzeitig?
+        if stop_event.is_set():
+            raise Exception("Cancelled")
         status = d.get("status")
         downloaded = int(d.get("downloaded_bytes") or 0)
         total = d.get("total_bytes") or d.get("total_bytes_estimate")
@@ -66,20 +85,17 @@ def _progress_updater(job_id: str):
                 progress = max(0.0, min(100.0, downloaded / total * 100.0))
             except Exception:
                 pass
+
         if (
-            last_progress["downloaded"] != downloaded or
-            last_progress["total"] != total or
-            last_progress["speed"] != speed or
-            last_progress["eta"] != eta
+            last["downloaded"] != downloaded or
+            last["total"] != total or
+            last["speed"] != speed or
+            last["eta"] != eta
         ):
             mb_speed = float(speed) / (1024 * 1024) if speed else 0.0
             print(f"[{job_id}] {progress:.2f}% {mb_speed:.2f} MB/s ETA {float(eta) if eta else 0:.2f}s")
-            last_progress["downloaded"] = downloaded
-            last_progress["total"] = total
-            last_progress["speed"] = speed
-            last_progress["eta"] = eta
+            last.update(downloaded=downloaded, total=total, speed=speed, eta=eta)
 
-        # DB-Update
         with Session(engine) as s:
             db_update_job(
                 s, job_id,
@@ -92,7 +108,7 @@ def _progress_updater(job_id: str):
             )
     return _cb
 
-def _run_download(job_id: str, req: DownloadRequest):
+def _run_download(job_id: str, req: DownloadRequest, stop_event: threading.Event):
     try:
         with Session(engine) as s:
             db_update_job(s, job_id, status="downloading", message=None)
@@ -106,7 +122,8 @@ def _run_download(job_id: str, req: DownloadRequest):
             language=req.language,
             dest_dir=DOWNLOAD_DIR,
             title_hint=req.title_hint,
-            progress_cb=_progress_updater(job_id),
+            progress_cb=_progress_updater(job_id, stop_event),
+            stop_event=stop_event,
         )
 
         with Session(engine) as s:
@@ -118,13 +135,27 @@ def _run_download(job_id: str, req: DownloadRequest):
             else:
                 db_update_job(s, job_id, status="failed", message=str(e))
     except Exception as e:
+        msg = str(e)
+        status = "failed"
+        if "Cancel" in msg or "cancel" in msg:
+            status = "cancelled"
+            msg = "Cancelled by user"
         with Session(engine) as s:
-            db_update_job(s, job_id, status="failed", message=str(e))
+            db_update_job(s, job_id, status=status, message=msg)
+    finally:
+        # aus RUNNING austragen
+        with RUNNING_LOCK:
+            RUNNING.pop(job_id, None)
 
 @app.post("/downloader/download", response_model=EnqueueResponse)
-def enqueue_download(req: DownloadRequest, background: BackgroundTasks, session: Session = Depends(get_session)):
+def enqueue_download(req: DownloadRequest, session: Session = Depends(get_session)):
+    if EXECUTOR is None:
+        raise HTTPException(status_code=500, detail="Executor not initialized")
     job = create_job(session)
-    background.add_task(_run_download, job.id, req)
+    stop_event = threading.Event()
+    fut = EXECUTOR.submit(_run_download, job.id, req, stop_event)
+    with RUNNING_LOCK:
+        RUNNING[job.id] = (fut, stop_event)
     return EnqueueResponse(job_id=job.id)
 
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)
@@ -169,10 +200,25 @@ async def job_events(job_id: str, request: Request, session: Session = Depends(g
             if payload != last:
                 yield f"data: {payload}\n\n"
                 last = payload
-            if job.status in ("completed", "failed"):
+            if job.status in ("completed", "failed", "cancelled"):
                 break
             await asyncio.sleep(0.5)
     return StreamingResponse(eventgen(), media_type="text/event-stream")
+
+@app.delete("/jobs/{job_id}")
+def cancel_job(job_id: str):
+    """
+    Bricht einen laufenden/queued Job ab (best effort).
+    """
+    with RUNNING_LOCK:
+        item = RUNNING.get(job_id)
+    if not item:
+        # evtl. schon fertig/fehlgeschlagen/nicht vorhanden
+        return {"status": "not-running"}
+    fut, ev = item
+    ev.set()           # signalisiere Cancel
+    fut.cancel()       # falls noch nicht gestartet
+    return {"status": "cancelling"}
 
 if __name__ == "__main__":
     import uvicorn
