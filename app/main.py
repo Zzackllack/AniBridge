@@ -78,9 +78,13 @@ class JobStatusResponse(BaseModel):
 
 
 def _progress_updater(job_id: str, stop_event: threading.Event):
-    last = {"downloaded": 0, "total": 0, "speed": 0.0, "eta": 0}
+    from tqdm import tqdm
+    bar = None
     def _cb(d: dict):
+        nonlocal bar
         if stop_event.is_set():
+            if bar is not None:
+                bar.close()
             logger.warning(f"Job {job_id} cancelled by stop_event.")
             raise Exception("Cancelled")
         status = d.get("status")
@@ -96,26 +100,30 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
             except Exception as e:
                 logger.error(f"Progress calculation error: {e}")
 
-        if (
-            last["downloaded"] != downloaded or
-            last["total"] != total or
-            last["speed"] != speed or
-            last["eta"] != eta
-        ):
-            mb_speed = float(speed) / (1024 * 1024) if speed else 0.0
-            logger.info(f"[{job_id}] {progress:.2f}% {mb_speed:.2f} MB/s ETA {float(eta) if eta else 0:.2f}s")
-            last.update(downloaded=downloaded, total=total, speed=speed, eta=eta)
+        if bar is None and total:
+            bar_desc = f"Job {job_id}"
+            bar = tqdm(total=int(total), desc=bar_desc, unit="B", unit_scale=True, leave=True)
+        if bar is not None:
+            bar.n = downloaded
+            bar.set_postfix({"Speed": f"{float(speed)/(1024*1024):.2f} MB/s" if speed else "-", "ETA": f"{float(eta):.2f}s" if eta else "-"})
+            bar.refresh()
 
-        with Session(engine) as s:
-            db_update_job(
-                s, job_id,
-                status="downloading" if status != "finished" else "downloading",
-                downloaded_bytes=downloaded,
-                total_bytes=int(total) if total else None,
-                speed=float(speed) if speed else None,
-                eta=int(eta) if eta else None,
-                progress=progress,
-            )
+        # Only update job in DB every 1% or on finish
+        if bar is not None and (bar.n == bar.total or bar.n % max(1, bar.total // 100) == 0):
+            with Session(engine) as s:
+                db_update_job(
+                    s, job_id,
+                    status="downloading" if status != "finished" else "downloading",
+                    downloaded_bytes=downloaded,
+                    total_bytes=int(total) if total else None,
+                    speed=float(speed) if speed else None,
+                    eta=int(eta) if eta else None,
+                    progress=progress,
+                )
+        if status == "finished" and bar is not None:
+            bar.n = bar.total
+            bar.refresh()
+            bar.close()
     return _cb
 
 
@@ -138,6 +146,7 @@ def _run_download(job_id: str, req: DownloadRequest, stop_event: threading.Event
             stop_event=stop_event,
         )
 
+        # Only log and update job once after process finishes
         logger.success(f"Download job {job_id} completed. File: {dest}")
         with Session(engine) as s:
             db_update_job(s, job_id, status="completed", progress=100.0, result_path=str(dest))

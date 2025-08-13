@@ -117,6 +117,9 @@ def _ydl_download(
         "quiet": True,
         "noprogress": True,  # CLI-Progress aus, wir nutzen hooks
         "merge_output_format": "mkv",
+        "fragment_retries": 9999,  # Use large int, not string
+        "downloader": "ffmpeg",  # Force ffmpeg for HLS
+        "hls_use_mpegts": True,   # Recommended for HLS
     }
 
     def _compound_hook(d: dict):
