@@ -1,4 +1,11 @@
 from __future__ import annotations
+import sys
+import os
+from loguru import logger
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+logger.remove()
+logger.add(sys.stdout, level=LOG_LEVEL, colorize=True, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
+
 from typing import Dict, Optional, Tuple
 from pathlib import Path
 from functools import lru_cache
@@ -20,7 +27,9 @@ def _extract_slug(href: str) -> Optional[str]:
     m = HREF_RE.search(href or "")
     return m.group(1) if m else None
 
+
 def build_index_from_html(html_text: str) -> Dict[str, str]:
+    logger.info("Building index from HTML text.")
     soup = BeautifulSoup(html_text, "html.parser")
     result: Dict[str, str] = {}
     for a in soup.find_all("a"):
@@ -31,6 +40,7 @@ def build_index_from_html(html_text: str) -> Dict[str, str]:
         title = (a.get_text() or "").strip()
         if title:
             result[slug] = title
+    logger.success(f"Built index with {len(result)} entries.")
     return result
 
 # -------- Live-Fetch + Cache --------

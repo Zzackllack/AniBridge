@@ -1,4 +1,11 @@
 from __future__ import annotations
+import sys
+import os
+from loguru import logger
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+logger.remove()
+logger.add(sys.stdout, level=LOG_LEVEL, colorize=True, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
+
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any
 import json
@@ -14,17 +21,22 @@ LANG_TAG_MAP = {
     "English Sub": "ENG.SUB",
 }
 
+
 def _safe_component(s: str) -> str:
-    # Nur [A-Za-z0-9] und '.' verwenden; alles andere durch '.' ersetzen und Punkte zusammenfassen
+    logger.debug(f"Sanitizing component: {s}")
     s = re.sub(r"[^A-Za-z0-9]+", ".", s.strip())
     s = re.sub(r"\.+", ".", s).strip(".")
+    logger.debug(f"Sanitized component: {s}")
     return s
 
+
 def _series_component(display_title: str) -> str:
-    # Szenetypisch: Spaces → '.', Sonderzeichen raus
+    logger.debug(f"Building series component from display_title: {display_title}")
     return _safe_component(display_title)
 
+
 def _map_codec_name(vcodec: Optional[str]) -> str:
+    logger.debug(f"Mapping codec name: {vcodec}")
     if not vcodec:
         return "H264"
     v = vcodec.lower()
@@ -34,10 +46,11 @@ def _map_codec_name(vcodec: Optional[str]) -> str:
         return "AV1"
     if "vp9" in v:
         return "VP9"
-    # viele Hosts nennen H.264 "h264", "avc1", "h264 (avc1)" etc.
     return "H264"
 
+
 def _map_height_to_quality(height: Optional[int]) -> str:
+    logger.debug(f"Mapping height to quality: {height}")
     if not height:
         return "SD"
     if height >= 2160:
@@ -52,7 +65,9 @@ def _map_height_to_quality(height: Optional[int]) -> str:
         return "480p"
     return "SD"
 
+
 def _probe_with_ffprobe(path: Path) -> Tuple[Optional[int], Optional[str]]:
+    logger.info(f"Probing file with ffprobe: {path}")
     try:
         args = [
             "ffprobe",
@@ -66,18 +81,20 @@ def _probe_with_ffprobe(path: Path) -> Tuple[Optional[int], Optional[str]]:
         data = json.loads(res.stdout or "{}")
         streams = (data.get("streams") or [])
         if not streams:
+            logger.warning(f"No streams found in ffprobe output for {path}")
             return (None, None)
         st = streams[0]
         height = st.get("height")
         vcodec = st.get("codec_name")
+        logger.debug(f"ffprobe result: height={height}, vcodec={vcodec}")
         return (int(height) if height else None, str(vcodec) if vcodec else None)
-    except Exception:
+    except Exception as e:
+        logger.error(f"ffprobe failed for {path}: {e}")
         return (None, None)
 
+
 def quality_from_info(info: Dict[str, Any]) -> Tuple[Optional[int], Optional[str]]:
-    """
-    Versucht, aus yt-dlp info passende Höhe (px) und vcodec zu ziehen.
-    """
+    logger.debug(f"Extracting quality from info dict: {info}")
     height = None
     vcodec = None
 
@@ -105,7 +122,9 @@ def quality_from_info(info: Dict[str, Any]) -> Tuple[Optional[int], Optional[str
             height = height or best.get("height")
             vcodec = vcodec or best.get("vcodec")
 
+    logger.debug(f"Extracted: height={height}, vcodec={vcodec}")
     return (int(height) if height else None, str(vcodec) if vcodec else None)
+
 
 def build_release_name(
     *,
@@ -118,18 +137,18 @@ def build_release_name(
     source_tag: str = SOURCE_TAG,
     release_group: str = RELEASE_GROUP,
 ) -> str:
+    logger.info(f"Building release name for series_title={series_title}, season={season}, episode={episode}, height={height}, vcodec={vcodec}, language={language}")
     series_part = _series_component(series_title)
     se_part = f"S{int(season):02d}E{int(episode):02d}" if (season is not None and episode is not None) else ""
     qual_part = _map_height_to_quality(height)
     codec_part = _map_codec_name(vcodec)
     lang_part = LANG_TAG_MAP.get(language, _safe_component(language))
 
-    # Standard-Reihenfolge & Release-Group am Ende mit '-'
-    # Beispiel: Series.S01E01.1080p.WEB.H264.GER-ANIWORLD
     base = ".".join([p for p in [series_part, se_part, qual_part, source_tag, codec_part, lang_part] if p])
     group = release_group.strip()
     if group:
         base = f"{base}-{group.upper()}"
+    logger.success(f"Release name built: {base}")
     return base
 
 def rename_to_release(
@@ -141,12 +160,12 @@ def rename_to_release(
     episode: Optional[int],
     language: str,
 ) -> Path:
+    logger.info(f"Renaming file to release schema: {path}")
     # 1) Serien-Titel bestimmen
     display_title = None
     if slug:
         display_title = resolve_series_title(slug)
     if not display_title and slug:
-        # Fallback: slug "demon-slayer-kimetsu-no-yaiba" → "Demon Slayer Kimetsu no Yaiba"
         display_title = slug.replace("-", " ").title()
     if not display_title:
         display_title = "Episode"
@@ -156,7 +175,6 @@ def rename_to_release(
     if info:
         h, vc = quality_from_info(info)
     if not h or not vc:
-        # ffprobe-Fallback auf fertige Datei
         hh, vcc = _probe_with_ffprobe(path)
         h = h or hh
         vc = vc or vcc
@@ -172,7 +190,6 @@ def rename_to_release(
     )
 
     new_path = path.with_name(f"{release}{path.suffix.lower()}")
-    # Falls Zielname belegt ist, hänge eine Zahl an
     if new_path.exists() and new_path != path:
         i = 2
         base = new_path.stem
@@ -181,5 +198,8 @@ def rename_to_release(
             i += 1
 
     if new_path != path:
+        logger.info(f"Renaming {path} to {new_path}")
         path.rename(new_path)
+    else:
+        logger.info(f"No rename needed for {path}")
     return new_path

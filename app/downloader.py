@@ -1,8 +1,15 @@
+import os
+import sys
 from pathlib import Path
 from typing import Optional, Literal, Callable, Tuple, Dict, Any, List
 import re
 import threading
 import yt_dlp
+from loguru import logger
+
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+logger.remove()
+logger.add(sys.stdout, level=LOG_LEVEL, colorize=True, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
 
 # Lib-API laut Doku:
 # from aniworld.models import Anime, Episode
@@ -20,7 +27,10 @@ class DownloadError(Exception):
     pass
 
 def _sanitize_filename(name: str) -> str:
-    return re.sub(r'[\\/:*?"<>|]+', "_", name).strip()
+    logger.debug(f"Sanitizing filename: {name}")
+    sanitized = re.sub(r'[\\/:*?"<>|]+', "_", name).strip()
+    logger.debug(f"Sanitized filename: {sanitized}")
+    return sanitized
 
 def build_episode(
     *,
@@ -29,27 +39,27 @@ def build_episode(
     season: Optional[int] = None,
     episode: Optional[int] = None
 ) -> Episode:
-    """
-    Entweder direkten Episoden-Link ODER (slug, season, episode) übergeben.
-    slug z.B. 'demon-slayer-kimetsu-no-yaiba'
-    """
+    logger.info(f"Building episode: link={link}, slug={slug}, season={season}, episode={episode}")
     if link:
+        logger.debug("Using direct link for episode.")
         return Episode(link=link)
     if slug and season and episode:
+        logger.debug("Using slug/season/episode for episode.")
         return Episode(slug=slug, season=season, episode=episode)
+    logger.error("Invalid episode parameters: must provide either link or (slug, season, episode).")
     raise ValueError("Provide either link OR (slug, season, episode).")
 
 def _try_get_direct(ep: Episode, provider_name: str, language: Language) -> Optional[str]:
-    """
-    Einzelnen Provider testen. Gibt URL oder None zurück.
-    """
+    logger.info(f"Trying provider '{provider_name}' for language '{language}'")
     try:
         url = ep.get_direct_link(provider_name, language)  # Lib-API
         if url:
+            logger.success(f"Found direct URL from provider '{provider_name}': {url}")
             return url
-    except Exception:
-        # still weiterprobieren
-        pass
+        else:
+            logger.warning(f"Provider '{provider_name}' returned no URL.")
+    except Exception as e:
+        logger.warning(f"Exception from provider '{provider_name}': {e}")
     return None
 
 def get_direct_url_with_fallback(
@@ -58,10 +68,7 @@ def get_direct_url_with_fallback(
     preferred: Optional[str],
     language: Language,
 ) -> Tuple[str, str]:
-    """
-    Liefert (direct_url, chosen_provider).
-    Reihenfolge: preferred -> ENV PROVIDER_ORDER (ohne Duplikate).
-    """
+    logger.info(f"Getting direct URL with fallback. Preferred: {preferred}, Language: {language}")
     tried: List[str] = []
 
     # preferred zuerst (wenn gesetzt)
@@ -71,6 +78,7 @@ def get_direct_url_with_fallback(
             tried.append(p)
             url = _try_get_direct(ep, p, language)
             if url:
+                logger.success(f"Using preferred provider '{p}'")
                 return url, p
 
     # dann global definierte Reihenfolge
@@ -80,9 +88,12 @@ def get_direct_url_with_fallback(
         tried.append(p)
         url = _try_get_direct(ep, p, language)
         if url:
+            logger.success(f"Using fallback provider '{p}'")
             return url, p
 
+    logger.error(f"No direct link found. Tried providers: {', '.join(tried) or 'none'}")
     raise DownloadError(f"No direct link found. Tried providers: {', '.join(tried) or 'none'}")
+
 
 def _ydl_download(
     direct_url: str,
@@ -93,13 +104,11 @@ def _ydl_download(
     progress_cb: Optional[ProgressCb] = None,
     stop_event: Optional[threading.Event] = None,
 ) -> Tuple[Path, Dict[str, Any]]:
-    """
-    Lädt mit yt-dlp und gibt (Dateipfad, info) zurück.
-    Cancel/Abbruch: wenn stop_event gesetzt wird, heben wir im Hook eine Exception aus.
-    """
+    logger.info(f"Starting yt-dlp download: url={direct_url}, dest_dir={dest_dir}, title_hint={title_hint}")
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     outtmpl = str(dest_dir / (_sanitize_filename(title_hint or "%(title)s") + ".%(ext)s"))
+    logger.debug(f"yt-dlp output template: {outtmpl}")
     ydl_opts: Dict[str, Any] = {
         "outtmpl": outtmpl,
         "retries": 5,
@@ -108,32 +117,37 @@ def _ydl_download(
         "quiet": True,
         "noprogress": True,  # CLI-Progress aus, wir nutzen hooks
         "merge_output_format": "mkv",
-        # Additional options for fragment reliability and concurrency
-
     }
 
     def _compound_hook(d: dict):
-        # Cancel?
         if stop_event is not None and stop_event.is_set():
-            # yt-dlp sauber abbrechen: Exception werfen
+            logger.warning("Download cancelled by stop_event.")
             raise DownloadError("Cancelled")
         if progress_cb:
             try:
                 progress_cb(d)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Progress callback exception: {e}")
 
     ydl_opts["progress_hooks"] = [_compound_hook]
 
     if cookiefile:
+        logger.info(f"Using cookiefile: {cookiefile}")
         ydl_opts["cookiefile"] = str(cookiefile)
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(direct_url, download=True)
-        if info is None:
-            raise DownloadError("yt-dlp did not return info dict.")
-        filename = ydl.prepare_filename(info)
-    return (Path(filename), info)
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(direct_url, download=True)
+            if info is None:
+                logger.error("yt-dlp did not return info dict.")
+                raise DownloadError("yt-dlp did not return info dict.")
+            filename = ydl.prepare_filename(info)
+            logger.success(f"Download finished: {filename}")
+        return (Path(filename), info)
+    except Exception as e:
+        logger.error(f"yt-dlp download failed: {e}")
+        raise
+
 
 def download_episode(
     *,
@@ -149,19 +163,18 @@ def download_episode(
     progress_cb: Optional[ProgressCb] = None,
     stop_event: Optional[threading.Event] = None,
 ) -> Path:
-    """
-    Parallele-safe: keine globalen Zustände, alles via Parameter.
-    stop_event erlaubt Cancel.
-    """
+    logger.info(f"Starting download_episode: link={link}, slug={slug}, season={season}, episode={episode}, provider={provider}, language={language}, dest_dir={dest_dir}")
     ep = build_episode(link=link, slug=slug, season=season, episode=episode)
 
     # Fallback-Strategie
     direct, chosen = get_direct_url_with_fallback(ep, preferred=provider, language=language)
+    logger.info(f"Chosen provider: {chosen}, direct URL: {direct}")
 
     # Sinnvolle Default-Benennung für den temporären Download
     base_hint = title_hint
     if not base_hint and slug and season and episode:
         base_hint = f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
+        logger.debug(f"Generated base_hint for filename: {base_hint}")
 
     temp_path, info = _ydl_download(
         direct,
@@ -172,7 +185,7 @@ def download_episode(
         stop_event=stop_event,
     )
 
-    # Nach dem Download: in Release-Schema umbenennen
+    logger.info(f"Download complete, renaming to release schema.")
     final_path = rename_to_release(
         path=temp_path,
         info=info,
@@ -181,4 +194,5 @@ def download_episode(
         episode=episode,
         language=language,
     )
+    logger.success(f"Final file path: {final_path}")
     return final_path

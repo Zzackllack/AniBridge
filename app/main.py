@@ -1,3 +1,10 @@
+import sys
+import os
+from loguru import logger
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+logger.remove()
+logger.add(sys.stdout, level=LOG_LEVEL, colorize=True, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
+
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -21,26 +28,28 @@ EXECUTOR: ThreadPoolExecutor | None = None
 RUNNING: dict[str, tuple[Future, threading.Event]] = {}
 RUNNING_LOCK = threading.Lock()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global EXECUTOR
-    # Startup
+    logger.info("Application startup: creating DB and thread pool executor.")
     create_db_and_tables()
     with Session(engine) as s:
         cleaned = cleanup_dangling_jobs(s)
         if cleaned:
-            print(f"[startup] Reset {cleaned} dangling jobs to 'failed'")
+            logger.info(f"Reset {cleaned} dangling jobs to 'failed'")
     EXECUTOR = ThreadPoolExecutor(max_workers=MAX_CONCURRENCY, thread_name_prefix="anibridge")
-    print(f"[startup] ThreadPoolExecutor started with max_workers={MAX_CONCURRENCY}")
+    logger.info(f"ThreadPoolExecutor started with max_workers={MAX_CONCURRENCY}")
     yield
     # Shutdown: Executor schließen, laufende Jobs canceln
+    logger.info("Application shutdown: cancelling running jobs and shutting down executor.")
     with RUNNING_LOCK:
         for job_id, (fut, ev) in RUNNING.items():
             ev.set()
         RUNNING.clear()
     if EXECUTOR:
         EXECUTOR.shutdown(wait=False, cancel_futures=True)
-        print("[shutdown] Executor shutdown requested")
+        logger.info("Executor shutdown requested")
 
 app = FastAPI(title="AniBridge-Minimal", lifespan=lifespan)
 
@@ -67,11 +76,12 @@ class JobStatusResponse(BaseModel):
     message: str | None = None
     result_path: str | None = None
 
+
 def _progress_updater(job_id: str, stop_event: threading.Event):
     last = {"downloaded": 0, "total": 0, "speed": 0.0, "eta": 0}
     def _cb(d: dict):
-        # Cancel frühzeitig?
         if stop_event.is_set():
+            logger.warning(f"Job {job_id} cancelled by stop_event.")
             raise Exception("Cancelled")
         status = d.get("status")
         downloaded = int(d.get("downloaded_bytes") or 0)
@@ -83,8 +93,8 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
         if total:
             try:
                 progress = max(0.0, min(100.0, downloaded / total * 100.0))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Progress calculation error: {e}")
 
         if (
             last["downloaded"] != downloaded or
@@ -93,7 +103,7 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
             last["eta"] != eta
         ):
             mb_speed = float(speed) / (1024 * 1024) if speed else 0.0
-            print(f"[{job_id}] {progress:.2f}% {mb_speed:.2f} MB/s ETA {float(eta) if eta else 0:.2f}s")
+            logger.info(f"[{job_id}] {progress:.2f}% {mb_speed:.2f} MB/s ETA {float(eta) if eta else 0:.2f}s")
             last.update(downloaded=downloaded, total=total, speed=speed, eta=eta)
 
         with Session(engine) as s:
@@ -108,7 +118,9 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
             )
     return _cb
 
+
 def _run_download(job_id: str, req: DownloadRequest, stop_event: threading.Event):
+    logger.info(f"Starting download job {job_id} with request: {req}")
     try:
         with Session(engine) as s:
             db_update_job(s, job_id, status="downloading", message=None)
@@ -126,9 +138,11 @@ def _run_download(job_id: str, req: DownloadRequest, stop_event: threading.Event
             stop_event=stop_event,
         )
 
+        logger.success(f"Download job {job_id} completed. File: {dest}")
         with Session(engine) as s:
             db_update_job(s, job_id, status="completed", progress=100.0, result_path=str(dest))
     except OSError as e:
+        logger.error(f"OSError in job {job_id}: {e}")
         with Session(engine) as s:
             if e.errno in (errno.EACCES, errno.EROFS):
                 db_update_job(s, job_id, status="failed", message=f"Download dir not writable: {e}")
@@ -140,10 +154,11 @@ def _run_download(job_id: str, req: DownloadRequest, stop_event: threading.Event
         if "Cancel" in msg or "cancel" in msg:
             status = "cancelled"
             msg = "Cancelled by user"
+        logger.error(f"Exception in job {job_id}: {msg}")
         with Session(engine) as s:
             db_update_job(s, job_id, status=status, message=msg)
     finally:
-        # aus RUNNING austragen
+        logger.info(f"Cleaning up job {job_id} from RUNNING registry.")
         with RUNNING_LOCK:
             RUNNING.pop(job_id, None)
 
@@ -220,7 +235,9 @@ def cancel_job(job_id: str):
     fut.cancel()       # falls noch nicht gestartet
     return {"status": "cancelling"}
 
+
 if __name__ == "__main__":
+    logger.info("Starting AniBridge FastAPI server...")
     import uvicorn
     uvicorn.run(
         "app.main:app",
