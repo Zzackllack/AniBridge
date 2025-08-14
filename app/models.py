@@ -1,7 +1,7 @@
 from __future__ import annotations
 import sys
 import os
-from typing import Optional, Literal, Generator, Any
+from typing import Optional, Literal, Generator, Any, List
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from pathlib import Path
@@ -23,11 +23,9 @@ from app.config import AVAILABILITY_TTL_HOURS
 
 JobStatus = Literal["queued", "downloading", "completed", "failed", "cancelled"]
 
-# ---- Datetime Helpers --------------------------------------------------------
 
-
+# ---- Datetime Helpers
 def utcnow() -> datetime:
-    # immer aware (UTC)
     return datetime.now(timezone.utc)
 
 
@@ -41,14 +39,11 @@ def as_aware_utc(dt: Optional[datetime]) -> datetime:
     if dt is None:
         return utcnow()
     if dt.tzinfo is None:
-        # alte/naive Werte; wir interpretieren sie als UTC
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
 
 
-# ---------------- Jobs (wie gehabt) ------------------------------------------
-
-
+# ---------------- Jobs
 class Job(SQLModel, table=True):
     id: str = Field(default_factory=lambda: uuid4().hex, primary_key=True, index=True)
     status: str = Field(default="queued", index=True)
@@ -64,9 +59,7 @@ class Job(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utcnow, index=True)
 
 
-# ---------------- Semi-Cache: Episode Availability ---------------------------
-
-
+# ---------------- Semi-Cache: Episode Availability
 class EpisodeAvailability(SQLModel, table=True):
     """
     Semi-Cache: pro (slug, season, episode, language) speichern wir:
@@ -80,28 +73,44 @@ class EpisodeAvailability(SQLModel, table=True):
     season: int = Field(primary_key=True)
     episode: int = Field(primary_key=True)
     language: str = Field(primary_key=True)
-
     available: bool = True
     height: Optional[int] = None
     vcodec: Optional[str] = None
     provider: Optional[str] = None
-
     checked_at: datetime = Field(default_factory=utcnow, index=True)
-
-    # Optional: zusätzliche Rohinfos (z. B. formats), falls du debug willst
     extra: Optional[dict] = Field(sa_column=Column(JSON), default=None)
 
     @property
     def is_fresh(self) -> bool:
         if AVAILABILITY_TTL_HOURS <= 0:
             return True
-        # robust gegen naive Datetimes
         age = as_aware_utc(utcnow()) - as_aware_utc(self.checked_at)
         return age <= timedelta(hours=AVAILABILITY_TTL_HOURS)
 
 
-# --- DB Bootstrap -------------------------------------------------------------
+# ---------------- qBittorrent-Shim: ClientTask
+class ClientTask(SQLModel, table=True):
+    """
+    Abbildung eines „Torrents“ (Magnet) auf unseren internen Job.
+    """
 
+    hash: str = Field(primary_key=True, index=True)  # entspricht btih (aus magnet xt)
+    name: str
+    slug: str
+    season: int
+    episode: int
+    language: str
+    job_id: Optional[str] = Field(default=None, index=True)
+    save_path: Optional[str] = None
+    category: Optional[str] = None
+    added_on: datetime = Field(default_factory=utcnow, index=True)
+    completion_on: Optional[datetime] = None
+    state: str = Field(
+        default="queued", index=True
+    )  # queued/downloading/paused/completed/error
+
+
+# --- DB Bootstrap
 DATA_DIR = Path("./data")
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 logger.debug(f"DATA_DIR for jobs DB: {DATA_DIR}")
@@ -123,7 +132,7 @@ def get_session() -> Generator[Session, None, None]:
         yield session
 
 
-# --- CRUD / Helpers ---
+# --- Jobs CRUD
 def create_job(session: Session) -> Job:
     logger.debug("Creating new job entry in DB.")
     job = Job()
@@ -168,9 +177,7 @@ def cleanup_dangling_jobs(session: Session) -> int:
     return len(rows)
 
 
-# --- Availability CRUD --------------------------------------------------------
-
-
+# --- Availability CRUD
 def upsert_availability(
     session: Session,
     *,
@@ -220,7 +227,7 @@ def get_availability(
 
 def list_available_languages_cached(
     session: Session, *, slug: str, season: int, episode: int
-) -> list[str]:
+) -> List[str]:
     rows = session.exec(
         select(EpisodeAvailability).where(
             (EpisodeAvailability.slug == slug)
@@ -229,8 +236,7 @@ def list_available_languages_cached(
             & (EpisodeAvailability.available == True)
         )
     ).all()
-    # Nur frische Einträge zählen (mit robuster TZ-Behandlung)
-    fresh_langs: list[str] = []
+    fresh_langs: List[str] = []
     for r in rows:
         try:
             if r.is_fresh:
@@ -241,3 +247,60 @@ def list_available_languages_cached(
                 f"Skipping stale/invalid availability row for {r.slug} S{r.season}E{r.episode} {r.language}: {e}"
             )
     return fresh_langs
+
+
+# --- ClientTask CRUD
+def upsert_client_task(
+    session: Session,
+    *,
+    hash: str,
+    name: str,
+    slug: str,
+    season: int,
+    episode: int,
+    language: str,
+    save_path: Optional[str],
+    category: Optional[str],
+    job_id: Optional[str],
+    state: str = "queued",
+) -> ClientTask:
+    rec = session.get(ClientTask, hash)
+    if rec is None:
+        rec = ClientTask(
+            hash=hash,
+            name=name,
+            slug=slug,
+            season=season,
+            episode=episode,
+            language=language,
+            save_path=save_path,
+            category=category,
+            job_id=job_id,
+            state=state,
+        )
+        session.add(rec)
+    else:
+        rec.name = name
+        rec.slug = slug
+        rec.season = season
+        rec.episode = episode
+        rec.language = language
+        rec.save_path = save_path
+        rec.category = category
+        rec.job_id = job_id
+        rec.state = state
+        session.add(rec)
+    session.commit()
+    session.refresh(rec)
+    return rec
+
+
+def get_client_task(session: Session, hash: str) -> Optional[ClientTask]:
+    return session.get(ClientTask, hash)
+
+
+def delete_client_task(session: Session, hash: str) -> None:
+    rec = session.get(ClientTask, hash)
+    if rec:
+        session.delete(rec)
+        session.commit()

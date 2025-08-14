@@ -4,8 +4,6 @@ from loguru import logger
 from dotenv import load_dotenv
 
 load_dotenv()
-
-
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logger.remove()
 logger.add(
@@ -26,14 +24,13 @@ import asyncio
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor, Future
 import threading
-
 from app.downloader import (
-    download_episode,
+    LanguageUnavailableError,
     Provider,
     Language,
-    LanguageUnavailableError,
+    download_episode,
 )
-from app.config import DOWNLOAD_DIR, MAX_CONCURRENCY
+from app.config import DOWNLOAD_DIR
 from app.models import (
     Job,
     get_session,
@@ -44,12 +41,10 @@ from app.models import (
     update_job as db_update_job,
     engine,
 )
-from app.torznab import router as torznab_router  # <-- NEU
-
-# ---- Thread-Pool und Cancel-Registry ----
-EXECUTOR: ThreadPoolExecutor | None = None
-RUNNING: dict[str, tuple[Future, threading.Event]] = {}
-RUNNING_LOCK = threading.Lock()
+from app.torznab import router as torznab_router
+from app.qbittorrent import router as qbittorrent_router
+from app.scheduler import init_executor, shutdown_executor, schedule_download
+from app.scheduler import RUNNING, RUNNING_LOCK
 
 
 @asynccontextmanager
@@ -61,28 +56,17 @@ async def lifespan(app: FastAPI):
         cleaned = cleanup_dangling_jobs(s)
         if cleaned:
             logger.info(f"Reset {cleaned} dangling jobs to 'failed'")
-    EXECUTOR = ThreadPoolExecutor(
-        max_workers=MAX_CONCURRENCY, thread_name_prefix="anibridge"
-    )
-    logger.info(f"ThreadPoolExecutor started with max_workers={MAX_CONCURRENCY}")
+    init_executor()
     yield
-    # Shutdown: Executor schließen, laufende Jobs canceln
-    logger.info(
-        "Application shutdown: cancelling running jobs and shutting down executor."
-    )
-    with RUNNING_LOCK:
-        for job_id, (fut, ev) in RUNNING.items():
-            ev.set()
-        RUNNING.clear()
-    if EXECUTOR:
-        EXECUTOR.shutdown(wait=False, cancel_futures=True)
-        logger.info("Executor shutdown requested")
+    shutdown_executor()
 
 
 app = FastAPI(title="AniBridge-Minimal", lifespan=lifespan)
-app.include_router(torznab_router)
+app.include_router(torznab_router)  # Torznab feed
+app.include_router(qbittorrent_router)  # qBittorrent shim
 
 
+# --- Legacy direct downloader endpoint (bleibt nutzbar)
 class DownloadRequest(BaseModel):
     link: str | None = Field(default=None)
     slug: str | None = Field(default=None)
@@ -242,15 +226,9 @@ async def _dummy(app: FastAPI):
 
 @app.post("/downloader/download", response_model=EnqueueResponse)
 def enqueue_download(req: DownloadRequest, session: Session = Depends(get_session)):
-    global EXECUTOR
-    if EXECUTOR is None:
-        raise HTTPException(status_code=500, detail="Executor not initialized")
-    job = create_job(session)
-    stop_event = threading.Event()
-    fut = EXECUTOR.submit(_run_download, job.id, req, stop_event)
-    with RUNNING_LOCK:
-        RUNNING[job.id] = (fut, stop_event)
-    return EnqueueResponse(job_id=job.id)
+    # nutzt gemeinsamen Scheduler
+    job_id = schedule_download(req.model_dump())
+    return EnqueueResponse(job_id=job_id)
 
 
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)

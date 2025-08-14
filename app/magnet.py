@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Dict
 from loguru import logger
 import os
 import sys
@@ -46,6 +47,25 @@ def build_magnet(
     }
     if provider:
         q["aw_provider"] = provider
-    # Reihenfolge festhalten
     qs = "&".join(f"{k}={urllib.parse.quote_plus(v)}" for k, v in q.items())
     return f"magnet:?{qs}"
+
+
+def parse_magnet(magnet: str) -> Dict[str, str]:
+    """
+    Extrahiert unsere Payload (aw_*), dn, xt.
+    """
+    if not magnet.startswith("magnet:?"):
+        raise ValueError("not a magnet")
+    qs = magnet[len("magnet:?") :]
+    params = urllib.parse.parse_qs(qs, keep_blank_values=False, strict_parsing=False)
+    flat: Dict[str, str] = {}
+    for k, v in params.items():
+        if not v:
+            continue
+        flat[k] = v[0]
+    # sanity
+    for req in ("dn", "xt", "aw_slug", "aw_s", "aw_e", "aw_lang"):
+        if req not in flat:
+            raise ValueError(f"missing magnet param: {req}")
+    return flat
