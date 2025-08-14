@@ -97,7 +97,9 @@ logger.debug(
 )
 
 # --- Torznab Test-Eintrag für t=search ohne q (Connectivity Check) ---
-TORZNAB_RETURN_TEST_RESULT = os.getenv("TORZNAB_RETURN_TEST_RESULT", "true").strip().lower() == "true"
+TORZNAB_RETURN_TEST_RESULT = (
+    os.getenv("TORZNAB_RETURN_TEST_RESULT", "true").strip().lower() == "true"
+)
 TORZNAB_TEST_TITLE = os.getenv("TORZNAB_TEST_TITLE", "AniBridge Connectivity Test")
 TORZNAB_TEST_SLUG = os.getenv("TORZNAB_TEST_SLUG", "connectivity-test")
 TORZNAB_TEST_SEASON = int(os.getenv("TORZNAB_TEST_SEASON", "1"))

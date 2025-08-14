@@ -22,7 +22,7 @@ from app.config import (
     TORZNAB_TEST_SLUG,
     TORZNAB_TEST_SEASON,
     TORZNAB_TEST_EPISODE,
-    TORZNAB_TEST_LANGUAGE
+    TORZNAB_TEST_LANGUAGE,
 )
 from app.magnet import build_magnet
 from app.models import (
