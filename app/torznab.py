@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional, List, Tuple
 import xml.etree.ElementTree as ET
+import os
+import sys
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import Response as FastAPIResponse
@@ -21,9 +23,16 @@ from app.naming import build_release_name
 from app.probe_quality import probe_episode_quality
 from app.title_resolver import load_or_refresh_index, resolve_series_title
 
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+logger.remove()
+logger.add(
+    sys.stdout,
+    level=LOG_LEVEL,
+    colorize=True,
+    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+)
 
 router = APIRouter(prefix="/torznab")
-
 
 SUPPORTED_PARAMS = "q,season,ep"
 
@@ -31,13 +40,17 @@ SUPPORTED_PARAMS = "q,season,ep"
 def _require_apikey(apikey: Optional[str]) -> None:
     if INDEXER_API_KEY:
         if not apikey or apikey != INDEXER_API_KEY:
+            logger.warning(f"API key missing or invalid: received '{apikey}'")
             raise HTTPException(status_code=401, detail="invalid apikey")
+    else:
+        logger.debug("No API key required for this instance.")
 
 
 def _rss_root() -> Tuple[ET.Element, ET.Element]:
     """
     returns (rss, channel)
     """
+    logger.debug("Building RSS root and channel elements.")
     rss = ET.Element("rss")
     rss.set("version", "2.0")
     rss.set("xmlns:torznab", "http://torznab.com/schemas/2015/feed")
@@ -49,6 +62,7 @@ def _rss_root() -> Tuple[ET.Element, ET.Element]:
 
 
 def _caps_xml() -> str:
+    logger.debug("Generating caps XML.")
     caps = ET.Element("caps")
 
     server = ET.SubElement(caps, "server")
@@ -72,7 +86,7 @@ def _caps_xml() -> str:
 
 
 def _normalize_tokens(s: str) -> List[str]:
-    # einfache Normalisierung für fuzzy-match
+    logger.debug(f"Normalizing tokens for string: '{s}'")
     return "".join(ch.lower() if ch.isalnum() else " " for ch in s).split()
 
 
@@ -80,6 +94,7 @@ def _slug_from_query(q: str) -> Optional[str]:
     """
     mappe Freitext q -> slug (über Title-Index)
     """
+    logger.debug(f"Resolving slug from query: '{q}'")
     index = load_or_refresh_index()  # slug -> display title
     q_tokens = set(_normalize_tokens(q))
     best_slug: Optional[str] = None
@@ -90,6 +105,12 @@ def _slug_from_query(q: str) -> Optional[str]:
         if inter > best_score:
             best_slug = slug
             best_score = inter
+    if best_slug:
+        logger.debug(
+            f"Best slug match for '{q}' is '{best_slug}' with score {best_score}"
+        )
+    else:
+        logger.warning(f"No slug match found for query: '{q}'")
     return best_slug
 
 
@@ -102,6 +123,9 @@ def _build_item(
     cat_id: int,
     guid_str: str,
 ) -> None:
+    logger.debug(
+        f"Building RSS item: title='{title}', guid='{guid_str}', magnet='{magnet}'"
+    )
     item = ET.SubElement(channel, "item")
     ET.SubElement(item, "title").text = title
     guid_el = ET.SubElement(item, "guid")
@@ -133,20 +157,30 @@ def torznab_api(
     limit: int = Query(default=50),
     session: Session = Depends(get_session),
 ) -> Response:
+    logger.info(
+        f"Received torznab API request: t={t}, q={q}, season={season}, ep={ep}, cat={cat}, offset={offset}, limit={limit}, apikey={apikey}"
+    )
     _require_apikey(apikey)
 
     if t == "caps":
+        logger.debug("Handling 'caps' request.")
         xml = _caps_xml()
+        logger.debug("Returning caps XML response.")
         return Response(content=xml, media_type="application/xml; charset=utf-8")
 
     if t != "tvsearch":
+        logger.error(f"Unknown 't' parameter value: '{t}'")
         raise HTTPException(status_code=400, detail="unknown t")
 
     # tvsearch: laut Spec brauchen wir (q + season + ep) (wir unterstützen keine tvdbid/rid/…)
     if not q or season is None or ep is None:
+        logger.warning(
+            f"Missing required tvsearch parameters: q={q}, season={season}, ep={ep}"
+        )
         # Leeres, aber valides RSS zurückgeben
         rss, _channel = _rss_root()
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
+        logger.debug("Returning empty RSS feed due to missing parameters.")
         return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
 
     # ab hier garantiert non-None:
@@ -154,13 +188,18 @@ def torznab_api(
     ep_i = int(ep)
     q_str = str(q)
 
+    logger.debug(
+        f"Searching for slug for query '{q_str}' (season={season_i}, ep={ep_i})"
+    )
     slug = _slug_from_query(q_str)
     if not slug:
+        logger.warning(f"No slug found for query '{q_str}'. Returning empty RSS feed.")
         rss, _channel = _rss_root()
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
         return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
 
     display_title = resolve_series_title(slug) or q_str
+    logger.debug(f"Resolved display title: '{display_title}' for slug '{slug}'")
 
     # Sprachen-Kandidaten aus Cache (frisch) oder Default-Set
     cached_langs = list_available_languages_cached(
@@ -169,48 +208,81 @@ def torznab_api(
     candidate_langs: List[str] = (
         cached_langs if cached_langs else ["German Dub", "German Sub", "English Sub"]
     )
+    logger.debug(
+        f"Candidate languages for slug '{slug}', season {season_i}, episode {ep_i}: {candidate_langs}"
+    )
 
     rss, channel = _rss_root()
     count = 0
     now = datetime.now(timezone.utc)
 
     for lang in candidate_langs:
+        logger.debug(f"Checking availability for language '{lang}'")
         # Cache-Eintrag je Sprache prüfen
-        rec = get_availability(
-            session, slug=slug, season=season_i, episode=ep_i, language=lang
-        )
+        try:
+            rec = get_availability(
+                session, slug=slug, season=season_i, episode=ep_i, language=lang
+            )
+        except Exception as e:
+            logger.error(
+                f"Error fetching availability for slug={slug}, season={season_i}, episode={ep_i}, language={lang}: {e}"
+            )
+            continue
+
         need_probe = True
         height: Optional[int] = None
         vcodec: Optional[str] = None
         prov_used: Optional[str] = None
 
         if rec and rec.is_fresh:
+            logger.debug(
+                f"Found fresh cache record for language '{lang}': available={rec.available}"
+            )
             if rec.available:
                 height = rec.height
                 vcodec = rec.vcodec
                 prov_used = rec.provider
                 need_probe = False
             else:
-                # Sprachlich nicht verfügbar -> nichts ausspielen
+                logger.info(
+                    f"Language '{lang}' not available for slug={slug}, season={season_i}, episode={ep_i}"
+                )
                 continue
 
         if need_probe:
-            available, h, vc, prov, _info = probe_episode_quality(
-                slug=slug, season=season_i, episode=ep_i, language=lang
+            logger.debug(
+                f"Probing episode quality for slug={slug}, season={season_i}, episode={ep_i}, language={lang}"
             )
-            upsert_availability(
-                session,
-                slug=slug,
-                season=season_i,
-                episode=ep_i,
-                language=lang,
-                available=available,
-                height=h,
-                vcodec=vc,
-                provider=prov,
-                extra=None,
-            )
+            try:
+                available, h, vc, prov, _info = probe_episode_quality(
+                    slug=slug, season=season_i, episode=ep_i, language=lang
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error probing episode quality for slug={slug}, season={season_i}, episode={ep_i}, language={lang}: {e}"
+                )
+                continue
+            try:
+                upsert_availability(
+                    session,
+                    slug=slug,
+                    season=season_i,
+                    episode=ep_i,
+                    language=lang,
+                    available=available,
+                    height=h,
+                    vcodec=vc,
+                    provider=prov,
+                    extra=None,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error upserting availability for slug={slug}, season={season_i}, episode={ep_i}, language={lang}: {e}"
+                )
             if not available:
+                logger.info(
+                    f"Language '{lang}' not available after probe for slug={slug}, season={season_i}, episode={ep_i}"
+                )
                 continue
             height, vcodec, prov_used = h, vc, prov
 
@@ -223,29 +295,42 @@ def torznab_api(
             vcodec=vcodec,
             language=lang,
         )
+        logger.debug(f"Built release title: '{release_title}'")
 
-        magnet = build_magnet(
-            title=release_title,
-            slug=slug,
-            season=season_i,
-            episode=ep_i,
-            language=lang,
-            provider=prov_used,
-        )
+        try:
+            magnet = build_magnet(
+                title=release_title,
+                slug=slug,
+                season=season_i,
+                episode=ep_i,
+                language=lang,
+                provider=prov_used,
+            )
+        except Exception as e:
+            logger.error(f"Error building magnet for release '{release_title}': {e}")
+            continue
+
         guid = f"aw:{slug}:s{season_i}e{ep_i}:{lang}"
 
-        _build_item(
-            channel=channel,
-            title=release_title,
-            magnet=magnet,
-            pubdate=now,
-            cat_id=TORZNAB_CAT_ANIME,
-            guid_str=guid,
-        )
+        try:
+            _build_item(
+                channel=channel,
+                title=release_title,
+                magnet=magnet,
+                pubdate=now,
+                cat_id=TORZNAB_CAT_ANIME,
+                guid_str=guid,
+            )
+        except Exception as e:
+            logger.error(f"Error building RSS item for release '{release_title}': {e}")
+            continue
 
         count += 1
+        logger.debug(f"Added item for language '{lang}'. Total count: {count}")
         if count >= max(1, int(limit)):
+            logger.info(f"Reached limit ({limit}). Stopping item generation.")
             break
 
     xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
+    logger.info(f"Returning RSS feed with {count} items.")
     return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
