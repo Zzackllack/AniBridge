@@ -22,6 +22,7 @@ CATEGORIES: dict[str, dict] = {
     "prowlarr": {"name": "prowlarr", "savePath": str(DOWNLOAD_DIR)}
 }
 
+
 # --- Auth endpoints (minimal)
 @router.post("/auth/login")
 def login(username: str = Form(default=""), password: str = Form(default="")):
@@ -41,6 +42,7 @@ def logout():
     logger.success("Logout successful, SID cookie deleted.")
     return resp
 
+
 @router.post("/torrents/createCategory")
 def torrents_create_category(
     category: str = Form(...),
@@ -52,12 +54,12 @@ def torrents_create_category(
     cat = category.strip()
     if not cat:
         raise HTTPException(status_code=400, detail="invalid category")
-    CATEGORIES[cat] = {
-        "name": cat,
-        "savePath": savePath or str(DOWNLOAD_DIR)
-    }
-    logger.info(f"Created category '{cat}' with savePath='{CATEGORIES[cat]['savePath']}'")
+    CATEGORIES[cat] = {"name": cat, "savePath": savePath or str(DOWNLOAD_DIR)}
+    logger.info(
+        f"Created category '{cat}' with savePath='{CATEGORIES[cat]['savePath']}'"
+    )
     return PlainTextResponse("Ok.")
+
 
 @router.post("/torrents/editCategory")
 def torrents_edit_category(
@@ -91,26 +93,32 @@ def torrents_remove_categories(categories: str = Form(...)):
     logger.info(f"Removed {count} categories")
     return PlainTextResponse("Ok.")
 
+
 @router.get("/app/version")
 def app_version():
     logger.debug("App version requested.")
     return PlainTextResponse("4.6.0")
+
 
 @router.get("/app/webapiVersion")
 def webapi_version():
     logger.debug("WebAPI version requested.")
     return PlainTextResponse("2.8.18")
 
+
 @router.get("/app/buildInfo")
 def app_build_info():
     logger.debug("App build info requested.")
-    return JSONResponse({
-        "qt": "5.15.2",
-        "libtorrent": "2.0.9",
-        "boost": "1.78.0",
-        "openssl": "3.0.0",
-        "bitness": 64
-    })
+    return JSONResponse(
+        {
+            "qt": "5.15.2",
+            "libtorrent": "2.0.9",
+            "boost": "1.78.0",
+            "openssl": "3.0.0",
+            "bitness": 64,
+        }
+    )
+
 
 @router.get("/app/preferences")
 def app_preferences():
@@ -120,30 +128,30 @@ def app_preferences():
     Werte sind largely kosmetisch; wichtig ist ein gültiges JSON mit save_path.
     """
     logger.debug("App preferences requested.")
-    return JSONResponse({
-        # Pfade/Download-Verhalten
-        "save_path": str(DOWNLOAD_DIR),
-        "temp_path_enabled": False,
-        "temp_path": "",
-        "create_subfolder_enabled": True,
-        "start_paused_enabled": False,
-        "auto_tmm_enabled": False,
-        "disable_auto_tmm_by_default": True,
+    return JSONResponse(
+        {
+            # Pfade/Download-Verhalten
+            "save_path": str(DOWNLOAD_DIR),
+            "temp_path_enabled": False,
+            "temp_path": "",
+            "create_subfolder_enabled": True,
+            "start_paused_enabled": False,
+            "auto_tmm_enabled": False,
+            "disable_auto_tmm_by_default": True,
+            # Kategorien-Verhalten (wir liefern Kategorien separat unter /torrents/categories)
+            "torrent_content_layout": 0,  # 0=Original, 1=Create subfolder, 2=NoSubfolder (ab qB 4.3.2)
+            # Netzwerk/BT (Dummy-Werte, aber plausibel)
+            "listen_port": 6881,
+            "dht": True,
+            "pex": True,
+            "lsd": True,
+            # UI/sonstiges (irrelevant für Prowlarr, aber harmless)
+            "web_ui_clickjacking_protection_enabled": True,
+            "web_ui_csrf_protection_enabled": True,
+            "web_ui_username": "admin",
+        }
+    )
 
-        # Kategorien-Verhalten (wir liefern Kategorien separat unter /torrents/categories)
-        "torrent_content_layout": 0,  # 0=Original, 1=Create subfolder, 2=NoSubfolder (ab qB 4.3.2)
-
-        # Netzwerk/BT (Dummy-Werte, aber plausibel)
-        "listen_port": 6881,
-        "dht": True,
-        "pex": True,
-        "lsd": True,
-
-        # UI/sonstiges (irrelevant für Prowlarr, aber harmless)
-        "web_ui_clickjacking_protection_enabled": True,
-        "web_ui_csrf_protection_enabled": True,
-        "web_ui_username": "admin",
-    })
 
 @router.get("/torrents/categories")
 def torrents_categories():
@@ -192,15 +200,17 @@ def sync_maindata(session: Session = Depends(get_session)):
         }
 
     # rid kann einfach monoton sein; hier statisch/inkrementell nicht nötig
-    return JSONResponse({
-        "rid": 1,
-        "server_state": {
-            "connection_status": "connected",
-            "dht_nodes": 1,
-        },
-        "torrents": torrents,
-        "categories": CATEGORIES,
-    })
+    return JSONResponse(
+        {
+            "rid": 1,
+            "server_state": {
+                "connection_status": "connected",
+                "dht_nodes": 1,
+            },
+            "torrents": torrents,
+            "categories": CATEGORIES,
+        }
+    )
 
 
 # --- Torrents API (Subset)
