@@ -48,4 +48,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run main.py
-        run: python -m app.main
+        run: |
+          python -m app.main &
+          sleep 2
+          curl -s http://localhost:8000/health
