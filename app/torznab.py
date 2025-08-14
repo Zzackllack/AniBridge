@@ -11,7 +11,13 @@ from fastapi.responses import Response as FastAPIResponse
 from loguru import logger
 from sqlmodel import Session
 
-from app.config import INDEXER_API_KEY, INDEXER_NAME, TORZNAB_CAT_ANIME
+from app.config import (
+    INDEXER_API_KEY,
+    INDEXER_NAME,
+    TORZNAB_CAT_ANIME,
+    TORZNAB_FAKE_SEEDERS,
+    TORZNAB_FAKE_LEECHERS,
+)
 from app.magnet import build_magnet
 from app.models import (
     get_session,
@@ -114,6 +120,12 @@ def _slug_from_query(q: str) -> Optional[str]:
     return best_slug
 
 
+def _add_torznab_attr(item: ET.Element, name: str, value: str) -> None:
+    attr = ET.SubElement(item, "{http://torznab.com/schemas/2015/feed}attr")
+    attr.set("name", name)
+    attr.set("value", value)
+
+
 def _build_item(
     *,
     channel: ET.Element,
@@ -139,9 +151,24 @@ def _build_item(
     enc = ET.SubElement(item, "enclosure")
     enc.set("url", magnet)
     enc.set("type", "application/x-bittorrent")
-    tor_attr = ET.SubElement(item, "{http://torznab.com/schemas/2015/feed}attr")
-    tor_attr.set("name", "magneturl")
-    tor_attr.set("value", magnet)
+
+    # torznab attrs
+    _add_torznab_attr(item, "magneturl", magnet)
+
+    # Fake Seed-/Leech-Werte (per ENV konfigurierbar)
+    seeders = max(0, int(TORZNAB_FAKE_SEEDERS))
+    leechers = max(0, int(TORZNAB_FAKE_LEECHERS))
+    peers = seeders + leechers
+
+    _add_torznab_attr(item, "seeders", str(seeders))
+    _add_torznab_attr(item, "peers", str(peers))        # viele Indexer setzen peers=seed+leech
+    _add_torznab_attr(item, "leechers", str(leechers))  # einige Apps schauen explizit hierauf
+
+    # Optional sinnvoll:
+    # - downloadvolumefactor 0 => zählt nicht gegen Ratio bei Seedbox-Trackern,
+    #   hier aber optional, da wir kein echtes Torrent-Netz haben.
+    # _add_torznab_attr(item, "downloadvolumefactor", "0")
+    # _add_torznab_attr(item, "uploadvolumefactor", "1")
 
 
 @router.get("/api", response_class=FastAPIResponse)

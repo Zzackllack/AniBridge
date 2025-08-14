@@ -19,6 +19,8 @@ services:
       - INDEXER_API_KEY=devkey
       - TORZNAB_CAT_ANIME=5070
       - AVAILABILITY_TTL_HOURS=1
+      - TORZNAB_FAKE_SEEDERS=999
+      - TORZNAB_FAKE_LEECHERS=787
       - PYTHONUNBUFFERED=1
     volumes:
       - ./data:/app/data
