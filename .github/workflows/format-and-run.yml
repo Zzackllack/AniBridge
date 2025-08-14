@@ -11,7 +11,8 @@ on:
       - "requirements.txt"
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   format:
@@ -20,6 +21,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -31,3 +34,10 @@ jobs:
           pip install black
       - name: Run Black formatter
         run: black app
+      - name: Commit and push changes
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add app
+          git commit -m "Format Python code with Black" || echo "No changes to commit"
+          git push

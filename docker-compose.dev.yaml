@@ -21,6 +21,12 @@ services:
       - AVAILABILITY_TTL_HOURS=1
       - TORZNAB_FAKE_SEEDERS=999
       - TORZNAB_FAKE_LEECHERS=787
+      - TORZNAB_RETURN_TEST_RESULT=true
+      - TORZNAB_TEST_TITLE=AniBridge Connectivity Test
+      - TORZNAB_TEST_SLUG=connectivity-test
+      - TORZNAB_TEST_SEASON=1
+      - TORZNAB_TEST_EPISODE=1
+      - TORZNAB_TEST_LANGUAGE=German Dub
       - PYTHONUNBUFFERED=1
     volumes:
       - ./data:/app/data

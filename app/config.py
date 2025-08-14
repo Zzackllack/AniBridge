@@ -95,3 +95,11 @@ TORZNAB_FAKE_LEECHERS = int(os.getenv("TORZNAB_FAKE_LEECHERS", "787"))
 logger.debug(
     f"TORZNAB_FAKE_SEEDERS={TORZNAB_FAKE_SEEDERS}, TORZNAB_FAKE_LEECHERS={TORZNAB_FAKE_LEECHERS}"
 )
+
+# --- Torznab Test-Eintrag für t=search ohne q (Connectivity Check) ---
+TORZNAB_RETURN_TEST_RESULT = os.getenv("TORZNAB_RETURN_TEST_RESULT", "true").strip().lower() == "true"
+TORZNAB_TEST_TITLE = os.getenv("TORZNAB_TEST_TITLE", "AniBridge Connectivity Test")
+TORZNAB_TEST_SLUG = os.getenv("TORZNAB_TEST_SLUG", "connectivity-test")
+TORZNAB_TEST_SEASON = int(os.getenv("TORZNAB_TEST_SEASON", "1"))
+TORZNAB_TEST_EPISODE = int(os.getenv("TORZNAB_TEST_EPISODE", "1"))
+TORZNAB_TEST_LANGUAGE = os.getenv("TORZNAB_TEST_LANGUAGE", "German Dub")

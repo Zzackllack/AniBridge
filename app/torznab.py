@@ -17,6 +17,12 @@ from app.config import (
     TORZNAB_CAT_ANIME,
     TORZNAB_FAKE_SEEDERS,
     TORZNAB_FAKE_LEECHERS,
+    TORZNAB_RETURN_TEST_RESULT,
+    TORZNAB_TEST_TITLE,
+    TORZNAB_TEST_SLUG,
+    TORZNAB_TEST_SEASON,
+    TORZNAB_TEST_EPISODE,
+    TORZNAB_TEST_LANGUAGE
 )
 from app.magnet import build_magnet
 from app.models import (
@@ -204,8 +210,37 @@ def torznab_api(
     # Prowlarr nutzt das für den Connectivity-Check: t=search&extended=1
     # Wir liefern dafür einfach ein leeres, aber valides RSS zurück (200 OK).
     if t == "search":
-        rss, _channel = _rss_root()
+        logger.debug("Handling 'search' request.")
+        rss, channel = _rss_root()
+        q_str = (q or "").strip()
+        logger.debug(f"Search query string: '{q_str}'")
+
+        if not q_str and TORZNAB_RETURN_TEST_RESULT:
+            logger.debug("Returning synthetic test result for empty query.")
+            # synthetisches Test-Ergebnis zurückgeben
+            release_title = TORZNAB_TEST_TITLE
+            magnet = build_magnet(
+                title=release_title,
+                slug=TORZNAB_TEST_SLUG,
+                season=TORZNAB_TEST_SEASON,
+                episode=TORZNAB_TEST_EPISODE,
+                language=TORZNAB_TEST_LANGUAGE,
+                provider=None,
+            )
+            guid = f"aw:{TORZNAB_TEST_SLUG}:s{TORZNAB_TEST_SEASON}e{TORZNAB_TEST_EPISODE}:{TORZNAB_TEST_LANGUAGE}"
+            now = datetime.now(timezone.utc)
+
+            _build_item(
+                channel=channel,
+                title=release_title,
+                magnet=magnet,
+                pubdate=now,
+                cat_id=TORZNAB_CAT_ANIME,
+                guid_str=guid,
+            )
+
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
+        logger.debug("Returning RSS feed for 'search' request.")
         return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
 
     # --- TVSEARCH ---
