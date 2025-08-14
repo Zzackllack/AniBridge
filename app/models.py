@@ -23,6 +23,7 @@ from app.config import AVAILABILITY_TTL_HOURS
 
 JobStatus = Literal["queued", "downloading", "completed", "failed", "cancelled"]
 
+
 # ---- Datetime Helpers
 def utcnow() -> datetime:
     logger.debug("utcnow() called.")
@@ -40,6 +41,7 @@ def as_aware_utc(dt: Optional[datetime]) -> datetime:
     logger.info("Datetime is aware, converting to UTC.")
     return dt.astimezone(timezone.utc)
 
+
 # ---------------- Jobs
 class Job(SQLModel, table=True):
     id: str = Field(default_factory=lambda: uuid4().hex, primary_key=True, index=True)
@@ -54,6 +56,7 @@ class Job(SQLModel, table=True):
 
     created_at: datetime = Field(default_factory=utcnow, index=True)
     updated_at: datetime = Field(default_factory=utcnow, index=True)
+
 
 # ---------------- Semi-Cache: Episode Availability
 class EpisodeAvailability(SQLModel, table=True):
@@ -78,13 +81,16 @@ class EpisodeAvailability(SQLModel, table=True):
 
     @property
     def is_fresh(self) -> bool:
-        logger.debug(f"Checking freshness for {self.slug} S{self.season}E{self.episode} {self.language}")
+        logger.debug(
+            f"Checking freshness for {self.slug} S{self.season}E{self.episode} {self.language}"
+        )
         if AVAILABILITY_TTL_HOURS <= 0:
             logger.info("AVAILABILITY_TTL_HOURS <= 0, always fresh.")
             return True
         age = as_aware_utc(utcnow()) - as_aware_utc(self.checked_at)
         logger.debug(f"Age of availability: {age}")
         return age <= timedelta(hours=AVAILABILITY_TTL_HOURS)
+
 
 # ---------------- qBittorrent-Shim: ClientTask
 class ClientTask(SQLModel, table=True):
@@ -107,6 +113,7 @@ class ClientTask(SQLModel, table=True):
         default="queued", index=True
     )  # queued/downloading/paused/completed/error
 
+
 # --- DB Bootstrap
 DATA_DIR = Path("./data")
 if not DATA_DIR.exists():
@@ -119,6 +126,7 @@ logger.debug(f"DATABASE_URL: {DATABASE_URL}")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 logger.debug("SQLModel engine created.")
 
+
 def create_db_and_tables() -> None:
     logger.debug("Creating DB and tables if not exist.")
     try:
@@ -126,6 +134,7 @@ def create_db_and_tables() -> None:
         logger.success("Database and tables created or already exist.")
     except Exception as e:
         logger.error(f"Error creating DB and tables: {e}")
+
 
 def get_session() -> Generator[Session, None, None]:
     logger.debug("Creating new DB session.")
@@ -136,6 +145,7 @@ def get_session() -> Generator[Session, None, None]:
     except Exception as e:
         logger.error(f"Error creating DB session: {e}")
         raise
+
 
 # --- Jobs CRUD
 def create_job(session: Session) -> Job:
@@ -151,6 +161,7 @@ def create_job(session: Session) -> Job:
         logger.error(f"Failed to create job: {e}")
         raise
 
+
 def get_job(session: Session, job_id: str) -> Optional[Job]:
     logger.debug(f"Fetching job {job_id} from DB.")
     job = session.get(Job, job_id)
@@ -159,6 +170,7 @@ def get_job(session: Session, job_id: str) -> Optional[Job]:
     else:
         logger.warning(f"Job {job_id} not found.")
     return job
+
 
 def update_job(session: Session, job_id: str, **fields: Any) -> Optional[Job]:
     logger.debug(f"Updating job {job_id} with fields {fields}")
@@ -180,6 +192,7 @@ def update_job(session: Session, job_id: str, **fields: Any) -> Optional[Job]:
         raise
     return job
 
+
 def cleanup_dangling_jobs(session: Session) -> int:
     logger.debug("Cleaning up dangling jobs (queued/downloading) on startup.")
     rows = session.exec(select(Job).where(Job.status.in_(["queued", "downloading"]))).all()  # type: ignore
@@ -194,6 +207,7 @@ def cleanup_dangling_jobs(session: Session) -> int:
     session.commit()
     logger.debug(f"Set {len(rows)} jobs to failed.")
     return len(rows)
+
 
 # --- Availability CRUD
 def upsert_availability(
@@ -238,11 +252,14 @@ def upsert_availability(
     try:
         session.commit()
         session.refresh(rec)
-        logger.success(f"Upserted availability for {slug} S{season}E{episode} {language}")
+        logger.success(
+            f"Upserted availability for {slug} S{season}E{episode} {language}"
+        )
     except Exception as e:
         logger.error(f"Failed to upsert availability: {e}")
         raise
     return rec
+
 
 def get_availability(
     session: Session, *, slug: str, season: int, episode: int, language: str
@@ -254,6 +271,7 @@ def get_availability(
     else:
         logger.warning("Availability record not found.")
     return rec
+
 
 def list_available_languages_cached(
     session: Session, *, slug: str, season: int, episode: int
@@ -281,6 +299,7 @@ def list_available_languages_cached(
             )
     logger.info(f"Available fresh languages: {fresh_langs}")
     return fresh_langs
+
 
 # --- ClientTask CRUD
 def upsert_client_task(
@@ -335,6 +354,7 @@ def upsert_client_task(
         raise
     return rec
 
+
 def get_client_task(session: Session, hash: str) -> Optional[ClientTask]:
     logger.debug(f"Fetching client task for hash {hash}")
     rec = session.get(ClientTask, hash)
@@ -343,6 +363,7 @@ def get_client_task(session: Session, hash: str) -> Optional[ClientTask]:
     else:
         logger.warning("Client task not found.")
     return rec
+
 
 def delete_client_task(session: Session, hash: str) -> None:
     logger.debug(f"Deleting client task for hash {hash}")

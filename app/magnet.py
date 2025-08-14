@@ -18,7 +18,9 @@ logger.add(
 
 
 def _hash_id(slug: str, season: int, episode: int, language: str) -> str:
-    logger.debug(f"Hashing ID with slug={slug}, season={season}, episode={episode}, language={language}")
+    logger.debug(
+        f"Hashing ID with slug={slug}, season={season}, episode={episode}, language={language}"
+    )
     h = hashlib.sha1(
         f"{slug}|{season}|{episode}|{language}".encode("utf-8")
     ).hexdigest()
@@ -38,7 +40,9 @@ def build_magnet(
     """
     Synthetischer Magnet mit notwendiger Payload für den Shim.
     """
-    logger.debug(f"Building magnet for title='{title}', slug='{slug}', season={season}, episode={episode}, language='{language}', provider='{provider}'")
+    logger.debug(
+        f"Building magnet for title='{title}', slug='{slug}', season={season}, episode={episode}, language='{language}', provider='{provider}'"
+    )
     xt = f"urn:btih:{_hash_id(slug, season, episode, language)}"
     q = {
         "xt": xt,

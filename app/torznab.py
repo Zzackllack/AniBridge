@@ -144,7 +144,9 @@ def _build_item(
     guid_el.set("isPermaLink", "false")
     guid_el.text = guid_str
     if pubdate:
-        ET.SubElement(item, "pubDate").text = pubdate.strftime("%a, %d %b %Y %H:%M:%S %z")
+        ET.SubElement(item, "pubDate").text = pubdate.strftime(
+            "%a, %d %b %Y %H:%M:%S %z"
+        )
     ET.SubElement(item, "category").text = str(cat_id)
     enc = ET.SubElement(item, "enclosure")
     enc.set("url", magnet)
@@ -159,8 +161,12 @@ def _build_item(
     peers = seeders + leechers
 
     _add_torznab_attr(item, "seeders", str(seeders))
-    _add_torznab_attr(item, "peers", str(peers))        # viele Indexer setzen peers=seed+leech
-    _add_torznab_attr(item, "leechers", str(leechers))  # einige Apps schauen explizit hierauf
+    _add_torznab_attr(
+        item, "peers", str(peers)
+    )  # viele Indexer setzen peers=seed+leech
+    _add_torznab_attr(
+        item, "leechers", str(leechers)
+    )  # einige Apps schauen explizit hierauf
 
     # Optional sinnvoll:
     # - downloadvolumefactor 0 => zählt nicht gegen Ratio bei Seedbox-Trackern,
@@ -255,7 +261,9 @@ def torznab_api(
         logger.debug(f"Checking availability for language '{lang}'")
         # Cache-Eintrag je Sprache prüfen
         try:
-            rec = get_availability(session, slug=slug, season=season_i, episode=ep_i, language=lang)
+            rec = get_availability(
+                session, slug=slug, season=season_i, episode=ep_i, language=lang
+            )
         except Exception as e:
             logger.error(
                 f"Error fetching availability for slug={slug}, season={season_i}, episode={ep_i}, language={lang}: {e}"

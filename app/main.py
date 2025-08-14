@@ -65,6 +65,7 @@ app = FastAPI(title="AniBridge-Minimal", lifespan=lifespan)
 app.include_router(torznab_router)  # Torznab feed
 app.include_router(qbittorrent_router)  # qBittorrent shim
 
+
 # Healthcheck endpoint for CI/CD and monitoring
 @app.get("/health")
 async def healthcheck():

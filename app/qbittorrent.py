@@ -84,7 +84,9 @@ def torrents_add(
     xt = payload["xt"]
     btih = xt.split(":")[-1].lower()
 
-    logger.info(f"Scheduling download for {name} (slug={slug}, season={season}, episode={episode}, lang={language})")
+    logger.info(
+        f"Scheduling download for {name} (slug={slug}, season={season}, episode={episode}, lang={language})"
+    )
     # Job anwerfen
     req = {"slug": slug, "season": season, "episode": episode, "language": language}
     job_id = schedule_download(req)
@@ -103,7 +105,9 @@ def torrents_add(
         job_id=job_id,
         state="queued" if paused else "downloading",
     )
-    logger.success(f"Torrent task upserted for hash={btih}, state={'queued' if paused else 'downloading'}")
+    logger.success(
+        f"Torrent task upserted for hash={btih}, state={'queued' if paused else 'downloading'}"
+    )
     return PlainTextResponse("Ok.")
 
 
@@ -136,7 +140,9 @@ def torrents_info(
             progress = (job.progress or 0.0) / 100.0
             dlspeed = int(job.speed or 0)
             eta = int(job.eta or 0)
-            logger.debug(f"Job {job.id}: status={job.status}, progress={progress}, speed={dlspeed}, eta={eta}")
+            logger.debug(
+                f"Job {job.id}: status={job.status}, progress={progress}, speed={dlspeed}, eta={eta}"
+            )
             if job.status == "completed":
                 state = "uploading"
             elif job.status == "failed":
