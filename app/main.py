@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor, Future
 import threading
 
-from app.downloader import download_episode, Provider, Language
+from app.downloader import download_episode, Provider, Language, LanguageUnavailableError
 from app.config import DOWNLOAD_DIR, MAX_CONCURRENCY
 from app.models import (
     Job, get_session, create_db_and_tables, cleanup_dangling_jobs,
@@ -27,7 +27,6 @@ from app.models import (
 EXECUTOR: ThreadPoolExecutor | None = None
 RUNNING: dict[str, tuple[Future, threading.Event]] = {}
 RUNNING_LOCK = threading.Lock()
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -59,7 +58,7 @@ class DownloadRequest(BaseModel):
     season: int | None = None
     episode: int | None = None
     provider: Provider | None = "VOE"
-    language: Language = "German Dub"
+    language: str = "German Dub"  # freie Eingabe, wird intern normalisiert
     title_hint: str | None = None
 
 class EnqueueResponse(BaseModel):
@@ -75,7 +74,6 @@ class JobStatusResponse(BaseModel):
     eta: int | None = None
     message: str | None = None
     result_path: str | None = None
-
 
 def _progress_updater(job_id: str, stop_event: threading.Event):
     from tqdm import tqdm
@@ -108,7 +106,7 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
             bar.set_postfix({"Speed": f"{float(speed)/(1024*1024):.2f} MB/s" if speed else "-", "ETA": f"{float(eta):.2f}s" if eta else "-"})
             bar.refresh()
 
-        # Only update job in DB every 1% or on finish
+        # throttle DB writes: etwa 1% Schritte
         if bar is not None and (bar.n == bar.total or bar.n % max(1, bar.total // 100) == 0):
             with Session(engine) as s:
                 db_update_job(
@@ -125,7 +123,6 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
             bar.refresh()
             bar.close()
     return _cb
-
 
 def _run_download(job_id: str, req: DownloadRequest, stop_event: threading.Event):
     logger.info(f"Starting download job {job_id} with request: {req}")
@@ -150,6 +147,14 @@ def _run_download(job_id: str, req: DownloadRequest, stop_event: threading.Event
         logger.success(f"Download job {job_id} completed. File: {dest}")
         with Session(engine) as s:
             db_update_job(s, job_id, status="completed", progress=100.0, result_path=str(dest))
+
+    except LanguageUnavailableError as le:
+        # klare, nutzerfreundliche Fehlermeldung
+        msg = f"Sprache nicht verfügbar: '{le.requested}'. Verfügbar: {', '.join(le.available) or '—'}"
+        logger.error(f"LanguageUnavailableError in job {job_id}: {msg}")
+        with Session(engine) as s:
+            db_update_job(s, job_id, status="failed", message=msg)
+
     except OSError as e:
         logger.error(f"OSError in job {job_id}: {e}")
         with Session(engine) as s:
@@ -157,6 +162,7 @@ def _run_download(job_id: str, req: DownloadRequest, stop_event: threading.Event
                 db_update_job(s, job_id, status="failed", message=f"Download dir not writable: {e}")
             else:
                 db_update_job(s, job_id, status="failed", message=str(e))
+
     except Exception as e:
         msg = str(e)
         status = "failed"
@@ -166,13 +172,19 @@ def _run_download(job_id: str, req: DownloadRequest, stop_event: threading.Event
         logger.error(f"Exception in job {job_id}: {msg}")
         with Session(engine) as s:
             db_update_job(s, job_id, status=status, message=msg)
+
     finally:
         logger.info(f"Cleaning up job {job_id} from RUNNING registry.")
         with RUNNING_LOCK:
             RUNNING.pop(job_id, None)
 
+@asynccontextmanager
+async def _dummy(app: FastAPI):
+    yield
+
 @app.post("/downloader/download", response_model=EnqueueResponse)
 def enqueue_download(req: DownloadRequest, session: Session = Depends(get_session)):
+    global EXECUTOR
     if EXECUTOR is None:
         raise HTTPException(status_code=500, detail="Executor not initialized")
     job = create_job(session)
@@ -237,13 +249,11 @@ def cancel_job(job_id: str):
     with RUNNING_LOCK:
         item = RUNNING.get(job_id)
     if not item:
-        # evtl. schon fertig/fehlgeschlagen/nicht vorhanden
         return {"status": "not-running"}
     fut, ev = item
-    ev.set()           # signalisiere Cancel
-    fut.cancel()       # falls noch nicht gestartet
+    ev.set()
+    fut.cancel()
     return {"status": "cancelling"}
-
 
 if __name__ == "__main__":
     logger.info("Starting AniBridge FastAPI server...")
