@@ -3,7 +3,13 @@ import os
 from loguru import logger
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logger.remove()
-logger.add(sys.stdout, level=LOG_LEVEL, colorize=True, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
+logger.add(
+    sys.stdout,
+    level=LOG_LEVEL,
+    colorize=True,
+    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
+           "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+)
 
 from pathlib import Path
 
@@ -58,3 +64,14 @@ MAX_CONCURRENCY = int(os.getenv("MAX_CONCURRENCY", "3"))
 if MAX_CONCURRENCY < 1:
     MAX_CONCURRENCY = 1
 logger.debug(f"MAX_CONCURRENCY={MAX_CONCURRENCY}")
+
+# ---- Torznab / Indexer-Konfiguration ----
+INDEXER_NAME = os.getenv("INDEXER_NAME", "AniBridge Torznab")
+# Optionaler API-Key; wenn gesetzt, muss ?apikey=... passen
+INDEXER_API_KEY = os.getenv("INDEXER_API_KEY", "").strip()
+# Kategorien-IDs (Torznab/Newznab) – 5070 = TV/Anime (de-facto-Standard)
+TORZNAB_CAT_ANIME = int(os.getenv("TORZNAB_CAT_ANIME", "5070"))
+
+# Availability TTL (Stunden) für Semi-Cache (Qualität & Sprache je Episode)
+AVAILABILITY_TTL_HOURS = float(os.getenv("AVAILABILITY_TTL_HOURS", "24"))
+logger.debug(f"AVAILABILITY_TTL_HOURS={AVAILABILITY_TTL_HOURS}")

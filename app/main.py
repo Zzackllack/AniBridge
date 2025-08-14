@@ -3,7 +3,9 @@ import os
 from loguru import logger
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logger.remove()
-logger.add(sys.stdout, level=LOG_LEVEL, colorize=True, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
+logger.add(sys.stdout, level=LOG_LEVEL, colorize=True,
+           format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
+                  "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.responses import StreamingResponse
@@ -22,6 +24,7 @@ from app.models import (
     Job, get_session, create_db_and_tables, cleanup_dangling_jobs,
     create_job, get_job as db_get_job, update_job as db_update_job, engine
 )
+from app.torznab import router as torznab_router  # <-- NEU
 
 # ---- Thread-Pool und Cancel-Registry ----
 EXECUTOR: ThreadPoolExecutor | None = None
@@ -51,6 +54,7 @@ async def lifespan(app: FastAPI):
         logger.info("Executor shutdown requested")
 
 app = FastAPI(title="AniBridge-Minimal", lifespan=lifespan)
+app.include_router(torznab_router) 
 
 class DownloadRequest(BaseModel):
     link: str | None = Field(default=None)
@@ -58,7 +62,7 @@ class DownloadRequest(BaseModel):
     season: int | None = None
     episode: int | None = None
     provider: Provider | None = "VOE"
-    language: str = "German Dub"  # freie Eingabe, wird intern normalisiert
+    language: Language = "German Dub"
     title_hint: str | None = None
 
 class EnqueueResponse(BaseModel):
@@ -99,8 +103,7 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
                 logger.error(f"Progress calculation error: {e}")
 
         if bar is None and total:
-            bar_desc = f"Job {job_id}"
-            bar = tqdm(total=int(total), desc=bar_desc, unit="B", unit_scale=True, leave=True)
+            bar = tqdm(total=int(total), desc=f"Job {job_id}", unit="B", unit_scale=True, leave=True)
         if bar is not None:
             bar.n = downloaded
             bar.set_postfix({"Speed": f"{float(speed)/(1024*1024):.2f} MB/s" if speed else "-", "ETA": f"{float(eta):.2f}s" if eta else "-"})
@@ -162,7 +165,6 @@ def _run_download(job_id: str, req: DownloadRequest, stop_event: threading.Event
                 db_update_job(s, job_id, status="failed", message=f"Download dir not writable: {e}")
             else:
                 db_update_job(s, job_id, status="failed", message=str(e))
-
     except Exception as e:
         msg = str(e)
         status = "failed"
@@ -172,7 +174,6 @@ def _run_download(job_id: str, req: DownloadRequest, stop_event: threading.Event
         logger.error(f"Exception in job {job_id}: {msg}")
         with Session(engine) as s:
             db_update_job(s, job_id, status=status, message=msg)
-
     finally:
         logger.info(f"Cleaning up job {job_id} from RUNNING registry.")
         with RUNNING_LOCK:
