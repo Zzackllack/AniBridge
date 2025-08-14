@@ -23,25 +23,22 @@ from app.config import AVAILABILITY_TTL_HOURS
 
 JobStatus = Literal["queued", "downloading", "completed", "failed", "cancelled"]
 
-
 # ---- Datetime Helpers
 def utcnow() -> datetime:
+    logger.debug("utcnow() called.")
     return datetime.now(timezone.utc)
 
 
 def as_aware_utc(dt: Optional[datetime]) -> datetime:
-    """
-    Normalisiert beliebige Datetimes zu aware/UTC.
-    - None -> utcnow()
-    - naive -> TZ auf UTC setzen (ohne Konvertierung, da naive!)
-    - aware -> nach UTC konvertieren
-    """
+    logger.debug(f"as_aware_utc() called with dt={dt}")
     if dt is None:
+        logger.info("Datetime is None, returning utcnow().")
         return utcnow()
     if dt.tzinfo is None:
+        logger.info("Datetime is naive, setting tzinfo to UTC.")
         return dt.replace(tzinfo=timezone.utc)
+    logger.info("Datetime is aware, converting to UTC.")
     return dt.astimezone(timezone.utc)
-
 
 # ---------------- Jobs
 class Job(SQLModel, table=True):
@@ -57,7 +54,6 @@ class Job(SQLModel, table=True):
 
     created_at: datetime = Field(default_factory=utcnow, index=True)
     updated_at: datetime = Field(default_factory=utcnow, index=True)
-
 
 # ---------------- Semi-Cache: Episode Availability
 class EpisodeAvailability(SQLModel, table=True):
@@ -82,11 +78,13 @@ class EpisodeAvailability(SQLModel, table=True):
 
     @property
     def is_fresh(self) -> bool:
+        logger.debug(f"Checking freshness for {self.slug} S{self.season}E{self.episode} {self.language}")
         if AVAILABILITY_TTL_HOURS <= 0:
+            logger.info("AVAILABILITY_TTL_HOURS <= 0, always fresh.")
             return True
         age = as_aware_utc(utcnow()) - as_aware_utc(self.checked_at)
+        logger.debug(f"Age of availability: {age}")
         return age <= timedelta(hours=AVAILABILITY_TTL_HOURS)
-
 
 # ---------------- qBittorrent-Shim: ClientTask
 class ClientTask(SQLModel, table=True):
@@ -109,9 +107,10 @@ class ClientTask(SQLModel, table=True):
         default="queued", index=True
     )  # queued/downloading/paused/completed/error
 
-
 # --- DB Bootstrap
 DATA_DIR = Path("./data")
+if not DATA_DIR.exists():
+    logger.info(f"Creating DATA_DIR at {DATA_DIR}")
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 logger.debug(f"DATA_DIR for jobs DB: {DATA_DIR}")
 DATABASE_URL = f"sqlite:///{(DATA_DIR / 'anibridge_jobs.db').as_posix()}"
@@ -120,33 +119,46 @@ logger.debug(f"DATABASE_URL: {DATABASE_URL}")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 logger.debug("SQLModel engine created.")
 
-
 def create_db_and_tables() -> None:
     logger.debug("Creating DB and tables if not exist.")
-    SQLModel.metadata.create_all(engine)
-
+    try:
+        SQLModel.metadata.create_all(engine)
+        logger.success("Database and tables created or already exist.")
+    except Exception as e:
+        logger.error(f"Error creating DB and tables: {e}")
 
 def get_session() -> Generator[Session, None, None]:
     logger.debug("Creating new DB session.")
-    with Session(engine) as session:
-        yield session
-
+    try:
+        with Session(engine) as session:
+            logger.debug("DB session created.")
+            yield session
+    except Exception as e:
+        logger.error(f"Error creating DB session: {e}")
+        raise
 
 # --- Jobs CRUD
 def create_job(session: Session) -> Job:
     logger.debug("Creating new job entry in DB.")
-    job = Job()
-    session.add(job)
-    session.commit()
-    session.refresh(job)
-    logger.success(f"Created job {job.id}")
-    return job
-
+    try:
+        job = Job()
+        session.add(job)
+        session.commit()
+        session.refresh(job)
+        logger.success(f"Created job {job.id}")
+        return job
+    except Exception as e:
+        logger.error(f"Failed to create job: {e}")
+        raise
 
 def get_job(session: Session, job_id: str) -> Optional[Job]:
     logger.debug(f"Fetching job {job_id} from DB.")
-    return session.get(Job, job_id)
-
+    job = session.get(Job, job_id)
+    if job:
+        logger.debug(f"Job {job_id} found.")
+    else:
+        logger.warning(f"Job {job_id} not found.")
+    return job
 
 def update_job(session: Session, job_id: str, **fields: Any) -> Optional[Job]:
     logger.debug(f"Updating job {job_id} with fields {fields}")
@@ -155,19 +167,26 @@ def update_job(session: Session, job_id: str, **fields: Any) -> Optional[Job]:
         logger.warning(f"Job {job_id} not found for update.")
         return None
     for k, v in fields.items():
+        logger.debug(f"Setting {k} to {v} for job {job_id}")
         setattr(job, k, v)
     job.updated_at = utcnow()
     session.add(job)
-    session.commit()
-    session.refresh(job)
-    logger.success(f"Updated job {job_id}")
+    try:
+        session.commit()
+        session.refresh(job)
+        logger.success(f"Updated job {job_id}")
+    except Exception as e:
+        logger.error(f"Failed to update job {job_id}: {e}")
+        raise
     return job
-
 
 def cleanup_dangling_jobs(session: Session) -> int:
     logger.debug("Cleaning up dangling jobs (queued/downloading) on startup.")
     rows = session.exec(select(Job).where(Job.status.in_(["queued", "downloading"]))).all()  # type: ignore
+    if not rows:
+        logger.info("No dangling jobs found to clean up.")
     for j in rows:
+        logger.info(f"Marking job {j.id} as failed due to restart.")
         j.status = "failed"
         j.message = "Interrupted by application restart"
         j.updated_at = utcnow()
@@ -175,7 +194,6 @@ def cleanup_dangling_jobs(session: Session) -> int:
     session.commit()
     logger.debug(f"Set {len(rows)} jobs to failed.")
     return len(rows)
-
 
 # --- Availability CRUD
 def upsert_availability(
@@ -191,8 +209,10 @@ def upsert_availability(
     provider: Optional[str],
     extra: Optional[dict] = None,
 ) -> EpisodeAvailability:
+    logger.debug(f"Upserting availability for {slug} S{season}E{episode} {language}")
     rec = session.get(EpisodeAvailability, (slug, season, episode, language))
     if rec is None:
+        logger.info("No existing availability record found, creating new.")
         rec = EpisodeAvailability(
             slug=slug,
             season=season,
@@ -207,6 +227,7 @@ def upsert_availability(
         )
         session.add(rec)
     else:
+        logger.info("Existing availability record found, updating.")
         rec.available = available
         rec.height = height
         rec.vcodec = vcodec
@@ -214,20 +235,30 @@ def upsert_availability(
         rec.extra = extra
         rec.checked_at = utcnow()
         session.add(rec)
-    session.commit()
-    session.refresh(rec)
+    try:
+        session.commit()
+        session.refresh(rec)
+        logger.success(f"Upserted availability for {slug} S{season}E{episode} {language}")
+    except Exception as e:
+        logger.error(f"Failed to upsert availability: {e}")
+        raise
     return rec
-
 
 def get_availability(
     session: Session, *, slug: str, season: int, episode: int, language: str
 ) -> Optional[EpisodeAvailability]:
-    return session.get(EpisodeAvailability, (slug, season, episode, language))
-
+    logger.debug(f"Fetching availability for {slug} S{season}E{episode} {language}")
+    rec = session.get(EpisodeAvailability, (slug, season, episode, language))
+    if rec:
+        logger.debug("Availability record found.")
+    else:
+        logger.warning("Availability record not found.")
+    return rec
 
 def list_available_languages_cached(
     session: Session, *, slug: str, season: int, episode: int
 ) -> List[str]:
+    logger.debug(f"Listing available cached languages for {slug} S{season}E{episode}")
     rows = session.exec(
         select(EpisodeAvailability).where(
             (EpisodeAvailability.slug == slug)
@@ -240,14 +271,16 @@ def list_available_languages_cached(
     for r in rows:
         try:
             if r.is_fresh:
+                logger.debug(f"Language {r.language} is fresh and available.")
                 fresh_langs.append(r.language)
+            else:
+                logger.info(f"Language {r.language} is stale.")
         except Exception as e:
-            # falls ein Alt-Datensatz Probleme macht: konservativ ignorieren
             logger.warning(
                 f"Skipping stale/invalid availability row for {r.slug} S{r.season}E{r.episode} {r.language}: {e}"
             )
+    logger.info(f"Available fresh languages: {fresh_langs}")
     return fresh_langs
-
 
 # --- ClientTask CRUD
 def upsert_client_task(
@@ -264,8 +297,10 @@ def upsert_client_task(
     job_id: Optional[str],
     state: str = "queued",
 ) -> ClientTask:
+    logger.debug(f"Upserting client task for hash {hash}")
     rec = session.get(ClientTask, hash)
     if rec is None:
+        logger.info("No existing client task found, creating new.")
         rec = ClientTask(
             hash=hash,
             name=name,
@@ -280,6 +315,7 @@ def upsert_client_task(
         )
         session.add(rec)
     else:
+        logger.info("Existing client task found, updating.")
         rec.name = name
         rec.slug = slug
         rec.season = season
@@ -290,17 +326,30 @@ def upsert_client_task(
         rec.job_id = job_id
         rec.state = state
         session.add(rec)
-    session.commit()
-    session.refresh(rec)
+    try:
+        session.commit()
+        session.refresh(rec)
+        logger.success(f"Upserted client task for hash {hash}")
+    except Exception as e:
+        logger.error(f"Failed to upsert client task: {e}")
+        raise
     return rec
 
-
 def get_client_task(session: Session, hash: str) -> Optional[ClientTask]:
-    return session.get(ClientTask, hash)
-
+    logger.debug(f"Fetching client task for hash {hash}")
+    rec = session.get(ClientTask, hash)
+    if rec:
+        logger.debug("Client task found.")
+    else:
+        logger.warning("Client task not found.")
+    return rec
 
 def delete_client_task(session: Session, hash: str) -> None:
+    logger.debug(f"Deleting client task for hash {hash}")
     rec = session.get(ClientTask, hash)
     if rec:
         session.delete(rec)
         session.commit()
+        logger.success(f"Deleted client task for hash {hash}")
+    else:
+        logger.warning(f"Client task for hash {hash} not found, nothing to delete.")

@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.log
+*.swp
+*.swo
+.DS_Store
+.git*
+.vscode
+.idea
+node_modules
+build
+dist
+downloads/
+.env*

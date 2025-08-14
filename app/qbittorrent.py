@@ -22,26 +22,32 @@ router = APIRouter(prefix="/api/v2")
 # --- Auth endpoints (minimal)
 @router.post("/auth/login")
 def login(username: str = Form(default=""), password: str = Form(default="")):
+    logger.info(f"Login attempt for user: {username}")
     # akzeptiere alles, setze Cookie wie qBittorrent
     resp = PlainTextResponse("Ok.")
     resp.set_cookie("SID", "anibridge", httponly=True)
+    logger.success("Login successful, SID cookie set.")
     return resp
 
 
 @router.post("/auth/logout")
 def logout():
+    logger.info("Logout requested.")
     resp = PlainTextResponse("Ok.")
     resp.delete_cookie("SID")
+    logger.success("Logout successful, SID cookie deleted.")
     return resp
 
 
 @router.get("/app/version")
 def app_version():
+    logger.debug("App version requested.")
     return PlainTextResponse("4.6.0")
 
 
 @router.get("/app/webapiVersion")
 def webapi_version():
+    logger.debug("WebAPI version requested.")
     return PlainTextResponse("2.8.18")
 
 
@@ -61,10 +67,13 @@ def torrents_add(
     """
     Sonarr postet magnet URL(s) hierhin.
     """
+    logger.info(f"Received request to add torrent(s): {urls}")
     if not urls:
+        logger.warning("No URLs provided in torrents_add.")
         raise HTTPException(status_code=400, detail="missing urls")
     # es können mehrere URLs kommen, wir nehmen die erste
     magnet = urls.splitlines()[0].strip()
+    logger.debug(f"Parsing magnet: {magnet}")
     payload = parse_magnet(magnet)
 
     slug = payload["aw_slug"]
@@ -75,9 +84,11 @@ def torrents_add(
     xt = payload["xt"]
     btih = xt.split(":")[-1].lower()
 
+    logger.info(f"Scheduling download for {name} (slug={slug}, season={season}, episode={episode}, lang={language})")
     # Job anwerfen
     req = {"slug": slug, "season": season, "episode": episode, "language": language}
     job_id = schedule_download(req)
+    logger.debug(f"Scheduled job_id: {job_id}")
 
     upsert_client_task(
         session,
@@ -92,7 +103,7 @@ def torrents_add(
         job_id=job_id,
         state="queued" if paused else "downloading",
     )
-
+    logger.success(f"Torrent task upserted for hash={btih}, state={'queued' if paused else 'downloading'}")
     return PlainTextResponse("Ok.")
 
 
@@ -105,12 +116,14 @@ def torrents_info(
     """
     Liefert Liste der „Torrents“ (ClientTasks) im qBittorrent-Format (Subset).
     """
+    logger.debug("Fetching torrents info.")
     # Wir geben alle zurück; Sonarr filtert clientseitig.
     # (Für echtes Filtering bräuchten wir eine Query/Migration; fürs MVP genügt das.)
     from sqlmodel import select
     from app.models import ClientTask
 
     rows = session.exec(select(ClientTask)).all()
+    logger.info(f"Found {len(rows)} client tasks in database.")
     out: List[dict] = []
     for r in rows:
         job = get_job(session, r.job_id) if r.job_id else None
@@ -123,8 +136,9 @@ def torrents_info(
             progress = (job.progress or 0.0) / 100.0
             dlspeed = int(job.speed or 0)
             eta = int(job.eta or 0)
+            logger.debug(f"Job {job.id}: status={job.status}, progress={progress}, speed={dlspeed}, eta={eta}")
             if job.status == "completed":
-                state = "uploading"  # qBittorrent nennt fertige oft 'uploading'/'stalledUP'; Sonarr reicht 'completed' nicht zwingend
+                state = "uploading"
             elif job.status == "failed":
                 state = "error"
             elif job.status == "cancelled":
@@ -150,6 +164,7 @@ def torrents_info(
                 "num_leechs": 0,
             }
         )
+    logger.success("Torrent info response generated.")
     return JSONResponse(out)
 
 
@@ -162,17 +177,21 @@ def torrents_delete(
     """
     Entfernt Einträge; bricht laufende Jobs ab.
     """
+    logger.info(f"Delete requested for hashes: {hashes}")
     for h in hashes.split("|"):
         h = h.strip().lower()
         rec = get_client_task(session, h)
         if rec and rec.job_id:
+            logger.debug(f"Cancelling job {rec.job_id} for hash {h}")
             cancel_job(rec.job_id)
         delete_client_task(session, h)
+        logger.success(f"Deleted client task for hash {h}")
     return PlainTextResponse("Ok.")
 
 
 @router.get("/transfer/info")
 def transfer_info():
+    logger.debug("Transfer info requested.")
     # Kann statisch sein; Sonarr nutzt es kaum.
     return JSONResponse(
         {

@@ -1,0 +1,65 @@
+version: "3.8"
+services:
+  anibridge:
+    build: .
+    container_name: anibridge-dev
+    ports:
+      - "8000:8000"
+    environment:
+      - LOG_LEVEL=DEBUG
+      - DOWNLOAD_DIR=/app/data/downloads/anime
+      - DATA_DIR=/app/data
+      - ANIWORLD_ALPHABET_URL=https://aniworld.to/animes-alphabet
+      - ANIWORLD_TITLES_REFRESH_HOURS=1
+      - SOURCE_TAG=WEB
+      - RELEASE_GROUP=aniworld
+      - PROVIDER_ORDER=VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza
+      - MAX_CONCURRENCY=3
+      - INDEXER_NAME=AniBridge Torznab
+      - INDEXER_API_KEY=devkey
+      - TORZNAB_CAT_ANIME=5070
+      - AVAILABILITY_TTL_HOURS=1
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test:
+        ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - sonarr
+      - prowlarr
+
+  sonarr:
+    image: linuxserver/sonarr:latest
+    container_name: sonarr-dev
+    ports:
+      - "8989:8989"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Berlin
+    volumes:
+      - ./data/sonarr/config:/config
+      - ./data/downloads/anime:/downloads
+      - ./data/sonarr/tv:/tv
+    restart: unless-stopped
+
+  prowlarr:
+    image: linuxserver/prowlarr:latest
+    container_name: prowlarr-dev
+    ports:
+      - "9696:9696"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Berlin
+    volumes:
+      - ./data/prowlarr/config:/config
+    restart: unless-stopped
+
+networks:
+  default:
+    name: anibridge-dev-net

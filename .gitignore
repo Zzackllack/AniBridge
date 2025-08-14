@@ -517,3 +517,6 @@ site/
 # Test files
 test-results/
 coverage/
+
+# Custom:
+data/

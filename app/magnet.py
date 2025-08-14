@@ -18,9 +18,11 @@ logger.add(
 
 
 def _hash_id(slug: str, season: int, episode: int, language: str) -> str:
+    logger.debug(f"Hashing ID with slug={slug}, season={season}, episode={episode}, language={language}")
     h = hashlib.sha1(
         f"{slug}|{season}|{episode}|{language}".encode("utf-8")
     ).hexdigest()
+    logger.info(f"Generated hash: {h}")
     return h
 
 
@@ -36,6 +38,7 @@ def build_magnet(
     """
     Synthetischer Magnet mit notwendiger Payload für den Shim.
     """
+    logger.debug(f"Building magnet for title='{title}', slug='{slug}', season={season}, episode={episode}, language='{language}', provider='{provider}'")
     xt = f"urn:btih:{_hash_id(slug, season, episode, language)}"
     q = {
         "xt": xt,
@@ -47,25 +50,34 @@ def build_magnet(
     }
     if provider:
         q["aw_provider"] = provider
+        logger.debug(f"Added provider to magnet: {provider}")
     qs = "&".join(f"{k}={urllib.parse.quote_plus(v)}" for k, v in q.items())
-    return f"magnet:?{qs}"
+    magnet_uri = f"magnet:?{qs}"
+    logger.success(f"Magnet URI built: {magnet_uri}")
+    return magnet_uri
 
 
 def parse_magnet(magnet: str) -> Dict[str, str]:
     """
     Extrahiert unsere Payload (aw_*), dn, xt.
     """
+    logger.debug(f"Parsing magnet URI: {magnet}")
     if not magnet.startswith("magnet:?"):
+        logger.error("Provided string is not a magnet URI")
         raise ValueError("not a magnet")
     qs = magnet[len("magnet:?") :]
     params = urllib.parse.parse_qs(qs, keep_blank_values=False, strict_parsing=False)
     flat: Dict[str, str] = {}
     for k, v in params.items():
         if not v:
+            logger.warning(f"Magnet param '{k}' has no value, skipping")
             continue
         flat[k] = v[0]
+        logger.debug(f"Magnet param parsed: {k}={v[0]}")
     # sanity
     for req in ("dn", "xt", "aw_slug", "aw_s", "aw_e", "aw_lang"):
         if req not in flat:
+            logger.error(f"Missing required magnet param: {req}")
             raise ValueError(f"missing magnet param: {req}")
+    logger.success(f"Magnet parsed successfully: {flat}")
     return flat

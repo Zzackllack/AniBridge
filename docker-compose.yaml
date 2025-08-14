@@ -1,0 +1,30 @@
+version: "3.8"
+services:
+  anibridge:
+    build: .
+    container_name: anibridge
+    ports:
+      - "8000:8000"
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DOWNLOAD_DIR=${DOWNLOAD_DIR:-/app/data/downloads/anime}
+      - DATA_DIR=${DATA_DIR:-/app/data}
+      - ANIWORLD_ALPHABET_HTML=${ANIWORLD_ALPHABET_HTML}
+      - ANIWORLD_ALPHABET_URL=${ANIWORLD_ALPHABET_URL:-https://aniworld.to/animes-alphabet}
+      - ANIWORLD_TITLES_REFRESH_HOURS=${ANIWORLD_TITLES_REFRESH_HOURS:-24}
+      - SOURCE_TAG=${SOURCE_TAG:-WEB}
+      - RELEASE_GROUP=${RELEASE_GROUP:-aniworld}
+      - PROVIDER_ORDER=${PROVIDER_ORDER:-VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza}
+      - MAX_CONCURRENCY=${MAX_CONCURRENCY:-3}
+      - INDEXER_NAME=${INDEXER_NAME:-AniBridge Torznab}
+      - INDEXER_API_KEY=${INDEXER_API_KEY}
+      - TORZNAB_CAT_ANIME=${TORZNAB_CAT_ANIME:-5070}
+      - AVAILABILITY_TTL_HOURS=${AVAILABILITY_TTL_HOURS:-24}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
