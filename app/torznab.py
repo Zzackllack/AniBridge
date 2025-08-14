@@ -144,9 +144,7 @@ def _build_item(
     guid_el.set("isPermaLink", "false")
     guid_el.text = guid_str
     if pubdate:
-        ET.SubElement(item, "pubDate").text = pubdate.strftime(
-            "%a, %d %b %Y %H:%M:%S %z"
-        )
+        ET.SubElement(item, "pubDate").text = pubdate.strftime("%a, %d %b %Y %H:%M:%S %z")
     ET.SubElement(item, "category").text = str(cat_id)
     enc = ET.SubElement(item, "enclosure")
     enc.set("url", magnet)
@@ -174,32 +172,42 @@ def _build_item(
 @router.get("/api", response_class=FastAPIResponse)
 def torznab_api(
     request: Request,
-    t: str = Query(..., description="caps|tvsearch"),
+    t: str = Query(..., description="caps|tvsearch|search"),
     apikey: Optional[str] = Query(default=None),
     q: Optional[str] = Query(default=None),
     season: Optional[int] = Query(default=None),
     ep: Optional[int] = Query(default=None),
-    cat: Optional[str] = Query(default=None),  # wird (derzeit) ignoriert
+    cat: Optional[str] = Query(default=None),
     offset: int = Query(default=0),
     limit: int = Query(default=50),
     session: Session = Depends(get_session),
 ) -> Response:
     logger.info(
-        f"Received torznab API request: t={t}, q={q}, season={season}, ep={ep}, cat={cat}, offset={offset}, limit={limit}, apikey={apikey}"
+        f"Torznab request: t={t}, q={q}, season={season}, ep={ep}, cat={cat}, offset={offset}, limit={limit}, apikey={'<set>' if apikey else '<none>'}"
     )
     _require_apikey(apikey)
 
+    # --- CAPS ---
     if t == "caps":
         logger.debug("Handling 'caps' request.")
         xml = _caps_xml()
         logger.debug("Returning caps XML response.")
         return Response(content=xml, media_type="application/xml; charset=utf-8")
 
+    # --- SEARCH (generic) ---
+    # Prowlarr nutzt das für den Connectivity-Check: t=search&extended=1
+    # Wir liefern dafür einfach ein leeres, aber valides RSS zurück (200 OK).
+    if t == "search":
+        rss, _channel = _rss_root()
+        xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
+        return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
+
+    # --- TVSEARCH ---
     if t != "tvsearch":
         logger.error(f"Unknown 't' parameter value: '{t}'")
         raise HTTPException(status_code=400, detail="unknown t")
 
-    # tvsearch: laut Spec brauchen wir (q + season + ep) (wir unterstützen keine tvdbid/rid/…)
+    # tvsearch benötigt q + season + ep
     if not q or season is None or ep is None:
         logger.warning(
             f"Missing required tvsearch parameters: q={q}, season={season}, ep={ep}"
@@ -247,9 +255,7 @@ def torznab_api(
         logger.debug(f"Checking availability for language '{lang}'")
         # Cache-Eintrag je Sprache prüfen
         try:
-            rec = get_availability(
-                session, slug=slug, season=season_i, episode=ep_i, language=lang
-            )
+            rec = get_availability(session, slug=slug, season=season_i, episode=ep_i, language=lang)
         except Exception as e:
             logger.error(
                 f"Error fetching availability for slug={slug}, season={season_i}, episode={ep_i}, language={lang}: {e}"
