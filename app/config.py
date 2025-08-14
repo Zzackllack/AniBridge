@@ -1,6 +1,7 @@
 import sys
 import os
 from loguru import logger
+
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logger.remove()
 logger.add(
@@ -8,7 +9,7 @@ logger.add(
     level=LOG_LEVEL,
     colorize=True,
     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
-           "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
 )
 
 from pathlib import Path
@@ -18,7 +19,11 @@ IN_DOCKER = Path("/.dockerenv").exists()
 logger.debug(f"IN_DOCKER={IN_DOCKER}")
 
 # Wohin wird heruntergeladen
-DEFAULT_DIR = Path("/data/downloads/anime") if IN_DOCKER else (Path.cwd() / "data" / "downloads" / "anime")
+DEFAULT_DIR = (
+    Path("/data/downloads/anime")
+    if IN_DOCKER
+    else (Path.cwd() / "data" / "downloads" / "anime")
+)
 DOWNLOAD_DIR = Path(os.getenv("DOWNLOAD_DIR", DEFAULT_DIR))
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 logger.debug(f"DOWNLOAD_DIR set to {DOWNLOAD_DIR}")
@@ -30,10 +35,16 @@ logger.debug(f"DATA_DIR set to {DATA_DIR}")
 
 # Titelquelle (Slug -> Display-Title)
 # Option A: lokale HTML-Datei (Snapshot der Alphabet-Seite)
-ANIWORLD_ALPHABET_HTML = Path(os.getenv("ANIWORLD_ALPHABET_HTML", DATA_DIR / "aniworld-alphabeth.html"))
+ANIWORLD_ALPHABET_HTML = Path(
+    os.getenv("ANIWORLD_ALPHABET_HTML", DATA_DIR / "aniworld-alphabeth.html")
+)
 # Option B: Live von der Website holen (immer up-to-date)
-ANIWORLD_ALPHABET_URL = os.getenv("ANIWORLD_ALPHABET_URL", "https://aniworld.to/animes-alphabet").strip()
-logger.debug(f"ANIWORLD_ALPHABET_HTML={ANIWORLD_ALPHABET_HTML}, ANIWORLD_ALPHABET_URL={ANIWORLD_ALPHABET_URL}")
+ANIWORLD_ALPHABET_URL = os.getenv(
+    "ANIWORLD_ALPHABET_URL", "https://aniworld.to/animes-alphabet"
+).strip()
+logger.debug(
+    f"ANIWORLD_ALPHABET_HTML={ANIWORLD_ALPHABET_HTML}, ANIWORLD_ALPHABET_URL={ANIWORLD_ALPHABET_URL}"
+)
 
 # TTL (Stunden) für Live-Index; 0 = nie neu laden (nur einmal pro Prozess)
 ANIWORLD_TITLES_REFRESH_HOURS = float(os.getenv("ANIWORLD_TITLES_REFRESH_HOURS", "24"))
@@ -50,7 +61,9 @@ logger.debug(f"RELEASE_GROUP={RELEASE_GROUP}")
 # ---- Provider-Fallback ----
 # Kommagetrennte Liste, z. B. "VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza"
 # Reihenfolge = Priorität
-_default_order = "VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza"
+_default_order = (
+    "VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza"
+)
 _raw = os.getenv("PROVIDER_ORDER", _default_order)
 logger.debug(f"PROVIDER_ORDER raw string: {_raw}")
 

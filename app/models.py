@@ -14,7 +14,7 @@ logger.add(
     level=LOG_LEVEL,
     colorize=True,
     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
-           "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
 )
 
 from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JSON
@@ -25,9 +25,11 @@ JobStatus = Literal["queued", "downloading", "completed", "failed", "cancelled"]
 
 # ---- Datetime Helpers --------------------------------------------------------
 
+
 def utcnow() -> datetime:
     # immer aware (UTC)
     return datetime.now(timezone.utc)
+
 
 def as_aware_utc(dt: Optional[datetime]) -> datetime:
     """
@@ -43,7 +45,9 @@ def as_aware_utc(dt: Optional[datetime]) -> datetime:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
 
+
 # ---------------- Jobs (wie gehabt) ------------------------------------------
+
 
 class Job(SQLModel, table=True):
     id: str = Field(default_factory=lambda: uuid4().hex, primary_key=True, index=True)
@@ -59,7 +63,9 @@ class Job(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow, index=True)
     updated_at: datetime = Field(default_factory=utcnow, index=True)
 
+
 # ---------------- Semi-Cache: Episode Availability ---------------------------
+
 
 class EpisodeAvailability(SQLModel, table=True):
     """
@@ -69,6 +75,7 @@ class EpisodeAvailability(SQLModel, table=True):
       - provider (optional): welcher Provider hat funktioniert
       - checked_at: wann zuletzt geprüft
     """
+
     slug: str = Field(primary_key=True)
     season: int = Field(primary_key=True)
     episode: int = Field(primary_key=True)
@@ -92,6 +99,7 @@ class EpisodeAvailability(SQLModel, table=True):
         age = as_aware_utc(utcnow()) - as_aware_utc(self.checked_at)
         return age <= timedelta(hours=AVAILABILITY_TTL_HOURS)
 
+
 # --- DB Bootstrap -------------------------------------------------------------
 
 DATA_DIR = Path("./data")
@@ -103,14 +111,17 @@ logger.debug(f"DATABASE_URL: {DATABASE_URL}")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 logger.debug("SQLModel engine created.")
 
+
 def create_db_and_tables() -> None:
     logger.debug("Creating DB and tables if not exist.")
     SQLModel.metadata.create_all(engine)
+
 
 def get_session() -> Generator[Session, None, None]:
     logger.debug("Creating new DB session.")
     with Session(engine) as session:
         yield session
+
 
 # --- CRUD / Helpers ---
 def create_job(session: Session) -> Job:
@@ -122,9 +133,11 @@ def create_job(session: Session) -> Job:
     logger.success(f"Created job {job.id}")
     return job
 
+
 def get_job(session: Session, job_id: str) -> Optional[Job]:
     logger.debug(f"Fetching job {job_id} from DB.")
     return session.get(Job, job_id)
+
 
 def update_job(session: Session, job_id: str, **fields: Any) -> Optional[Job]:
     logger.debug(f"Updating job {job_id} with fields {fields}")
@@ -141,9 +154,10 @@ def update_job(session: Session, job_id: str, **fields: Any) -> Optional[Job]:
     logger.success(f"Updated job {job_id}")
     return job
 
+
 def cleanup_dangling_jobs(session: Session) -> int:
     logger.debug("Cleaning up dangling jobs (queued/downloading) on startup.")
-    rows = session.exec(select(Job).where(Job.status.in_(["queued", "downloading"]))).all() # type: ignore
+    rows = session.exec(select(Job).where(Job.status.in_(["queued", "downloading"]))).all()  # type: ignore
     for j in rows:
         j.status = "failed"
         j.message = "Interrupted by application restart"
@@ -153,7 +167,9 @@ def cleanup_dangling_jobs(session: Session) -> int:
     logger.debug(f"Set {len(rows)} jobs to failed.")
     return len(rows)
 
+
 # --- Availability CRUD --------------------------------------------------------
+
 
 def upsert_availability(
     session: Session,
@@ -171,9 +187,16 @@ def upsert_availability(
     rec = session.get(EpisodeAvailability, (slug, season, episode, language))
     if rec is None:
         rec = EpisodeAvailability(
-            slug=slug, season=season, episode=episode, language=language,
-            available=available, height=height, vcodec=vcodec, provider=provider,
-            extra=extra, checked_at=utcnow()
+            slug=slug,
+            season=season,
+            episode=episode,
+            language=language,
+            available=available,
+            height=height,
+            vcodec=vcodec,
+            provider=provider,
+            extra=extra,
+            checked_at=utcnow(),
         )
         session.add(rec)
     else:
@@ -188,20 +211,22 @@ def upsert_availability(
     session.refresh(rec)
     return rec
 
+
 def get_availability(
     session: Session, *, slug: str, season: int, episode: int, language: str
 ) -> Optional[EpisodeAvailability]:
     return session.get(EpisodeAvailability, (slug, season, episode, language))
+
 
 def list_available_languages_cached(
     session: Session, *, slug: str, season: int, episode: int
 ) -> list[str]:
     rows = session.exec(
         select(EpisodeAvailability).where(
-            (EpisodeAvailability.slug == slug) &
-            (EpisodeAvailability.season == season) &
-            (EpisodeAvailability.episode == episode) &
-            (EpisodeAvailability.available == True)
+            (EpisodeAvailability.slug == slug)
+            & (EpisodeAvailability.season == season)
+            & (EpisodeAvailability.episode == episode)
+            & (EpisodeAvailability.available == True)
         )
     ).all()
     # Nur frische Einträge zählen (mit robuster TZ-Behandlung)
@@ -212,5 +237,7 @@ def list_available_languages_cached(
                 fresh_langs.append(r.language)
         except Exception as e:
             # falls ein Alt-Datensatz Probleme macht: konservativ ignorieren
-            logger.warning(f"Skipping stale/invalid availability row for {r.slug} S{r.season}E{r.episode} {r.language}: {e}")
+            logger.warning(
+                f"Skipping stale/invalid availability row for {r.slug} S{r.season}E{r.episode} {r.language}: {e}"
+            )
     return fresh_langs

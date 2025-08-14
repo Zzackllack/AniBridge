@@ -9,7 +9,12 @@ from loguru import logger
 
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logger.remove()
-logger.add(sys.stdout, level=LOG_LEVEL, colorize=True, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
+logger.add(
+    sys.stdout,
+    level=LOG_LEVEL,
+    colorize=True,
+    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+)
 
 # Lib-API:
 from aniworld.models import Anime, Episode  # type: ignore
@@ -18,18 +23,34 @@ from app.naming import rename_to_release
 from app.config import PROVIDER_ORDER
 
 Language = Literal["German Dub", "German Sub", "English Sub"]
-Provider = Literal["VOE", "Vidoza", "Doodstream", "Filemoon", "Vidmoly", "Streamtape", "LoadX", "SpeedFiles", "Luluvdo"]
+Provider = Literal[
+    "VOE",
+    "Vidoza",
+    "Doodstream",
+    "Filemoon",
+    "Vidmoly",
+    "Streamtape",
+    "LoadX",
+    "SpeedFiles",
+    "Luluvdo",
+]
 ProgressCb = Callable[[dict], None]
+
 
 class DownloadError(Exception):
     pass
 
+
 class LanguageUnavailableError(DownloadError):
     """Requested language not offered by episode/site."""
+
     def __init__(self, requested: str, available: List[str]) -> None:
         self.requested = requested
         self.available = available
-        super().__init__(f"Language '{requested}' not available. Available: {', '.join(available) or 'none'}")
+        super().__init__(
+            f"Language '{requested}' not available. Available: {', '.join(available) or 'none'}"
+        )
+
 
 # ---------------- helpers ----------------
 
@@ -39,17 +60,16 @@ _LANG_ALIASES = {
     "ger": "German Dub",
     "gerdub": "German Dub",
     "dub": "German Dub",
-
     "germansub": "German Sub",
     "gersub": "German Sub",
     "subde": "German Sub",
     "de-sub": "German Sub",
-
     "englishsub": "English Sub",
     "engsub": "English Sub",
     "suben": "English Sub",
     "en-sub": "English Sub",
 }
+
 
 def _normalize_language(lang: str | None) -> str:
     if not lang:
@@ -57,32 +77,40 @@ def _normalize_language(lang: str | None) -> str:
     l = re.sub(r"[^a-z]", "", lang.lower())
     return _LANG_ALIASES.get(l, lang)
 
+
 def _sanitize_filename(name: str) -> str:
     logger.debug(f"Sanitizing filename: {name}")
     sanitized = re.sub(r'[\\/:*?"<>|]+', "_", name).strip()
     logger.debug(f"Sanitized filename: {sanitized}")
     return sanitized
 
+
 def build_episode(
     *,
     link: Optional[str] = None,
     slug: Optional[str] = None,
     season: Optional[int] = None,
-    episode: Optional[int] = None
+    episode: Optional[int] = None,
 ) -> Episode:
-    logger.info(f"Building episode: link={link}, slug={slug}, season={season}, episode={episode}")
+    logger.info(
+        f"Building episode: link={link}, slug={slug}, season={season}, episode={episode}"
+    )
     if link:
         logger.debug("Using direct link for episode.")
         return Episode(link=link)
     if slug and season and episode:
         logger.debug("Using slug/season/episode for episode.")
         return Episode(slug=slug, season=season, episode=episode)
-    logger.error("Invalid episode parameters: must provide either link or (slug, season, episode).")
+    logger.error(
+        "Invalid episode parameters: must provide either link or (slug, season, episode)."
+    )
     raise ValueError("Provide either link OR (slug, season, episode).")
+
 
 # ----- provider/lang probing ------
 
 _AVAIL_RE = re.compile(r"Available languages:\s*\[([^\]]*)\]", re.IGNORECASE)
+
 
 def _parse_available_languages_from_error(msg: str) -> List[str]:
     """
@@ -104,6 +132,7 @@ def _parse_available_languages_from_error(msg: str) -> List[str]:
             out.append(p)
     return out
 
+
 def _try_get_direct(ep: Episode, provider_name: str, language: str) -> Optional[str]:
     language = _normalize_language(language)
     logger.info(f"Trying provider '{provider_name}' for language '{language}'")
@@ -124,6 +153,7 @@ def _try_get_direct(ep: Episode, provider_name: str, language: str) -> Optional[
         logger.warning(f"Exception from provider '{provider_name}': {msg}")
     return None
 
+
 def get_direct_url_with_fallback(
     ep: Episode,
     *,
@@ -132,14 +162,18 @@ def get_direct_url_with_fallback(
 ) -> Tuple[str, str]:
 
     language = _normalize_language(language)
-    logger.info(f"Getting direct URL with fallback. Preferred: {preferred}, Language: {language}")
+    logger.info(
+        f"Getting direct URL with fallback. Preferred: {preferred}, Language: {language}"
+    )
     tried: List[str] = []
 
     # Early language validation
-    available_languages = getattr(ep, 'language_name', None)
+    available_languages = getattr(ep, "language_name", None)
     if available_languages is not None:
         if language not in available_languages:
-            logger.error(f"Requested language '{language}' not available. Available: {available_languages}")
+            logger.error(
+                f"Requested language '{language}' not available. Available: {available_languages}"
+            )
             raise LanguageUnavailableError(language, available_languages)
 
     # preferred zuerst (wenn gesetzt)
@@ -170,9 +204,13 @@ def get_direct_url_with_fallback(
             return url, p
 
     logger.error(f"No direct link found. Tried providers: {', '.join(tried) or 'none'}")
-    raise DownloadError(f"No direct link found. Tried providers: {', '.join(tried) or 'none'}")
+    raise DownloadError(
+        f"No direct link found. Tried providers: {', '.join(tried) or 'none'}"
+    )
+
 
 # -------- yt-dlp --------
+
 
 def _ydl_download(
     direct_url: str,
@@ -183,10 +221,14 @@ def _ydl_download(
     progress_cb: Optional[ProgressCb] = None,
     stop_event: Optional[threading.Event] = None,
 ) -> Tuple[Path, Dict[str, Any]]:
-    logger.info(f"Starting yt-dlp download: url={direct_url}, dest_dir={dest_dir}, title_hint={title_hint}")
+    logger.info(
+        f"Starting yt-dlp download: url={direct_url}, dest_dir={dest_dir}, title_hint={title_hint}"
+    )
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    outtmpl = str(dest_dir / (_sanitize_filename(title_hint or "%(title)s") + ".%(ext)s"))
+    outtmpl = str(
+        dest_dir / (_sanitize_filename(title_hint or "%(title)s") + ".%(ext)s")
+    )
     logger.debug(f"yt-dlp output template: {outtmpl}")
     ydl_opts: Dict[str, Any] = {
         "outtmpl": outtmpl,
@@ -230,7 +272,9 @@ def _ydl_download(
         logger.error(f"yt-dlp download failed: {e}")
         raise
 
+
 # -------- public API --------
+
 
 def download_episode(
     *,
@@ -247,11 +291,15 @@ def download_episode(
     stop_event: Optional[threading.Event] = None,
 ) -> Path:
     language = _normalize_language(language)
-    logger.info(f"Starting download_episode: link={link}, slug={slug}, season={season}, episode={episode}, provider={provider}, language={language}, dest_dir={dest_dir}")
+    logger.info(
+        f"Starting download_episode: link={link}, slug={slug}, season={season}, episode={episode}, provider={provider}, language={language}, dest_dir={dest_dir}"
+    )
     ep = build_episode(link=link, slug=slug, season=season, episode=episode)
 
     # Fallback-Strategie
-    direct, chosen = get_direct_url_with_fallback(ep, preferred=provider, language=language)
+    direct, chosen = get_direct_url_with_fallback(
+        ep, preferred=provider, language=language
+    )
     logger.info(f"Chosen provider: {chosen}, direct URL: {direct}")
 
     # Sinnvolle Default-Benennung für den temporären Download

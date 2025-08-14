@@ -108,7 +108,9 @@ def _build_item(
     guid_el.set("isPermaLink", "false")
     guid_el.text = guid_str
     if pubdate:
-        ET.SubElement(item, "pubDate").text = pubdate.strftime("%a, %d %b %Y %H:%M:%S %z")
+        ET.SubElement(item, "pubDate").text = pubdate.strftime(
+            "%a, %d %b %Y %H:%M:%S %z"
+        )
     ET.SubElement(item, "category").text = str(cat_id)
     enc = ET.SubElement(item, "enclosure")
     enc.set("url", magnet)
@@ -161,8 +163,12 @@ def torznab_api(
     display_title = resolve_series_title(slug) or q_str
 
     # Sprachen-Kandidaten aus Cache (frisch) oder Default-Set
-    cached_langs = list_available_languages_cached(session, slug=slug, season=season_i, episode=ep_i)
-    candidate_langs: List[str] = cached_langs if cached_langs else ["German Dub", "German Sub", "English Sub"]
+    cached_langs = list_available_languages_cached(
+        session, slug=slug, season=season_i, episode=ep_i
+    )
+    candidate_langs: List[str] = (
+        cached_langs if cached_langs else ["German Dub", "German Sub", "English Sub"]
+    )
 
     rss, channel = _rss_root()
     count = 0
@@ -170,7 +176,9 @@ def torznab_api(
 
     for lang in candidate_langs:
         # Cache-Eintrag je Sprache prüfen
-        rec = get_availability(session, slug=slug, season=season_i, episode=ep_i, language=lang)
+        rec = get_availability(
+            session, slug=slug, season=season_i, episode=ep_i, language=lang
+        )
         need_probe = True
         height: Optional[int] = None
         vcodec: Optional[str] = None

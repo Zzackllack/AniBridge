@@ -7,7 +7,10 @@ from app.downloader import get_direct_url_with_fallback, build_episode
 from app.naming import quality_from_info
 from app.config import PROVIDER_ORDER
 
-def probe_episode_quality_once(direct_url: str, timeout: float = 6.0) -> tuple[Optional[int], Optional[str], Dict[str, Any] | None]:
+
+def probe_episode_quality_once(
+    direct_url: str, timeout: float = 6.0
+) -> tuple[Optional[int], Optional[str], Dict[str, Any] | None]:
     """
     Lädt KEINE Daten. Holt nur Info über Formate/Höhe/Codec.
     """
@@ -26,6 +29,7 @@ def probe_episode_quality_once(direct_url: str, timeout: float = 6.0) -> tuple[O
     except Exception as e:
         logger.warning(f"Preflight probe failed: {e}")
         return (None, None, None)
+
 
 def probe_episode_quality(
     *,
@@ -49,7 +53,9 @@ def probe_episode_quality(
             candidates.append(p)
     for prov in candidates:
         try:
-            direct, chosen = get_direct_url_with_fallback(ep, preferred=prov, language=language)
+            direct, chosen = get_direct_url_with_fallback(
+                ep, preferred=prov, language=language
+            )
             h, vc, info = probe_episode_quality_once(direct, timeout=timeout)
             return (True, h, vc, chosen, info)
         except Exception:

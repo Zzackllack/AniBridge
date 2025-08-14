@@ -4,6 +4,7 @@ import os
 import sys
 import hashlib
 import urllib.parse
+
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logger.remove()
 logger.add(
@@ -11,12 +12,16 @@ logger.add(
     level=LOG_LEVEL,
     colorize=True,
     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
-           "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
 )
 
+
 def _hash_id(slug: str, season: int, episode: int, language: str) -> str:
-    h = hashlib.sha1(f"{slug}|{season}|{episode}|{language}".encode("utf-8")).hexdigest()
+    h = hashlib.sha1(
+        f"{slug}|{season}|{episode}|{language}".encode("utf-8")
+    ).hexdigest()
     return h
+
 
 def build_magnet(
     *,

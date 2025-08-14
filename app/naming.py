@@ -2,9 +2,15 @@ from __future__ import annotations
 import sys
 import os
 from loguru import logger
+
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logger.remove()
-logger.add(sys.stdout, level=LOG_LEVEL, colorize=True, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
+logger.add(
+    sys.stdout,
+    level=LOG_LEVEL,
+    colorize=True,
+    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+)
 
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any
@@ -71,15 +77,19 @@ def _probe_with_ffprobe(path: Path) -> Tuple[Optional[int], Optional[str]]:
     try:
         args = [
             "ffprobe",
-            "-v", "error",
-            "-select_streams", "v:0",
-            "-show_entries", "stream=width,height,codec_name",
-            "-of", "json",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height,codec_name",
+            "-of",
+            "json",
             str(path),
         ]
         res = subprocess.run(args, capture_output=True, text=True, check=True)
         data = json.loads(res.stdout or "{}")
-        streams = (data.get("streams") or [])
+        streams = data.get("streams") or []
         if not streams:
             logger.warning(f"No streams found in ffprobe output for {path}")
             return (None, None)
@@ -137,19 +147,39 @@ def build_release_name(
     source_tag: str = SOURCE_TAG,
     release_group: str = RELEASE_GROUP,
 ) -> str:
-    logger.info(f"Building release name for series_title={series_title}, season={season}, episode={episode}, height={height}, vcodec={vcodec}, language={language}")
+    logger.info(
+        f"Building release name for series_title={series_title}, season={season}, episode={episode}, height={height}, vcodec={vcodec}, language={language}"
+    )
     series_part = _series_component(series_title)
-    se_part = f"S{int(season):02d}E{int(episode):02d}" if (season is not None and episode is not None) else ""
+    se_part = (
+        f"S{int(season):02d}E{int(episode):02d}"
+        if (season is not None and episode is not None)
+        else ""
+    )
     qual_part = _map_height_to_quality(height)
     codec_part = _map_codec_name(vcodec)
     lang_part = LANG_TAG_MAP.get(language, _safe_component(language))
 
-    base = ".".join([p for p in [series_part, se_part, qual_part, source_tag, codec_part, lang_part] if p])
+    base = ".".join(
+        [
+            p
+            for p in [
+                series_part,
+                se_part,
+                qual_part,
+                source_tag,
+                codec_part,
+                lang_part,
+            ]
+            if p
+        ]
+    )
     group = release_group.strip()
     if group:
         base = f"{base}-{group.upper()}"
     logger.success(f"Release name built: {base}")
     return base
+
 
 def rename_to_release(
     *,
