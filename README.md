@@ -1,13 +1,11 @@
 # AniBridge
 
-AniBridge is a minimal FastAPI service that bridges anime sources to automation tools. It exposes
-an anime-focused Torznab feed and a qBittorrent-compatible API so that applications like
-Prowlarr can discover and download episodes automatically.
+AniBridge is a minimal FastAPI service that bridges anime streaming services (currently only aniworld) to automation tools. It exposes a fake Torznab feed and a fake qBittorrent-compatible API so that applications like Prowlarr/Sonarr can discover and download episodes automatically.
 
 ## Features
 
 - **Torznab endpoint** that indexes available episodes from AniWorld.
-- **qBittorrent API shim** allowing Prowlarr to enqueue downloads.
+- **qBittorrent API shim** allowing Prowlarr/Sonarr to enqueue downloads.
 - **Background scheduler** with progress tracking for downloads.
 - Simple `/health` endpoint for container or orchestration checks.
 
@@ -27,10 +25,10 @@ cd AniBridge
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+python -m app.main
 ```
 
-## Usage
+## Endpoints
 
 - Torznab feed: `http://localhost:8000/torznab`
 - qBittorrent API: `http://localhost:8000/api/v2`
@@ -46,14 +44,13 @@ for submitting pull requests.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the BSD 3-Clause License see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
-- Create an [issue](../../issues) for bug reports or feature requests.
+- Create an [issue](https://github.com/Zzackllack/AniBridge/issues) for bug reports or feature requests.
 - Check our [security policy](SECURITY.md) for reporting vulnerabilities.
 
 ## Acknowledgments
 
-- Thanks to the FastAPI community and upstream libraries.
-- Inspired by the desire to automate anime downloads.
+- Thanks to phoenixthrush for providing a Library for his [AniWorld Downloader](https://github.com/phoenixthrush/AniWorld-Downloader)
