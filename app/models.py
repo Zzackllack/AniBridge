@@ -114,8 +114,9 @@ class ClientTask(SQLModel, table=True):
     )  # queued/downloading/paused/completed/error
 
 
+import os
 # --- DB Bootstrap
-DATA_DIR = Path("./data")
+DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))
 if not DATA_DIR.exists():
     logger.info(f"Creating DATA_DIR at {DATA_DIR}")
 DATA_DIR.mkdir(parents=True, exist_ok=True)
