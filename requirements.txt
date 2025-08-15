@@ -40,3 +40,6 @@ uvloop
 watchfiles
 websockets
 PyYAML
+pytest
+pytest-cov
+httpx
