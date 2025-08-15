@@ -1,68 +1,50 @@
-# Contributing Guidelines
+# Contributing to AniBridge
 
-Thank you for your interest in contributing to this project! Here's how you can help.
+Thank you for your interest in improving AniBridge! The following guidelines will help you get
+started.
 
 ## Code of Conduct
 
-Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+Please read and adhere to our [Code of Conduct](CODE_OF_CONDUCT.md).
 
-## How to Contribute
-
-### Reporting Bugs
-
-1. Check if the issue already exists
-2. Use the bug report template
-3. Provide detailed reproduction steps
-4. Include system information
-
-### Suggesting Features
-
-1. Check if the feature request already exists
-2. Use the feature request template
-3. Explain the use case and benefits
-4. Consider implementation complexity
-
-### Pull Requests
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Write/update tests
-5. Update documentation
-6. Commit your changes (`git commit -m 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
-
-### Development Setup
+## Development Setup
 
 ```bash
-# Clone your fork
-git clone https://github.com/zzackllack/project-name.git
-
-# Install dependencies
-npm install
-
-# Run tests
-npm test
-
-# Run locally
-npm start
+git clone https://github.com/zzackllack/AniBridge.git
+cd AniBridge
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-### Code Style
+Run the application locally with:
 
-- Follow existing code style
-- Run linter before committing
-- Write meaningful commit messages
-- Add tests for new features
+```bash
+uvicorn app.main:app --reload
+```
 
-### Review Process
+## Testing
 
-1. All submissions require review
-2. Automated tests must pass
-3. Code coverage should not decrease
-4. Documentation must be updated
+Before submitting a pull request ensure that all tests pass:
+
+```bash
+pytest
+```
+
+## Code Style
+
+- Format Python code with `black`.
+- Keep imports tidy and avoid unused code.
+- Update documentation and comments when behavior changes.
+
+## Pull Request Process
+
+1. Fork the repository and create a new branch.
+2. Make your changes, including tests and docs.
+3. Run `black` on modified files and execute `pytest`.
+4. Commit with clear messages and push your branch.
+5. Open a Pull Request describing your changes.
 
 ## Questions?
 
-Feel free to open an issue for any questions about contributing!
+Feel free to open an issue if you need help with contributing.
