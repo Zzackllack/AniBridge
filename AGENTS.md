@@ -44,14 +44,14 @@ AniBridge is a FastAPI-based automation bridge for anime streaming services (cur
 **Root Layout:**
 
 - `app/` — Core Python modules
-    - `main.py` — FastAPI entrypoint, router setup
-	- `torznab.py` — Torznab API/feed logic
-	- `qbittorrent.py` — qBittorrent API shim
-	- `downloader.py` — Download orchestration
-	- `models.py` — SQLModel DB models, CRUD
-	- `config.py` — Environment/config management
-	- `scheduler.py` — Job scheduling, thread pool
-	- `naming.py`, `magnet.py`, `probe_quality.py`, `title_resolver.py` — Utility modules
+  - `main.py` — FastAPI entrypoint, router setup
+    - `torznab.py` — Torznab API/feed logic
+    - `qbittorrent.py` — qBittorrent API shim
+    - `downloader.py` — Download orchestration
+    - `models.py` — SQLModel DB models, CRUD
+    - `config.py` — Environment/config management
+    - `scheduler.py` — Job scheduling, thread pool
+    - `naming.py`, `magnet.py`, `probe_quality.py`, `title_resolver.py` — Utility modules
 - `data/` — Persistent data (SQLite DB, downloads, configs)
 - `tests/` — Pytest-based test suite
 - `docker-compose.yaml`, `Dockerfile` — Containerization
@@ -162,11 +162,11 @@ AniBridge is a FastAPI-based automation bridge for anime streaming services (cur
 - Use GitHub Actions or similar for CI
 - Steps: Install, lint, test, build Docker image, push
 - Example workflow:
-    - `pip install -r requirements.txt`
-	- `black .`
-	- `pytest`
-	- `docker build -t anibridge .`
-	- `docker compose up -d`
+  - `pip install -r requirements.txt`
+  - `black .`
+  - `pytest`
+  - `docker build -t anibridge .`
+  - `docker compose up -d`
 
 **Healthcheck:**
 
@@ -202,10 +202,10 @@ AniBridge is a FastAPI-based automation bridge for anime streaming services (cur
 **Agentic Workflows:**
 
 - AI agents should reason about:
-	- Project structure and module relationships
-	- API endpoint contracts and dependencies
-	- Data flow: job scheduling, download orchestration, DB updates
-	- Error handling and logging
+  - Project structure and module relationships
+  - API endpoint contracts and dependencies
+  - Data flow: job scheduling, download orchestration, DB updates
+  - Error handling and logging
 - Multi-agent orchestration: Use FastAPI HTTP endpoints for agent-to-agent communication
 - Modularize agent tools for extensibility
 
@@ -307,7 +307,7 @@ AniBridge is a FastAPI-based automation bridge for anime streaming services (cur
 
 **PR Template:**
 
-```
+```text
 [Feature] Add <short description>
 
 Summary:
@@ -333,9 +333,9 @@ from fastapi.testclient import TestClient
 client = TestClient(app)
 
 def test_health():
-		response = client.get("/health")
-		assert response.status_code == 200
-		assert response.json()["status"] == "ok"
+  response = client.get("/health")
+  assert response.status_code == 200
+  assert response.json()["status"] == "ok"
 ```
 
 ---
