@@ -40,4 +40,9 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git add app
           git commit -m "Format Python code with Black" || echo "No changes to commit"
-          git push
+          # Only push if there are changes and GITHUB_HEAD_REF is set (i.e., on PRs)
+          if [ -n "$GITHUB_HEAD_REF" ]; then
+            git push origin HEAD:$GITHUB_HEAD_REF
+          else
+            git push || echo "Not a PR, or no branch to push to."
+          fi
