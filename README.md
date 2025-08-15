@@ -1,43 +1,48 @@
-# Project Name
+# AniBridge
 
-Brief description of what this project does and who it's for.
+AniBridge is a minimal FastAPI service that bridges anime sources to automation tools. It exposes
+an anime-focused Torznab feed and a qBittorrent-compatible API so that applications like
+Prowlarr can discover and download episodes automatically.
 
-## Table of Contents
+## Features
 
-- [Installation](#installation)
-- [Usage](#usage)
-- [Features](#features)
-- [Contributing](#contributing)
-- [License](#license)
-- [Support](#support)
+- **Torznab endpoint** that indexes available episodes from AniWorld.
+- **qBittorrent API shim** allowing Prowlarr to enqueue downloads.
+- **Background scheduler** with progress tracking for downloads.
+- Simple `/health` endpoint for container or orchestration checks.
 
 ## Installation
 
+### With Docker
+
 ```bash
-# Example installation commands
-git clone https://github.com/zzackllack/project-name.git
-cd project-name
-npm install  # or your package manager
+docker compose up -d
+```
+
+### From source
+
+```bash
+git clone https://github.com/zzackllack/AniBridge.git
+cd AniBridge
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
 ```
 
 ## Usage
 
-```bash
-# Example usage commands
-npm start
-```
+- Torznab feed: `http://localhost:8000/torznab`
+- qBittorrent API: `http://localhost:8000/api/v2`
+- Health check: `http://localhost:8000/health`
 
-Basic usage examples and code snippets go here.
-
-## Features
-
-- Feature 1
-- Feature 2
-- Feature 3
+Configure Prowlarr or other automation tools to point at the Torznab feed. Downloads are placed in
+`DOWNLOAD_DIR` as defined in the configuration.
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process
+for submitting pull requests.
 
 ## License
 
@@ -45,11 +50,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- Create an [issue](../../issues) for bug reports or feature requests
-- Check our [security policy](SECURITY.md) for reporting vulnerabilities
+- Create an [issue](../../issues) for bug reports or feature requests.
+- Check our [security policy](SECURITY.md) for reporting vulnerabilities.
 
 ## Acknowledgments
 
-- Hat tip to anyone whose code was used
-- Inspiration sources
-- etc.
+- Thanks to the FastAPI community and upstream libraries.
+- Inspired by the desire to automate anime downloads.
