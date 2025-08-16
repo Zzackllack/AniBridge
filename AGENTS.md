@@ -147,6 +147,11 @@ AniBridge is a FastAPI-based automation bridge for anime streaming services (cur
 - Format with `black`
 - Optionally use `flake8` or `ruff` for lint checks
 
+**Terminal Output Logging:**
+
+- All stdout/stderr from the app is duplicated to a daily log file in `data/terminal-YYYY-MM-DD.log`.
+- This log is useful for debugging, auditing, and agentic troubleshooting.
+
 **Manual Validation:**
 
 - Start app: `python -m app.main` or `docker compose up`
@@ -238,6 +243,7 @@ AniBridge is a FastAPI-based automation bridge for anime streaming services (cur
 - Use `loguru` for detailed logs
 - Inspect DB state in `data/anibridge_jobs.db`
 - Use `pytest` for regression testing
+- Review terminal output logs in `data/terminal-YYYY-MM-DD.log` for all app stdout/stderr.
 
 ---
 

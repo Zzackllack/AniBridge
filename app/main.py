@@ -2,8 +2,12 @@ import sys
 import os
 from loguru import logger
 from dotenv import load_dotenv
+from pathlib import Path
+from app.terminal_logger import TerminalLogger
 
 load_dotenv()
+# Duplicate all stdout/stderr to a daily log file in data/
+TerminalLogger(Path.cwd() / "data")
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logger.remove()
 logger.add(
