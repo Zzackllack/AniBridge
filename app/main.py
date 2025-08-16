@@ -3,7 +3,7 @@ import os
 from loguru import logger
 from dotenv import load_dotenv
 from pathlib import Path
-from app.terminal_logger import TerminalLogger
+from app.infrastructure.terminal_logger import TerminalLogger
 
 load_dotenv()
 # Duplicate all stdout/stderr to a daily log file in data/
