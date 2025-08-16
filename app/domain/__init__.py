@@ -2,4 +2,3 @@
 
 Contains SQLModel models and DB utilities.
 """
-

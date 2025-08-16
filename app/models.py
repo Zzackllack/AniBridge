@@ -115,6 +115,7 @@ class ClientTask(SQLModel, table=True):
 
 
 import os
+
 # --- DB Bootstrap
 DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))
 if not DATA_DIR.exists():

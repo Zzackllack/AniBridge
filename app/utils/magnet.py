@@ -85,4 +85,3 @@ def parse_magnet(magnet: str) -> Dict[str, str]:
             raise ValueError(f"missing magnet param: {req}")
     logger.success(f"Magnet parsed successfully: {flat}")
     return flat
-

@@ -6,10 +6,12 @@ from pathlib import Path
 
 import threading
 
+
 class TerminalLogger:
     """
     Singleton logger that duplicates all stdout/stderr to a single log file per run in data/.
     """
+
     _instance = None
     _lock = threading.Lock()
     _log_path = None
@@ -23,7 +25,7 @@ class TerminalLogger:
                 if log_path_env:
                     cls._log_path = Path(log_path_env)
                 else:
-                    ts = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+                    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                     pid = os.getpid()
                     cls._log_path = log_dir / f"terminal-{ts}-{pid}.log"
                     os.environ["ANIBRIDGE_LOG_PATH"] = str(cls._log_path)
@@ -44,8 +46,9 @@ class TerminalLogger:
         self._stdout.write(data)
         # Remove ANSI color codes before writing to log file
         import re
-        ansi_escape = re.compile(r'\x1B\[[0-9;]*[A-Za-z]')
-        clean_data = ansi_escape.sub('', data)
+
+        ansi_escape = re.compile(r"\x1B\[[0-9;]*[A-Za-z]")
+        clean_data = ansi_escape.sub("", data)
         self.log_file.write(clean_data)
 
     def isatty(self):
@@ -59,4 +62,3 @@ class TerminalLogger:
         sys.stdout = self._stdout
         sys.stderr = self._stderr
         self.log_file.close()
-

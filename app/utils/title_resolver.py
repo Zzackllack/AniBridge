@@ -63,7 +63,9 @@ def build_index_from_html(html_text: str) -> Dict[str, str]:
 # -------- Live-Fetch + Cache --------
 
 _cached_index: Dict[str, str] | None = None
-_cached_alts: Dict[str, List[str]] | None = None  # slug -> alternative titles (incl. main)
+_cached_alts: Dict[str, List[str]] | None = (
+    None  # slug -> alternative titles (incl. main)
+)
 _cached_at: float | None = None
 
 
@@ -88,7 +90,9 @@ def _should_refresh(now: float) -> bool:
     return expired
 
 
-def _parse_index_and_alts(html_text: str) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
+def _parse_index_and_alts(
+    html_text: str,
+) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
     """
     Parse HTML to produce:
     - slug -> display title
@@ -280,4 +284,3 @@ def slug_from_query(q: str) -> Optional[str]:
             best_slug = slug
 
     return best_slug
-

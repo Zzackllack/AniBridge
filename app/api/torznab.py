@@ -544,4 +544,3 @@ def torznab_api(
     xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
     logger.info(f"Returning RSS feed with {count} items.")
     return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
-

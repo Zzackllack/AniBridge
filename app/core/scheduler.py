@@ -145,4 +145,3 @@ def cancel_job(job_id: str) -> None:
     fut, ev = item
     ev.set()
     fut.cancel()
-

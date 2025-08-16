@@ -328,4 +328,3 @@ def download_episode(
     )
     logger.success(f"Final file path: {final_path}")
     return final_path
-

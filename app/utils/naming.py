@@ -233,4 +233,3 @@ def rename_to_release(
     else:
         logger.info(f"No rename needed for {path}")
     return new_path
-

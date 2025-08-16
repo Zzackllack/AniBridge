@@ -8,9 +8,10 @@ from app.infrastructure.terminal_logger import TerminalLogger
 
 load_dotenv()
 import uuid
+
 # Set log file path for all processes (reloader/workers)
 if not os.environ.get("ANIBRIDGE_LOG_PATH"):
-    ts = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     # Use a random UUID to ensure uniqueness per run, not per process
     run_id = uuid.uuid4().hex[:8]
     log_path = Path.cwd() / "data" / f"terminal-{ts}-{run_id}.log"
