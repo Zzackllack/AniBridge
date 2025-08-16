@@ -12,7 +12,7 @@ logger.add(
     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
 )
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List, Set
 from pathlib import Path
 from functools import lru_cache
 from time import time
@@ -63,6 +63,7 @@ def build_index_from_html(html_text: str) -> Dict[str, str]:
 # -------- Live-Fetch + Cache --------
 
 _cached_index: Dict[str, str] | None = None
+_cached_alts: Dict[str, List[str]] | None = None  # slug -> alternative titles (incl. main)
 _cached_at: float | None = None
 
 
@@ -87,29 +88,72 @@ def _should_refresh(now: float) -> bool:
     return expired
 
 
-def _fetch_index_from_url() -> Dict[str, str]:
+def _parse_index_and_alts(html_text: str) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
+    """
+    Parse HTML to produce:
+    - slug -> display title
+    - slug -> list of alternative titles (including the display title)
+    """
+    soup = BeautifulSoup(html_text, "html.parser")
+    idx: Dict[str, str] = {}
+    alts: Dict[str, List[str]] = {}
+    for a in soup.find_all("a"):
+        href = a.get("href") or ""
+        slug = _extract_slug(href)  # type: ignore
+        if not slug:
+            continue
+        title = (a.get_text() or "").strip()
+        alt_raw = (a.get("data-alternative-title") or "").strip()
+        # Split by comma and normalize pieces
+        alt_list: List[str] = []
+        if alt_raw:
+            for piece in alt_raw.split(","):
+                p = piece.strip().strip("'\"")
+                if p:
+                    alt_list.append(p)
+        # Always include the main display title as an alternative as well
+        if title and title not in alt_list:
+            alt_list.insert(0, title)
+        if title:
+            idx[slug] = title
+        if alt_list:
+            alts[slug] = alt_list
+    return idx, alts
+
+
+def _fetch_index_from_url() -> Tuple[Dict[str, str], Dict[str, List[str]]]:
     logger.info(f"Fetching index from URL: {ANIWORLD_ALPHABET_URL}")
     try:
         resp = requests.get(ANIWORLD_ALPHABET_URL, timeout=20)
         resp.raise_for_status()
         logger.success("Successfully fetched index from URL.")
-        return build_index_from_html(resp.text)
+        return _parse_index_and_alts(resp.text)
     except Exception as e:
         logger.error(f"Failed to fetch index from URL: {e}")
         raise
 
 
-def _load_index_from_file(path: Path) -> Dict[str, str]:
+def _load_index_from_file(path: Path) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
     logger.info(f"Loading index from file: {path}")
-    if not path.exists():
-        logger.warning(f"File does not exist: {path}")
-        return {}
+    paths_to_try: List[Path] = [path]
+    # Fallback to repo snapshot if configured file is missing
+    fallback = Path.cwd() / "example-aniworld.html"
+    if path != fallback:
+        paths_to_try.append(fallback)
+    chosen: Optional[Path] = None
+    for p in paths_to_try:
+        if p.exists():
+            chosen = p
+            break
+    if not chosen:
+        logger.warning(f"No HTML file found. Tried: {paths_to_try}")
+        return {}, {}
     try:
-        html_text = path.read_text(encoding="utf-8", errors="ignore")
-        logger.success(f"Successfully read file: {path}")
-        return build_index_from_html(html_text)
+        html_text = chosen.read_text(encoding="utf-8", errors="ignore")
+        logger.success(f"Successfully read file: {chosen}")
+        return _parse_index_and_alts(html_text)
     except Exception as e:
-        logger.error(f"Failed to read file {path}: {e}")
+        logger.error(f"Failed to read file {chosen}: {e}")
         raise
 
 
@@ -130,14 +174,16 @@ def load_or_refresh_index() -> Dict[str, str]:
 
     # 1) Versuche Live-URL (falls gesetzt/nicht leer)
     index: Dict[str, str] = {}
+    alts: Dict[str, List[str]] = {}
     url = (ANIWORLD_ALPHABET_URL or "").strip()
     if url:
         try:
             logger.info("Attempting to fetch index from live URL.")
-            index = _fetch_index_from_url()
+            index, alts = _fetch_index_from_url()
             if index:
                 logger.success("Index fetched from live URL. Updating cache.")
                 _cached_index = index
+                _cached_alts = alts
                 _cached_at = now
                 return index
             else:
@@ -149,10 +195,11 @@ def load_or_refresh_index() -> Dict[str, str]:
     # 2) Fallback: Lokale Datei
     try:
         logger.info("Attempting to load index from local file.")
-        index = _load_index_from_file(ANIWORLD_ALPHABET_HTML)
+        index, alts = _load_index_from_file(ANIWORLD_ALPHABET_HTML)
         if index:
             logger.success("Index loaded from local file. Updating cache.")
             _cached_index = index
+            _cached_alts = alts
             _cached_at = now
             return index
         else:
@@ -165,6 +212,7 @@ def load_or_refresh_index() -> Dict[str, str]:
         "No index found from live URL or local file. Returning cached index (may be empty)."
     )
     _cached_index = _cached_index or {}
+    _cached_alts = _cached_alts or {}
     _cached_at = _cached_at or now
     return _cached_index
 
@@ -181,3 +229,54 @@ def resolve_series_title(slug: Optional[str]) -> Optional[str]:
     else:
         logger.warning(f"No title found for slug: {slug}")
     return title
+
+
+def load_or_refresh_alternatives() -> Dict[str, List[str]]:
+    """
+    Ensure alternative titles are cached and return them. Will also populate
+    the main index cache if needed.
+    """
+    global _cached_alts
+    now = time()
+    if _should_refresh(now):
+        # Trigger a refresh through the main loader
+        load_or_refresh_index()
+    return _cached_alts or {}
+
+
+def _normalize_tokens(s: str) -> Set[str]:
+    return set("".join(ch.lower() if ch.isalnum() else " " for ch in s).split())
+
+
+def slug_from_query(q: str) -> Optional[str]:
+    """
+    Resolve a slug by matching the query against both the main display titles
+    and any alternative titles parsed from the AniWorld index HTML.
+    """
+    index = load_or_refresh_index()  # slug -> display title
+    alts = load_or_refresh_alternatives()  # slug -> [titles]
+    if not q:
+        return None
+    q_tokens = _normalize_tokens(q)
+    best_slug: Optional[str] = None
+    best_score = 0
+
+    for slug, main_title in index.items():
+        # Start with main title tokens
+        titles_for_slug: List[str] = [main_title]
+        if slug in alts and alts[slug]:
+            titles_for_slug.extend(alts[slug])
+
+        # Evaluate best overlap score across all candidate titles
+        local_best = 0
+        for candidate in titles_for_slug:
+            t_tokens = _normalize_tokens(candidate)
+            inter = len(q_tokens & t_tokens)
+            if inter > local_best:
+                local_best = inter
+
+        if local_best > best_score:
+            best_score = local_best
+            best_slug = slug
+
+    return best_slug

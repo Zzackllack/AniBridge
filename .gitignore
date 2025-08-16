@@ -520,3 +520,6 @@ coverage/
 
 # Custom:
 data/
+sonarr.debug.txt
+.gitignore
+example-aniworld.html

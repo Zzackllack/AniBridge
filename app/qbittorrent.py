@@ -292,6 +292,9 @@ def torrents_info(
     logger.info(f"Found {len(rows)} client tasks in database.")
     out: List[dict] = []
     for r in rows:
+        if category and (r.category or "") != category:
+            # Respect category filter like qBittorrent
+            continue
         job = get_job(session, r.job_id) if r.job_id else None
         state = r.state
         progress = 0.0

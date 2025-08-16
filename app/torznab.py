@@ -33,7 +33,11 @@ from app.models import (
 )
 from app.naming import build_release_name
 from app.probe_quality import probe_episode_quality
-from app.title_resolver import load_or_refresh_index, resolve_series_title
+from app.title_resolver import (
+    load_or_refresh_index,
+    resolve_series_title,
+    load_or_refresh_alternatives,
+)
 
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logger.remove()
@@ -104,25 +108,37 @@ def _normalize_tokens(s: str) -> List[str]:
 
 def _slug_from_query(q: str) -> Optional[str]:
     """
-    mappe Freitext q -> slug (über Title-Index)
+    Map free-text query -> slug using main and alternative titles.
     """
     logger.debug(f"Resolving slug from query: '{q}'")
+    # Use only the currently loaded index as the candidate set so
+    # monkeypatching in tests and controlled contexts behaves deterministically.
     index = load_or_refresh_index()  # slug -> display title
+    alts = load_or_refresh_alternatives()  # slug -> [titles]
     q_tokens = set(_normalize_tokens(q))
     best_slug: Optional[str] = None
     best_score = 0
-    for slug, title in index.items():
-        t_tokens = set(_normalize_tokens(title))
-        inter = len(q_tokens & t_tokens)
-        if inter > best_score:
-            best_slug = slug
-            best_score = inter
-    if best_slug:
+
+    for s, title in index.items():
+        candidates: List[str] = [title]
+        if s in alts and alts[s]:
+            candidates.extend(alts[s])
+        local_best = 0
+        for cand in candidates:
+            t_tokens = set(_normalize_tokens(cand))
+            inter = len(q_tokens & t_tokens)
+            if inter > local_best:
+                local_best = inter
+        if local_best > best_score:
+            best_score = local_best
+            best_slug = s
+
+    if not best_slug:
+        logger.warning(f"No slug match found for query: '{q}'")
+    else:
         logger.debug(
             f"Best slug match for '{q}' is '{best_slug}' with score {best_score}"
         )
-    else:
-        logger.warning(f"No slug match found for query: '{q}'")
     return best_slug
 
 
@@ -130,6 +146,39 @@ def _add_torznab_attr(item: ET.Element, name: str, value: str) -> None:
     attr = ET.SubElement(item, "{http://torznab.com/schemas/2015/feed}attr")
     attr.set("name", name)
     attr.set("value", value)
+
+
+def _estimate_size_from_title_bytes(title: str) -> int:
+    t = title.lower()
+    # crude heuristics based on common quality tags
+    if "2160p" in t or "4k" in t:
+        return 8 * 1024 * 1024 * 1024  # 8 GB
+    if "1080p" in t:
+        return 1_500 * 1024 * 1024  # ~1.5 GB
+    if "720p" in t:
+        return 700 * 1024 * 1024  # ~700 MB
+    if "480p" in t:
+        return 350 * 1024 * 1024  # ~350 MB
+    return 500 * 1024 * 1024  # default ~500 MB
+
+
+def _parse_btih_from_magnet(magnet: str) -> Optional[str]:
+    # magnet:?xt=urn:btih:<hash> or with parameters
+    try:
+        from urllib.parse import parse_qs, urlparse
+
+        q = urlparse(magnet)
+        params = parse_qs(q.query)
+        xt_vals = params.get("xt") or []
+        for xt in xt_vals:
+            if xt.lower().startswith("urn:btih:"):
+                return xt.split(":")[-1]
+    except Exception:
+        pass
+    # fallback: simple search
+    if "btih:" in magnet:
+        return magnet.split("btih:")[-1].split("&")[0]
+    return None
 
 
 def _build_item(
@@ -154,12 +203,19 @@ def _build_item(
             "%a, %d %b %Y %H:%M:%S %z"
         )
     ET.SubElement(item, "category").text = str(cat_id)
+    # enclosure + size
     enc = ET.SubElement(item, "enclosure")
     enc.set("url", magnet)
     enc.set("type", "application/x-bittorrent")
+    est_size = _estimate_size_from_title_bytes(title)
+    enc.set("length", str(est_size))
 
     # torznab attrs
     _add_torznab_attr(item, "magneturl", magnet)
+    _add_torznab_attr(item, "size", str(est_size))
+    btih = _parse_btih_from_magnet(magnet)
+    if btih:
+        _add_torznab_attr(item, "infohash", btih)
 
     # Fake Seed-/Leech-Werte (per ENV konfigurierbar)
     seeders = max(0, int(TORZNAB_FAKE_SEEDERS))
@@ -208,7 +264,8 @@ def torznab_api(
 
     # --- SEARCH (generic) ---
     # Prowlarr nutzt das für den Connectivity-Check: t=search&extended=1
-    # Wir liefern dafür einfach ein leeres, aber valides RSS zurück (200 OK).
+    # Zusätzlich: Wenn q gesetzt ist, liefern wir eine Vorschau (S01E01) für das Matching
+    # der Serie zurück, damit man in Prowlarr manuell Ergebnisse sieht.
     if t == "search":
         logger.debug("Handling 'search' request.")
         rss, channel = _rss_root()
@@ -238,6 +295,85 @@ def torznab_api(
                 cat_id=TORZNAB_CAT_ANIME,
                 guid_str=guid,
             )
+        elif q_str:
+            # Preview-Suche: S01E01 für die angefragte Serie
+            slug = _slug_from_query(q_str)
+            if slug:
+                display_title = resolve_series_title(slug) or q_str
+                season_i, ep_i = 1, 1
+                cached_langs = list_available_languages_cached(
+                    session, slug=slug, season=season_i, episode=ep_i
+                )
+                candidate_langs: List[str] = (
+                    cached_langs
+                    if cached_langs
+                    else ["German Dub", "German Sub", "English Sub"]
+                )
+                now = datetime.now(timezone.utc)
+                count = 0
+                for lang in candidate_langs:
+                    try:
+                        available, h, vc, prov, _info = probe_episode_quality(
+                            slug=slug, season=season_i, episode=ep_i, language=lang
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Error probing preview quality for slug={slug}, S{season_i}E{ep_i}, lang={lang}: {e}"
+                        )
+                        continue
+                    try:
+                        upsert_availability(
+                            session,
+                            slug=slug,
+                            season=season_i,
+                            episode=ep_i,
+                            language=lang,
+                            available=available,
+                            height=h,
+                            vcodec=vc,
+                            provider=prov,
+                            extra=None,
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Error upserting preview availability for slug={slug}, S{season_i}E{ep_i}, lang={lang}: {e}"
+                        )
+                    if not available:
+                        continue
+                    release_title = build_release_name(
+                        series_title=display_title,
+                        season=season_i,
+                        episode=ep_i,
+                        height=h,
+                        vcodec=vc,
+                        language=lang,
+                    )
+                    try:
+                        magnet = build_magnet(
+                            title=release_title,
+                            slug=slug,
+                            season=season_i,
+                            episode=ep_i,
+                            language=lang,
+                            provider=prov,
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Error building preview magnet for '{release_title}': {e}"
+                        )
+                        continue
+                    guid = f"aw:{slug}:s{season_i}e{ep_i}:{lang}"
+                    _build_item(
+                        channel=channel,
+                        title=release_title,
+                        magnet=magnet,
+                        pubdate=now,
+                        cat_id=TORZNAB_CAT_ANIME,
+                        guid_str=guid,
+                    )
+                    count += 1
+                    if count >= max(1, int(limit)):
+                        break
 
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
         logger.debug("Returning RSS feed for 'search' request.")
@@ -248,8 +384,18 @@ def torznab_api(
         logger.error(f"Unknown 't' parameter value: '{t}'")
         raise HTTPException(status_code=400, detail="unknown t")
 
-    # tvsearch benötigt q + season + ep
-    if not q or season is None or ep is None:
+    # tvsearch benötigt q + season + ep; wenn ep fehlt, defaulten wir auf 1,
+    # um manuelle Suchen in Prowlarr (nur Staffel gewählt) zu unterstützen.
+    if not q:
+        logger.warning(
+            f"Missing required tvsearch parameters: q={q}, season={season}, ep={ep}"
+        )
+        rss, _channel = _rss_root()
+        xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
+        logger.debug("Returning empty RSS feed due to missing parameters.")
+        return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
+
+    if season is None and ep is None:
         logger.warning(
             f"Missing required tvsearch parameters: q={q}, season={season}, ep={ep}"
         )
@@ -258,6 +404,9 @@ def torznab_api(
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
         logger.debug("Returning empty RSS feed due to missing parameters.")
         return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
+    if season is not None and ep is None:
+        logger.debug("tvsearch: ep missing; defaulting ep=1 for preview")
+        ep = 1
 
     # ab hier garantiert non-None:
     season_i = int(season)
