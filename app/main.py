@@ -3,10 +3,18 @@ import os
 from loguru import logger
 from dotenv import load_dotenv
 from pathlib import Path
+from datetime import datetime
 from app.infrastructure.terminal_logger import TerminalLogger
 
 load_dotenv()
-# Duplicate all stdout/stderr to a daily log file in data/
+import uuid
+# Set log file path for all processes (reloader/workers)
+if not os.environ.get("ANIBRIDGE_LOG_PATH"):
+    ts = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    # Use a random UUID to ensure uniqueness per run, not per process
+    run_id = uuid.uuid4().hex[:8]
+    log_path = Path.cwd() / "data" / f"terminal-{ts}-{run_id}.log"
+    os.environ["ANIBRIDGE_LOG_PATH"] = str(log_path)
 TerminalLogger(Path.cwd() / "data")
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logger.remove()
