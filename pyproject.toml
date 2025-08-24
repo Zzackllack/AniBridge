@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel", "build"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anibridge"
+version = "0.1.0"
+description = "AniBridge - small utility to bridge aniworld.to site for anime releases to the *arr stack"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [ { name = "Zzackllack" } ]
+requires-python = ">=3.11"
+classifiers = [
+		"Programming Language :: Python :: 3",
+		"Programming Language :: Python :: 3 :: Only",
+		"Operating System :: OS Independent",
+]
+
+[project.urls]
+Home = "https://github.com/Zzackllack/AniBridge"
+Tracker = "https://github.com/Zzackllack/AniBridge/issues"
+
+[tool.setuptools.packages.find]
+where = ["app"]
+
