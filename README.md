@@ -9,6 +9,13 @@ AniBridge is a minimal FastAPI service that bridges anime streaming services (cu
 - **Background scheduler** with progress tracking for downloads.
 - Simple `/health` endpoint for container or orchestration checks.
 
+## Planned Features
+
+- Support for non anime sites like s.to
+- Interactive user search via Prowlarr (currently only search via Sonarr/API possible)
+- Documentation, configuration instructions, and examples...
+- Docker Image for easy deployment
+
 ## Installation
 
 ### With Docker
