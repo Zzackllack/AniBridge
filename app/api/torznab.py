@@ -206,7 +206,9 @@ def _build_item(
     # enclosure + size
     enc = ET.SubElement(item, "enclosure")
     enc.set("url", magnet)
-    enc.set("type", "application/x-bittorrent")
+    # Many indexers use this composite type for magnet links; it's safe and
+    # helps some consumers differentiate magnets vs .torrent files.
+    enc.set("type", "application/x-bittorrent;x-scheme-handler/magnet")
     est_size = _estimate_size_from_title_bytes(title)
     enc.set("length", str(est_size))
 

@@ -175,6 +175,9 @@ def sync_maindata(session: Session = Depends(get_session)):
     # Baue Torrent-Map wie qBittorrent (hash -> properties)
     rows = session.exec(select(ClientTask)).all()
     torrents: dict[str, dict] = {}
+    import os
+    import time
+
     for r in rows:
         job = get_job(session, r.job_id) if r.job_id else None
         progress = (job.progress or 0.0) / 100.0 if job else 0.0
@@ -186,17 +189,51 @@ def sync_maindata(session: Session = Depends(get_session)):
                 state = "error"
             elif job.status == "cancelled":
                 state = "pausedDL"
+        # Derive size, save_path and completion time more accurately on completion
+        size_val = int(job.total_bytes or 0) if job else 0
+        save_path_val = r.save_path or str(DOWNLOAD_DIR)
+        # Prefer directory of the actual file if we know it
+        if job and job.result_path:
+            try:
+                import os
+
+                save_path_val = os.path.abspath(os.path.dirname(job.result_path))
+            except Exception:
+                pass
+        completion_ts = int((r.completion_on or r.added_on).timestamp())
+        if job and job.status == "completed":
+            # If result_path exists, prefer filesystem size
+            if job.result_path and os.path.exists(job.result_path):
+                try:
+                    size_val = int(os.path.getsize(job.result_path))
+                except Exception:
+                    pass
+            # Set completion_on if not already set
+            if r.completion_on is None:
+                r.completion_on = datetime.fromtimestamp(time.time(), tz=timezone.utc)
+                try:
+                    session.add(r)
+                    session.commit()
+                except Exception:
+                    session.rollback()
+                completion_ts = int(r.completion_on.timestamp())
+
+        # If completed, don't report residual download speed
+        dlspeed_val = int(job.speed or 0) if job else 0
+        if job and job.status == "completed":
+            dlspeed_val = 0
+
         torrents[r.hash] = {
             "name": r.name,
             "progress": progress,
             "state": state,
-            "dlspeed": int(job.speed or 0) if job else 0,
+            "dlspeed": dlspeed_val,
             "eta": int(job.eta or 0) if job else 0,
             "category": r.category or "",
-            "save_path": r.save_path or "",
-            "size": int(job.total_bytes or 0) if job else 0,
+            "save_path": save_path_val,
+            "size": size_val,
             "added_on": int(r.added_on.timestamp()),
-            "completion_on": int((r.completion_on or r.added_on).timestamp()),
+            "completion_on": completion_ts,
         }
 
     # rid kann einfach monoton sein; hier statisch/inkrementell nicht nötig
@@ -254,6 +291,10 @@ def torrents_add(
     job_id = schedule_download(req)
     logger.debug(f"Scheduled job_id: {job_id}")
 
+    # default save path if not provided
+    if not savepath:
+        savepath = str(DOWNLOAD_DIR)
+
     upsert_client_task(
         session,
         hash=btih,
@@ -288,6 +329,9 @@ def torrents_info(
     from sqlmodel import select
     from app.models import ClientTask
 
+    import os
+    import time
+
     rows = session.exec(select(ClientTask)).all()
     logger.info(f"Found {len(rows)} client tasks in database.")
     out: List[dict] = []
@@ -310,12 +354,32 @@ def torrents_info(
             )
             if job.status == "completed":
                 state = "uploading"
+                dlspeed = 0
+                # prefer filesystem size if available
+                if job.result_path and os.path.exists(job.result_path):
+                    try:
+                        size = int(os.path.getsize(job.result_path))
+                    except Exception:
+                        pass
             elif job.status == "failed":
                 state = "error"
             elif job.status == "cancelled":
                 state = "pausedDL"
             else:
                 state = "downloading"
+
+        # Compute content_path and save_path from the final file when known
+        content_path = None
+        save_path_val = r.save_path or str(DOWNLOAD_DIR)
+        if job and job.result_path:
+            try:
+                # Normalize to absolute path for Sonarr
+                import os
+
+                content_path = os.path.abspath(job.result_path)
+                save_path_val = os.path.abspath(os.path.dirname(job.result_path))
+            except Exception:
+                content_path = job.result_path
 
         out.append(
             {
@@ -327,7 +391,8 @@ def torrents_info(
                 "upspeed": 0,
                 "eta": eta,
                 "category": r.category or "",
-                "save_path": r.save_path or "",
+                "save_path": save_path_val,
+                "content_path": content_path or "",
                 "added_on": int(r.added_on.timestamp()),
                 "completion_on": int((r.completion_on or r.added_on).timestamp()),
                 "size": int(size or 0),
@@ -337,6 +402,121 @@ def torrents_info(
         )
     logger.success("Torrent info response generated.")
     return JSONResponse(out)
+
+
+@router.get("/torrents/files")
+def torrents_files(session: Session = Depends(get_session), hash: str = ""):
+    """
+    Minimal implementation of qBittorrent's /torrents/files.
+    Returns a single-file list for our synthetic torrent with fields Sonarr uses.
+    """
+    from app.models import get_client_task
+    import os
+
+    h = (hash or "").strip().lower()
+    if not h:
+        raise HTTPException(status_code=400, detail="missing hash")
+    rec = get_client_task(session, h)
+    if not rec:
+        raise HTTPException(status_code=404, detail="not found")
+
+    job = get_job(session, rec.job_id) if rec.job_id else None
+    # Derive file info
+    file_name = rec.name
+    size = 0
+    prog = 0.0
+    is_seed = False
+    if job:
+        prog = (job.progress or 0.0) / 100.0
+        if job.result_path and os.path.exists(job.result_path):
+            try:
+                size = int(os.path.getsize(job.result_path))
+                file_name = os.path.basename(job.result_path)
+            except Exception:
+                pass
+        if job.status == "completed":
+            prog = 1.0
+            is_seed = True
+
+    return JSONResponse(
+        [
+            {
+                "index": 0,
+                "name": file_name,
+                "size": int(size or 0),
+                "progress": float(prog),
+                "priority": 1,
+                "is_seed": is_seed,
+                # optional fields omitted by many clients; Sonarr doesn't require them
+            }
+        ]
+    )
+
+
+@router.get("/torrents/properties")
+def torrents_properties(session: Session = Depends(get_session), hash: str = ""):
+    """
+    Minimal /torrents/properties implementation. Sonarr polls this after completion.
+    We return a subset sufficient for Completed Download Handling.
+    """
+    from app.models import get_client_task
+    import os
+    import time
+
+    h = (hash or "").strip().lower()
+    if not h:
+        raise HTTPException(status_code=400, detail="missing hash")
+    rec = get_client_task(session, h)
+    if not rec:
+        raise HTTPException(status_code=404, detail="not found")
+
+    job = get_job(session, rec.job_id) if rec.job_id else None
+    # Prefer the directory of the final file if known
+    save_path = rec.save_path or str(DOWNLOAD_DIR)
+    total_size = 0
+    if job and job.result_path and os.path.exists(job.result_path):
+        try:
+            total_size = int(os.path.getsize(job.result_path))
+            save_path = os.path.abspath(os.path.dirname(job.result_path))
+        except Exception:
+            total_size = int(job.total_bytes or 0)
+    elif job and job.total_bytes:
+        total_size = int(job.total_bytes)
+
+    now = int(time.time())
+    addition_date = int(rec.added_on.timestamp())
+    completion_date = int((rec.completion_on or rec.added_on).timestamp())
+    seeding_time = max(0, now - completion_date) if rec.completion_on else 0
+    time_elapsed = max(0, now - addition_date)
+
+    return JSONResponse(
+        {
+            "save_path": save_path,
+            "creation_date": addition_date,
+            "piece_size": total_size or 1,
+            "pieces_have": 1 if job and job.status == "completed" else 0,
+            "pieces_num": 1,
+            "dl_limit": 0,
+            "up_limit": 0,
+            "total_wasted": 0,
+            "total_uploaded": 0,
+            "total_uploaded_session": 0,
+            "total_downloaded": total_size,
+            "total_downloaded_session": total_size,
+            "up_speed_avg": 0,
+            "dl_speed_avg": 0,
+            "time_elapsed": time_elapsed,
+            "seeding_time": seeding_time,
+            "nb_connections": 0,
+            "nb_connections_limit": 0,
+            "share_ratio": 0,
+            "addition_date": addition_date,
+            "completion_date": completion_date,
+            "created_by": "AniBridge",
+            "last_seen": 0,
+            "total_seen": 0,
+        }
+    )
 
 
 @router.post("/torrents/delete")

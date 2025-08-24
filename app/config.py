@@ -24,12 +24,12 @@ DEFAULT_DIR = (
     if IN_DOCKER
     else (Path.cwd() / "data" / "downloads" / "anime")
 )
-DOWNLOAD_DIR = Path(os.getenv("DOWNLOAD_DIR", DEFAULT_DIR))
+DOWNLOAD_DIR = Path(os.getenv("DOWNLOAD_DIR", DEFAULT_DIR)).expanduser().resolve()
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 logger.debug(f"DOWNLOAD_DIR set to {DOWNLOAD_DIR}")
 
 # Generischer Datenordner (DB, Caches, HTML-Snapshots)
-DATA_DIR = Path(os.getenv("DATA_DIR", Path.cwd() / "data"))
+DATA_DIR = Path(os.getenv("DATA_DIR", Path.cwd() / "data")).expanduser().resolve()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 logger.debug(f"DATA_DIR set to {DATA_DIR}")
 

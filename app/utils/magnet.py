@@ -44,19 +44,31 @@ def build_magnet(
         f"Building magnet for title='{title}', slug='{slug}', season={season}, episode={episode}, language='{language}', provider='{provider}'"
     )
     xt = f"urn:btih:{_hash_id(slug, season, episode, language)}"
-    q = {
-        "xt": xt,
-        "dn": title,
-        "aw_slug": slug,
-        "aw_s": str(season),
-        "aw_e": str(episode),
-        "aw_lang": language,
-    }
+    # Build query params, but ensure 'xt=urn:btih:...' keeps ':' unescaped.
+    # Some consumers (Prowlarr/qBittorrent) are strict and expect a literal
+    # 'urn:btih:' instead of the percent-encoded variant.
+    params: list[tuple[str, str]] = [
+        ("xt", xt),
+        ("dn", title),
+        ("aw_slug", slug),
+        ("aw_s", str(season)),
+        ("aw_e", str(episode)),
+        ("aw_lang", language),
+    ]
     if provider:
-        q["aw_provider"] = provider
+        params.append(("aw_provider", provider))
         logger.debug(f"Added provider to magnet: {provider}")
-    qs = "&".join(f"{k}={urllib.parse.quote_plus(v)}" for k, v in q.items())
-    magnet_uri = f"magnet:?{qs}"
+
+    # Encode each param individually; keep ':' in xt unescaped
+    encoded_parts: list[str] = []
+    for k, v in params:
+        if k == "xt":
+            enc_v = urllib.parse.quote_plus(v, safe=":")
+        else:
+            enc_v = urllib.parse.quote_plus(v)
+        encoded_parts.append(f"{k}={enc_v}")
+
+    magnet_uri = f"magnet:?{'&'.join(encoded_parts)}"
     logger.success(f"Magnet URI built: {magnet_uri}")
     return magnet_uri
 
