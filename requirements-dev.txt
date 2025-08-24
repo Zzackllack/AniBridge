@@ -43,3 +43,5 @@ PyYAML
 pytest
 pytest-cov
 httpx
+pyinstaller
+bump2version
