@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+aniworld
+yt-dlp
+sqlmodel
+SQLAlchemy
+loguru
+tqdm
+python-multipart
+python-dotenv
+requests
+beautifulsoup4
+fake_useragent
+uvloop
+websockets
+PyYAML

@@ -12,9 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # --- Stage 2: Install Python dependencies ---
 FROM base AS deps
-COPY requirements.txt ./
+COPY requirements.runtime.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.runtime.txt
 
 # --- Stage 3: Copy source and create non-root user ---
 FROM base AS final
@@ -25,7 +25,7 @@ RUN addgroup --system appgroup && adduser --system --group appuser
 
 COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY app/ ./app/
-COPY requirements.txt ./
+COPY requirements.runtime.txt ./
 
 RUN chown -R appuser:appgroup /app
 USER appuser
