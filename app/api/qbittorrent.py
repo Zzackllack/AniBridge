@@ -19,6 +19,7 @@ from app.scheduler import schedule_download, cancel_job
 router = APIRouter(prefix="/api/v2")
 
 from app.config import QBIT_PUBLIC_SAVE_PATH as _PUB
+
 CATEGORIES: dict[str, dict] = {
     "prowlarr": {"name": "prowlarr", "savePath": _PUB or str(DOWNLOAD_DIR)}
 }
@@ -130,6 +131,7 @@ def app_preferences():
     """
     logger.debug("App preferences requested.")
     from app.config import QBIT_PUBLIC_SAVE_PATH
+
     return JSONResponse(
         {
             # Pfade/Download-Verhalten
@@ -198,6 +200,7 @@ def sync_maindata(session: Session = Depends(get_session)):
         if job and job.result_path:
             try:
                 import os
+
                 real_dir = os.path.abspath(os.path.dirname(job.result_path))
                 save_path_val = QBIT_PUBLIC_SAVE_PATH or real_dir
             except Exception:
@@ -382,7 +385,9 @@ def torrents_info(
 
                 content_abs = os.path.abspath(job.result_path)
                 if QBIT_PUBLIC_SAVE_PATH:
-                    content_path = os.path.join(QBIT_PUBLIC_SAVE_PATH, os.path.basename(content_abs))
+                    content_path = os.path.join(
+                        QBIT_PUBLIC_SAVE_PATH, os.path.basename(content_abs)
+                    )
                     save_path_val = QBIT_PUBLIC_SAVE_PATH
                 else:
                     content_path = content_abs
