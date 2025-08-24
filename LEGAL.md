@@ -36,6 +36,17 @@ Important: Please read this entire notice carefully before installing, running, 
 - “AniWorld” and similar platforms may operate in legal gray areas or jurisdictions with inconsistent enforcement. AniBridge does not operate, partner with, or endorse such services. References in the codebase exist solely for technical interoperability by end users who accept full responsibility for compliance.
 - If a third-party service’s terms prohibit automated access, scraping, or downloading, you must not configure AniBridge to do so. This project does not provide or condone any means to defeat paywalls, authentication gates, or DRM.
 
+5.1) AniWorld Terms (“Nutzungsbedingungen”) and DMCA
+
+- AniWorld publishes site rules/terms at https://aniworld.to/support/regeln. Among other things, those terms state that automated scraping, automated extraction or manipulation of content and datasets is not permitted, and that AniWorld may seek damages and take further measures against violations. Do not configure or use AniBridge in any way that would violate those terms.
+- AniWorld provides a DMCA takedown process at https://aniworld.to/dmca and a contact/support channel at https://aniworld.to/account/support/new. If you are a rights holder and request removal of content from AniWorld or its hosts, you must contact AniWorld or the relevant hosting provider directly. AniBridge does not host or control third-party content and cannot remove materials from external services.
+- AniWorld’s own terms include warranty and liability disclaimers and indicate a governing law outside of many users’ jurisdictions (reportedly Belize). Regardless of AniWorld’s internal terms, your obligations arise under the laws applicable to you, and you must comply with both the law and any third-party terms you accept.
+
+5.2) Alignment with AniWorld-Downloader Library Disclaimer
+
+- The community-maintained AniWorld Downloader library states that it is intended to access content already publicly available online, does not promote piracy or copyright violations, and that the developer is not responsible for how the tool is used or for external content. AniBridge adopts a similarly strict stance: it hosts nothing, promotes no infringement, and relies on user configuration. Legality depends on your specific use case, jurisdiction, and the terms of the services you access.
+- The AniWorld-Downloader README further notes that the tool does not control the accuracy, legality, or availability of third-party websites. The same applies here: interoperability references in AniBridge do not imply control over, or endorsement of, third-party sites or their content.
+
 6) Intellectual Property; No Infringement Intent
 
 - This project is provided for interoperability, research, and automation workflows with lawful content only. It must not be used to infringe any copyright, trademark, or other intellectual property rights.
@@ -66,6 +77,7 @@ Important: Please read this entire notice carefully before installing, running, 
 
 - This project does not host third-party media. If you believe that material within this repository (e.g., code or documentation) infringes rights you own, please submit a report with sufficient detail to identify the allegedly infringing repository content. Do not send requests to remove or block third-party media located elsewhere; we have no control over external sites.
 - Security or abuse concerns unrelated to intellectual property may be reported per the repository’s security policy. We reserve the right—but not the obligation—to remove or modify repository content at our discretion.
+- For materials available on or through AniWorld or its file hosts, submit takedown requests via AniWorld’s DMCA channel at https://aniworld.to/dmca and/or to the relevant host. AniBridge cannot process or effectuate removals on third-party platforms.
 
 12) Technical Protection Measures and Circumvention
 
