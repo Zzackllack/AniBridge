@@ -2,6 +2,10 @@
 
 AniBridge is a minimal FastAPI service that bridges anime streaming services (currently only aniworld) to automation tools. It exposes a fake Torznab feed and a fake qBittorrent-compatible API so that applications like Prowlarr/Sonarr can discover and download episodes automatically.
 
+> [!CAUTION]
+> ⚖️ Before using this software, please read the  
+> [Legal Disclaimer](./LEGAL.md).
+
 ## Features
 
 - **Torznab endpoint** that indexes available episodes from AniWorld.
@@ -15,6 +19,7 @@ AniBridge is a minimal FastAPI service that bridges anime streaming services (cu
 - Interactive user search via Prowlarr (currently only search via Sonarr/API possible)
 - Documentation, configuration instructions, and examples...
 - Docker Image for easy deployment
+- Better code structure and organization (refactoring, modularization, right now the code is a bit messy with comments in multiple languages, redundant code, etc. 😅)
 
 ## Installation
 
