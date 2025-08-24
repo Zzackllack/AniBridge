@@ -33,6 +33,13 @@ DATA_DIR = Path(os.getenv("DATA_DIR", Path.cwd() / "data")).expanduser().resolve
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 logger.debug(f"DATA_DIR set to {DATA_DIR}")
 
+# Optional override: path reported to clients (e.g. Sonarr) as qBittorrent save path.
+# Useful when AniBridge runs on host but Sonarr runs in a container with a different mount point.
+QBIT_PUBLIC_SAVE_PATH = os.getenv("QBIT_PUBLIC_SAVE_PATH", "").strip()
+if QBIT_PUBLIC_SAVE_PATH:
+    QBIT_PUBLIC_SAVE_PATH = str(Path(QBIT_PUBLIC_SAVE_PATH).expanduser().resolve())
+logger.debug(f"QBIT_PUBLIC_SAVE_PATH={QBIT_PUBLIC_SAVE_PATH or '<none>'}")
+
 # Titelquelle (Slug -> Display-Title)
 # Option A: lokale HTML-Datei (Snapshot der Alphabet-Seite)
 ANIWORLD_ALPHABET_HTML = Path(

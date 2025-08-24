@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Response, Request
 from fastapi.responses import PlainTextResponse, JSONResponse
 from sqlmodel import Session
 from loguru import logger
-from app.config import DOWNLOAD_DIR
+from app.config import DOWNLOAD_DIR, QBIT_PUBLIC_SAVE_PATH
 from app.magnet import parse_magnet
 from app.models import (
     get_session,
@@ -18,8 +18,9 @@ from app.scheduler import schedule_download, cancel_job
 
 router = APIRouter(prefix="/api/v2")
 
+from app.config import QBIT_PUBLIC_SAVE_PATH as _PUB
 CATEGORIES: dict[str, dict] = {
-    "prowlarr": {"name": "prowlarr", "savePath": str(DOWNLOAD_DIR)}
+    "prowlarr": {"name": "prowlarr", "savePath": _PUB or str(DOWNLOAD_DIR)}
 }
 
 
@@ -128,10 +129,11 @@ def app_preferences():
     Werte sind largely kosmetisch; wichtig ist ein gültiges JSON mit save_path.
     """
     logger.debug("App preferences requested.")
+    from app.config import QBIT_PUBLIC_SAVE_PATH
     return JSONResponse(
         {
             # Pfade/Download-Verhalten
-            "save_path": str(DOWNLOAD_DIR),
+            "save_path": QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR),
             "temp_path_enabled": False,
             "temp_path": "",
             "create_subfolder_enabled": True,
@@ -191,13 +193,13 @@ def sync_maindata(session: Session = Depends(get_session)):
                 state = "pausedDL"
         # Derive size, save_path and completion time more accurately on completion
         size_val = int(job.total_bytes or 0) if job else 0
-        save_path_val = r.save_path or str(DOWNLOAD_DIR)
+        save_path_val = r.save_path or (QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR))
         # Prefer directory of the actual file if we know it
         if job and job.result_path:
             try:
                 import os
-
-                save_path_val = os.path.abspath(os.path.dirname(job.result_path))
+                real_dir = os.path.abspath(os.path.dirname(job.result_path))
+                save_path_val = QBIT_PUBLIC_SAVE_PATH or real_dir
             except Exception:
                 pass
         completion_ts = int((r.completion_on or r.added_on).timestamp())
@@ -294,6 +296,8 @@ def torrents_add(
     # default save path if not provided
     if not savepath:
         savepath = str(DOWNLOAD_DIR)
+    # path we publish to clients (may be overridden for container mapping)
+    published_savepath = QBIT_PUBLIC_SAVE_PATH or savepath
 
     upsert_client_task(
         session,
@@ -303,7 +307,7 @@ def torrents_add(
         season=season,
         episode=episode,
         language=language,
-        save_path=savepath,
+        save_path=published_savepath,
         category=category,
         job_id=job_id,
         state="queued" if paused else "downloading",
@@ -370,14 +374,19 @@ def torrents_info(
 
         # Compute content_path and save_path from the final file when known
         content_path = None
-        save_path_val = r.save_path or str(DOWNLOAD_DIR)
+        save_path_val = r.save_path or (QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR))
         if job and job.result_path:
             try:
                 # Normalize to absolute path for Sonarr
                 import os
 
-                content_path = os.path.abspath(job.result_path)
-                save_path_val = os.path.abspath(os.path.dirname(job.result_path))
+                content_abs = os.path.abspath(job.result_path)
+                if QBIT_PUBLIC_SAVE_PATH:
+                    content_path = os.path.join(QBIT_PUBLIC_SAVE_PATH, os.path.basename(content_abs))
+                    save_path_val = QBIT_PUBLIC_SAVE_PATH
+                else:
+                    content_path = content_abs
+                    save_path_val = os.path.abspath(os.path.dirname(content_abs))
             except Exception:
                 content_path = job.result_path
 
@@ -472,12 +481,15 @@ def torrents_properties(session: Session = Depends(get_session), hash: str = "")
 
     job = get_job(session, rec.job_id) if rec.job_id else None
     # Prefer the directory of the final file if known
-    save_path = rec.save_path or str(DOWNLOAD_DIR)
+    save_path = rec.save_path or (QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR))
     total_size = 0
     if job and job.result_path and os.path.exists(job.result_path):
         try:
             total_size = int(os.path.getsize(job.result_path))
-            save_path = os.path.abspath(os.path.dirname(job.result_path))
+            if QBIT_PUBLIC_SAVE_PATH:
+                save_path = QBIT_PUBLIC_SAVE_PATH
+            else:
+                save_path = os.path.abspath(os.path.dirname(job.result_path))
         except Exception:
             total_size = int(job.total_bytes or 0)
     elif job and job.total_bytes:
