@@ -17,6 +17,7 @@ AniBridge is a minimal FastAPI service that bridges anime streaming services (cu
 
 - Support for non anime sites like s.to
 - Interactive user search via Prowlarr (currently only search via Sonarr/API possible)
+- Full support for RSS Sync
 - Documentation, configuration instructions, and examples...
 - Docker Image for easy deployment
 - Better code structure and organization (refactoring, modularization, right now the code is a bit messy with comments in multiple languages, redundant code, etc. 😅)
