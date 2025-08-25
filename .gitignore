@@ -524,3 +524,4 @@ sonarr.debug.txt
 .gitignore
 example-aniworld.html
 release/
+!Makefile
