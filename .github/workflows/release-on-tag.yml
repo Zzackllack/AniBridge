@@ -56,7 +56,8 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: |
           mkdir -p release
-          tar -czf release/anibridge-${{ matrix.os }}-$(cat VERSION).tar.gz -C artifacts . || true
+          version=$(cat VERSION | tr -d ' \n\r')
+          tar -czf release/anibridge-${{ matrix.os }}-${version}.tar.gz -C artifacts . || true
           ls -la release || true
 
       - name: Install dependencies (windows)
@@ -79,8 +80,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release
-          $v = Get-Content VERSION -Raw
-          Compress-Archive -Path artifacts\* -DestinationPath release\anibridge-windows-${v}.zip -Force
+          $v = (Get-Content VERSION -Raw).Trim()
+          Compress-Archive -Path artifacts\* -DestinationPath (Join-Path -Path release -ChildPath "anibridge-windows-$v.zip") -Force
           Get-ChildItem release
       - name: Upload binaries
         uses: softprops/action-gh-release@v1

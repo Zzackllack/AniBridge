@@ -64,7 +64,7 @@ if command -v docker >/dev/null 2>&1; then
   if [ -n "$REMOTE" ]; then
     IMAGE=$(echo "$REMOTE" | sed -E 's#.*[:/](.+/.+)(\.git)?#ghcr.io/\1#')
   else
-    IMAGE="ghcr.io/youruser/anibridge"
+    IMAGE="ghcr.io/zzackllack/anibridge"
   fi
   docker build -t ${IMAGE}:${VERSION} -t ${IMAGE}:v${VERSION} . || echo "docker build failed"
 else
