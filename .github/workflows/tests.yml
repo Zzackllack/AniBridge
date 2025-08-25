@@ -2,7 +2,13 @@ name: tests
 
 on:
   push:
+    paths:
+      - 'app/**'
+      - 'tests/**'
   pull_request:
+    paths:
+      - 'app/**'
+      - 'tests/**'
 
 jobs:
   test:
