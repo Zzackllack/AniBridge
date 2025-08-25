@@ -1,6 +1,7 @@
 # Makefile for version bumping, building, and packaging
 
 PYTHON ?= $(shell command -v python3 || command -v python || echo python)
+PUSH ?= ask
 
 .PHONY: bump patch minor major tag build wheel pyinstaller
 
@@ -12,14 +13,56 @@ patch:
 	# run the bump2version executable from the same Python's bin dir so it
 	# works inside virtualenvs even if python -m bump2version is not available
 	$(PYTHON) -c "import sys,subprocess,os; vbin=os.path.dirname(sys.executable); script=os.path.join(vbin,'bump2version'); sys.exit(subprocess.call([script,'patch']))"
+	# push the new commit and tag to origin so CI triggers on the pushed tag
+	@/bin/sh -c ' \
+	if [ "$(PUSH)" = "true" ]; then \
+		git push origin HEAD && git push origin --tags; \
+	elif [ "$(PUSH)" = "ask" ]; then \
+		printf "Push commit and tag to origin? [y/N] "; read -r ans; \
+		if [ "$$ans" = "y" ] || [ "$$ans" = "Y" ]; then \
+			git push origin HEAD && git push origin --tags; \
+		else \
+			echo "Skipping push"; \
+		fi; \
+	else \
+		echo "PUSH=$(PUSH) -> skipping git push"; \
+	fi'
 
 minor:
 	$(PYTHON) -m pip install --upgrade bump2version
 	$(PYTHON) -c "import sys,subprocess,os; vbin=os.path.dirname(sys.executable); script=os.path.join(vbin,'bump2version'); sys.exit(subprocess.call([script,'minor']))"
+	# push the new commit and tag to origin so CI triggers on the pushed tag
+	@/bin/sh -c ' \
+	if [ "$(PUSH)" = "true" ]; then \
+		git push origin HEAD && git push origin --tags; \
+	elif [ "$(PUSH)" = "ask" ]; then \
+		printf "Push commit and tag to origin? [y/N] "; read -r ans; \
+		if [ "$$ans" = "y" ] || [ "$$ans" = "Y" ]; then \
+			git push origin HEAD && git push origin --tags; \
+		else \
+			echo "Skipping push"; \
+		fi; \
+	else \
+		echo "PUSH=$(PUSH) -> skipping git push"; \
+	fi'
 
 major:
 	$(PYTHON) -m pip install --upgrade bump2version
 	$(PYTHON) -c "import sys,subprocess,os; vbin=os.path.dirname(sys.executable); script=os.path.join(vbin,'bump2version'); sys.exit(subprocess.call([script,'major']))"
+	# push the new commit and tag to origin so CI triggers on the pushed tag
+	@/bin/sh -c ' \
+	if [ "$(PUSH)" = "true" ]; then \
+		git push origin HEAD && git push origin --tags; \
+	elif [ "$(PUSH)" = "ask" ]; then \
+		printf "Push commit and tag to origin? [y/N] "; read -r ans; \
+		if [ "$$ans" = "y" ] || [ "$$ans" = "Y" ]; then \
+			git push origin HEAD && git push origin --tags; \
+		else \
+			echo "Skipping push"; \
+		fi; \
+	else \
+		echo "PUSH=$(PUSH) -> skipping git push"; \
+	fi'
 
 tag:
 	# create an annotated tag from current VERSION

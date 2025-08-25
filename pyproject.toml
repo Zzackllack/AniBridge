@@ -7,7 +7,7 @@ name = "anibridge"
 version = "1.12.45"
 description = "AniBridge - small utility to bridge aniworld.to site for anime releases to the *arr stack"
 readme = "README.md"
-license = "MIT"
+license = "BSD-3-Clause"
 license-files = ["LICENSE"]
 authors = [ { name = "Zzackllack" } ]
 requires-python = ">=3.11"
