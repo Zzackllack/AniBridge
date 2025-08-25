@@ -48,7 +48,7 @@ jobs:
       - name: Build single-file binary (linux/macos)
         if: matrix.os != 'windows-latest'
         run: |
-          pyinstaller --onefile app/main.py --name anibridge
+          pyinstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge
           mkdir -p artifacts
           mv dist/anibridge artifacts/ || true
 
@@ -70,7 +70,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          pyinstaller --onefile app\main.py --name anibridge.exe
+          pyinstaller --additional-hooks-dir hooks --onefile app\main.py --name anibridge.exe
           New-Item -ItemType Directory -Force -Path artifacts
           Move-Item -Path dist\anibridge.exe -Destination artifacts\anibridge.exe -ErrorAction SilentlyContinue
 

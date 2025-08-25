@@ -321,9 +321,38 @@ if __name__ == "__main__":
     logger.info("Starting AniBridge FastAPI server...")
     import uvicorn
 
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-    )
+    # When running as a PyInstaller one-file binary, sys.frozen/_MEIPASS
+    # will be present. Uvicorn's reload/watchers spawn subprocesses and
+    # pass special multiprocessing arguments to the executable which our
+    # CLI argparse does not understand. Disable reload in packaged runs.
+    is_frozen = getattr(sys, "frozen", False) or hasattr(sys, "_MEIPASS")
+    # Allow override via env var for advanced cases (set ANIBRIDGE_RELOAD=1 to force)
+    reload_env = os.environ.get("ANIBRIDGE_RELOAD")
+    if reload_env is not None:
+        reload_flag = reload_env == "1"
+    else:
+        reload_flag = not is_frozen
+
+    if reload_flag:
+        logger.info("Uvicorn reload enabled (development mode).")
+    else:
+        logger.info("Uvicorn reload disabled (packaged/production mode).")
+
+    # If reload is enabled (development), uvicorn expects an import string so
+    # the reloader can import the module. When reload is disabled (packaged
+    # binary), pass the app object directly to avoid import errors inside the
+    # frozen executable.
+    if reload_flag:
+        uvicorn.run(
+            "app.main:app",
+            host="0.0.0.0",
+            port=8000,
+            reload=True,
+        )
+    else:
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=8000,
+            reload=False,
+        )

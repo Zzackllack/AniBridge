@@ -42,7 +42,9 @@ PY
 echo "==> Building PyInstaller single-file (current OS)"
 $PYTHON -m pip install --upgrade pyinstaller >/dev/null
 if [ -f app/main.py ]; then
-  $PYTHON -m PyInstaller --onefile app/main.py --name anibridge
+  # Use our custom hooks directory so package data like fake_useragent's
+  # browsers.jsonl get included in the bundle.
+  $PYTHON -m PyInstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge
   PLATFORM=$(uname -s | tr '[:upper:]' '[:lower:]')
   mkdir -p "release/${VERSION}/${PLATFORM}"
   if [ -f dist/anibridge ]; then
