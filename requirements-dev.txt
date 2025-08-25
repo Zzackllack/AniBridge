@@ -36,7 +36,7 @@ starlette
 typing_extensions
 typing_inspection
 urllib3
-uvloop
+# uvloop # only works on linux or macos, does not support windows
 watchfiles
 websockets
 PyYAML
