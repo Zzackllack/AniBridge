@@ -25,6 +25,7 @@ from app.config import (
     TORZNAB_TEST_LANGUAGE,
 )
 from app.utils.magnet import build_magnet
+from app.utils.logger import config as configure_logger
 from app.models import (
     get_session,
     get_availability,
@@ -39,14 +40,7 @@ from app.utils.title_resolver import (
     load_or_refresh_alternatives,
 )
 
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
-logger.remove()
-logger.add(
-    sys.stdout,
-    level=LOG_LEVEL,
-    colorize=True,
-    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-)
+configure_logger()
 
 router = APIRouter(prefix="/torznab")
 

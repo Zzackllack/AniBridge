@@ -1,49 +1,33 @@
 import sys
 import os
+import uuid
+import errno
+import asyncio
+import threading
 from loguru import logger
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime
 from app.infrastructure.terminal_logger import TerminalLogger
-
-load_dotenv()
-import uuid
-
-# Set log file path for all processes (reloader/workers)
-if not os.environ.get("ANIBRIDGE_LOG_PATH"):
-    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    # Use a random UUID to ensure uniqueness per run, not per process
-    run_id = uuid.uuid4().hex[:8]
-    log_path = Path.cwd() / "data" / f"terminal-{ts}-{run_id}.log"
-    os.environ["ANIBRIDGE_LOG_PATH"] = str(log_path)
-TerminalLogger(Path.cwd() / "data")
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
-logger.remove()
-logger.add(
-    sys.stdout,
-    level=LOG_LEVEL,
-    colorize=True,
-    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
-    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-)
-
+from app.utils.logger import config as configure_logger, ensure_log_path
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 from sqlmodel import Session
-import errno
-import asyncio
+from app.config import DOWNLOAD_DIR
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor, Future
-import threading
+from app.api.torznab import router as torznab_router
+from app.api.qbittorrent import router as qbittorrent_router
+from app.core.scheduler import init_executor, shutdown_executor, schedule_download
+from app.core.scheduler import RUNNING, RUNNING_LOCK
 from app.core.downloader import (
     LanguageUnavailableError,
     Provider,
     Language,
     download_episode,
 )
-from app.config import DOWNLOAD_DIR
 from app.models import (
     Job,
     get_session,
@@ -54,11 +38,14 @@ from app.models import (
     update_job as db_update_job,
     engine,
 )
-from app.api.torznab import router as torznab_router
-from app.api.qbittorrent import router as qbittorrent_router
-from app.core.scheduler import init_executor, shutdown_executor, schedule_download
-from app.core.scheduler import RUNNING, RUNNING_LOCK
 
+load_dotenv()
+configure_logger()
+# Ensure ANIBRIDGE_LOG_PATH is set and data dir exists. We keep the
+# TerminalLogger instantiation here to avoid import cycles between app
+# packages (TerminalLogger may import app.utils.logger indirectly).
+ensure_log_path()
+TerminalLogger(Path.cwd() / "data")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

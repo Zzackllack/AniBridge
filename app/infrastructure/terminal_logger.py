@@ -1,11 +1,8 @@
 import sys
 import os
+import threading
 from datetime import datetime
 from pathlib import Path
-
-
-import threading
-
 
 class TerminalLogger:
     """

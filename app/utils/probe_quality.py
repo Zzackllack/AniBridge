@@ -8,16 +8,9 @@ import sys
 from app.core.downloader import get_direct_url_with_fallback, build_episode
 from app.utils.naming import quality_from_info
 from app.config import PROVIDER_ORDER
+from app.utils.logger import config as configure_logger
 
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
-logger.remove()
-logger.add(
-    sys.stdout,
-    level=LOG_LEVEL,
-    colorize=True,
-    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
-    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-)
+configure_logger()
 
 
 def probe_episode_quality_once(

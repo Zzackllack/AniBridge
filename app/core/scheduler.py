@@ -9,6 +9,9 @@ import errno
 from app.config import MAX_CONCURRENCY, DOWNLOAD_DIR
 from app.models import engine, create_job, update_job
 from app.core.downloader import download_episode, Provider, Language
+from app.utils.logger import config as configure_logger
+
+configure_logger()
 
 # global executor + registry
 EXECUTOR: Optional[ThreadPoolExecutor] = None

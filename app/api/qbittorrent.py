@@ -15,6 +15,9 @@ from app.models import (
     get_job,
 )
 from app.core.scheduler import schedule_download, cancel_job
+from app.utils.logger import config as configure_logger
+
+configure_logger()
 
 router = APIRouter(prefix="/api/v2")
 

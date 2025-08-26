@@ -5,16 +5,9 @@ import os
 import sys
 import hashlib
 import urllib.parse
+from app.utils.logger import config as configure_logger
 
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
-logger.remove()
-logger.add(
-    sys.stdout,
-    level=LOG_LEVEL,
-    colorize=True,
-    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
-    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-)
+configure_logger()
 
 
 def _hash_id(slug: str, season: int, episode: int, language: str) -> str:
