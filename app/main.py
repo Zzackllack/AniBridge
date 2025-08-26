@@ -54,8 +54,8 @@ from app.models import (
     update_job as db_update_job,
     engine,
 )
-from app.torznab import router as torznab_router
-from app.qbittorrent import router as qbittorrent_router
+from app.api.torznab import router as torznab_router
+from app.api.qbittorrent import router as qbittorrent_router
 from app.scheduler import init_executor, shutdown_executor, schedule_download
 from app.scheduler import RUNNING, RUNNING_LOCK
 

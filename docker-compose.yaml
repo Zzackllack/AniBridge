@@ -1,7 +1,7 @@
 version: "3.8"
 services:
   anibridge:
-    build: .
+    image: ghcr.io/zzackllack/anibridge:latest
     container_name: anibridge
     ports:
       - "8000:8000"
@@ -9,6 +9,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DOWNLOAD_DIR=${DOWNLOAD_DIR:-/app/data/downloads/anime}
       - DATA_DIR=${DATA_DIR:-/app/data}
+      - QBIT_PUBLIC_SAVE_PATH=${QBIT_PUBLIC_SAVE_PATH}
       - ANIWORLD_ALPHABET_HTML=${ANIWORLD_ALPHABET_HTML}
       - ANIWORLD_ALPHABET_URL=${ANIWORLD_ALPHABET_URL:-https://aniworld.to/animes-alphabet}
       - ANIWORLD_TITLES_REFRESH_HOURS=${ANIWORLD_TITLES_REFRESH_HOURS:-24}
