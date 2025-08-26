@@ -138,26 +138,21 @@ def _fetch_index_from_url() -> Tuple[Dict[str, str], Dict[str, List[str]]]:
 
 
 def _load_index_from_file(path: Path) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
+    """
+    Load the index strictly from the provided file path.
+    Intentionally avoids implicit fallbacks so tests can point to a
+    minimal, deterministic HTML sample via ANIWORLD_ALPHABET_HTML.
+    """
     logger.info(f"Loading index from file: {path}")
-    paths_to_try: List[Path] = [path]
-    # Fallback to repo snapshot if configured file is missing
-    fallback = Path.cwd() / "example-aniworld.html"
-    if path != fallback:
-        paths_to_try.append(fallback)
-    chosen: Optional[Path] = None
-    for p in paths_to_try:
-        if p.exists():
-            chosen = p
-            break
-    if not chosen:
-        logger.warning(f"No HTML file found. Tried: {paths_to_try}")
+    if not path.exists():
+        logger.warning(f"Configured HTML file does not exist: {path}")
         return {}, {}
     try:
-        html_text = chosen.read_text(encoding="utf-8", errors="ignore")
-        logger.success(f"Successfully read file: {chosen}")
+        html_text = path.read_text(encoding="utf-8", errors="ignore")
+        logger.success(f"Successfully read file: {path}")
         return _parse_index_and_alts(html_text)
     except Exception as e:
-        logger.error(f"Failed to read file {chosen}: {e}")
+        logger.error(f"Failed to read file {path}: {e}")
         raise
 
 
@@ -166,7 +161,7 @@ def load_or_refresh_index() -> Dict[str, str]:
     Bevorzugt Live-URL (falls konfiguriert), sonst lokale Datei.
     Nutzt In-Memory-Cache mit TTL und Fallback-Strategie.
     """
-    global _cached_index, _cached_at
+    global _cached_index, _cached_at, _cached_alts
     now = time()
 
     logger.debug("Starting load_or_refresh_index.")

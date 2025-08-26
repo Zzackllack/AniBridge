@@ -30,8 +30,8 @@ def client(tmp_path, monkeypatch):
     modules = [
         "app.config",
         "app.models",
-        "app.torznab",
-        "app.qbittorrent",
+        "app.api.torznab",
+        "app.api.qbittorrent",
         "app.main",
     ]
     for m in modules:
@@ -40,7 +40,7 @@ def client(tmp_path, monkeypatch):
 
     from app.main import app
     from app.models import create_db_and_tables
-    import app.qbittorrent as qb
+    import app.api.qbittorrent as qb
 
     create_db_and_tables()
 

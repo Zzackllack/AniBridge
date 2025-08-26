@@ -15,7 +15,7 @@ def test_search(client):
 
 
 def test_tvsearch_happy_path(client, monkeypatch):
-    import app.torznab as tn
+    import app.api.torznab as tn
 
     class Rec:
         available = True

@@ -1,5 +1,5 @@
 def test_build_index_from_html():
-    from app.title_resolver import build_index_from_html
+    from app.utils.title_resolver import build_index_from_html
 
     html = """
     <html><body>

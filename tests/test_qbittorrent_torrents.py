@@ -1,5 +1,5 @@
 def test_torrent_lifecycle(client):
-    from app.magnet import build_magnet
+    from app.utils.magnet import build_magnet
 
     resp = client.post(
         "/api/v2/torrents/createCategory",

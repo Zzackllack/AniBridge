@@ -1,5 +1,5 @@
 def test_build_and_parse_magnet_roundtrip():
-    from app.magnet import build_magnet, parse_magnet
+    from app.utils.magnet import build_magnet, parse_magnet
 
     uri = build_magnet(
         title="Title",
@@ -20,7 +20,7 @@ def test_build_and_parse_magnet_roundtrip():
 
 
 def test_parse_magnet_errors():
-    from app.magnet import parse_magnet
+    from app.utils.magnet import parse_magnet
     import pytest
 
     with pytest.raises(ValueError):

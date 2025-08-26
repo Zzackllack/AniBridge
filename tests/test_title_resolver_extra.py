@@ -9,11 +9,11 @@ def test_load_index_from_file(tmp_path, monkeypatch):
     monkeypatch.setenv("ANIWORLD_TITLES_REFRESH_HOURS", "0")
 
     import sys
-    for m in ["app.config", "app.title_resolver"]:
+    for m in ["app.config", "app.utils.title_resolver"]:
         if m in sys.modules:
             del sys.modules[m]
 
-    from app.title_resolver import load_or_refresh_index, resolve_series_title
+    from app.utils.title_resolver import load_or_refresh_index, resolve_series_title
 
     idx = load_or_refresh_index()
     assert idx == {"slug-one": "Title One"}
