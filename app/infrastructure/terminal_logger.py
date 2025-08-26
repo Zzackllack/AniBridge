@@ -4,6 +4,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
+
 class TerminalLogger:
     """
     Singleton logger that duplicates all stdout/stderr to a single log file per run in data/.

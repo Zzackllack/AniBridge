@@ -48,6 +48,7 @@ configure_logger()
 ensure_log_path()
 TerminalLogger(Path.cwd() / "data")
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global EXECUTOR

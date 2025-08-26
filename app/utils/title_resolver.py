@@ -97,12 +97,12 @@ def _parse_index_and_alts(
     idx: Dict[str, str] = {}
     alts: Dict[str, List[str]] = {}
     for a in soup.find_all("a"):
-        href = a.get("href") or "" # type: ignore
-        slug = _extract_slug(href) # type: ignore
+        href = a.get("href") or ""  # type: ignore
+        slug = _extract_slug(href)  # type: ignore
         if not slug:
             continue
         title = (a.get_text() or "").strip()
-        alt_raw = (a.get("data-alternative-title") or "").strip() # type: ignore
+        alt_raw = (a.get("data-alternative-title") or "").strip()  # type: ignore
         # Split by comma and normalize pieces
         alt_list: List[str] = []
         if alt_raw:
