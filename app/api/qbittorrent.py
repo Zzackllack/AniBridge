@@ -6,7 +6,7 @@ from fastapi.responses import PlainTextResponse, JSONResponse
 from sqlmodel import Session
 from loguru import logger
 from app.config import DOWNLOAD_DIR, QBIT_PUBLIC_SAVE_PATH
-from app.magnet import parse_magnet
+from app.utils.magnet import parse_magnet
 from app.models import (
     get_session,
     upsert_client_task,
@@ -14,7 +14,7 @@ from app.models import (
     delete_client_task,
     get_job,
 )
-from app.scheduler import schedule_download, cancel_job
+from app.core.scheduler import schedule_download, cancel_job
 
 router = APIRouter(prefix="/api/v2")
 

@@ -19,7 +19,7 @@ logger.add(
 # Lib-API:
 from aniworld.models import Anime, Episode  # type: ignore
 
-from app.naming import rename_to_release
+from app.utils.naming import rename_to_release
 from app.config import PROVIDER_ORDER
 
 Language = Literal["German Dub", "German Sub", "English Sub"]

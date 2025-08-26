@@ -56,8 +56,8 @@ from app.models import (
 )
 from app.api.torznab import router as torznab_router
 from app.api.qbittorrent import router as qbittorrent_router
-from app.scheduler import init_executor, shutdown_executor, schedule_download
-from app.scheduler import RUNNING, RUNNING_LOCK
+from app.core.scheduler import init_executor, shutdown_executor, schedule_download
+from app.core.scheduler import RUNNING, RUNNING_LOCK
 
 
 @asynccontextmanager

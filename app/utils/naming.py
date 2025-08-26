@@ -19,7 +19,7 @@ import re
 import subprocess
 
 from app.config import SOURCE_TAG, RELEASE_GROUP
-from app.title_resolver import resolve_series_title
+from app.utils.title_resolver import resolve_series_title
 
 LANG_TAG_MAP = {
     "German Dub": "GER",

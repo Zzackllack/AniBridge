@@ -24,16 +24,16 @@ from app.config import (
     TORZNAB_TEST_EPISODE,
     TORZNAB_TEST_LANGUAGE,
 )
-from app.magnet import build_magnet
+from app.utils.magnet import build_magnet
 from app.models import (
     get_session,
     get_availability,
     list_available_languages_cached,
     upsert_availability,
 )
-from app.naming import build_release_name
-from app.probe_quality import probe_episode_quality
-from app.title_resolver import (
+from app.utils.naming import build_release_name
+from app.utils.probe_quality import probe_episode_quality
+from app.utils.title_resolver import (
     load_or_refresh_index,
     resolve_series_title,
     load_or_refresh_alternatives,
@@ -405,6 +405,7 @@ def torznab_api(
         ep = 1
 
     # ab hier garantiert non-None:
+    assert season is not None and ep is not None and q is not None
     season_i = int(season)
     ep_i = int(ep)
     q_str = str(q)
