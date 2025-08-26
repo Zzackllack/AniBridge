@@ -18,6 +18,8 @@ logger.add(
 )
 
 from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JSON
+from sqlalchemy.orm import registry as sa_registry
+from sqlalchemy.pool import NullPool
 
 from app.config import AVAILABILITY_TTL_HOURS
 
@@ -43,7 +45,18 @@ def as_aware_utc(dt: Optional[datetime]) -> datetime:
 
 
 # ---------------- Jobs
-class Job(SQLModel, table=True):
+# Use a private registry/base to avoid SQLModel's global default registry
+# being reused across test re-imports (which causes SAWarnings about
+# duplicate class names). Each import of this module creates a fresh
+# registry and metadata.
+_registry = sa_registry()
+
+
+class ModelBase(SQLModel, registry=_registry):  # type: ignore[call-arg]
+    pass
+
+
+class Job(ModelBase, table=True):
     id: str = Field(default_factory=lambda: uuid4().hex, primary_key=True, index=True)
     status: str = Field(default="queued", index=True)
     progress: float = 0.0
@@ -59,7 +72,7 @@ class Job(SQLModel, table=True):
 
 
 # ---------------- Semi-Cache: Episode Availability
-class EpisodeAvailability(SQLModel, table=True):
+class EpisodeAvailability(ModelBase, table=True):
     """
     Semi-Cache: pro (slug, season, episode, language) speichern wir:
       - height/vcodec (aus Preflight-Probe)
@@ -93,7 +106,7 @@ class EpisodeAvailability(SQLModel, table=True):
 
 
 # ---------------- qBittorrent-Shim: ClientTask
-class ClientTask(SQLModel, table=True):
+class ClientTask(ModelBase, table=True):
     """
     Abbildung eines „Torrents“ (Magnet) auf unseren internen Job.
     """
@@ -125,14 +138,19 @@ logger.debug(f"DATA_DIR for jobs DB: {DATA_DIR}")
 DATABASE_URL = f"sqlite:///{(DATA_DIR / 'anibridge_jobs.db').as_posix()}"
 logger.debug(f"DATABASE_URL: {DATABASE_URL}")
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=NullPool,  # ensure connections are closed when sessions end
+)
 logger.debug("SQLModel engine created.")
 
 
 def create_db_and_tables() -> None:
     logger.debug("Creating DB and tables if not exist.")
     try:
-        SQLModel.metadata.create_all(engine)
+        # Use this module's private metadata
+        ModelBase.metadata.create_all(engine)
         logger.success("Database and tables created or already exist.")
     except Exception as e:
         logger.error(f"Error creating DB and tables: {e}")
@@ -147,6 +165,18 @@ def get_session() -> Generator[Session, None, None]:
     except Exception as e:
         logger.error(f"Error creating DB session: {e}")
         raise
+
+
+def dispose_engine() -> None:
+    """Dispose the global SQLAlchemy engine to close any pooled connections.
+
+    This helps tests and short-lived runs avoid ResourceWarning: unclosed database.
+    """
+    try:
+        engine.dispose()
+        logger.debug("SQLAlchemy engine disposed.")
+    except Exception as e:
+        logger.warning(f"Engine dispose error: {e}")
 
 
 # --- Jobs CRUD

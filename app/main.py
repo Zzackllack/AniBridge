@@ -37,6 +37,7 @@ from app.models import (
     get_job as db_get_job,
     update_job as db_update_job,
     engine,
+    dispose_engine,
 )
 
 load_dotenv()
@@ -59,6 +60,11 @@ async def lifespan(app: FastAPI):
     init_executor()
     yield
     shutdown_executor()
+    # ensure DB connections are closed cleanly for tests and shutdown
+    try:
+        dispose_engine()
+    except Exception:
+        pass
 
 
 app = FastAPI(title="AniBridge-Minimal", lifespan=lifespan)
