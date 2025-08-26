@@ -5,7 +5,7 @@ import yt_dlp
 import os
 import sys
 
-from app.downloader import get_direct_url_with_fallback, build_episode
+from app.core.downloader import get_direct_url_with_fallback, build_episode
 from app.naming import quality_from_info
 from app.config import PROVIDER_ORDER
 

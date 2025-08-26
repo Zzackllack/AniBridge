@@ -8,7 +8,7 @@ import errno
 
 from app.config import MAX_CONCURRENCY, DOWNLOAD_DIR
 from app.models import engine, create_job, update_job
-from app.downloader import download_episode, Provider, Language
+from app.core.downloader import download_episode, Provider, Language
 
 # global executor + registry
 EXECUTOR: Optional[ThreadPoolExecutor] = None

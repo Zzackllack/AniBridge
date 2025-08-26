@@ -37,7 +37,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor, Future
 import threading
-from app.downloader import (
+from app.core.downloader import (
     LanguageUnavailableError,
     Provider,
     Language,
