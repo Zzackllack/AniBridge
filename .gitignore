@@ -525,3 +525,4 @@ sonarr.debug.txt
 example-aniworld.html
 release/
 !Makefile
+!pnpm-lock.yaml
