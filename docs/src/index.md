@@ -3,9 +3,12 @@
 layout: home
 
 hero:
-  name: "AniBridge Documentation"
-  text: "AniBridge is a minimal FastAPI service that bridges anime streaming services (currently only aniworld) to automation tools. It exposes a fake Torznab feed and a fake qBittorrent-compatible API so that applications like Prowlarr/Sonarr can discover and download episodes automatically."
-  tagline: My great project tagline
+  name: "AniBridge"
+  text: "Bridges anime sources to automation tools."
+  tagline: So you can use your favorite tools to automate anime downloads.
+  image:
+    src: /logo.png
+    alt: AniBridge logo
   actions:
     - theme: brand
       text: Markdown Examples
