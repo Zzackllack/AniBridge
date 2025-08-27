@@ -1,54 +1,57 @@
 :root {
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(60deg, #fcd5b3, #);
+  --vp-home-hero-name-background: linear-gradient(60deg, #fcd5b3, #324556);
 }
 
 .dark {
   --vp-home-hero-name-background: linear-gradient(60deg, #324556, #fcd5b3);
 }
 
-. /* Custom glow around the home hero image */
+/* Custom glow around the home hero image */
 /* Targets the default theme's home hero image element */
-
-.VPHomeHero .image .image-container {
-  position: relative;
-  isolation: isolate; /* keep the glow behind the image only */
-}
+/* Mobile-first: subtle glow */
 .VPHomeHero .image .image-container img.VPImage.image-src {
-  position: relative;
-  z-index: 1;
-  /* Dark blue, multi-layered glow */
-  filter: drop-shadow(0 0 0.75rem rgba(50, 69, 86))
-    drop-shadow(0 0 1.5rem rgba(50, 69, 86))
-    drop-shadow(0 0 3rem rgba(50, 69, 86));
+  filter: drop-shadow(0 0 1rem rgba(50, 69, 86, 0.9))
+    drop-shadow(0 0 1.75rem rgba(50, 69, 86, 0.85))
+    drop-shadow(0 0 2.75rem rgba(50, 69, 86, 0.8));
 }
 
-.VPHomeHero .image .image-container::before {
-  content: "";
-  position: absolute;
-  inset: -7rem; /* makes the glow extend around the image */
-  z-index: 0;
-  pointer-events: none;
-  /* Two radial glows, one per side, with a soft seam in the middle */
-  background:
-    radial-gradient(55% 70% at 15% 50%, rgba(50, 69, 86, 0.55) 0%, rgba(50, 69, 86, 0.40) 32%, rgba(50, 69, 86, 0.15) 58%, transparent 74%),
-    radial-gradient(55% 70% at 85% 50%, rgba(252, 213, 179, 0.70) 0%, rgba(252, 213, 179, 0.50) 32%, rgba(252, 213, 179, 0.22) 58%, transparent 74%),
-    linear-gradient(90deg, rgba(50, 69, 86, 0.18) 49%, rgba(252, 213, 179, 0.18) 51%);
-  filter: blur(26px);
-  border-radius: 24px; /* softens the edges of the glow rectangle */
+/* Slightly stronger on dark mode even on mobile */
+:root.dark .VPHomeHero .image .image-container img.VPImage.image-src,
+.dark .VPHomeHero .image .image-container img.VPImage.image-src {
+  filter: drop-shadow(0 0 1.5rem rgba(50, 69, 86, 0.95))
+    drop-shadow(0 0 2.25rem rgba(50, 69, 86, 0.9))
+    drop-shadow(0 0 3.25rem rgba(50, 69, 86, 0.85));
 }
 
-/* Slightly stronger glow in dark mode for better pop */
-:root.dark .VPHomeHero .image .image-container img.VPImage.image-src {
-  filter: drop-shadow(0 0 1rem rgba(50, 69, 86))
-    drop-shadow(0 0 2rem rgba(50, 69, 86))
-    drop-shadow(0 0 3.5rem rgba(50, 69, 86));
+/* Medium screens: increase glow */
+@media (min-width: 640px) {
+  .VPHomeHero .image .image-container img.VPImage.image-src {
+    filter: drop-shadow(0 0 2rem rgba(50, 69, 86, 0.95))
+      drop-shadow(0 0 2.75rem rgba(50, 69, 86, 0.9))
+      drop-shadow(0 0 4rem rgba(50, 69, 86, 0.85));
+  }
+
+  :root.dark .VPHomeHero .image .image-container img.VPImage.image-src,
+  .dark .VPHomeHero .image .image-container img.VPImage.image-src {
+    filter: drop-shadow(0 0 2.5rem rgba(50, 69, 86, 0.98))
+      drop-shadow(0 0 3.5rem rgba(50, 69, 86, 0.95))
+      drop-shadow(0 0 4.75rem rgba(50, 69, 86, 0.9));
+  }
 }
 
-:root.dark .VPHomeHero .image .image-container::before {
-  filter: blur(30px);
-  background:
-    radial-gradient(58% 72% at 15% 50%, rgba(50, 69, 86, 0.75) 0%, rgba(50, 69, 86, 0.55) 34%, rgba(50, 69, 86, 0.25) 60%, transparent 76%),
-    radial-gradient(58% 72% at 85% 50%, rgba(252, 213, 179, 0.82) 0%, rgba(252, 213, 179, 0.62) 34%, rgba(252, 213, 179, 0.30) 60%, transparent 76%),
-    linear-gradient(90deg, rgba(50, 69, 86, 0.22) 49%, rgba(252, 213, 179, 0.22) 51%);
+/* Desktop/large screens: full-strength glow (original values) */
+@media (min-width: 1024px) {
+  .VPHomeHero .image .image-container img.VPImage.image-src {
+    filter: drop-shadow(0 0 3.75rem rgba(50, 69, 86))
+      drop-shadow(0 0 4.5rem rgba(50, 69, 86))
+      drop-shadow(0 0 6rem rgba(50, 69, 86));
+  }
+
+  :root.dark .VPHomeHero .image .image-container img.VPImage.image-src,
+  .dark .VPHomeHero .image .image-container img.VPImage.image-src {
+    filter: drop-shadow(0 0 4rem rgba(50, 69, 86))
+      drop-shadow(0 0 5rem rgba(50, 69, 86))
+      drop-shadow(0 0 6.5rem rgba(50, 69, 86));
+  }
 }
