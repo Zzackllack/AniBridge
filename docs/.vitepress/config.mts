@@ -13,27 +13,80 @@ export default defineConfig({
 
   title: "AniBridge Documentation",
   description:
-    "AniBridge is a minimal FastAPI service that bridges anime streaming services (currently only aniworld) to automation tools. It exposes a fake Torznab feed and a fake qBittorrent-compatible API so that applications like Prowlarr/Sonarr can discover and download episodes automatically.",
+    "AniBridge: FastAPI bridge exposing Torznab feed and qBittorrent-compatible API to automate anime downloads via Prowlarr/Sonarr.",
+  lastUpdated: true,
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
-    nav: [
-      { text: "Home", link: "/" },
-      { text: "Examples", link: "/markdown-examples" },
-    ],
     logo: "/logo.png",
-
-    sidebar: [
-      {
-        text: "Examples",
-        items: [
-          { text: "Markdown Examples", link: "/markdown-examples" },
-          { text: "Runtime API Examples", link: "/api-examples" },
-        ],
-      },
+    siteTitle: "AniBridge",
+    nav: [
+      { text: "Guide", link: "/guide/overview" },
+      { text: "API", link: "/api/endpoints" },
+      { text: "Integrations", link: "/integrations/prowlarr" },
+      { text: "Developer", link: "/developer/running" },
+      { text: "Changelog", link: "https://github.com/zzackllack/AniBridge/releases" }
     ],
-
+    sidebar: {
+      "/guide/": [
+        {
+          text: "Getting Started",
+          items: [
+            { text: "Overview", link: "/guide/overview" },
+            { text: "Quickstart", link: "/guide/quickstart" },
+            { text: "Configuration", link: "/guide/configuration" },
+            { text: "Running", link: "/guide/running" },
+            { text: "Troubleshooting", link: "/guide/troubleshooting" },
+            { text: "FAQ", link: "/guide/faq" }
+          ]
+        }
+      ],
+      "/api/": [
+        {
+          text: "API Reference",
+          items: [
+            { text: "Endpoints", link: "/api/endpoints" },
+            { text: "Torznab", link: "/api/torznab" },
+            { text: "qBittorrent Shim", link: "/api/qbittorrent" },
+            { text: "Jobs & Events", link: "/api/jobs" },
+            { text: "Environment", link: "/api/environment" },
+            { text: "Data Model", link: "/api/data-model" }
+          ]
+        }
+      ],
+      "/integrations/": [
+        {
+          text: "Integrations",
+          items: [
+            { text: "Prowlarr", link: "/integrations/prowlarr" },
+            { text: "Sonarr", link: "/integrations/sonarr" },
+            { text: "Docker Compose", link: "/integrations/docker" }
+          ]
+        }
+      ],
+      "/developer/": [
+        {
+          text: "Developer Guide",
+          items: [
+            { text: "Running Locally", link: "/developer/running" },
+            { text: "Testing", link: "/developer/testing" },
+            { text: "Contributing", link: "/developer/contributing" },
+            { text: "Logging", link: "/developer/logging" }
+          ]
+        }
+      ]
+    },
+    search: { provider: 'local' },
     socialLinks: [
-      { icon: "github", link: "https://github.com/zzackllack/anibridge" },
+      { icon: "github", link: "https://github.com/zzackllack/AniBridge" }
     ],
+    editLink: {
+      pattern: 'https://github.com/zzackllack/AniBridge/edit/main/docs/:path',
+      text: 'Edit this page on GitHub'
+    },
+    lastUpdated: { text: 'Updated at' },
+    footer: {
+      message: 'Released under the MIT License.',
+      copyright: 'Copyright © 2024–present AniBridge contributors'
+    }
   },
 });
