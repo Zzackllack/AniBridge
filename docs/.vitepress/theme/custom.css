@@ -1,0 +1,15 @@
+/* Custom glow around the home hero image */
+/* Targets the default theme's home hero image element */
+.VPHomeHero .image .image-container img.VPImage.image-src {
+  /* Dark blue, multi-layered glow */
+  filter: drop-shadow(0 0 0.75rem rgba(50, 69, 86))
+    drop-shadow(0 0 1.5rem rgba(50, 69, 86))
+    drop-shadow(0 0 3rem rgba(50, 69, 86));
+}
+
+/* Slightly stronger glow in dark mode for better pop */
+:root.dark .VPHomeHero .image .image-container img.VPImage.image-src {
+  filter: drop-shadow(0 0 1rem rgba(50, 69, 86))
+    drop-shadow(0 0 2rem rgba(50, 69, 86))
+    drop-shadow(0 0 3.5rem rgba(50, 69, 86));
+}
