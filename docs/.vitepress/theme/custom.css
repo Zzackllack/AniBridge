@@ -1,10 +1,41 @@
-/* Custom glow around the home hero image */
+:root {
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(60deg, #fcd5b3, #);
+}
+
+.dark {
+  --vp-home-hero-name-background: linear-gradient(60deg, #324556, #fcd5b3);
+}
+
+. /* Custom glow around the home hero image */
 /* Targets the default theme's home hero image element */
+
+.VPHomeHero .image .image-container {
+  position: relative;
+  isolation: isolate; /* keep the glow behind the image only */
+}
 .VPHomeHero .image .image-container img.VPImage.image-src {
+  position: relative;
+  z-index: 1;
   /* Dark blue, multi-layered glow */
   filter: drop-shadow(0 0 0.75rem rgba(50, 69, 86))
     drop-shadow(0 0 1.5rem rgba(50, 69, 86))
     drop-shadow(0 0 3rem rgba(50, 69, 86));
+}
+
+.VPHomeHero .image .image-container::before {
+  content: "";
+  position: absolute;
+  inset: -7rem; /* makes the glow extend around the image */
+  z-index: 0;
+  pointer-events: none;
+  /* Two radial glows, one per side, with a soft seam in the middle */
+  background:
+    radial-gradient(55% 70% at 15% 50%, rgba(50, 69, 86, 0.55) 0%, rgba(50, 69, 86, 0.40) 32%, rgba(50, 69, 86, 0.15) 58%, transparent 74%),
+    radial-gradient(55% 70% at 85% 50%, rgba(252, 213, 179, 0.70) 0%, rgba(252, 213, 179, 0.50) 32%, rgba(252, 213, 179, 0.22) 58%, transparent 74%),
+    linear-gradient(90deg, rgba(50, 69, 86, 0.18) 49%, rgba(252, 213, 179, 0.18) 51%);
+  filter: blur(26px);
+  border-radius: 24px; /* softens the edges of the glow rectangle */
 }
 
 /* Slightly stronger glow in dark mode for better pop */
@@ -12,4 +43,12 @@
   filter: drop-shadow(0 0 1rem rgba(50, 69, 86))
     drop-shadow(0 0 2rem rgba(50, 69, 86))
     drop-shadow(0 0 3.5rem rgba(50, 69, 86));
+}
+
+:root.dark .VPHomeHero .image .image-container::before {
+  filter: blur(30px);
+  background:
+    radial-gradient(58% 72% at 15% 50%, rgba(50, 69, 86, 0.75) 0%, rgba(50, 69, 86, 0.55) 34%, rgba(50, 69, 86, 0.25) 60%, transparent 76%),
+    radial-gradient(58% 72% at 85% 50%, rgba(252, 213, 179, 0.82) 0%, rgba(252, 213, 179, 0.62) 34%, rgba(252, 213, 179, 0.30) 60%, transparent 76%),
+    linear-gradient(90deg, rgba(50, 69, 86, 0.22) 49%, rgba(252, 213, 179, 0.22) 51%);
 }
