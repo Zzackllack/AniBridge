@@ -526,3 +526,5 @@ example-aniworld.html
 release/
 !Makefile
 !pnpm-lock.yaml
+/docs/.vitepress/cache/
+/docs/.vitepress/cache/**
