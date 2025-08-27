@@ -85,8 +85,8 @@ export default defineConfig({
     },
     lastUpdated: { text: 'Updated at' },
     footer: {
-      message: 'Released under the MIT License.',
-      copyright: 'Copyright © 2024–present AniBridge contributors'
+      message: 'Released under the BSD 3 Clause License.',
+      copyright: 'Copyright © 2025–present AniBridge contributors'
     }
   },
 });
