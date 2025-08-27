@@ -20,6 +20,7 @@ export default defineConfig({
       { text: "Home", link: "/" },
       { text: "Examples", link: "/markdown-examples" },
     ],
+    logo: "/logo.png",
 
     sidebar: [
       {
