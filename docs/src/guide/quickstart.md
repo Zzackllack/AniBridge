@@ -16,17 +16,19 @@ Get AniBridge running locally and test the core endpoints.
 ## Install and Run
 
 ::: code-group
+
 ```bash [uv]
 uv venv && uv pip install -r requirements.txt
 uv run python -m app.main
 ```
+
 ```bash [pip]
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python -m app.main
 ```
-```
-::: 
+
+:::
 
 The API listens on `http://localhost:8000`.
 
