@@ -8,26 +8,28 @@
     }"
   >
     <div
+      ref="shellEl"
       class="ab-shell"
-      :class="[{ shadow, loaded: isReady, playing: isPlaying, chromeHidden: !chromeVisible }]"
-      @mousemove="onMouseMove"
-      @mouseleave="onMouseLeave"
-      @keydown.space.prevent="togglePlay"
-      @keydown.m.prevent="toggleMute"
-      @keydown.f.prevent="toggleFullscreen"
+      :class="[{ shadow }]"
       tabindex="0"
       role="region"
       :aria-label="title || 'Video player'"
+      @keydown="onKeydown"
     >
       <!-- Poster / Overlay -->
       <button
-        v-if="!isStarted || hasEnded"
+        v-show="showOverlay"
         class="ab-overlay"
         type="button"
         :aria-label="`Play ${title || 'video'}`"
-        @click="startPlayback"
+        @click="startPlaybackFromOverlay"
       >
-        <img v-if="poster" class="ab-poster" :src="poster" :alt="title || 'poster'" @load="onPosterLoad" />
+        <img
+          v-if="poster"
+          class="ab-poster"
+          :src="poster"
+          :alt="title || 'poster'"
+        />
         <div class="ab-gradient" aria-hidden="true" />
         <div class="ab-chrome">
           <svg class="ab-play" viewBox="0 0 64 64" aria-hidden="true">
@@ -38,77 +40,95 @@
         </div>
       </button>
 
-      <!-- Native video -->
+      <!-- Video -->
       <video
-        v-if="mode === 'video' && isStarted"
         ref="videoEl"
         class="ab-media"
         :src="src"
         :poster="poster"
-        :autoplay="autoplay"
         :muted="isMuted"
-        :loop="loop"
+        :loop="looping"
         playsinline
-        @loadedmetadata="onLoadedMeta"
-        @canplay="onReady"
+        preload="metadata"
+        @loadedmetadata="onLoadedMetadata"
         @timeupdate="onTimeUpdate"
         @progress="onProgress"
-        @play="() => (isPlaying = true)"
-        @pause="() => (isPlaying = false)"
+        @play="onPlay"
+        @pause="onPause"
         @ended="onEnded"
+        @volumechange="onVolumeChange"
+        @error="onError"
       />
 
-      <!-- Iframe providers (YouTube, Vimeo) -->
-      <iframe
-        v-else-if="mode === 'iframe' && isStarted"
-        ref="iframeEl"
-        class="ab-media"
-        :src="computedEmbedUrl"
-        title="Video player"
-        frameborder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        allowfullscreen
-        @load="onReady"
-      />
-
-      <!-- Loading shimmer while media initializes -->
-      <div v-if="!isReady && isStarted" class="ab-loading" aria-hidden="true">
-        <div class="bar" />
-      </div>
-
-      <!-- Custom Controls -->
-      <div v-if="isStarted" class="ab-controls" :class="{ visible: chromeVisible }">
-        <button class="ab-btn icon" @click="togglePlay" :aria-label="isPlaying ? 'Pause' : 'Play'">
-          <component :is="isPlaying ? Pause : Play" class="ab-icon" aria-hidden="true" />
+      <!-- Controls -->
+      <div class="ab-controls visible">
+        <!-- Play/Pause -->
+        <button class="ab-btn icon" :aria-label="isPlaying ? 'Pause' : 'Play'" @click="togglePlay">
+          <Pause v-if="isPlaying" class="ab-icon" aria-hidden="true" />
+          <Play v-else class="ab-icon" aria-hidden="true" />
         </button>
 
-        <!-- Progress (native only) -->
+        <!-- Progress / Scrubber -->
         <div
-          v-if="mode === 'video'"
           class="ab-progress"
-          ref="progressEl"
-          @mousedown.prevent="startScrub($event)"
-          @touchstart.prevent="startScrub($event)"
+          role="slider"
+          aria-label="Seek"
+          :aria-valuemin="0"
+          :aria-valuemax="duration"
+          :aria-valuenow="scrubTime ?? currentTime"
+          :aria-valuetext="formatTime(scrubTime ?? currentTime)"
         >
-          <div class="track">
+          <div
+            ref="trackEl"
+            class="track"
+            @pointerdown="onTrackPointerDown"
+          >
             <div class="buffered" :style="{ width: bufferedPct + '%' }"></div>
             <div class="filled" :style="{ width: progressPct + '%' }"></div>
-            <div class="handle" :class="{ visible: isScrubbing }" :style="{ left: progressPct + '%' }"></div>
+            <div class="handle" :style="{ left: progressPct + '%' }"></div>
           </div>
         </div>
 
-        <div class="ab-time" v-if="mode === 'video'">{{ timeLabel }}</div>
+        <!-- Time -->
+        <div class="ab-time">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</div>
 
-        <button class="ab-btn icon" @click="toggleMute" :aria-label="isMuted ? 'Unmute' : 'Mute'">
-          <component :is="isMuted ? VolumeX : Volume2" class="ab-icon" aria-hidden="true" />
+        <!-- Mute -->
+        <button class="ab-btn icon" :aria-label="isMuted ? 'Unmute' : 'Mute'" @click="toggleMute">
+          <VolumeX v-if="isMuted" class="ab-icon" aria-hidden="true" />
+          <Volume2 v-else class="ab-icon" aria-hidden="true" />
         </button>
 
-        <div v-if="mode === 'video'" class="ab-volume" @click.stop>
-          <input type="range" min="0" max="1" step="0.01" v-model.number="volume" @input="onVolume" />
+        <!-- Volume -->
+        <div class="ab-volume">
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            :value="volume"
+            aria-label="Volume"
+            @input="onVolumeInput"
+          />
         </div>
 
-        <button class="ab-btn icon" @click="toggleFullscreen" :aria-label="isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'">
-          <component :is="isFullscreen ? Minimize : Maximize" class="ab-icon" aria-hidden="true" />
+        <!-- Loop -->
+        <button
+          class="ab-btn icon"
+          :aria-pressed="looping ? 'true' : 'false'"
+          :aria-label="looping ? 'Disable loop' : 'Enable loop'"
+          @click="toggleLoop"
+        >
+          <Repeat class="ab-icon" aria-hidden="true" />
+        </button>
+
+        <!-- Fullscreen -->
+        <button
+          class="ab-btn icon"
+          :aria-label="isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'"
+          @click="toggleFullscreen"
+        >
+          <Minimize v-if="isFullscreen" class="ab-icon" aria-hidden="true" />
+          <Maximize v-else class="ab-icon" aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -118,346 +138,388 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from 'lucide-vue-next'
+import {
+  Maximize,
+  Minimize,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Repeat,
+} from "lucide-vue-next";
+import {
+  defineProps,
+  withDefaults,
+  defineEmits,
+  ref,
+  computed,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+} from "vue";
 
-type Mode = 'video' | 'iframe'
+const props = withDefaults(
+  defineProps<{
+    src: string;
+    title?: string;
+    caption?: string;
+    poster?: string;
+    aspect?: string; // CSS aspect-ratio value
+    radius?: string; // CSS border-radius value
+    accent?: string; // CSS color
+    shadow?: boolean;
 
-const props = withDefaults(defineProps<{
-  src: string
-  title?: string
-  caption?: string
-  poster?: string
-  aspect?: string // CSS aspect-ratio value
-  radius?: string // CSS border-radius value
-  accent?: string // CSS color
-  shadow?: boolean
-  autoplay?: boolean
-  muted?: boolean
-  loop?: boolean
-  controls?: boolean
-}>(), {
-  aspect: '16 / 9',
-  radius: '16px',
-  accent: 'var(--vp-c-brand-1, #646cff)',
-  shadow: true,
-  autoplay: false,
-  muted: true,
-  loop: false,
-  controls: true,
-})
-
-const isReady = ref(false)
-const isPlaying = ref(false)
-const isStarted = ref(false)
-const hasEnded = ref(false)
-const videoEl = ref<HTMLVideoElement | null>(null)
-const iframeEl = ref<HTMLIFrameElement | null>(null)
-const progressEl = ref<HTMLDivElement | null>(null)
-const isMuted = ref(!!props.muted)
-const volume = ref(props.muted ? 0 : 0.9)
-const lastVolume = ref(volume.value > 0 ? volume.value : 0.6)
-const duration = ref(0)
-const current = ref(0)
-const bufferedEnd = ref(0)
-const chromeVisible = ref(true)
-let hideTimer: number | null = null
-const isFullscreen = ref(false)
-
-const mode = computed<Mode>(() => {
-  const u = props.src.toLowerCase()
-  if (u.endsWith('.mp4') || u.endsWith('.webm') || u.endsWith('.ogg')) return 'video'
-  if (u.includes('youtube.com') || u.includes('youtu.be') || u.includes('vimeo.com')) return 'iframe'
-  // Default to iframe for unknown providers
-  return u.startsWith('http') ? 'iframe' : 'video'
-})
-
-const computedEmbedUrl = computed(() => {
-  if (mode.value !== 'iframe') return props.src
-  const u = new URL(props.src, 'http://example.com')
-  const willAutoplay = isStarted.value ? 1 : 0
-  const muted = isMuted.value ? 1 : 0
-  let origin = ''
-  try { origin = window.location.origin } catch {}
-
-  // YouTube normalization
-  if (u.hostname.includes('youtube.com')) {
-    const id = u.searchParams.get('v') || ''
-    return `https://www.youtube.com/embed/${id}?autoplay=${willAutoplay}&mute=${muted}&rel=0&modestbranding=1&playsinline=1&controls=0&enablejsapi=1&origin=${encodeURIComponent(origin)}`
+    autoplay?: boolean;
+    muted?: boolean;
+    loop?: boolean;
+  }>(),
+  {
+    aspect: "16 / 9",
+    radius: "16px",
+    accent: "var(--vp-c-brand-1, #646cff)",
+    shadow: true,
+    autoplay: false,
+    muted: false,
+    loop: false,
   }
-  if (u.hostname.includes('youtu.be')) {
-    const id = u.pathname.replace('/', '')
-    return `https://www.youtube.com/embed/${id}?autoplay=${willAutoplay}&mute=${muted}&rel=0&modestbranding=1&playsinline=1&controls=0&enablejsapi=1&origin=${encodeURIComponent(origin)}`
-  }
-  // Vimeo normalization
-  if (u.hostname.includes('vimeo.com')) {
-    const id = u.pathname.replace('/', '')
-    return `https://player.vimeo.com/video/${id}?autoplay=${willAutoplay}&muted=${muted}&title=0&byline=0&portrait=0&controls=0`
-  }
-  // Unknown iframe provider — forward as-is
-  return props.src
-})
+);
 
-function startPlayback() {
-  if (hasEnded.value && videoEl.value) {
-    videoEl.value.currentTime = 0
-    current.value = 0
-    hasEnded.value = false
-  }
-  isStarted.value = true
-  // For native video, attempt immediate playback (overlay click is a user gesture)
-  requestAnimationFrame(async () => {
-    if (mode.value === 'video' && videoEl.value) {
-      applyVolume()
-      await ensurePlay()
+const emit = defineEmits<{
+  (e: "play"): void;
+  (e: "pause"): void;
+  (e: "ended"): void;
+  (e: "timeupdate", t: number): void;
+  (e: "loadedmetadata", d: number): void;
+  (e: "seeking", t: number): void;
+  (e: "seeked", t: number): void;
+  (e: "volumechange", v: number, muted: boolean): void;
+  (e: "enterfullscreen"): void;
+  (e: "exitfullscreen"): void;
+  (e: "error", err: unknown): void;
+}>();
+
+const videoEl = ref<HTMLVideoElement | null>(null);
+const trackEl = ref<HTMLElement | null>(null);
+const shellEl = ref<HTMLElement | null>(null);
+
+const isPlaying = ref(false);
+const duration = ref(0);
+const currentTime = ref(0);
+
+const isMuted = ref(!!props.muted);
+const volume = ref(0.9);
+const lastVolume = ref(0.9);
+
+const bufferedEnd = ref(0);
+
+const looping = ref(!!props.loop);
+const isFullscreen = ref(false);
+const showOverlay = ref(!props.autoplay); // Overlay nur bis zum ersten Start
+
+// Scrubbing state
+const isScrubbing = ref(false);
+const scrubTime = ref<number | null>(null);
+let wasPlayingBeforeScrub = false;
+
+const progressPct = computed(() =>
+  duration.value ? ((scrubTime.value ?? currentTime.value) / duration.value) * 100 : 0
+);
+const bufferedPct = computed(() =>
+  duration.value ? (bufferedEnd.value / duration.value) * 100 : 0
+);
+
+function formatTime(t: number) {
+  if (!isFinite(t) || t < 0) return "0:00";
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+async function attemptAutoplay() {
+  if (!videoEl.value) return;
+  try {
+    videoEl.value.muted = isMuted.value || true; // Browser-Autoplay-Schutz
+    if (props.autoplay) {
+      await videoEl.value.play();
+      showOverlay.value = false;
     }
-  })
+  } catch {
+    // Autoplay blockiert -> Overlay bleibt sichtbar
+  } finally {
+    // setze gewünschtes Muted nach Autoplay-Versuch
+    videoEl.value.muted = isMuted.value;
+  }
 }
 
-function onReady() {
-  isReady.value = true
+function togglePlay() {
+  const v = videoEl.value;
+  if (!v) return;
+  if (v.paused) {
+    v.play().then(() => (showOverlay.value = false)).catch(() => {});
+  } else {
+    v.pause();
+  }
 }
 
-function onPosterLoad() {
-  // When poster is available, mark as visually ready for smoother transition
-  isReady.value = true
+function onPlay() {
+  isPlaying.value = true;
+  emit("play");
+}
+function onPause() {
+  isPlaying.value = false;
+  emit("pause");
+}
+function onEnded() {
+  emit("ended");
+  if (!looping.value) {
+    // "Exit": zurück zum Overlay & Anfang
+    showOverlay.value = true;
+    currentTime.value = 0;
+    if (videoEl.value) videoEl.value.currentTime = 0;
+  }
+}
+function onError(e: Event) {
+  emit("error", e);
 }
 
-function onLoadedMeta() {
-  if (!videoEl.value) return
-  duration.value = videoEl.value.duration || 0
+function onLoadedMetadata() {
+  if (!videoEl.value) return;
+  duration.value = videoEl.value.duration || 0;
+  emit("loadedmetadata", duration.value);
 }
 
 function onTimeUpdate() {
-  if (!videoEl.value) return
-  const v = videoEl.value
-  current.value = v.currentTime || 0
-  // If we're within the final fraction, snap to end and finalize to avoid hanging just before the true end.
-  if (duration.value && v.currentTime >= duration.value - 0.2) {
-    current.value = duration.value
-    if (!isScrubbing.value && !v.paused && !hasEnded.value) {
-      try { v.pause() } catch {}
-      hasEnded.value = true
-      isPlaying.value = false
+  if (!videoEl.value || isScrubbing.value) return;
+  currentTime.value = videoEl.value.currentTime;
+  emit("timeupdate", currentTime.value);
+}
+
+function calcBufferedEnd() {
+  const v = videoEl.value;
+  if (!v) return 0;
+  const ranges = v.buffered;
+  if (!ranges || ranges.length === 0) return 0;
+  // nimm die Range, die den aktuellen Zeitpunkt enthält – sonst die letzte
+  for (let i = 0; i < ranges.length; i++) {
+    if (v.currentTime >= ranges.start(i) && v.currentTime <= ranges.end(i)) {
+      return ranges.end(i);
     }
   }
+  return ranges.end(ranges.length - 1);
 }
 
 function onProgress() {
-  const v = videoEl.value
-  if (!v || v.buffered.length === 0) return
-  bufferedEnd.value = v.buffered.end(v.buffered.length - 1)
+  bufferedEnd.value = calcBufferedEnd();
 }
 
-const renderCurrent = computed(() => {
-  if (!duration.value) return 0
-  if (hasEnded.value) return duration.value
-  const nearEnd = duration.value - 0.15
-  return Math.min(duration.value, current.value >= nearEnd ? duration.value : current.value)
-})
-const progressPct = computed(() => duration.value ? Math.min(100, (renderCurrent.value / duration.value) * 100) : 0)
-const bufferedPct = computed(() => {
-  if (!duration.value) return 0
-  return Math.min(100, (bufferedEnd.value / duration.value) * 100)
-})
-
-const timeLabel = computed(() => {
-  const dSec = Math.max(0, Math.round(duration.value || 0))
-  // Use renderCurrent to align label with the visible progress clamping
-  const cSec = Math.min(dSec, Math.round((hasEnded.value ? duration.value : renderCurrent.value) || 0))
-  return `${fmtSec(cSec)} / ${fmtSec(dSec)}`
-})
-function fmtSec(total: number) {
-  if (!isFinite(total)) return '0:00'
-  const m = Math.floor(total / 60)
-  const s = Math.floor(total % 60)
-  return `${m}:${String(s).padStart(2,'0')}`
+function setTimeFromClientX(clientX: number) {
+  if (!trackEl.value || !duration.value) return 0;
+  const rect = trackEl.value.getBoundingClientRect();
+  const ratio = Math.min(Math.max(0, (clientX - rect.left) / rect.width), 1);
+  const t = ratio * duration.value;
+  scrubTime.value = t;
+  emit("seeking", t);
+  return t;
 }
 
-async function togglePlay() {
-  if (!isStarted.value) return startPlayback()
-  if (hasEnded.value) {
-    hasEnded.value = false
-    if (videoEl.value) {
-      videoEl.value.currentTime = 0
-      current.value = 0
-      const ok = await ensurePlay()
-      if (!ok) {
-        isPlaying.value = false
-        return
-      }
-    }
-    return
+function onTrackPointerDown(e: PointerEvent) {
+  if (!videoEl.value) return;
+  (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  isScrubbing.value = true;
+  wasPlayingBeforeScrub = !videoEl.value.paused;
+  if (wasPlayingBeforeScrub) videoEl.value.pause();
+
+  setTimeFromClientX(e.clientX);
+  window.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointerup", onPointerUp);
+}
+
+function onPointerMove(e: PointerEvent) {
+  setTimeFromClientX(e.clientX);
+}
+
+function onPointerUp(e: PointerEvent) {
+  const v = videoEl.value;
+  if (!v) return;
+
+  const t = setTimeFromClientX(e.clientX);
+  v.currentTime = t;
+  currentTime.value = t;
+  emit("seeked", t);
+
+  isScrubbing.value = false;
+  scrubTime.value = null;
+
+  window.removeEventListener("pointermove", onPointerMove);
+  window.removeEventListener("pointerup", onPointerUp);
+
+  if (wasPlayingBeforeScrub) {
+    v.play().catch(() => {});
   }
-  if (mode.value === 'video' && videoEl.value) {
-    if (videoEl.value.paused) await ensurePlay()
-    else videoEl.value.pause()
-  } else if (mode.value === 'iframe') {
-    // Basic play/pause via postMessage for YouTube/Vimeo when possible
-    tryIframeCommand(isPlaying.value ? 'pause' : 'play')
-    isPlaying.value = !isPlaying.value
+}
+
+function onVolumeInput(e: Event) {
+  const v = (e.target as HTMLInputElement).valueAsNumber;
+  setVolume(v);
+}
+
+function setVolume(v: number) {
+  const vClamped = Math.min(Math.max(v, 0), 1);
+  volume.value = vClamped;
+  const vid = videoEl.value;
+  if (vid) vid.volume = vClamped;
+
+  if (vClamped === 0) {
+    isMuted.value = true;
+    if (vid) vid.muted = true;
+  } else {
+    if (!isMuted.value) lastVolume.value = vClamped;
+    if (vid) vid.muted = false;
+    isMuted.value = false;
+    lastVolume.value = vClamped;
   }
+  emit("volumechange", volume.value, isMuted.value);
 }
 
 function toggleMute() {
-  if (!isMuted.value) {
-    // Going to muted: remember last non-zero volume, set slider to 0
-    if (volume.value > 0) lastVolume.value = volume.value
-    isMuted.value = true
-    volume.value = 0
+  const vid = videoEl.value;
+  if (!vid) return;
+  if (isMuted.value || vid.volume === 0) {
+    setVolume(lastVolume.value || 0.5);
+    vid.muted = false;
+    isMuted.value = false;
   } else {
-    // Unmuting: restore previous volume or a sensible default
-    isMuted.value = false
-    volume.value = lastVolume.value > 0 ? lastVolume.value : 0.6
-  }
-  if (mode.value === 'video') applyVolume()
-  else tryIframeCommand(isMuted.value ? 'mute' : 'unmute')
-}
-
-function onVolume() {
-  if (volume.value <= 0.0001) {
-    isMuted.value = true
-  } else {
-    if (isMuted.value) isMuted.value = false
-    lastVolume.value = volume.value
-  }
-  applyVolume()
-}
-
-function applyVolume() {
-  const v = videoEl.value
-  if (!v) return
-  v.muted = isMuted.value
-  v.volume = isMuted.value ? 0 : Math.min(1, Math.max(0, volume.value))
-}
-
-function onSeekClick(e: MouseEvent) {
-  if (mode.value !== 'video' || !progressEl.value || !videoEl.value || !duration.value) return
-  const rect = progressEl.value.getBoundingClientRect()
-  const pct = (e.clientX - rect.left) / rect.width
-  videoEl.value.currentTime = Math.max(0, Math.min(duration.value, duration.value * pct))
-}
-
-const isScrubbing = ref(false)
-let wasPlayingBeforeScrub = false
-function startScrub(ev: MouseEvent | TouchEvent) {
-  if (mode.value !== 'video' || !progressEl.value || !videoEl.value || !duration.value) return
-  isScrubbing.value = true
-  hasEnded.value = false
-  wasPlayingBeforeScrub = !videoEl.value.paused
-  if (wasPlayingBeforeScrub) videoEl.value.pause()
-  const move = (e: MouseEvent | TouchEvent) => {
-    const clientX = (e as TouchEvent).touches ? (e as TouchEvent).touches[0].clientX : (e as MouseEvent).clientX
-    const rect = progressEl.value!.getBoundingClientRect()
-    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-    // Avoid sticking exactly at duration while scrubbing to keep video out of ended state
-    current.value = pct >= 0.999 ? Math.max(0, duration.value - 0.05) : duration.value * pct
-  }
-  const up = () => {
-    window.removeEventListener('mousemove', move as any)
-    window.removeEventListener('touchmove', move as any)
-    window.removeEventListener('mouseup', up)
-    window.removeEventListener('touchend', up)
-    if (videoEl.value) {
-      const targetTime = current.value >= duration.value - 0.01 ? Math.max(0, duration.value - 0.05) : current.value
-      videoEl.value.currentTime = targetTime
-      if (wasPlayingBeforeScrub) ensurePlay()
-    }
-    isScrubbing.value = false
-  }
-  window.addEventListener('mousemove', move as any)
-  window.addEventListener('touchmove', move as any, { passive: false } as any)
-  window.addEventListener('mouseup', up)
-  window.addEventListener('touchend', up)
-  // Initialize immediately
-  move(ev)
-}
-
-function onEnded() {
-  hasEnded.value = true
-  isPlaying.value = false
-  current.value = duration.value
-  // Ensure the media element is fully paused to avoid stuck states
-  if (videoEl.value && !videoEl.value.paused) {
-    try { videoEl.value.pause() } catch {}
+    lastVolume.value = volume.value;
+    setVolume(0);
+    vid.muted = true;
+    isMuted.value = true;
   }
 }
 
-async function ensurePlay(): Promise<boolean> {
-  const v = videoEl.value
-  if (!v) return false
-  // If the element is in an ended state, nudge back before duration to clear 'ended'
-  if ((v as any).ended) {
-    try { v.currentTime = Math.max(0, (duration.value || 0) - 0.05) } catch {}
-    hasEnded.value = false
-  }
-  try {
-    await v.play()
-    isPlaying.value = true
-    return true
-  } catch (e) {
-    try {
-      v.load()
-      await v.play()
-      isPlaying.value = true
-      return true
-    } catch {}
-  }
-  return false
+function onVolumeChange() {
+  const vid = videoEl.value;
+  if (!vid) return;
+  isMuted.value = vid.muted || vid.volume === 0;
+  volume.value = vid.volume;
+  emit("volumechange", volume.value, isMuted.value);
 }
 
-function onMouseMove() {
-  chromeVisible.value = true
-  if (hideTimer) window.clearTimeout(hideTimer)
-  hideTimer = window.setTimeout(() => (chromeVisible.value = false), 1800)
+function toggleLoop() {
+  looping.value = !looping.value;
 }
-function onMouseLeave() {
-  chromeVisible.value = false
-  if (hideTimer) window.clearTimeout(hideTimer)
+
+function startPlaybackFromOverlay() {
+  togglePlay();
+}
+
+function onKeydown(e: KeyboardEvent) {
+  const key = e.code;
+  if (["Space", "KeyK"].includes(key)) {
+    e.preventDefault();
+    togglePlay();
+  } else if (key === "KeyM") {
+    toggleMute();
+  } else if (key === "KeyF") {
+    toggleFullscreen();
+  } else if (key === "ArrowRight") {
+    seekBy(5);
+  } else if (key === "ArrowLeft") {
+    seekBy(-5);
+  } else if (key === "ArrowUp") {
+    e.preventDefault();
+    setVolume(Math.min(volume.value + 0.05, 1));
+  } else if (key === "ArrowDown") {
+    e.preventDefault();
+    setVolume(Math.max(volume.value - 0.05, 0));
+  } else if (key === "KeyL") {
+    toggleLoop();
+  }
+}
+
+function seekBy(delta: number) {
+  const v = videoEl.value;
+  if (!v) return;
+  const t = Math.min(Math.max(0, v.currentTime + delta), duration.value || v.duration || 0);
+  v.currentTime = t;
+  currentTime.value = t;
+  emit("timeupdate", t);
 }
 
 function toggleFullscreen() {
-  const el = (videoEl.value?.parentElement) as HTMLElement | null
-  if (!el) return
+  const el = shellEl.value as HTMLElement | null;
+  if (!el) return;
   if (!document.fullscreenElement) {
-    el.requestFullscreen?.()
-    isFullscreen.value = true
+    el.requestFullscreen?.().then(() => {
+      isFullscreen.value = true;
+      emit("enterfullscreen");
+    }).catch(() => {});
   } else {
-    document.exitFullscreen?.()
-    isFullscreen.value = false
+    document.exitFullscreen?.().then(() => {
+      isFullscreen.value = false;
+      emit("exitfullscreen");
+    }).catch(() => {});
   }
 }
 
-function tryIframeCommand(cmd: 'play' | 'pause' | 'mute' | 'unmute') {
-  // Only implement basic commands for YouTube/Vimeo
-  const target = iframeEl.value
-  if (!target) return
-
-  try {
-    const src = target.src
-    if (src.includes('youtube.com/embed')) {
-      const msg = { event: 'command', func: cmd === 'play' ? 'playVideo' : cmd === 'pause' ? 'pauseVideo' : cmd === 'mute' ? 'mute' : 'unMute', args: [] }
-      target.contentWindow?.postMessage(JSON.stringify(msg), '*')
-    } else if (src.includes('player.vimeo.com')) {
-      const msg = cmd === 'play' ? { method: 'play' } : cmd === 'pause' ? { method: 'pause' } : cmd === 'mute' ? { method: 'setVolume', value: 0 } : { method: 'setVolume', value: volume.value }
-      target.contentWindow?.postMessage(msg, '*')
-    }
-  } catch {}
+function onFullscreenChange() {
+  isFullscreen.value = !!document.fullscreenElement;
 }
 
-let fsHandler: ((this: Document, ev: Event) => any) | null = null
+watch(
+  () => props.src,
+  async () => {
+    // Reset state on source change
+    currentTime.value = 0;
+    duration.value = 0;
+    bufferedEnd.value = 0;
+    showOverlay.value = !props.autoplay;
+    await nextTick();
+    // reload and optionally autoplay
+    attemptAutoplay();
+  }
+);
+
+watch(
+  () => props.muted,
+  (m) => {
+    isMuted.value = !!m;
+    if (videoEl.value) videoEl.value.muted = !!m;
+  }
+);
+
+watch(
+  () => props.loop,
+  (l) => {
+    looping.value = !!l;
+  }
+);
+
 onMounted(() => {
-  fsHandler = () => { isFullscreen.value = !!document.fullscreenElement }
-  document.addEventListener('fullscreenchange', fsHandler)
-})
+  if (videoEl.value) {
+    // initial volume (respect muted prop)
+    isMuted.value = !!props.muted;
+    if (isMuted.value) {
+      videoEl.value.muted = true;
+      videoEl.value.volume = 0;
+      volume.value = 0;
+    } else {
+      videoEl.value.volume = volume.value;
+    }
+  }
+  attemptAutoplay();
+  document.addEventListener("fullscreenchange", onFullscreenChange);
+});
 
 onBeforeUnmount(() => {
-  if (hideTimer) window.clearTimeout(hideTimer)
-  if (fsHandler) document.removeEventListener('fullscreenchange', fsHandler)
-})
+  document.removeEventListener("fullscreenchange", onFullscreenChange);
+  window.removeEventListener("pointermove", onPointerMove);
+  window.removeEventListener("pointerup", onPointerUp);
+});
 </script>
 
 <style scoped>
+/* --- dein ursprüngliches Styling unverändert übernommen --- */
 .ab-video {
   display: grid;
   gap: 10px;
@@ -475,14 +537,14 @@ onBeforeUnmount(() => {
   border-radius: var(--ab-radius);
   overflow: clip;
   background: linear-gradient(180deg, #0b0b12 0%, #101018 100%);
-  transition: box-shadow .3s ease, transform .3s ease;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
 }
 .ab-shell.shadow {
-  box-shadow: 0 12px 30px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.25);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.25);
 }
-.ab-shell.loaded:hover {
+.ab-shell:hover {
   transform: translateY(-1px);
-  box-shadow: 0 16px 40px rgba(0,0,0,.4), 0 4px 12px rgba(0,0,0,.28);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.28);
 }
 
 .ab-media {
@@ -505,7 +567,7 @@ onBeforeUnmount(() => {
   padding: 0;
   background: transparent;
   cursor: pointer;
-  z-index: 5; /* ensure overlay is above video when shown */
+  z-index: 5;
 }
 .ab-overlay:focus-visible {
   outline: 2px solid var(--ab-accent);
@@ -519,7 +581,7 @@ onBeforeUnmount(() => {
   height: 100%;
   object-fit: cover;
   filter: saturate(0.9);
-  transition: filter .4s ease;
+  transition: filter 0.4s ease;
 }
 .ab-overlay:hover .ab-poster {
   filter: saturate(1) brightness(1.02);
@@ -528,8 +590,12 @@ onBeforeUnmount(() => {
 .ab-gradient {
   position: absolute;
   inset: 0;
-  background: radial-gradient(120% 120% at 50% 50%, rgba(0,0,0,0) 40%, rgba(0,0,0,.45) 100%),
-              linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.6) 100%);
+  background: radial-gradient(
+      120% 120% at 50% 50%,
+      rgba(0, 0, 0, 0) 40%,
+      rgba(0, 0, 0, 0.45) 100%
+    ),
+    linear-gradient(180deg, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.6) 100%);
   pointer-events: none;
 }
 
@@ -540,7 +606,7 @@ onBeforeUnmount(() => {
   place-items: center;
   gap: 16px;
   transform: translateY(0);
-  transition: transform .35s ease;
+  transition: transform 0.35s ease;
 }
 .ab-overlay:hover .ab-chrome {
   transform: translateY(-2px);
@@ -549,17 +615,17 @@ onBeforeUnmount(() => {
 .ab-play {
   width: 84px;
   height: 84px;
-  filter: drop-shadow(0 6px 18px rgba(0,0,0,.45));
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45));
 }
 .ab-play .ring {
-  fill: rgba(255,255,255,.06);
+  fill: rgba(255, 255, 255, 0.06);
   stroke: var(--ab-accent);
   stroke-width: 2;
 }
 .ab-play .triangle {
   fill: white;
   transform-origin: 50% 50%;
-  transition: transform .25s ease;
+  transition: transform 0.25s ease;
 }
 .ab-overlay:hover .ab-play .triangle {
   transform: scale(1.05);
@@ -568,32 +634,15 @@ onBeforeUnmount(() => {
 .ab-title {
   color: white;
   font-weight: 600;
-  letter-spacing: .2px;
-  text-shadow: 0 2px 10px rgba(0,0,0,.45);
+  letter-spacing: 0.2px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
   padding: 6px 10px;
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(0,0,0,.28) 0%, rgba(0,0,0,.55) 100%);
-}
-
-.ab-loading {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-}
-.ab-loading .bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 3px;
-  width: 40%;
-  background: linear-gradient(90deg, transparent, var(--ab-accent), transparent);
-  animation: ab-scan 1.2s ease-in-out infinite;
-}
-
-@keyframes ab-scan {
-  0% { transform: translateX(-100%); opacity: .2; }
-  50% { opacity: .9; }
-  100% { transform: translateX(250%); opacity: .2; }
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.28) 0%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
 }
 
 /* Controls */
@@ -608,7 +657,7 @@ onBeforeUnmount(() => {
   backdrop-filter: saturate(140%) blur(10px);
   transform: translateY(100%);
   opacity: 0;
-  transition: transform .28s ease, opacity .28s ease;
+  transition: transform 0.28s ease, opacity 0.28s ease;
   will-change: transform, opacity;
   z-index: 4;
 }
@@ -616,10 +665,6 @@ onBeforeUnmount(() => {
 .ab-controls.visible {
   transform: translateY(0%);
   opacity: 1;
-}
-.ab-shell.chromeHidden .ab-controls {
-  transform: translateY(100%);
-  opacity: 0;
 }
 
 .ab-btn {
@@ -629,11 +674,18 @@ onBeforeUnmount(() => {
   color: #fff;
   padding: 6px 8px;
   border-radius: 10px;
-  transition: background .2s ease;
+  transition: background 0.2s ease;
 }
-.ab-btn:hover { background: rgba(255,255,255,.08); }
-.ab-btn:active { background: rgba(255,255,255,.12); }
-.ab-btn:focus-visible { outline: 2px solid var(--ab-accent); outline-offset: 3px; }
+.ab-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.ab-btn:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+.ab-btn:focus-visible {
+  outline: 2px solid var(--ab-accent);
+  outline-offset: 3px;
+}
 
 .ab-icon {
   width: 18px;
@@ -652,72 +704,103 @@ onBeforeUnmount(() => {
   position: relative;
   height: 4px;
   border-radius: 999px;
-  background: rgba(255,255,255,.18);
+  background: rgba(255, 255, 255, 0.18);
   overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
 }
 .ab-progress .buffered {
   position: absolute;
-  top: 0; left: 0; bottom: 0;
-  background: rgba(255,255,255,.28);
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.28);
 }
 .ab-progress .filled {
   position: absolute;
-  top: 0; left: 0; bottom: 0;
-  background: linear-gradient(90deg, var(--ab-accent), color-mix(in srgb, var(--ab-accent) 65%, #ffffff));
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    var(--ab-accent),
+    color-mix(in srgb, var(--ab-accent) 65%, #ffffff)
+  );
 }
 
 .ab-progress .handle {
   position: absolute;
   top: 50%;
-  width: 14px; height: 14px;
+  width: 14px;
+  height: 14px;
   transform: translate(-50%, -50%);
   background: #fff;
   border: 2px solid var(--ab-accent);
   border-radius: 50%;
-  box-shadow: 0 2px 6px rgba(0,0,0,.35);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   opacity: 0;
-  transition: opacity .15s ease;
+  transition: opacity 0.15s ease;
   pointer-events: none;
 }
-.ab-progress:hover .handle, .ab-progress .handle.visible { opacity: 1; }
+.ab-progress:hover .handle {
+  opacity: 1;
+}
 
-.ab-time { color: rgba(255,255,255,.85); font-variant-numeric: tabular-nums; font-size: 12px; }
+.ab-time {
+  color: rgba(255, 255, 255, 0.85);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
 
-.ab-volume { width: 110px; display: grid; align-items: center; }
+.ab-volume {
+  width: 110px;
+  display: grid;
+  align-items: center;
+}
 .ab-volume input[type="range"] {
   -webkit-appearance: none;
-  width: 100%; height: 28px;
+  width: 100%;
+  height: 28px;
   background: transparent;
   border-radius: 999px;
   outline: none;
 }
 .ab-volume input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
-  background: rgba(255,255,255,.18);
+  background: rgba(255, 255, 255, 0.18);
   border-radius: 999px;
 }
 .ab-volume input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 14px; height: 14px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: var(--ab-accent);
-  box-shadow: 0 2px 6px rgba(0,0,0,.35);
-  margin-top: -5px; /* centers thumb over 4px track */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  margin-top: -5px;
 }
 .ab-volume input[type="range"]::-moz-range-track {
   height: 4px;
-  background: rgba(255,255,255,.18);
+  background: rgba(255, 255, 255, 0.18);
   border-radius: 999px;
 }
 .ab-volume input[type="range"]::-moz-range-thumb {
-  width: 14px; height: 14px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: var(--ab-accent);
   border: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ab-shell, .ab-controls { transition: none; }
-  .ab-overlay .ab-chrome, .ab-play .triangle { transition: none; }
+  .ab-shell,
+  .ab-controls {
+    transition: none;
+  }
+  .ab-overlay .ab-chrome,
+  .ab-play .triangle {
+    transition: none;
+  }
 }
 </style>
