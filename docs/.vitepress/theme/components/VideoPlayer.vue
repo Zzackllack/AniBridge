@@ -21,7 +21,7 @@
     >
       <!-- Poster / Overlay -->
       <button
-        v-if="!isStarted"
+        v-if="!isStarted || hasEnded"
         class="ab-overlay"
         type="button"
         :aria-label="`Play ${title || 'video'}`"
@@ -55,6 +55,7 @@
         @progress="onProgress"
         @play="() => (isPlaying = true)"
         @pause="() => (isPlaying = false)"
+        @ended="onEnded"
       />
 
       <!-- Iframe providers (YouTube, Vimeo) -->
@@ -82,10 +83,17 @@
         </button>
 
         <!-- Progress (native only) -->
-        <div v-if="mode === 'video'" class="ab-progress" @click="onSeekClick" ref="progressEl">
+        <div
+          v-if="mode === 'video'"
+          class="ab-progress"
+          ref="progressEl"
+          @mousedown.prevent="startScrub($event)"
+          @touchstart.prevent="startScrub($event)"
+        >
           <div class="track">
             <div class="buffered" :style="{ width: bufferedPct + '%' }"></div>
             <div class="filled" :style="{ width: progressPct + '%' }"></div>
+            <div class="handle" :class="{ visible: isScrubbing }" :style="{ left: progressPct + '%' }"></div>
           </div>
         </div>
 
@@ -142,6 +150,7 @@ const props = withDefaults(defineProps<{
 const isReady = ref(false)
 const isPlaying = ref(false)
 const isStarted = ref(false)
+const hasEnded = ref(false)
 const videoEl = ref<HTMLVideoElement | null>(null)
 const iframeEl = ref<HTMLIFrameElement | null>(null)
 const progressEl = ref<HTMLDivElement | null>(null)
@@ -189,6 +198,11 @@ const computedEmbedUrl = computed(() => {
 })
 
 function startPlayback() {
+  if (hasEnded.value && videoEl.value) {
+    videoEl.value.currentTime = 0
+    current.value = 0
+    hasEnded.value = false
+  }
   isStarted.value = true
   // For native video, attempt immediate playback
   requestAnimationFrame(() => {
@@ -224,7 +238,7 @@ function onProgress() {
   bufferedEnd.value = v.buffered.end(v.buffered.length - 1)
 }
 
-const progressPct = computed(() => duration.value ? (current.value / duration.value) * 100 : 0)
+const progressPct = computed(() => duration.value ? Math.min(100, (current.value / duration.value) * 100) : 0)
 const bufferedPct = computed(() => {
   if (!duration.value) return 0
   return Math.min(100, (bufferedEnd.value / duration.value) * 100)
@@ -240,6 +254,16 @@ function fmt(s: number) {
 
 function togglePlay() {
   if (!isStarted.value) return startPlayback()
+  if (hasEnded.value) {
+    hasEnded.value = false
+    if (videoEl.value) {
+      videoEl.value.currentTime = 0
+      current.value = 0
+      videoEl.value.play()
+    }
+    isPlaying.value = true
+    return
+  }
   if (mode.value === 'video' && videoEl.value) {
     if (videoEl.value.paused) videoEl.value.play()
     else videoEl.value.pause()
@@ -257,7 +281,11 @@ function toggleMute() {
 }
 
 function onVolume() {
-  if (volume.value > 0 && isMuted.value) isMuted.value = false
+  if (volume.value <= 0.0001) {
+    isMuted.value = true
+  } else if (isMuted.value) {
+    isMuted.value = false
+  }
   applyVolume()
 }
 
@@ -273,6 +301,44 @@ function onSeekClick(e: MouseEvent) {
   const rect = progressEl.value.getBoundingClientRect()
   const pct = (e.clientX - rect.left) / rect.width
   videoEl.value.currentTime = Math.max(0, Math.min(duration.value, duration.value * pct))
+}
+
+const isScrubbing = ref(false)
+let wasPlayingBeforeScrub = false
+function startScrub(ev: MouseEvent | TouchEvent) {
+  if (mode.value !== 'video' || !progressEl.value || !videoEl.value || !duration.value) return
+  isScrubbing.value = true
+  wasPlayingBeforeScrub = !videoEl.value.paused
+  if (wasPlayingBeforeScrub) videoEl.value.pause()
+  const move = (e: MouseEvent | TouchEvent) => {
+    const clientX = (e as TouchEvent).touches ? (e as TouchEvent).touches[0].clientX : (e as MouseEvent).clientX
+    const rect = progressEl.value!.getBoundingClientRect()
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    current.value = duration.value * pct
+  }
+  const up = () => {
+    window.removeEventListener('mousemove', move as any)
+    window.removeEventListener('touchmove', move as any)
+    window.removeEventListener('mouseup', up)
+    window.removeEventListener('touchend', up)
+    if (videoEl.value) {
+      videoEl.value.currentTime = current.value
+      if (wasPlayingBeforeScrub) videoEl.value.play()
+    }
+    isScrubbing.value = false
+  }
+  window.addEventListener('mousemove', move as any)
+  window.addEventListener('touchmove', move as any, { passive: false } as any)
+  window.addEventListener('mouseup', up)
+  window.addEventListener('touchend', up)
+  // Initialize immediately
+  move(ev)
+}
+
+function onEnded() {
+  hasEnded.value = true
+  isPlaying.value = false
+  current.value = duration.value
 }
 
 function onMouseMove() {
@@ -467,8 +533,7 @@ onBeforeUnmount(() => {
 .ab-controls {
   position: absolute;
   inset: auto 0 0 0;
-  display: grid;
-  grid-template-columns: auto 1fr auto auto auto;
+  display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
@@ -513,6 +578,7 @@ onBeforeUnmount(() => {
   height: 26px;
   display: grid;
   align-items: center;
+  flex: 1;
 }
 .ab-progress .track {
   position: relative;
@@ -532,15 +598,35 @@ onBeforeUnmount(() => {
   background: linear-gradient(90deg, var(--ab-accent), color-mix(in srgb, var(--ab-accent) 65%, #ffffff));
 }
 
+.ab-progress .handle {
+  position: absolute;
+  top: 50%;
+  width: 14px; height: 14px;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border: 2px solid var(--ab-accent);
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0,0,0,.35);
+  opacity: 0;
+  transition: opacity .15s ease;
+  pointer-events: none;
+}
+.ab-progress:hover .handle, .ab-progress .handle.visible { opacity: 1; }
+
 .ab-time { color: rgba(255,255,255,.85); font-variant-numeric: tabular-nums; font-size: 12px; }
 
-.ab-volume { width: 90px; }
+.ab-volume { width: 110px; }
 .ab-volume input[type="range"] {
   -webkit-appearance: none;
-  width: 100%; height: 4px;
-  background: rgba(255,255,255,.18);
+  width: 100%; height: 22px;
+  background: transparent;
   border-radius: 999px;
   outline: none;
+}
+.ab-volume input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: rgba(255,255,255,.18);
+  border-radius: 999px;
 }
 .ab-volume input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -548,7 +634,12 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   background: var(--ab-accent);
   box-shadow: 0 2px 6px rgba(0,0,0,.35);
-  margin-top: -5px;
+  margin-top: -5px; /* centers thumb over 4px track */
+}
+.ab-volume input[type="range"]::-moz-range-track {
+  height: 4px;
+  background: rgba(255,255,255,.18);
+  border-radius: 999px;
 }
 .ab-volume input[type="range"]::-moz-range-thumb {
   width: 14px; height: 14px;

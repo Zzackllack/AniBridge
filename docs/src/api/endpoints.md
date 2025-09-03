@@ -52,7 +52,7 @@ Below is a demo of the custom video component used in this documentation site. Y
   poster="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=1200&auto=format&fit=crop"
   title="Sample: Flower in 4K"
   caption="Custom player UI, brand‑matched accent"
-  :autoplay="false"
+  :autoplay="true"
   :muted="true"
   aspect="16 / 9"
   radius="16px"
