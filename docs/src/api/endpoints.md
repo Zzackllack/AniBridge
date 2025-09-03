@@ -48,7 +48,7 @@ See [qBittorrent Shim](/api/qbittorrent) for payloads and responses.
 Below is a demo of the custom video component used in this documentation site. You can use it in any Markdown page as shown.
 
 <VideoPlayer
-  src="https://streamtape.com/e/wZQq0JaVZ9cJz3e/"
+  src="http://haignet.co.uk/html5-video-element-test.mp4"
   poster="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=1200&auto=format&fit=crop"
   title="Sample: Flower in 4K"
   caption="Custom player UI, brand‑matched accent"
@@ -57,8 +57,6 @@ Below is a demo of the custom video component used in this documentation site. Y
   aspect="16 / 9"
   radius="16px"
 />
-
-<iframe src="https://streamtape.com/e/wZQq0JaVZ9cJz3e/" width="800" height="600" allowfullscreen allowtransparency allow="autoplay" scrolling="no" frameborder="0"></iframe>
 
 Usage:
 

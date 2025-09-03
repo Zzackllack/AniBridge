@@ -78,8 +78,7 @@
       <!-- Custom Controls -->
       <div v-if="isStarted" class="ab-controls" :class="{ visible: chromeVisible }">
         <button class="ab-btn icon" @click="togglePlay" :aria-label="isPlaying ? 'Pause' : 'Play'">
-          <span v-if="!isPlaying">▶</span>
-          <span v-else>⏸</span>
+          <component :is="isPlaying ? Pause : Play" class="ab-icon" aria-hidden="true" />
         </button>
 
         <!-- Progress (native only) -->
@@ -93,8 +92,7 @@
         <div class="ab-time" v-if="mode === 'video'">{{ timeLabel }}</div>
 
         <button class="ab-btn icon" @click="toggleMute" :aria-label="isMuted ? 'Unmute' : 'Mute'">
-          <span v-if="isMuted">🔇</span>
-          <span v-else>🔊</span>
+          <component :is="isMuted ? VolumeX : Volume2" class="ab-icon" aria-hidden="true" />
         </button>
 
         <div v-if="mode === 'video'" class="ab-volume" @click.stop>
@@ -102,8 +100,7 @@
         </div>
 
         <button class="ab-btn icon" @click="toggleFullscreen" :aria-label="isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'">
-          <span v-if="!isFullscreen">⛶</span>
-          <span v-else>🞬</span>
+          <component :is="isFullscreen ? Minimize : Maximize" class="ab-icon" aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -114,6 +111,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from 'lucide-vue-next'
 
 type Mode = 'video' | 'iframe'
 
@@ -503,6 +501,13 @@ onBeforeUnmount(() => {
 .ab-btn:hover { background: rgba(255,255,255,.08); }
 .ab-btn:active { background: rgba(255,255,255,.12); }
 .ab-btn:focus-visible { outline: 2px solid var(--ab-accent); outline-offset: 3px; }
+
+.ab-icon {
+  width: 18px;
+  height: 18px;
+  stroke: #fff;
+  stroke-width: 2px;
+}
 
 .ab-progress {
   height: 26px;
