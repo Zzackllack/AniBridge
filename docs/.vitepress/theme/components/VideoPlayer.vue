@@ -205,11 +205,11 @@ function startPlayback() {
     hasEnded.value = false
   }
   isStarted.value = true
-  // For native video, attempt immediate playback
-  requestAnimationFrame(() => {
+  // For native video, attempt immediate playback (overlay click is a user gesture)
+  requestAnimationFrame(async () => {
     if (mode.value === 'video' && videoEl.value) {
-      if (props.autoplay) videoEl.value.play().catch(() => {})
       applyVolume()
+      await ensurePlay()
     }
   })
 }
@@ -230,7 +230,17 @@ function onLoadedMeta() {
 
 function onTimeUpdate() {
   if (!videoEl.value) return
-  current.value = videoEl.value.currentTime || 0
+  const v = videoEl.value
+  current.value = v.currentTime || 0
+  // If we're within the final fraction, snap to end and finalize to avoid hanging just before the true end.
+  if (duration.value && v.currentTime >= duration.value - 0.2) {
+    current.value = duration.value
+    if (!isScrubbing.value && !v.paused && !hasEnded.value) {
+      try { v.pause() } catch {}
+      hasEnded.value = true
+      isPlaying.value = false
+    }
+  }
 }
 
 function onProgress() {
@@ -239,34 +249,48 @@ function onProgress() {
   bufferedEnd.value = v.buffered.end(v.buffered.length - 1)
 }
 
-const progressPct = computed(() => duration.value ? Math.min(100, (current.value / duration.value) * 100) : 0)
+const renderCurrent = computed(() => {
+  if (!duration.value) return 0
+  if (hasEnded.value) return duration.value
+  const nearEnd = duration.value - 0.15
+  return Math.min(duration.value, current.value >= nearEnd ? duration.value : current.value)
+})
+const progressPct = computed(() => duration.value ? Math.min(100, (renderCurrent.value / duration.value) * 100) : 0)
 const bufferedPct = computed(() => {
   if (!duration.value) return 0
   return Math.min(100, (bufferedEnd.value / duration.value) * 100)
 })
 
-const timeLabel = computed(() => `${fmt(current.value)} / ${fmt(duration.value)}`)
-function fmt(s: number) {
-  if (!isFinite(s)) return '0:00'
-  const m = Math.floor(s / 60)
-  const r = Math.floor(s % 60)
-  return `${m}:${String(r).padStart(2,'0')}`
+const timeLabel = computed(() => {
+  const dSec = Math.max(0, Math.round(duration.value || 0))
+  // Use renderCurrent to align label with the visible progress clamping
+  const cSec = Math.min(dSec, Math.round((hasEnded.value ? duration.value : renderCurrent.value) || 0))
+  return `${fmtSec(cSec)} / ${fmtSec(dSec)}`
+})
+function fmtSec(total: number) {
+  if (!isFinite(total)) return '0:00'
+  const m = Math.floor(total / 60)
+  const s = Math.floor(total % 60)
+  return `${m}:${String(s).padStart(2,'0')}`
 }
 
-function togglePlay() {
+async function togglePlay() {
   if (!isStarted.value) return startPlayback()
   if (hasEnded.value) {
     hasEnded.value = false
     if (videoEl.value) {
       videoEl.value.currentTime = 0
       current.value = 0
-      videoEl.value.play()
+      const ok = await ensurePlay()
+      if (!ok) {
+        isPlaying.value = false
+        return
+      }
     }
-    isPlaying.value = true
     return
   }
   if (mode.value === 'video' && videoEl.value) {
-    if (videoEl.value.paused) videoEl.value.play()
+    if (videoEl.value.paused) await ensurePlay()
     else videoEl.value.pause()
   } else if (mode.value === 'iframe') {
     // Basic play/pause via postMessage for YouTube/Vimeo when possible
@@ -319,13 +343,15 @@ let wasPlayingBeforeScrub = false
 function startScrub(ev: MouseEvent | TouchEvent) {
   if (mode.value !== 'video' || !progressEl.value || !videoEl.value || !duration.value) return
   isScrubbing.value = true
+  hasEnded.value = false
   wasPlayingBeforeScrub = !videoEl.value.paused
   if (wasPlayingBeforeScrub) videoEl.value.pause()
   const move = (e: MouseEvent | TouchEvent) => {
     const clientX = (e as TouchEvent).touches ? (e as TouchEvent).touches[0].clientX : (e as MouseEvent).clientX
     const rect = progressEl.value!.getBoundingClientRect()
     const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-    current.value = duration.value * pct
+    // Avoid sticking exactly at duration while scrubbing to keep video out of ended state
+    current.value = pct >= 0.999 ? Math.max(0, duration.value - 0.05) : duration.value * pct
   }
   const up = () => {
     window.removeEventListener('mousemove', move as any)
@@ -333,8 +359,9 @@ function startScrub(ev: MouseEvent | TouchEvent) {
     window.removeEventListener('mouseup', up)
     window.removeEventListener('touchend', up)
     if (videoEl.value) {
-      videoEl.value.currentTime = current.value
-      if (wasPlayingBeforeScrub) videoEl.value.play()
+      const targetTime = current.value >= duration.value - 0.01 ? Math.max(0, duration.value - 0.05) : current.value
+      videoEl.value.currentTime = targetTime
+      if (wasPlayingBeforeScrub) ensurePlay()
     }
     isScrubbing.value = false
   }
@@ -350,6 +377,33 @@ function onEnded() {
   hasEnded.value = true
   isPlaying.value = false
   current.value = duration.value
+  // Ensure the media element is fully paused to avoid stuck states
+  if (videoEl.value && !videoEl.value.paused) {
+    try { videoEl.value.pause() } catch {}
+  }
+}
+
+async function ensurePlay(): Promise<boolean> {
+  const v = videoEl.value
+  if (!v) return false
+  // If the element is in an ended state, nudge back before duration to clear 'ended'
+  if ((v as any).ended) {
+    try { v.currentTime = Math.max(0, (duration.value || 0) - 0.05) } catch {}
+    hasEnded.value = false
+  }
+  try {
+    await v.play()
+    isPlaying.value = true
+    return true
+  } catch (e) {
+    try {
+      v.load()
+      await v.play()
+      isPlaying.value = true
+      return true
+    } catch {}
+  }
+  return false
 }
 
 function onMouseMove() {
@@ -437,6 +491,7 @@ onBeforeUnmount(() => {
   object-fit: cover;
   display: block;
   background: #000;
+  z-index: 1;
 }
 
 .ab-overlay {
@@ -450,6 +505,7 @@ onBeforeUnmount(() => {
   padding: 0;
   background: transparent;
   cursor: pointer;
+  z-index: 5; /* ensure overlay is above video when shown */
 }
 .ab-overlay:focus-visible {
   outline: 2px solid var(--ab-accent);
@@ -554,6 +610,7 @@ onBeforeUnmount(() => {
   opacity: 0;
   transition: transform .28s ease, opacity .28s ease;
   will-change: transform, opacity;
+  z-index: 4;
 }
 .ab-shell:hover .ab-controls,
 .ab-controls.visible {
