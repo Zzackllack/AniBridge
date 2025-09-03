@@ -16,29 +16,31 @@
       :aria-label="title || 'Video player'"
       @keydown="onKeydown"
     >
-      <!-- Poster / Overlay -->
-      <button
-        v-show="showOverlay"
-        class="ab-overlay"
-        type="button"
-        :aria-label="`Play ${title || 'video'}`"
-        @click="startPlaybackFromOverlay"
-      >
-        <img
-          v-if="poster"
-          class="ab-poster"
-          :src="poster"
-          :alt="title || 'poster'"
-        />
-        <div class="ab-gradient" aria-hidden="true" />
-        <div class="ab-chrome">
-          <svg class="ab-play" viewBox="0 0 64 64" aria-hidden="true">
-            <circle cx="32" cy="32" r="31" class="ring" />
-            <polygon points="26,20 48,32 26,44" class="triangle" />
-          </svg>
-          <div v-if="title" class="ab-title">{{ title }}</div>
-        </div>
-      </button>
+      <!-- Poster / Overlay + Transition -->
+      <transition name="overlay-fade">
+        <button
+          v-show="showOverlay"
+          class="ab-overlay"
+          type="button"
+          :aria-label="`Play ${title || 'video'}`"
+          @click="startPlaybackFromOverlay"
+        >
+          <img
+            v-if="poster"
+            class="ab-poster"
+            :src="poster"
+            :alt="title || 'poster'"
+          />
+          <div class="ab-gradient" aria-hidden="true" />
+          <div class="ab-chrome">
+            <svg class="ab-play" viewBox="0 0 64 64" aria-hidden="true">
+              <circle cx="32" cy="32" r="31" class="ring" />
+              <polygon points="26,20 48,32 26,44" class="triangle" />
+            </svg>
+            <div v-if="title" class="ab-title">{{ title }}</div>
+          </div>
+        </button>
+      </transition>
 
       <!-- Video -->
       <video
@@ -63,7 +65,11 @@
       <!-- Controls -->
       <div class="ab-controls visible">
         <!-- Play/Pause -->
-        <button class="ab-btn icon" :aria-label="isPlaying ? 'Pause' : 'Play'" @click="togglePlay">
+        <button
+          class="ab-btn icon"
+          :aria-label="isPlaying ? 'Pause' : 'Play'"
+          @click="togglePlay"
+        >
           <Pause v-if="isPlaying" class="ab-icon" aria-hidden="true" />
           <Play v-else class="ab-icon" aria-hidden="true" />
         </button>
@@ -71,6 +77,7 @@
         <!-- Progress / Scrubber -->
         <div
           class="ab-progress"
+          :class="{ scrubbing: isScrubbing }"
           role="slider"
           aria-label="Seek"
           :aria-valuemin="0"
@@ -78,11 +85,7 @@
           :aria-valuenow="scrubTime ?? currentTime"
           :aria-valuetext="formatTime(scrubTime ?? currentTime)"
         >
-          <div
-            ref="trackEl"
-            class="track"
-            @pointerdown="onTrackPointerDown"
-          >
+          <div ref="trackEl" class="track" @pointerdown="onTrackPointerDown">
             <div class="buffered" :style="{ width: bufferedPct + '%' }"></div>
             <div class="filled" :style="{ width: progressPct + '%' }"></div>
             <div class="handle" :style="{ left: progressPct + '%' }"></div>
@@ -90,10 +93,16 @@
         </div>
 
         <!-- Time -->
-        <div class="ab-time">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</div>
+        <div class="ab-time">
+          {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
+        </div>
 
         <!-- Mute -->
-        <button class="ab-btn icon" :aria-label="isMuted ? 'Unmute' : 'Mute'" @click="toggleMute">
+        <button
+          class="ab-btn icon"
+          :aria-label="isMuted ? 'Unmute' : 'Mute'"
+          @click="toggleMute"
+        >
           <VolumeX v-if="isMuted" class="ab-icon" aria-hidden="true" />
           <Volume2 v-else class="ab-icon" aria-hidden="true" />
         </button>
@@ -106,6 +115,7 @@
             max="1"
             step="0.01"
             :value="volume"
+            :style="{ '--vol-pct': volume * 100 + '%' }"
             aria-label="Volume"
             @input="onVolumeInput"
           />
@@ -113,7 +123,7 @@
 
         <!-- Loop -->
         <button
-          class="ab-btn icon"
+          class="ab-btn icon loop"
           :aria-pressed="looping ? 'true' : 'false'"
           :aria-label="looping ? 'Disable loop' : 'Enable loop'"
           @click="toggleLoop"
@@ -215,7 +225,7 @@ const bufferedEnd = ref(0);
 
 const looping = ref(!!props.loop);
 const isFullscreen = ref(false);
-const showOverlay = ref(!props.autoplay); // Overlay nur bis zum ersten Start
+const showOverlay = ref(!props.autoplay); // Overlay bis zum ersten Start
 
 // Scrubbing state
 const isScrubbing = ref(false);
@@ -223,7 +233,9 @@ const scrubTime = ref<number | null>(null);
 let wasPlayingBeforeScrub = false;
 
 const progressPct = computed(() =>
-  duration.value ? ((scrubTime.value ?? currentTime.value) / duration.value) * 100 : 0
+  duration.value
+    ? ((scrubTime.value ?? currentTime.value) / duration.value) * 100
+    : 0
 );
 const bufferedPct = computed(() =>
   duration.value ? (bufferedEnd.value / duration.value) * 100 : 0
@@ -239,15 +251,14 @@ function formatTime(t: number) {
 async function attemptAutoplay() {
   if (!videoEl.value) return;
   try {
-    videoEl.value.muted = isMuted.value || true; // Browser-Autoplay-Schutz
+    videoEl.value.muted = isMuted.value || true;
     if (props.autoplay) {
       await videoEl.value.play();
       showOverlay.value = false;
     }
   } catch {
-    // Autoplay blockiert -> Overlay bleibt sichtbar
+    // Autoplay blockiert
   } finally {
-    // setze gewünschtes Muted nach Autoplay-Versuch
     videoEl.value.muted = isMuted.value;
   }
 }
@@ -256,7 +267,9 @@ function togglePlay() {
   const v = videoEl.value;
   if (!v) return;
   if (v.paused) {
-    v.play().then(() => (showOverlay.value = false)).catch(() => {});
+    v.play()
+      .then(() => (showOverlay.value = false))
+      .catch(() => {});
   } else {
     v.pause();
   }
@@ -270,15 +283,17 @@ function onPause() {
   isPlaying.value = false;
   emit("pause");
 }
+
 function onEnded() {
   emit("ended");
   if (!looping.value) {
-    // "Exit": zurück zum Overlay & Anfang
+    // Smooth zurück ins Poster
     showOverlay.value = true;
     currentTime.value = 0;
     if (videoEl.value) videoEl.value.currentTime = 0;
   }
 }
+
 function onError(e: Event) {
   emit("error", e);
 }
@@ -300,7 +315,6 @@ function calcBufferedEnd() {
   if (!v) return 0;
   const ranges = v.buffered;
   if (!ranges || ranges.length === 0) return 0;
-  // nimm die Range, die den aktuellen Zeitpunkt enthält – sonst die letzte
   for (let i = 0; i < ranges.length; i++) {
     if (v.currentTime >= ranges.start(i) && v.currentTime <= ranges.end(i)) {
       return ranges.end(i);
@@ -308,7 +322,6 @@ function calcBufferedEnd() {
   }
   return ranges.end(ranges.length - 1);
 }
-
 function onProgress() {
   bufferedEnd.value = calcBufferedEnd();
 }
@@ -334,54 +347,44 @@ function onTrackPointerDown(e: PointerEvent) {
   window.addEventListener("pointermove", onPointerMove);
   window.addEventListener("pointerup", onPointerUp);
 }
-
 function onPointerMove(e: PointerEvent) {
   setTimeFromClientX(e.clientX);
 }
-
 function onPointerUp(e: PointerEvent) {
   const v = videoEl.value;
   if (!v) return;
-
   const t = setTimeFromClientX(e.clientX);
   v.currentTime = t;
   currentTime.value = t;
   emit("seeked", t);
-
   isScrubbing.value = false;
   scrubTime.value = null;
-
   window.removeEventListener("pointermove", onPointerMove);
   window.removeEventListener("pointerup", onPointerUp);
-
-  if (wasPlayingBeforeScrub) {
-    v.play().catch(() => {});
-  }
+  if (wasPlayingBeforeScrub) v.play().catch(() => {});
 }
 
 function onVolumeInput(e: Event) {
   const v = (e.target as HTMLInputElement).valueAsNumber;
   setVolume(v);
 }
-
 function setVolume(v: number) {
-  const vClamped = Math.min(Math.max(v, 0), 1);
-  volume.value = vClamped;
+  const vv = Math.min(Math.max(v, 0), 1);
+  volume.value = vv;
   const vid = videoEl.value;
-  if (vid) vid.volume = vClamped;
+  if (vid) vid.volume = vv;
 
-  if (vClamped === 0) {
+  if (vv === 0) {
     isMuted.value = true;
     if (vid) vid.muted = true;
   } else {
-    if (!isMuted.value) lastVolume.value = vClamped;
+    if (!isMuted.value) lastVolume.value = vv;
     if (vid) vid.muted = false;
     isMuted.value = false;
-    lastVolume.value = vClamped;
+    lastVolume.value = vv;
   }
   emit("volumechange", volume.value, isMuted.value);
 }
-
 function toggleMute() {
   const vid = videoEl.value;
   if (!vid) return;
@@ -396,7 +399,6 @@ function toggleMute() {
     isMuted.value = true;
   }
 }
-
 function onVolumeChange() {
   const vid = videoEl.value;
   if (!vid) return;
@@ -418,50 +420,50 @@ function onKeydown(e: KeyboardEvent) {
   if (["Space", "KeyK"].includes(key)) {
     e.preventDefault();
     togglePlay();
-  } else if (key === "KeyM") {
-    toggleMute();
-  } else if (key === "KeyF") {
-    toggleFullscreen();
-  } else if (key === "ArrowRight") {
-    seekBy(5);
-  } else if (key === "ArrowLeft") {
-    seekBy(-5);
-  } else if (key === "ArrowUp") {
+  } else if (key === "KeyM") toggleMute();
+  else if (key === "KeyF") toggleFullscreen();
+  else if (key === "ArrowRight") seekBy(5);
+  else if (key === "ArrowLeft") seekBy(-5);
+  else if (key === "ArrowUp") {
     e.preventDefault();
     setVolume(Math.min(volume.value + 0.05, 1));
   } else if (key === "ArrowDown") {
     e.preventDefault();
     setVolume(Math.max(volume.value - 0.05, 0));
-  } else if (key === "KeyL") {
-    toggleLoop();
-  }
+  } else if (key === "KeyL") toggleLoop();
 }
-
 function seekBy(delta: number) {
   const v = videoEl.value;
   if (!v) return;
-  const t = Math.min(Math.max(0, v.currentTime + delta), duration.value || v.duration || 0);
+  const t = Math.min(
+    Math.max(0, v.currentTime + delta),
+    duration.value || v.duration || 0
+  );
   v.currentTime = t;
   currentTime.value = t;
   emit("timeupdate", t);
 }
 
 function toggleFullscreen() {
-  const el = shellEl.value as HTMLElement | null;
+  const el = shellEl.value;
   if (!el) return;
   if (!document.fullscreenElement) {
-    el.requestFullscreen?.().then(() => {
-      isFullscreen.value = true;
-      emit("enterfullscreen");
-    }).catch(() => {});
+    el.requestFullscreen?.()
+      .then(() => {
+        isFullscreen.value = true;
+        emit("enterfullscreen");
+      })
+      .catch(() => {});
   } else {
-    document.exitFullscreen?.().then(() => {
-      isFullscreen.value = false;
-      emit("exitfullscreen");
-    }).catch(() => {});
+    document
+      .exitFullscreen?.()
+      .then(() => {
+        isFullscreen.value = false;
+        emit("exitfullscreen");
+      })
+      .catch(() => {});
   }
 }
-
 function onFullscreenChange() {
   isFullscreen.value = !!document.fullscreenElement;
 }
@@ -469,25 +471,22 @@ function onFullscreenChange() {
 watch(
   () => props.src,
   async () => {
-    // Reset state on source change
     currentTime.value = 0;
     duration.value = 0;
     bufferedEnd.value = 0;
     showOverlay.value = !props.autoplay;
     await nextTick();
-    // reload and optionally autoplay
     attemptAutoplay();
   }
 );
-
 watch(
   () => props.muted,
   (m) => {
     isMuted.value = !!m;
     if (videoEl.value) videoEl.value.muted = !!m;
+    if (m) volume.value = 0;
   }
 );
-
 watch(
   () => props.loop,
   (l) => {
@@ -497,7 +496,6 @@ watch(
 
 onMounted(() => {
   if (videoEl.value) {
-    // initial volume (respect muted prop)
     isMuted.value = !!props.muted;
     if (isMuted.value) {
       videoEl.value.muted = true;
@@ -510,7 +508,6 @@ onMounted(() => {
   attemptAutoplay();
   document.addEventListener("fullscreenchange", onFullscreenChange);
 });
-
 onBeforeUnmount(() => {
   document.removeEventListener("fullscreenchange", onFullscreenChange);
   window.removeEventListener("pointermove", onPointerMove);
@@ -519,7 +516,13 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* --- dein ursprüngliches Styling unverändert übernommen --- */
+/* Defaults */
+:host,
+.ab-video {
+  --ab-loop: #22c55e; /* Loop-Active-Farbe (grün) */
+}
+
+/* Layout / Caption */
 .ab-video {
   display: grid;
   gap: 10px;
@@ -531,6 +534,7 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
+/* Shell */
 .ab-shell {
   position: relative;
   aspect-ratio: var(--ab-aspect);
@@ -547,6 +551,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.28);
 }
 
+/* Video */
 .ab-media {
   width: 100%;
   height: 100%;
@@ -556,6 +561,7 @@ onBeforeUnmount(() => {
   z-index: 1;
 }
 
+/* Overlay (Poster) + Transition */
 .ab-overlay {
   position: absolute;
   inset: 0;
@@ -573,7 +579,6 @@ onBeforeUnmount(() => {
   outline: 2px solid var(--ab-accent);
   outline-offset: 4px;
 }
-
 .ab-poster {
   position: absolute;
   inset: 0;
@@ -598,7 +603,6 @@ onBeforeUnmount(() => {
     linear-gradient(180deg, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.6) 100%);
   pointer-events: none;
 }
-
 .ab-chrome {
   position: relative;
   z-index: 2;
@@ -611,7 +615,6 @@ onBeforeUnmount(() => {
 .ab-overlay:hover .ab-chrome {
   transform: translateY(-2px);
 }
-
 .ab-play {
   width: 84px;
   height: 84px;
@@ -623,16 +626,15 @@ onBeforeUnmount(() => {
   stroke-width: 2;
 }
 .ab-play .triangle {
-  fill: white;
+  fill: #fff;
   transform-origin: 50% 50%;
   transition: transform 0.25s ease;
 }
 .ab-overlay:hover .ab-play .triangle {
   transform: scale(1.05);
 }
-
 .ab-title {
-  color: white;
+  color: #fff;
   font-weight: 600;
   letter-spacing: 0.2px;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
@@ -692,8 +694,19 @@ onBeforeUnmount(() => {
   height: 18px;
   stroke: #fff;
   stroke-width: 2px;
+  transition: stroke 0.2s ease, transform 0.3s ease, filter 0.2s ease;
 }
 
+/* Repeat sichtbar & animiert */
+.ab-btn.loop[aria-pressed="true"] .ab-icon {
+  stroke: var(--ab-loop);
+  transform: rotate(-180deg);
+  filter: drop-shadow(
+    0 0 10px color-mix(in srgb, var(--ab-loop) 70%, transparent)
+  );
+}
+
+/* Progress */
 .ab-progress {
   height: 28px;
   display: grid;
@@ -727,8 +740,8 @@ onBeforeUnmount(() => {
     var(--ab-accent),
     color-mix(in srgb, var(--ab-accent) 65%, #ffffff)
   );
+  transition: width 0.15s ease;
 }
-
 .ab-progress .handle {
   position: absolute;
   top: 50%;
@@ -740,19 +753,25 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, left 0.15s ease;
   pointer-events: none;
 }
 .ab-progress:hover .handle {
   opacity: 1;
 }
+.ab-progress.scrubbing .filled,
+.ab-progress.scrubbing .handle {
+  transition: none;
+}
 
+/* Time */
 .ab-time {
   color: rgba(255, 255, 255, 0.85);
   font-variant-numeric: tabular-nums;
   font-size: 12px;
 }
 
+/* Volume mit gefüllter Spur und gleichem Dot-Style */
 .ab-volume {
   width: 110px;
   display: grid;
@@ -768,39 +787,68 @@ onBeforeUnmount(() => {
 }
 .ab-volume input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
-  background: rgba(255, 255, 255, 0.18);
   border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--ab-accent) 0%,
+    var(--ab-accent) var(--vol-pct),
+    rgba(255, 255, 255, 0.18) var(--vol-pct),
+    rgba(255, 255, 255, 0.18) 100%
+  );
+  transition: background 0.15s ease;
 }
 .ab-volume input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--ab-accent);
+  background: #fff;
+  border: 2px solid var(--ab-accent);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   margin-top: -5px;
 }
 .ab-volume input[type="range"]::-moz-range-track {
   height: 4px;
-  background: rgba(255, 255, 255, 0.18);
   border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.ab-volume input[type="range"]::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--ab-accent);
 }
 .ab-volume input[type="range"]::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--ab-accent);
-  border: none;
+  background: #fff;
+  border: 2px solid var(--ab-accent);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
+/* Overlay Transition (Fade + leichter Zoom) */
+.overlay-fade-enter-active,
+.overlay-fade-leave-active {
+  transition: opacity 0.28s ease, transform 0.28s ease, filter 0.28s ease;
+}
+.overlay-fade-enter-from,
+.overlay-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.985);
+  filter: blur(2px);
+}
+
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .ab-shell,
-  .ab-controls {
-    transition: none;
-  }
+  .ab-controls,
   .ab-overlay .ab-chrome,
-  .ab-play .triangle {
-    transition: none;
+  .ab-play .triangle,
+  .ab-progress .filled,
+  .ab-progress .handle,
+  .overlay-fade-enter-active,
+  .overlay-fade-leave-active {
+    transition: none !important;
   }
 }
 </style>
