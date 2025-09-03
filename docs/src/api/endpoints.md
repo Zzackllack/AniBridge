@@ -48,17 +48,17 @@ See [qBittorrent Shim](/api/qbittorrent) for payloads and responses.
 Below is a demo of the custom video component used in this documentation site. You can use it in any Markdown page as shown.
 
 <VideoPlayer
-  src="https://flare.zacklack.de/3FxQ2/oI6Tgl.mp4/raw"
+  src="https://streamtape.com/e/wZQq0JaVZ9cJz3e/"
   poster="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=1200&auto=format&fit=crop"
   title="Sample: Flower in 4K"
-  caption="Native MP4 playback with animated UI"
+  caption="Custom player UI, brand‑matched accent"
   :autoplay="false"
   :muted="true"
-  :controls="true"
   aspect="16 / 9"
   radius="16px"
-  accent="#7c5cff"
 />
+
+<iframe src="https://streamtape.com/e/wZQq0JaVZ9cJz3e/" width="800" height="600" allowfullscreen allowtransparency allow="autoplay" scrolling="no" frameborder="0"></iframe>
 
 Usage:
 
@@ -67,11 +67,10 @@ Usage:
   src="https://youtu.be/dQw4w9WgXcQ"
   poster="/path/to/poster.jpg"
   title="YouTube Embed"
-  caption="Embeds YouTube/Vimeo or native MP4/WebM"
+  caption="Custom UI with YouTube/Vimeo (play/mute)"
   :autoplay="true"
   :muted="true"
   aspect="21 / 9"
   radius="20px"
-  accent="#00e5ff"
 /> 
 ```
