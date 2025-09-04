@@ -155,7 +155,8 @@ const videoEl = ref<HTMLVideoElement | null>(null)
 const iframeEl = ref<HTMLIFrameElement | null>(null)
 const progressEl = ref<HTMLDivElement | null>(null)
 const isMuted = ref(!!props.muted)
-const volume = ref( props.muted ? 0 : 0.9 )
+const volume = ref(props.muted ? 0 : 0.9)
+const lastVolume = ref(volume.value > 0 ? volume.value : 0.6)
 const duration = ref(0)
 const current = ref(0)
 const bufferedEnd = ref(0)
@@ -275,7 +276,16 @@ function togglePlay() {
 }
 
 function toggleMute() {
-  isMuted.value = !isMuted.value
+  if (!isMuted.value) {
+    // Going to muted: remember last non-zero volume, set slider to 0
+    if (volume.value > 0) lastVolume.value = volume.value
+    isMuted.value = true
+    volume.value = 0
+  } else {
+    // Unmuting: restore previous volume or a sensible default
+    isMuted.value = false
+    volume.value = lastVolume.value > 0 ? lastVolume.value : 0.6
+  }
   if (mode.value === 'video') applyVolume()
   else tryIframeCommand(isMuted.value ? 'mute' : 'unmute')
 }
@@ -283,8 +293,9 @@ function toggleMute() {
 function onVolume() {
   if (volume.value <= 0.0001) {
     isMuted.value = true
-  } else if (isMuted.value) {
-    isMuted.value = false
+  } else {
+    if (isMuted.value) isMuted.value = false
+    lastVolume.value = volume.value
   }
   applyVolume()
 }
@@ -575,7 +586,7 @@ onBeforeUnmount(() => {
 }
 
 .ab-progress {
-  height: 26px;
+  height: 28px;
   display: grid;
   align-items: center;
   flex: 1;
@@ -615,10 +626,10 @@ onBeforeUnmount(() => {
 
 .ab-time { color: rgba(255,255,255,.85); font-variant-numeric: tabular-nums; font-size: 12px; }
 
-.ab-volume { width: 110px; }
+.ab-volume { width: 110px; display: grid; align-items: center; }
 .ab-volume input[type="range"] {
   -webkit-appearance: none;
-  width: 100%; height: 22px;
+  width: 100%; height: 28px;
   background: transparent;
   border-radius: 999px;
   outline: none;
