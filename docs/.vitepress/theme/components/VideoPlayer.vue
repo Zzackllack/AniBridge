@@ -779,6 +779,8 @@ onBeforeUnmount(() => {
 }
 .ab-volume input[type="range"] {
   -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
   width: 100%;
   height: 28px;
   background: transparent;
