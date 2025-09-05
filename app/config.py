@@ -28,7 +28,7 @@ def _ensure_dir(candidates: list[Path], label: str) -> Path:
         try:
             p.mkdir(parents=True, exist_ok=True)
             resolved = p.resolve()
-            logger.debug(f"{label} set to {resolved}")
+            logger.info(f"{label} using: {resolved}")
             return resolved
         except PermissionError as e:
             logger.warning(f"No permission to create {label} at {p}: {e}")
@@ -44,6 +44,13 @@ def _ensure_dir(candidates: list[Path], label: str) -> Path:
     )
 
 
+# Optional override: path reported to clients (e.g. Sonarr) as qBittorrent save path.
+# Useful when AniBridge runs on host but Sonarr runs in a container with a different mount point.
+QBIT_PUBLIC_SAVE_PATH = os.getenv("QBIT_PUBLIC_SAVE_PATH", "").strip()
+if QBIT_PUBLIC_SAVE_PATH:
+    QBIT_PUBLIC_SAVE_PATH = str(Path(QBIT_PUBLIC_SAVE_PATH).expanduser())
+logger.debug(f"QBIT_PUBLIC_SAVE_PATH={QBIT_PUBLIC_SAVE_PATH or '<none>'}")
+
 # Resolve configured paths (treat empty env as unset)
 env_download = os.getenv("DOWNLOAD_DIR")
 env_data = os.getenv("DATA_DIR")
@@ -58,6 +65,9 @@ default_data = Path("/data") if IN_DOCKER else (Path.cwd() / "data")
 download_candidates: list[Path] = []
 data_candidates: list[Path] = []
 
+# If a public save path is provided, prefer it so Sonarr/Prowlarr can see files
+if QBIT_PUBLIC_SAVE_PATH:
+    download_candidates.append(Path(QBIT_PUBLIC_SAVE_PATH))
 if env_download_path:
     download_candidates.append(env_download_path)
 download_candidates.extend([
@@ -82,10 +92,12 @@ DATA_DIR = _ensure_dir(data_candidates, "DATA_DIR")
 
 # Optional override: path reported to clients (e.g. Sonarr) as qBittorrent save path.
 # Useful when AniBridge runs on host but Sonarr runs in a container with a different mount point.
-QBIT_PUBLIC_SAVE_PATH = os.getenv("QBIT_PUBLIC_SAVE_PATH", "").strip()
+# Normalize to absolute for reporting if it points into container
 if QBIT_PUBLIC_SAVE_PATH:
-    QBIT_PUBLIC_SAVE_PATH = str(Path(QBIT_PUBLIC_SAVE_PATH).expanduser().resolve())
-logger.debug(f"QBIT_PUBLIC_SAVE_PATH={QBIT_PUBLIC_SAVE_PATH or '<none>'}")
+    try:
+        QBIT_PUBLIC_SAVE_PATH = str(Path(QBIT_PUBLIC_SAVE_PATH).resolve())
+    except Exception:
+        pass
 
 # Titelquelle (Slug -> Display-Title)
 # Option A: lokale HTML-Datei (Snapshot der Alphabet-Seite)

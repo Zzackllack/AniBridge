@@ -4,6 +4,8 @@ set -euo pipefail
 PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
 CHOWN_RECURSIVE="${CHOWN_RECURSIVE:-true}"
+DOWNLOAD_DIR_ENV="${DOWNLOAD_DIR:-}"
+QBIT_PUBLIC_SAVE_PATH_ENV="${QBIT_PUBLIC_SAVE_PATH:-}"
 
 echo "[entrypoint] Starting with PUID=${PUID} PGID=${PGID}"
 
@@ -52,6 +54,23 @@ else
   chown "${PUID}:${PGID}" /app 2>/dev/null || true
 fi
 
+# Ensure configured download/public paths exist and are owned correctly
+ensure_dir_owned() {
+  local d="$1"
+  if [ -n "$d" ]; then
+    mkdir -p "$d" 2>/dev/null || true
+    if [ -d "$d" ]; then
+      if [ "${CHOWN_RECURSIVE,,}" = "true" ]; then
+        chown -R "${PUID}:${PGID}" "$d" 2>/dev/null || true
+      else
+        chown "${PUID}:${PGID}" "$d" 2>/dev/null || true
+      fi
+    fi
+  fi
+}
+
+ensure_dir_owned "$DOWNLOAD_DIR_ENV"
+ensure_dir_owned "$QBIT_PUBLIC_SAVE_PATH_ENV"
+
 echo "[entrypoint] Launching: $* as appuser"
 exec gosu appuser:appgroup "$@"
-
