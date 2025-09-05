@@ -773,7 +773,9 @@ onBeforeUnmount(() => {
 
 /* Volume mit gefüllter Spur und gleichem Dot-Style */
 .ab-volume {
+  /* Prevent overgrowing in tight layouts */
   width: 110px;
+  flex: 0 0 110px;
   display: grid;
   align-items: center;
 }
@@ -838,6 +840,79 @@ onBeforeUnmount(() => {
   opacity: 0;
   transform: scale(0.985);
   filter: blur(2px);
+}
+
+/* Safe area support for iOS (bottom notch) */
+@supports (padding: max(0px)) {
+  .ab-controls {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 820px) {
+  /* Slightly reduce control sizes on tablets */
+  .ab-icon {
+    width: 16px;
+    height: 16px;
+  }
+  .ab-progress {
+    height: 24px;
+  }
+  .ab-progress .track {
+    height: 3px;
+  }
+  .ab-progress .handle {
+    width: 12px;
+    height: 12px;
+  }
+  .ab-volume {
+    width: clamp(90px, 14vw, 120px);
+    flex-basis: clamp(90px, 14vw, 120px);
+  }
+}
+
+@media (max-width: 600px) {
+  /* Wrap controls; give progress bar its own full row */
+  .ab-controls {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding: 8px 10px;
+  }
+  .ab-progress {
+    order: 2;
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .ab-time {
+    display: none;
+  }
+  /* Keep volume compact */
+  .ab-volume {
+    width: clamp(80px, 20vw, 110px);
+    flex: 0 0 clamp(80px, 20vw, 110px);
+  }
+}
+
+@media (max-width: 420px), (pointer: coarse) and (max-width: 520px) {
+  /* On small phones / touch-only, hide non-essential controls */
+  .ab-time {
+    display: none !important;
+  }
+  .ab-volume {
+    display: none;
+  }
+  .ab-btn.loop {
+    display: none;
+  }
+  .ab-icon {
+    width: 15px;
+    height: 15px;
+  }
+  .ab-progress .handle {
+    width: 10px;
+    height: 10px;
+  }
 }
 
 /* Reduced motion */
