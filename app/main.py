@@ -11,6 +11,11 @@ from datetime import datetime
 from app.infrastructure.terminal_logger import TerminalLogger
 from app.utils.logger import config as configure_logger, ensure_log_path
 from app.utils.update_notifier import notify_on_startup
+from app.infrastructure.network import (
+    apply_global_proxy_env,
+    log_proxy_config_summary,
+    start_ip_check_thread,
+)
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -59,6 +64,15 @@ TerminalLogger(DATA_DIR)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global EXECUTOR
+    # Apply proxy env before any outbound network calls (e.g., update check)
+    try:
+        apply_global_proxy_env()
+    except Exception as e:
+        logger.debug(f"apply_global_proxy_env failed: {e}")
+    try:
+        log_proxy_config_summary()
+    except Exception as e:
+        logger.debug(f"log_proxy_config_summary failed: {e}")
     # Log version and update info (non-blocking best-effort)
     notify_on_startup()
     logger.info("Application startup: creating DB and thread pool executor.")
@@ -71,6 +85,7 @@ async def lifespan(app: FastAPI):
 
     # Start background cleanup if TTL is enabled (> 0)
     stop_ev = threading.Event()
+    ip_stop_ev = threading.Event()
 
     def _cleanup_loop():
         import time
@@ -118,9 +133,16 @@ async def lifespan(app: FastAPI):
                 logger.warning(f"TTL cleanup loop error: {e}")
 
     cleanup_thread = None
+    ip_thread = None
     if DOWNLOADS_TTL_HOURS > 0:
         cleanup_thread = threading.Thread(target=_cleanup_loop, name="cleanup", daemon=True)
         cleanup_thread.start()
+    # Start proxy IP monitor if enabled
+    try:
+        t = start_ip_check_thread(ip_stop_ev)
+        ip_thread = t
+    except Exception as e:
+        logger.debug(f"start_ip_check_thread failed: {e}")
     yield
     shutdown_executor()
     # ensure DB connections are closed cleanly for tests and shutdown
@@ -130,6 +152,10 @@ async def lifespan(app: FastAPI):
         pass
     try:
         stop_ev.set()
+    except Exception:
+        pass
+    try:
+        ip_stop_ev.set()
     except Exception:
         pass
 

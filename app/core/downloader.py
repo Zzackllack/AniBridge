@@ -15,6 +15,7 @@ from aniworld.models import Anime, Episode  # type: ignore
 
 from app.utils.naming import rename_to_release
 from app.config import PROVIDER_ORDER
+from app.infrastructure.network import yt_dlp_proxy
 
 Language = Literal["German Dub", "German Sub", "English Sub"]
 Provider = Literal[
@@ -236,6 +237,15 @@ def _ydl_download(
         "downloader": "ffmpeg",
         "hls_use_mpegts": True,
     }
+
+    # Apply proxy for yt-dlp if configured
+    try:
+        proxy_url = yt_dlp_proxy()
+        if proxy_url:
+            ydl_opts["proxy"] = proxy_url
+            logger.info(f"yt-dlp proxy enabled: {proxy_url}")
+    except Exception as e:
+        logger.debug(f"yt-dlp proxy configuration failed: {e}")
 
     def _compound_hook(d: dict):
         if stop_event is not None and stop_event.is_set():

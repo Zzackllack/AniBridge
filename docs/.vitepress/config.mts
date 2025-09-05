@@ -54,6 +54,7 @@ export default defineConfig({
             { text: "Overview", link: "/guide/overview" },
             { text: "Quickstart", link: "/guide/quickstart" },
             { text: "Configuration", link: "/guide/configuration" },
+            { text: "Networking & Proxies", link: "/guide/networking" },
             { text: "Running", link: "/guide/running" },
             { text: "Troubleshooting", link: "/guide/troubleshooting" },
             { text: "FAQ", link: "/guide/faq" },

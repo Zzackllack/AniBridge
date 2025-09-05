@@ -45,6 +45,21 @@ AniBridge is configured via environment variables (works well with Docker). Sens
 
 - `MAX_CONCURRENCY` (thread pool size; default `3`)
 
+## Networking / Proxy
+
+- `PROXY_ENABLED` (default: `false`)
+- `PROXY_URL` (common proxy URL; e.g., `socks5h://127.0.0.1:1080`)
+- `HTTP_PROXY_URL`, `HTTPS_PROXY_URL`, `ALL_PROXY_URL` (overrides)
+- `PROXY_HOST`, `PROXY_PORT`, `PROXY_SCHEME` (builds `PROXY_URL` when empty)
+- `PROXY_USERNAME`, `PROXY_PASSWORD` (credentials; injected into proxy URLs if missing)
+- `NO_PROXY` (CSV list of hosts to bypass)
+- `PROXY_FORCE_REMOTE_DNS` (use `socks5h` for remote DNS)
+- `PROXY_DISABLE_CERT_VERIFY` (disable TLS verify for requests)
+- `PROXY_APPLY_ENV` (export HTTP(S)_PROXY/NO_PROXY to environment)
+- `PROXY_IP_CHECK_INTERVAL_MIN` (minutes; periodically logs current public IP)
+
+See the dedicated [Networking & Proxies](/guide/networking) guide for examples.
+
 ## Example `.env`
 
 ```ini
@@ -59,4 +74,3 @@ MAX_CONCURRENCY=3
 ```
 
 Browse the full list with explanations in [Environment](/api/environment).
-

@@ -2,7 +2,7 @@ import os
 import socket
 from typing import Optional, Tuple
 
-import requests
+from app.utils.http_client import get as http_get
 from loguru import logger
 from packaging import version as _version
 
@@ -51,7 +51,7 @@ def _github_headers() -> dict:
 def fetch_latest_github_release(owner: str, repo: str) -> Optional[str]:
     url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
     try:
-        resp = requests.get(url, headers=_github_headers(), timeout=5)
+        resp = http_get(url, headers=_github_headers(), timeout=5)
         if resp.status_code == 200:
             data = resp.json()
             tag = data.get("tag_name") or data.get("name")
@@ -61,20 +61,20 @@ def fetch_latest_github_release(owner: str, repo: str) -> Optional[str]:
         else:
             # If repo has no releases, GitHub may return 404; fallback to tags
             logger.debug(f"GitHub releases response: {resp.status_code}")
-    except (requests.RequestException, socket.timeout) as e:
+    except Exception as e:
         logger.debug(f"GitHub releases fetch failed: {e}")
 
     # Fallback to tags API (first tag assumed latest by API ordering is not guaranteed)
     try:
         tags_url = f"https://api.github.com/repos/{owner}/{repo}/tags"
-        resp = requests.get(tags_url, headers=_github_headers(), timeout=5)
+        resp = http_get(tags_url, headers=_github_headers(), timeout=5)
         if resp.status_code == 200:
             arr = resp.json()
             if isinstance(arr, list) and arr:
                 tag = arr[0].get("name")
                 if tag:
                     return _normalize(str(tag))
-    except (requests.RequestException, socket.timeout) as e:
+    except Exception as e:
         logger.debug(f"GitHub tags fetch failed: {e}")
 
     return None
@@ -89,7 +89,7 @@ def try_fetch_latest_ghcr_tag(image: str) -> Optional[str]:
     # Docker Registry v2 tags list endpoint
     url = f"https://ghcr.io/v2/{image}/tags/list"
     try:
-        resp = requests.get(url, timeout=5)
+        resp = http_get(url, timeout=5)
         if resp.status_code == 200:
             data = resp.json()
             tags = data.get("tags") or []
@@ -115,7 +115,7 @@ def try_fetch_latest_ghcr_tag(image: str) -> Optional[str]:
             return _normalize(candidates_sorted[0])
         else:
             logger.debug(f"GHCR tags list status: {resp.status_code}")
-    except (requests.RequestException, socket.timeout) as e:
+    except Exception as e:
         logger.debug(f"GHCR tags fetch failed: {e}")
 
     return None

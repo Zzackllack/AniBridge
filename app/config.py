@@ -15,6 +15,134 @@ logger.debug("Checking if running in Docker...")
 IN_DOCKER = Path("/.dockerenv").exists()
 logger.debug(f"IN_DOCKER={IN_DOCKER}")
 
+# --- Networking / Proxy configuration ---
+def _as_bool(val: str | None, default: bool) -> bool:
+    if val is None:
+        return default
+    v = val.strip().lower()
+    return v in ("1", "true", "yes", "on")
+
+"""Proxy configuration
+
+We support either a full URL with embedded credentials (PROXY_URL) or a split
+form via PROXY_HOST/PROXY_PORT/PROXY_SCHEME and optional PROXY_USERNAME/
+PROXY_PASSWORD. Per-protocol overrides (HTTP_PROXY_URL/HTTPS_PROXY_URL/
+ALL_PROXY_URL) are also supported and will inherit global credentials if they
+lack their own.
+"""
+
+# Top-level toggle to enable proxying outbound requests and downloads.
+PROXY_ENABLED = _as_bool(os.getenv("PROXY_ENABLED", None), False)
+
+# Split fields (optional builders)
+PROXY_HOST = os.getenv("PROXY_HOST", "").strip()
+PROXY_PORT = os.getenv("PROXY_PORT", "").strip()
+PROXY_SCHEME = os.getenv("PROXY_SCHEME", "socks5").strip()  # socks5 / socks5h / http / https
+PROXY_USERNAME = os.getenv("PROXY_USERNAME", "").strip()
+PROXY_PASSWORD = os.getenv("PROXY_PASSWORD", "").strip()
+
+# A single URL to apply to all protocols unless overridden below.
+# Examples:
+#  - http://user:pass@127.0.0.1:8080
+#  - socks5://127.0.0.1:1080  (use socks5h for remote DNS)
+PROXY_URL = os.getenv("PROXY_URL", "").strip()
+
+# Per-protocol overrides. If empty, falls back to PROXY_URL when PROXY_ENABLED.
+HTTP_PROXY_URL = os.getenv("HTTP_PROXY_URL", "").strip()
+HTTPS_PROXY_URL = os.getenv("HTTPS_PROXY_URL", "").strip()
+ALL_PROXY_URL = os.getenv("ALL_PROXY_URL", "").strip()
+NO_PROXY = os.getenv("NO_PROXY", "").strip()
+
+# Force remote DNS resolution for SOCKS5 by switching to socks5h scheme.
+# Default to remote DNS for SOCKS to maximize compatibility with blocked DNS
+PROXY_FORCE_REMOTE_DNS = _as_bool(os.getenv("PROXY_FORCE_REMOTE_DNS", None), True)
+
+# Requests TLS certificate verification (set false to allow corporate MITM proxies).
+PROXY_DISABLE_CERT_VERIFY = _as_bool(os.getenv("PROXY_DISABLE_CERT_VERIFY", None), False)
+
+# Apply to process environment so libraries (including 3rd-party) respect proxies.
+PROXY_APPLY_ENV = _as_bool(os.getenv("PROXY_APPLY_ENV", None), True)
+
+# Interval for periodic public IP checks when proxy is enabled (minutes). 0 disables.
+PROXY_IP_CHECK_INTERVAL_MIN = int(os.getenv("PROXY_IP_CHECK_INTERVAL_MIN", "30") or 0)
+
+# Scope of proxying: 'all' (default), 'requests' (HTTP clients only), 'ytdlp' (downloads only)
+PROXY_SCOPE = os.getenv("PROXY_SCOPE", "all").strip().lower()
+if PROXY_SCOPE not in ("all", "requests", "ytdlp"):
+    PROXY_SCOPE = "all"
+
+# Internal helper to promote socks5 → socks5h when remote DNS is requested.
+def _normalize_proxy_scheme(url: str | None) -> str | None:
+    if not url:
+        return None
+    try:
+        if PROXY_FORCE_REMOTE_DNS and url.strip().lower().startswith("socks5://"):
+            return "socks5h://" + url.strip()[9:]
+        return url
+    except Exception:
+        return url
+
+def _effective_proxy_url(explicit: str | None, fallback: str | None) -> str | None:
+    return _normalize_proxy_scheme(explicit.strip() if explicit else fallback)
+
+# Build base PROXY_URL from split fields if not provided
+def _build_from_parts() -> str | None:
+    if PROXY_URL:
+        return PROXY_URL
+    if not (PROXY_HOST and PROXY_PORT):
+        return None
+    scheme = PROXY_SCHEME or "socks5"
+    auth = ""
+    if PROXY_USERNAME:
+        auth = PROXY_USERNAME
+        if PROXY_PASSWORD:
+            auth += f":{PROXY_PASSWORD}"
+        auth += "@"
+    return f"{scheme}://{auth}{PROXY_HOST}:{PROXY_PORT}"
+
+def _inject_auth(url: str | None, username: str, password: str) -> str | None:
+    """Insert credentials into a proxy URL if not already present.
+
+    Keeps host/port/scheme intact. Returns the same URL when no change needed.
+    """
+    if not url:
+        return None
+    try:
+        from urllib.parse import urlsplit, urlunsplit
+
+        p = urlsplit(url)
+        if "@" in (p.netloc or ""):
+            return url  # credentials already present
+        netloc = p.netloc
+        if not netloc:
+            return url
+        if username:
+            creds = username
+            if password:
+                creds += f":{password}"
+            netloc = f"{creds}@{netloc}"
+        p2 = (p.scheme, netloc, p.path or "", p.query or "", p.fragment or "")
+        return urlunsplit(p2)
+    except Exception:
+        return url
+
+# Resolve the base PROXY_URL including optional credentials and scheme normalization
+_base_proxy_url = _build_from_parts() or PROXY_URL
+if PROXY_USERNAME or PROXY_PASSWORD:
+    _base_proxy_url = _inject_auth(_base_proxy_url, PROXY_USERNAME, PROXY_PASSWORD) or _base_proxy_url
+
+# Normalized effective values used throughout the app.
+EFFECTIVE_HTTP_PROXY = _effective_proxy_url(
+    _inject_auth(HTTP_PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD), _base_proxy_url
+)
+EFFECTIVE_HTTPS_PROXY = _effective_proxy_url(
+    _inject_auth(HTTPS_PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD), _base_proxy_url
+)
+EFFECTIVE_ALL_PROXY = _effective_proxy_url(
+    _inject_auth(ALL_PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD), _base_proxy_url
+)
+EFFECTIVE_NO_PROXY = NO_PROXY or None
+
 
 def _str_to_path(val: str | os.PathLike[str] | None) -> Path | None:
     if not val:
@@ -188,11 +316,6 @@ TORZNAB_TEST_EPISODE = int(os.getenv("TORZNAB_TEST_EPISODE", "1"))
 TORZNAB_TEST_LANGUAGE = os.getenv("TORZNAB_TEST_LANGUAGE", "German Dub")
 
 # --- Cleanup behavior ---
-def _as_bool(val: str | None, default: bool) -> bool:
-    if val is None:
-        return default
-    v = val.strip().lower()
-    return v in ("1", "true", "yes", "on")
 
 
 DELETE_FILES_ON_TORRENT_DELETE = _as_bool(

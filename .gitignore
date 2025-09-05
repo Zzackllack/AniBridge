@@ -528,3 +528,4 @@ release/
 !pnpm-lock.yaml
 /docs/.vitepress/cache/
 /docs/.vitepress/cache/**
+.wrangler/

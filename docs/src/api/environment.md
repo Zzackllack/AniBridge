@@ -46,3 +46,17 @@ Comprehensive list of env vars read in `app/config.py`.
 
 - `MAX_CONCURRENCY` (default: `3`)
 
+## Networking / Proxy
+
+- `PROXY_ENABLED` (default: `false`)
+- `PROXY_URL` (common proxy URL used when protocol-specific vars are empty)
+- `HTTP_PROXY_URL` (override HTTP proxy URL)
+- `HTTPS_PROXY_URL` (override HTTPS proxy URL)
+- `ALL_PROXY_URL` (alternative fallback for both protocols)
+- `PROXY_HOST`, `PROXY_PORT`, `PROXY_SCHEME` (split fields to build `PROXY_URL` when it’s empty)
+- `PROXY_USERNAME`, `PROXY_PASSWORD` (credentials injected into URLs when missing)
+- `NO_PROXY` (comma-separated list of hosts to bypass proxy)
+- `PROXY_FORCE_REMOTE_DNS` (true: upgrade `socks5://` to `socks5h://`)
+- `PROXY_DISABLE_CERT_VERIFY` (true: disable TLS verification for requests)
+- `PROXY_APPLY_ENV` (true: set HTTP(S)_PROXY/NO_PROXY in process env)
+- `PROXY_IP_CHECK_INTERVAL_MIN` (minutes; log current public IP periodically)

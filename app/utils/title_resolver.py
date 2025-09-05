@@ -12,7 +12,7 @@ from functools import lru_cache
 from time import time
 
 import re
-import requests  # type: ignore
+from app.utils.http_client import get as http_get  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 
 from app.config import (
@@ -123,7 +123,7 @@ def _parse_index_and_alts(
 def _fetch_index_from_url() -> Tuple[Dict[str, str], Dict[str, List[str]]]:
     logger.info(f"Fetching index from URL: {ANIWORLD_ALPHABET_URL}")
     try:
-        resp = requests.get(ANIWORLD_ALPHABET_URL, timeout=20)
+        resp = http_get(ANIWORLD_ALPHABET_URL, timeout=20)
         resp.raise_for_status()
         logger.success("Successfully fetched index from URL.")
         return _parse_index_and_alts(resp.text)

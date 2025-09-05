@@ -22,6 +22,7 @@ platformdirs
 pydantic_core
 python-dotenv
 requests
+PySocks
 six
 sniffio
 soupsieve
