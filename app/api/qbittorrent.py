@@ -21,6 +21,23 @@ configure_logger()
 
 router = APIRouter(prefix="/api/v2")
 
+def _public_save_path() -> str:
+    """Return the path Sonarr/Radarr should see as the save location.
+
+    If `QBIT_PUBLIC_SAVE_PATH` is set, always use it to avoid host-only paths
+    leaking into containerized indexers. Otherwise fall back to our internal
+    `DOWNLOAD_DIR`.
+    """
+    return QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR)
+
+# Log effective path mapping once for operator clarity
+try:
+    logger.info(
+        f"qBittorrent shim: public save path='{_public_save_path()}', internal download dir='{DOWNLOAD_DIR}'"
+    )
+except Exception:
+    pass
+
 from app.config import QBIT_PUBLIC_SAVE_PATH as _PUB
 
 CATEGORIES: dict[str, dict] = {
@@ -138,7 +155,7 @@ def app_preferences():
     return JSONResponse(
         {
             # Pfade/Download-Verhalten
-            "save_path": QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR),
+            "save_path": _public_save_path(),
             "temp_path_enabled": False,
             "temp_path": "",
             "create_subfolder_enabled": True,
@@ -198,7 +215,10 @@ def sync_maindata(session: Session = Depends(get_session)):
                 state = "pausedDL"
         # Derive size, save_path and completion time more accurately on completion
         size_val = int(job.total_bytes or 0) if job else 0
-        save_path_val = r.save_path or (QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR))
+        # Always prefer public mapping if configured
+        save_path_val = _public_save_path() if QBIT_PUBLIC_SAVE_PATH else (
+            r.save_path or str(DOWNLOAD_DIR)
+        )
         # Prefer directory of the actual file if we know it
         if job and job.result_path:
             try:
@@ -488,15 +508,13 @@ def torrents_properties(session: Session = Depends(get_session), hash: str = "")
         raise HTTPException(status_code=404, detail="not found")
 
     job = get_job(session, rec.job_id) if rec.job_id else None
-    # Prefer the directory of the final file if known
-    save_path = rec.save_path or (QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR))
+    # Prefer public mapping; then directory of final file if no mapping
+    save_path = _public_save_path()
     total_size = 0
     if job and job.result_path and os.path.exists(job.result_path):
         try:
             total_size = int(os.path.getsize(job.result_path))
-            if QBIT_PUBLIC_SAVE_PATH:
-                save_path = QBIT_PUBLIC_SAVE_PATH
-            else:
+            if not QBIT_PUBLIC_SAVE_PATH:
                 save_path = os.path.abspath(os.path.dirname(job.result_path))
         except Exception:
             total_size = int(job.total_bytes or 0)

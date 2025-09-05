@@ -1,9 +1,14 @@
 import sys
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 from loguru import logger
 from app.utils.logger import config as configure_logger
-from pathlib import Path
 
+# Load .env as early as possible so all downstream imports see the intended env
+load_dotenv()
+
+# Configure logger after env is loaded (LOG_LEVEL honored)
 configure_logger()
 
 logger.debug("Checking if running in Docker...")
@@ -70,9 +75,10 @@ default_data = Path("/data") if IN_DOCKER else (Path.cwd() / "data")
 download_candidates: list[Path] = []
 data_candidates: list[Path] = []
 
-# If a public save path is provided, prefer it so Sonarr/Prowlarr can see files
-if QBIT_PUBLIC_SAVE_PATH:
-    download_candidates.append(Path(QBIT_PUBLIC_SAVE_PATH))
+# Note: QBIT_PUBLIC_SAVE_PATH is only for publishing paths to indexers (e.g.,
+# Sonarr/Radarr) and must NOT affect our internal download directory selection.
+# Do not add it to download_candidates to avoid attempting to create container
+# paths on the host (e.g., /downloads) when running outside Docker.
 if env_download_path:
     download_candidates.append(env_download_path)
 download_candidates.extend(
