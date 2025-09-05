@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "anibridge"
-version = "1.14.1"
+version = "1.14.2"
 description = "AniBridge - small utility to bridge aniworld.to site for anime releases to the *arr stack"
 readme = "README.md"
 license = "BSD-3-Clause"
