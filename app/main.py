@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 from sqlmodel import Session
-from app.config import DOWNLOAD_DIR
+from app.config import DOWNLOAD_DIR, DATA_DIR
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor, Future
 from app.api.torznab import router as torznab_router
@@ -45,8 +45,9 @@ configure_logger()
 # Ensure ANIBRIDGE_LOG_PATH is set and data dir exists. We keep the
 # TerminalLogger instantiation here to avoid import cycles between app
 # packages (TerminalLogger may import app.utils.logger indirectly).
-ensure_log_path()
-TerminalLogger(Path.cwd() / "data")
+# Ensure logs go under DATA_DIR (container: /data)
+ensure_log_path(DATA_DIR)
+TerminalLogger(DATA_DIR)
 
 
 @asynccontextmanager

@@ -21,7 +21,8 @@ DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 logger.debug(f"DOWNLOAD_DIR set to {DOWNLOAD_DIR}")
 
 # Generischer Datenordner (DB, Caches, HTML-Snapshots)
-DATA_DIR = Path(os.getenv("DATA_DIR", Path.cwd() / "data")).expanduser().resolve()
+_DEFAULT_DATA_DIR = Path("/data") if IN_DOCKER else (Path.cwd() / "data")
+DATA_DIR = Path(os.getenv("DATA_DIR", _DEFAULT_DATA_DIR)).expanduser().resolve()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 logger.debug(f"DATA_DIR set to {DATA_DIR}")
 
