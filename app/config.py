@@ -10,21 +10,75 @@ logger.debug("Checking if running in Docker...")
 IN_DOCKER = Path("/.dockerenv").exists()
 logger.debug(f"IN_DOCKER={IN_DOCKER}")
 
-# Wohin wird heruntergeladen
-DEFAULT_DIR = (
-    Path("/data/downloads/anime")
-    if IN_DOCKER
-    else (Path.cwd() / "data" / "downloads" / "anime")
-)
-DOWNLOAD_DIR = Path(os.getenv("DOWNLOAD_DIR", DEFAULT_DIR)).expanduser().resolve()
-DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-logger.debug(f"DOWNLOAD_DIR set to {DOWNLOAD_DIR}")
+def _str_to_path(val: str | os.PathLike[str] | None) -> Path | None:
+    if not val:
+        return None
+    try:
+        return Path(val).expanduser()
+    except Exception:
+        return None
 
-# Generischer Datenordner (DB, Caches, HTML-Snapshots)
-_DEFAULT_DATA_DIR = Path("/data") if IN_DOCKER else (Path.cwd() / "data")
-DATA_DIR = Path(os.getenv("DATA_DIR", _DEFAULT_DATA_DIR)).expanduser().resolve()
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-logger.debug(f"DATA_DIR set to {DATA_DIR}")
+
+def _ensure_dir(candidates: list[Path], label: str) -> Path:
+    """Return first usable path from candidates, creating it if needed.
+
+    Logs fallbacks and exits with a clear error if none are writable.
+    """
+    for p in candidates:
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            resolved = p.resolve()
+            logger.debug(f"{label} set to {resolved}")
+            return resolved
+        except PermissionError as e:
+            logger.warning(f"No permission to create {label} at {p}: {e}")
+        except OSError as e:
+            logger.warning(f"Cannot create {label} at {p}: {e}")
+
+    logger.error(f"No writable candidate found for {label}. Tried: {candidates}")
+    # Last resort: exit with a clear message so operators can fix mounts/permissions
+    raise SystemExit(
+        f"Fatal: {label} is not writable. Please fix your volume mounts or set"
+        f" a writable {label} via environment variables. Tried:"
+        f" {', '.join(str(c) for c in candidates)}"
+    )
+
+
+# Resolve configured paths (treat empty env as unset)
+env_download = os.getenv("DOWNLOAD_DIR")
+env_data = os.getenv("DATA_DIR")
+env_download_path = _str_to_path(env_download.strip() if env_download else None)
+env_data_path = _str_to_path(env_data.strip() if env_data else None)
+
+# Default candidates differ for Docker vs local
+default_download = Path("/data/downloads/anime") if IN_DOCKER else (Path.cwd() / "data" / "downloads" / "anime")
+default_data = Path("/data") if IN_DOCKER else (Path.cwd() / "data")
+
+# Provide sensible cross-image fallbacks: some deploys mount under /app/data
+download_candidates: list[Path] = []
+data_candidates: list[Path] = []
+
+if env_download_path:
+    download_candidates.append(env_download_path)
+download_candidates.extend([
+    default_download,
+    Path("/app/data/downloads/anime"),
+    Path.cwd() / "data" / "downloads" / "anime",
+    Path("/tmp/anibridge/downloads/anime"),
+])
+
+if env_data_path:
+    data_candidates.append(env_data_path)
+data_candidates.extend([
+    default_data,
+    Path("/app/data"),
+    Path.cwd() / "data",
+    Path("/tmp/anibridge"),
+])
+
+# Create/validate
+DOWNLOAD_DIR = _ensure_dir(download_candidates, "DOWNLOAD_DIR")
+DATA_DIR = _ensure_dir(data_candidates, "DATA_DIR")
 
 # Optional override: path reported to clients (e.g. Sonarr) as qBittorrent save path.
 # Useful when AniBridge runs on host but Sonarr runs in a container with a different mount point.

@@ -6,6 +6,9 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - CHOWN_RECURSIVE=${CHOWN_RECURSIVE:-true}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DOWNLOAD_DIR=${DOWNLOAD_DIR:-/data/downloads/anime}
       - DATA_DIR=${DATA_DIR:-/data}

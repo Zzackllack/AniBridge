@@ -4,7 +4,6 @@ import os
 from typing import Optional, Literal, Generator, Any, List
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
-from pathlib import Path
 from loguru import logger
 
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
@@ -21,7 +20,7 @@ from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JS
 from sqlalchemy.orm import registry as sa_registry
 from sqlalchemy.pool import NullPool
 
-from app.config import AVAILABILITY_TTL_HOURS
+from app.config import AVAILABILITY_TTL_HOURS, DATA_DIR
 
 JobStatus = Literal["queued", "downloading", "completed", "failed", "cancelled"]
 
@@ -129,11 +128,7 @@ class ClientTask(ModelBase, table=True):
 
 import os
 
-# --- DB Bootstrap
-DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))
-if not DATA_DIR.exists():
-    logger.info(f"Creating DATA_DIR at {DATA_DIR}")
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+# --- DB Bootstrap (use central DATA_DIR from config)
 logger.debug(f"DATA_DIR for jobs DB: {DATA_DIR}")
 DATABASE_URL = f"sqlite:///{(DATA_DIR / 'anibridge_jobs.db').as_posix()}"
 logger.debug(f"DATABASE_URL: {DATABASE_URL}")
