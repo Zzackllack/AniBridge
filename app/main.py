@@ -15,7 +15,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 from sqlmodel import Session
-from app.config import DOWNLOAD_DIR, DATA_DIR
+from app.config import (
+    DOWNLOAD_DIR,
+    DATA_DIR,
+    DOWNLOADS_TTL_HOURS,
+    CLEANUP_SCAN_INTERVAL_MIN,
+)
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor, Future
 from app.api.torznab import router as torznab_router
@@ -60,11 +65,68 @@ async def lifespan(app: FastAPI):
         if cleaned:
             logger.info(f"Reset {cleaned} dangling jobs to 'failed'")
     init_executor()
+
+    # Start background cleanup if TTL is enabled (> 0)
+    stop_ev = threading.Event()
+
+    def _cleanup_loop():
+        import time
+        import os
+        from datetime import datetime, timedelta
+
+        ttl_hours = DOWNLOADS_TTL_HOURS
+        if ttl_hours <= 0:
+            logger.info("Downloads TTL cleanup disabled (DOWNLOADS_TTL_HOURS<=0)")
+            return
+        ttl = timedelta(hours=float(ttl_hours))
+        exts = {".mp4", ".mkv", ".webm", ".avi", ".m4v"}
+        logger.info(
+            f"Starting cleanup thread: dir={DOWNLOAD_DIR}, ttl={ttl}, interval={CLEANUP_SCAN_INTERVAL_MIN}min"
+        )
+        while not stop_ev.wait(max(1, int(CLEANUP_SCAN_INTERVAL_MIN)) * 60):
+            now = datetime.utcnow()
+            try:
+                for root, _, files in os.walk(DOWNLOAD_DIR):
+                    for fname in files:
+                        try:
+                            if os.path.splitext(fname)[1].lower() not in exts:
+                                continue
+                            fpath = os.path.join(root, fname)
+                            st = os.stat(fpath)
+                            mtime = datetime.utcfromtimestamp(st.st_mtime)
+                            if now - mtime >= ttl:
+                                try:
+                                    os.remove(fpath)
+                                    logger.success(f"TTL cleanup: deleted {fpath}")
+                                except Exception as e:
+                                    logger.warning(f"TTL cleanup: failed to delete {fpath}: {e}")
+                        except FileNotFoundError:
+                            continue
+                        except Exception as e:
+                            logger.warning(f"TTL cleanup: error on file {fname}: {e}")
+                # Try removing empty leaf dirs under DOWNLOAD_DIR
+                for root, dirs, files in os.walk(DOWNLOAD_DIR, topdown=False):
+                    try:
+                        if not dirs and not files and root != str(DOWNLOAD_DIR):
+                            os.rmdir(root)
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.warning(f"TTL cleanup loop error: {e}")
+
+    cleanup_thread = None
+    if DOWNLOADS_TTL_HOURS > 0:
+        cleanup_thread = threading.Thread(target=_cleanup_loop, name="cleanup", daemon=True)
+        cleanup_thread.start()
     yield
     shutdown_executor()
     # ensure DB connections are closed cleanly for tests and shutdown
     try:
         dispose_engine()
+    except Exception:
+        pass
+    try:
+        stop_ev.set()
     except Exception:
         pass
 

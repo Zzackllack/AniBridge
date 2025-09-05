@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Response, Request
 from fastapi.responses import PlainTextResponse, JSONResponse
 from sqlmodel import Session
 from loguru import logger
-from app.config import DOWNLOAD_DIR, QBIT_PUBLIC_SAVE_PATH
+from app.config import DOWNLOAD_DIR, QBIT_PUBLIC_SAVE_PATH, DELETE_FILES_ON_TORRENT_DELETE
 from app.utils.magnet import parse_magnet
 from app.models import (
     get_session,
@@ -548,13 +548,41 @@ def torrents_delete(
     """
     Entfernt Einträge; bricht laufende Jobs ab.
     """
-    logger.info(f"Delete requested for hashes: {hashes}")
+    # Sonarr usually sets deleteFiles=true after successful import.
+    # If not provided, respect global default DELETE_FILES_ON_TORRENT_DELETE.
+    effective_delete = bool(deleteFiles) or bool(DELETE_FILES_ON_TORRENT_DELETE)
+    logger.info(
+        f"Delete requested for hashes: {hashes}, deleteFiles={deleteFiles}, effective={effective_delete}"
+    )
     for h in hashes.split("|"):
         h = h.strip().lower()
         rec = get_client_task(session, h)
         if rec and rec.job_id:
             logger.debug(f"Cancelling job {rec.job_id} for hash {h}")
             cancel_job(rec.job_id)
+        # Optionally delete file on disk
+        try:
+            if effective_delete:
+                job = get_job(session, rec.job_id) if (rec and rec.job_id) else None
+                if job and job.result_path:
+                    import os
+
+                    p = job.result_path
+                    if os.path.exists(p):
+                        try:
+                            os.remove(p)
+                            logger.success(f"Deleted file for hash {h}: {p}")
+                        except Exception as e:
+                            logger.warning(f"Failed to delete file for hash {h}: {e}")
+                    # Try to remove empty parent dir under our download root
+                    try:
+                        parent = os.path.dirname(p)
+                        if parent and os.path.isdir(parent) and not os.listdir(parent):
+                            os.rmdir(parent)
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.warning(f"Exception during file deletion for hash {h}: {e}")
         delete_client_task(session, h)
         logger.success(f"Deleted client task for hash {h}")
     return PlainTextResponse("Ok.")

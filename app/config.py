@@ -180,3 +180,20 @@ TORZNAB_TEST_SLUG = os.getenv("TORZNAB_TEST_SLUG", "connectivity-test")
 TORZNAB_TEST_SEASON = int(os.getenv("TORZNAB_TEST_SEASON", "1"))
 TORZNAB_TEST_EPISODE = int(os.getenv("TORZNAB_TEST_EPISODE", "1"))
 TORZNAB_TEST_LANGUAGE = os.getenv("TORZNAB_TEST_LANGUAGE", "German Dub")
+
+# --- Cleanup behavior ---
+def _as_bool(val: str | None, default: bool) -> bool:
+    if val is None:
+        return default
+    v = val.strip().lower()
+    return v in ("1", "true", "yes", "on")
+
+
+DELETE_FILES_ON_TORRENT_DELETE = _as_bool(
+    os.getenv("DELETE_FILES_ON_TORRENT_DELETE", "true"), True
+)
+DOWNLOADS_TTL_HOURS = float(os.getenv("DOWNLOADS_TTL_HOURS", "0"))  # 0 disables TTL cleanup
+CLEANUP_SCAN_INTERVAL_MIN = int(os.getenv("CLEANUP_SCAN_INTERVAL_MIN", "30"))
+logger.debug(
+    f"DELETE_FILES_ON_TORRENT_DELETE={DELETE_FILES_ON_TORRENT_DELETE}, DOWNLOADS_TTL_HOURS={DOWNLOADS_TTL_HOURS}, CLEANUP_SCAN_INTERVAL_MIN={CLEANUP_SCAN_INTERVAL_MIN}"
+)
