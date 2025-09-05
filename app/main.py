@@ -10,6 +10,7 @@ from pathlib import Path
 from datetime import datetime
 from app.infrastructure.terminal_logger import TerminalLogger
 from app.utils.logger import config as configure_logger, ensure_log_path
+from app.utils.update_notifier import notify_on_startup
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -20,6 +21,7 @@ from app.config import (
     DATA_DIR,
     DOWNLOADS_TTL_HOURS,
     CLEANUP_SCAN_INTERVAL_MIN,
+    ANIBRIDGE_RELOAD,
 )
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor, Future
@@ -58,6 +60,8 @@ TerminalLogger(DATA_DIR)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global EXECUTOR
+    # Log version and update info (non-blocking best-effort)
+    notify_on_startup()
     logger.info("Application startup: creating DB and thread pool executor.")
     create_db_and_tables()
     with Session(engine) as s:
@@ -384,9 +388,9 @@ if __name__ == "__main__":
     # CLI argparse does not understand. Disable reload in packaged runs.
     is_frozen = getattr(sys, "frozen", False) or hasattr(sys, "_MEIPASS")
     # Allow override via env var for advanced cases (set ANIBRIDGE_RELOAD=1 to force)
-    reload_env = os.environ.get("ANIBRIDGE_RELOAD")
+    reload_env = os.environ.get("ANIBRIDGE_RELOAD") or ANIBRIDGE_RELOAD
     if reload_env is not None:
-        reload_flag = reload_env == "1"
+        reload_flag = reload_env == "1" or reload_env == "true"
     else:
         reload_flag = not is_frozen
 

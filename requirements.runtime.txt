@@ -9,6 +9,7 @@ tqdm
 python-multipart
 python-dotenv
 requests
+packaging
 beautifulsoup4
 fake_useragent
 uvloop

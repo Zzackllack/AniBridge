@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
+    # Disable external update checks during tests to avoid network flakiness
+    monkeypatch.setenv("ANIBRIDGE_UPDATE_CHECK", "0")
     data_dir = tmp_path / "data"
     download_dir = tmp_path / "downloads"
     monkeypatch.setenv("DATA_DIR", str(data_dir))
