@@ -14,7 +14,6 @@ from app.utils.update_notifier import notify_on_startup
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from pathlib import Path
 from sqlmodel import Session
 from app.config import (
     DOWNLOAD_DIR,
@@ -174,52 +173,53 @@ class JobStatusResponse(BaseModel):
 
 
 def _progress_updater(job_id: str, stop_event: threading.Event):
-    from tqdm import tqdm
+    # Legacy endpoint progress updater retained for completeness; use shared reporter
+    from app.utils.terminal import ProgressReporter, ProgressSnapshot
 
-    bar = None
+    reporter: ProgressReporter | None = None
+    last_step = -1
 
     def _cb(d: dict):
-        nonlocal bar
+        nonlocal reporter, last_step
         if stop_event.is_set():
-            if bar is not None:
-                bar.close()
+            if reporter:
+                reporter.close()
             logger.warning(f"Job {job_id} cancelled by stop_event.")
             raise Exception("Cancelled")
+
         status = d.get("status")
         downloaded = int(d.get("downloaded_bytes") or 0)
         total = d.get("total_bytes") or d.get("total_bytes_estimate")
         speed = d.get("speed")
         eta = d.get("eta")
 
+        if reporter is None:
+            reporter = ProgressReporter(label=f"Job {job_id}")
+
+        reporter.update(
+            ProgressSnapshot(
+                downloaded=downloaded,
+                total=int(total) if total else None,
+                speed=float(speed) if speed else None,
+                eta=int(eta) if eta else None,
+                status=str(status) if status else None,
+            )
+        )
+
+        # throttle DB writes to ~1% steps
         progress = 0.0
+        should_write = True
         if total:
             try:
-                progress = max(0.0, min(100.0, downloaded / total * 100.0))
-            except Exception as e:
-                logger.error(f"Progress calculation error: {e}")
+                total_i = int(total)
+                step = max(1, total_i // 100)
+                should_write = downloaded == total_i or downloaded // step != last_step
+                last_step = downloaded // step
+                progress = max(0.0, min(100.0, downloaded / total_i * 100.0))
+            except Exception:
+                should_write = True
 
-        if bar is None and total:
-            bar = tqdm(
-                total=int(total),
-                desc=f"Job {job_id}",
-                unit="B",
-                unit_scale=True,
-                leave=True,
-            )
-        if bar is not None:
-            bar.n = downloaded
-            bar.set_postfix(
-                {
-                    "Speed": f"{float(speed)/(1024*1024):.2f} MB/s" if speed else "-",
-                    "ETA": f"{float(eta):.2f}s" if eta else "-",
-                }
-            )
-            bar.refresh()
-
-        # throttle DB writes: etwa 1% Schritte
-        if bar is not None and (
-            bar.n == bar.total or bar.n % max(1, bar.total // 100) == 0
-        ):
+        if should_write:
             with Session(engine) as s:
                 db_update_job(
                     s,
@@ -231,10 +231,9 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
                     eta=int(eta) if eta else None,
                     progress=progress,
                 )
-        if status == "finished" and bar is not None:
-            bar.n = bar.total
-            bar.refresh()
-            bar.close()
+
+        if status == "finished" and reporter is not None:
+            reporter.close()
 
     return _cb
 

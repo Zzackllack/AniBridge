@@ -6,6 +6,14 @@ from datetime import datetime
 import uuid
 from typing import Optional
 
+# Ensure terminal duplication is active before any logger sinks attach.
+# This guarantees Loguru sinks bound to sys.stdout are teed into the file.
+try:
+    # Avoid circular imports: terminal_logger has no dependency on this module.
+    from app.infrastructure.terminal_logger import TerminalLogger  # type: ignore
+except Exception:
+    TerminalLogger = None  # type: ignore
+
 
 def config():
     """
@@ -44,3 +52,22 @@ def ensure_log_path(base_dir: Optional[Path] = None) -> Path:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     os.environ["ANIBRIDGE_LOG_PATH"] = str(log_path)
     return log_path
+
+
+# Initialize TerminalLogger early so that any subsequent logger.add(sys.stdout)
+# writes are captured by the tee and end up in the file as well. This preserves
+# historical behavior where the terminal log contains full Loguru output.
+def _init_terminal_tee_early() -> None:
+    try:
+        # Ensure env path exists so TerminalLogger picks it up
+        log_path = ensure_log_path()
+        if TerminalLogger is not None:
+            # Instantiate singleton; safe to call multiple times
+            TerminalLogger(log_path.parent)
+    except Exception:
+        # Never fail app startup because of logging setup
+        pass
+
+
+# Run early initialization at import time
+_init_terminal_tee_early()

@@ -213,7 +213,8 @@ def update_job(session: Session, job_id: str, **fields: Any) -> Optional[Job]:
     try:
         session.commit()
         session.refresh(job)
-        logger.success(f"Updated job {job_id}")
+        # Avoid console spam on frequent progress updates
+        logger.debug(f"Updated job {job_id}")
     except Exception as e:
         logger.error(f"Failed to update job {job_id}: {e}")
         raise

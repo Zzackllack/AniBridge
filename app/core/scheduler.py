@@ -7,6 +7,7 @@ from sqlmodel import Session
 import errno
 
 from app.config import MAX_CONCURRENCY, DOWNLOAD_DIR
+from app.utils.terminal import ProgressReporter, ProgressSnapshot, is_interactive_terminal
 from app.models import engine, create_job, update_job
 from app.core.downloader import download_episode, Provider, Language
 from app.utils.logger import config as configure_logger
@@ -44,31 +45,65 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
     from sqlmodel import Session
     from app.models import engine, update_job
 
+    reporter: ProgressReporter | None = None
+    last_db_n = -1
+
     def _cb(d: dict):
+        nonlocal reporter, last_db_n
         if stop_event.is_set():
+            if reporter:
+                reporter.close()
             raise Exception("Cancelled")
+
         status = d.get("status")
         downloaded = int(d.get("downloaded_bytes") or 0)
         total = d.get("total_bytes") or d.get("total_bytes_estimate")
         speed = d.get("speed")
         eta = d.get("eta")
-        progress = 0.0
-        if total:
-            try:
-                progress = max(0.0, min(100.0, downloaded / total * 100.0))
-            except Exception:
-                pass
-        with Session(engine) as s:
-            update_job(
-                s,
-                job_id,
-                status="downloading" if status != "finished" else "downloading",
-                downloaded_bytes=downloaded,
-                total_bytes=int(total) if total else None,
+
+        # Initialize reporter lazily (label contains job id)
+        if reporter is None:
+            reporter = ProgressReporter(label=f"Job {job_id}")
+
+        # Render progress to terminal (TTY bar or stepped logs)
+        reporter.update(
+            ProgressSnapshot(
+                downloaded=downloaded,
+                total=int(total) if total else None,
                 speed=float(speed) if speed else None,
                 eta=int(eta) if eta else None,
-                progress=progress,
+                status=str(status) if status else None,
             )
+        )
+
+        # Throttle DB writes to ~1% steps (or on finish)
+        progress = 0.0
+        should_write = True
+        if total:
+            try:
+                total_i = int(total)
+                step = max(1, total_i // 100)
+                should_write = downloaded == total_i or downloaded // step != last_db_n
+                last_db_n = downloaded // step
+                progress = max(0.0, min(100.0, downloaded / total_i * 100.0))
+            except Exception:
+                should_write = True
+
+        if should_write:
+            with Session(engine) as s:
+                update_job(
+                    s,
+                    job_id,
+                    status="downloading" if status != "finished" else "downloading",
+                    downloaded_bytes=downloaded,
+                    total_bytes=int(total) if total else None,
+                    speed=float(speed) if speed else None,
+                    eta=int(eta) if eta else None,
+                    progress=progress,
+                )
+
+        if status == "finished" and reporter is not None:
+            reporter.close()
 
     return _cb
 
