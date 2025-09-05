@@ -26,10 +26,23 @@ outline: deep
 
 ## Wrong save path reported to Sonarr
 
-- Set `QBIT_PUBLIC_SAVE_PATH` to the path Sonarr sees (container path mapping)
+- Symptom: Sonarr error “You are using Docker; download client places downloads in <host path> but this directory does not appear to exist inside the container.”
+- Set `QBIT_PUBLIC_SAVE_PATH` to the path Sonarr sees (e.g., `/downloads`).
+- Mount the same host folder into both containers (`-v /host/downloads:/downloads` for Sonarr; `-v /host/downloads:/data/downloads/anime` for AniBridge).
+- Verify via `GET /api/v2/app/preferences` that `save_path` is `/downloads`.
+
+## Progress bar looks odd or spams the log
+
+- If you see digits like `##6` instead of a bar, your terminal is in ASCII mode. AniBridge forces Unicode bars; if your terminal can’t display Unicode, consider `PROGRESS_FORCE_BAR=false` to get stepped logging only.
+- If your `data/terminal-*.log` fills with progress lines, ensure you’re running the latest build: AniBridge routes tqdm output directly to the real terminal to keep logs clean. Non‑TTY runs log one line every `PROGRESS_STEP_PERCENT` (default 5%).
+- No bar showing? Set `PROGRESS_FORCE_BAR=true` when running under a reloader or when stdout isn’t a TTY.
+
+## DOWNLOAD_DIR not writable
+
+- Symptom: `PermissionError` or read‑only warnings in logs.
+- Fix: Point `DOWNLOAD_DIR` to a writable path or correct volume mounts. The app will exit early if it cannot create the directory.
 
 ## Stale title resolution
 
 - Adjust `ANIWORLD_TITLES_REFRESH_HOURS`
 - Provide a snapshot via `ANIWORLD_ALPHABET_HTML` if network restricted
-

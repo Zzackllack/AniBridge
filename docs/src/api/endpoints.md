@@ -48,27 +48,11 @@ See [qBittorrent Shim](/api/qbittorrent) for payloads and responses.
 Below is a demo of the custom video component used in this documentation site. You can use it in any Markdown page as shown.
 
 <VideoPlayer
-  src="http://haignet.co.uk/html5-video-element-test.mp4"
-  poster="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=1200&auto=format&fit=crop"
+  src="/test.mp4"
   title="Sample: Flower in 4K"
   caption="Custom player UI, brand‑matched accent"
-  :autoplay="true"
+  :autoplay="false"
   :muted="true"
   aspect="16 / 9"
   radius="16px"
 />
-
-Usage:
-
-```vue
-<VideoPlayer
-  src="https://youtu.be/dQw4w9WgXcQ"
-  poster="/path/to/poster.jpg"
-  title="YouTube Embed"
-  caption="Custom UI with YouTube/Vimeo (play/mute)"
-  :autoplay="true"
-  :muted="true"
-  aspect="21 / 9"
-  radius="20px"
-/> 
-```
