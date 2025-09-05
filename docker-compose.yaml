@@ -7,8 +7,8 @@ services:
       - "8000:8000"
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - DOWNLOAD_DIR=${DOWNLOAD_DIR:-/app/data/downloads/anime}
-      - DATA_DIR=${DATA_DIR:-/app/data}
+      - DOWNLOAD_DIR=${DOWNLOAD_DIR:-/data/downloads/anime}
+      - DATA_DIR=${DATA_DIR:-/data}
       - QBIT_PUBLIC_SAVE_PATH=${QBIT_PUBLIC_SAVE_PATH}
       - ANIWORLD_ALPHABET_HTML=${ANIWORLD_ALPHABET_HTML}
       - ANIWORLD_ALPHABET_URL=${ANIWORLD_ALPHABET_URL:-https://aniworld.to/animes-alphabet}
@@ -31,7 +31,7 @@ services:
       - TORZNAB_TEST_LANGUAGE=${TORZNAB_TEST_LANGUAGE:-German Dub}
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./data:/app/data
+      - ./data:/data
     healthcheck:
       test:
         ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]

@@ -27,7 +27,8 @@ COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.
 COPY app/ ./app/
 COPY requirements.runtime.txt ./
 
-RUN chown -R appuser:appgroup /app
+# Prepare writable data directory for runtime mounts
+RUN mkdir -p /data && chown -R appuser:appgroup /data && chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 8000
