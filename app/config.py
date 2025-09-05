@@ -10,6 +10,7 @@ logger.debug("Checking if running in Docker...")
 IN_DOCKER = Path("/.dockerenv").exists()
 logger.debug(f"IN_DOCKER={IN_DOCKER}")
 
+
 def _str_to_path(val: str | os.PathLike[str] | None) -> Path | None:
     if not val:
         return None
@@ -58,7 +59,11 @@ env_download_path = _str_to_path(env_download.strip() if env_download else None)
 env_data_path = _str_to_path(env_data.strip() if env_data else None)
 
 # Default candidates differ for Docker vs local
-default_download = Path("/data/downloads/anime") if IN_DOCKER else (Path.cwd() / "data" / "downloads" / "anime")
+default_download = (
+    Path("/data/downloads/anime")
+    if IN_DOCKER
+    else (Path.cwd() / "data" / "downloads" / "anime")
+)
 default_data = Path("/data") if IN_DOCKER else (Path.cwd() / "data")
 
 # Provide sensible cross-image fallbacks: some deploys mount under /app/data
@@ -70,21 +75,25 @@ if QBIT_PUBLIC_SAVE_PATH:
     download_candidates.append(Path(QBIT_PUBLIC_SAVE_PATH))
 if env_download_path:
     download_candidates.append(env_download_path)
-download_candidates.extend([
-    default_download,
-    Path("/app/data/downloads/anime"),
-    Path.cwd() / "data" / "downloads" / "anime",
-    Path("/tmp/anibridge/downloads/anime"),
-])
+download_candidates.extend(
+    [
+        default_download,
+        Path("/app/data/downloads/anime"),
+        Path.cwd() / "data" / "downloads" / "anime",
+        Path("/tmp/anibridge/downloads/anime"),
+    ]
+)
 
 if env_data_path:
     data_candidates.append(env_data_path)
-data_candidates.extend([
-    default_data,
-    Path("/app/data"),
-    Path.cwd() / "data",
-    Path("/tmp/anibridge"),
-])
+data_candidates.extend(
+    [
+        default_data,
+        Path("/app/data"),
+        Path.cwd() / "data",
+        Path("/tmp/anibridge"),
+    ]
+)
 
 # Create/validate
 DOWNLOAD_DIR = _ensure_dir(download_candidates, "DOWNLOAD_DIR")
