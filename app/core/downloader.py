@@ -14,8 +14,8 @@ configure_logger()
 from aniworld.models import Anime, Episode  # type: ignore
 
 from app.utils.naming import rename_to_release
-from app.config import PROVIDER_ORDER
-from app.infrastructure.network import yt_dlp_proxy
+from app.config import PROVIDER_ORDER, PROXY_ENABLED, PROXY_SCOPE
+from app.infrastructure.network import yt_dlp_proxy, disabled_proxy_env
 
 Language = Literal["German Dub", "German Sub", "English Sub"]
 Provider = Literal[
@@ -215,6 +215,7 @@ def _ydl_download(
     cookiefile: Optional[Path] = None,
     progress_cb: Optional[ProgressCb] = None,
     stop_event: Optional[threading.Event] = None,
+    force_no_proxy: bool = False,
 ) -> Tuple[Path, Dict[str, Any]]:
     logger.info(
         f"Starting yt-dlp download: url={direct_url}, dest_dir={dest_dir}, title_hint={title_hint}"
@@ -240,10 +241,13 @@ def _ydl_download(
 
     # Apply proxy for yt-dlp if configured
     try:
-        proxy_url = yt_dlp_proxy()
-        if proxy_url:
-            ydl_opts["proxy"] = proxy_url
-            logger.info(f"yt-dlp proxy enabled: {proxy_url}")
+        if not force_no_proxy:
+            proxy_url = yt_dlp_proxy()
+            if proxy_url:
+                ydl_opts["proxy"] = proxy_url
+                logger.info(f"yt-dlp proxy enabled: {proxy_url}")
+        else:
+            logger.info("yt-dlp proxy disabled by fallback policy")
     except Exception as e:
         logger.debug(f"yt-dlp proxy configuration failed: {e}")
 
@@ -300,11 +304,32 @@ def download_episode(
     )
     ep = build_episode(link=link, slug=slug, season=season, episode=episode)
 
-    # Fallback-Strategie
-    direct, chosen = get_direct_url_with_fallback(
-        ep, preferred=provider, language=language
-    )
-    logger.info(f"Chosen provider: {chosen}, direct URL: {direct}")
+    # Fallback-Strategie (with proxy-aware retry)
+    force_no_proxy = False
+    try:
+        direct, chosen = get_direct_url_with_fallback(
+            ep, preferred=provider, language=language
+        )
+        logger.info(f"Chosen provider: {chosen}, direct URL: {direct}")
+    except DownloadError as e:
+        # If proxy is enabled and extraction failed completely, try a last-resort
+        # direct path (no proxy) so the job can still succeed. This keeps both
+        # extraction and download on the same (direct) IP to avoid CDN 403.
+        if PROXY_ENABLED and PROXY_SCOPE in ("all", "ytdlp"):
+            logger.warning(
+                f"Direct link not found under proxy ({e}). Attempting direct fallback without proxy."
+            )
+            with disabled_proxy_env():
+                ep2 = build_episode(link=link, slug=slug, season=season, episode=episode)
+                direct, chosen = get_direct_url_with_fallback(
+                    ep2, preferred=provider, language=language
+                )
+                logger.info(
+                    f"Fallback (no proxy) chose provider: {chosen}, direct URL: {direct}"
+                )
+                force_no_proxy = True
+        else:
+            raise
 
     # Sinnvolle Default-Benennung für den temporären Download
     base_hint = title_hint
@@ -319,6 +344,7 @@ def download_episode(
         cookiefile=cookiefile,
         progress_cb=progress_cb,
         stop_event=stop_event,
+        force_no_proxy=force_no_proxy,
     )
 
     logger.info(f"Download complete, renaming to release schema.")

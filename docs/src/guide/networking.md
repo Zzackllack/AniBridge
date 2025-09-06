@@ -5,6 +5,9 @@ outline: deep
 
 # Networking & Proxies
 
+> [!WARNING]
+> Proxy support is experimental and may be unreliable with some providers/CDNs (link extraction can fail or downloads may be blocked). For production use, prefer a full VPN tunnel (system‑level) or run AniBridge inside Docker attached to a VPN sidecar like Gluetun. Do not rely on the in‑app proxy alone for consistent operation.
+
 AniBridge can route all outbound HTTP/HTTPS requests and downloads through an HTTP/HTTPS or SOCKS proxy (e.g., a local SOCKS5 client from a VPN provider like NordVPN).
 
 This applies to:
@@ -15,7 +18,7 @@ This applies to:
 
 ## Quick Start
 
-Set the following in your `.env` and restart AniBridge:
+Set the following in your `.env` and restart AniBridge (experimental):
 
 ```ini
 PROXY_ENABLED=true

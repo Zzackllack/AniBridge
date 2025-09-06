@@ -76,8 +76,13 @@ def _normalize_proxy_scheme(url: str | None) -> str | None:
     if not url:
         return None
     try:
-        if PROXY_FORCE_REMOTE_DNS and url.strip().lower().startswith("socks5://"):
-            return "socks5h://" + url.strip()[9:]
+        u = url.strip()
+        ul = u.lower()
+        if ul.startswith("socks5://"):
+            # Prefer remote DNS when downloads may hit geo/CDN rules.
+            # Force socks5h for scopes that affect downloads unless explicitly disabled.
+            if PROXY_FORCE_REMOTE_DNS or PROXY_SCOPE in ("all", "ytdlp"):
+                return "socks5h://" + u[9:]
         return url
     except Exception:
         return url
@@ -258,6 +263,9 @@ logger.debug(
 # TTL (Stunden) für Live-Index; 0 = nie neu laden (nur einmal pro Prozess)
 ANIWORLD_TITLES_REFRESH_HOURS = float(os.getenv("ANIWORLD_TITLES_REFRESH_HOURS", "24"))
 logger.debug(f"ANIWORLD_TITLES_REFRESH_HOURS={ANIWORLD_TITLES_REFRESH_HOURS}")
+
+# (Removed) Built-in VPN control has been removed. Use an external VPN
+# (e.g., system-level or Gluetun) instead. See README for guidance.
 
 # Quelle/Source-Tag im Release-Namen (typisch: WEB, WEB-DL)
 SOURCE_TAG = os.getenv("SOURCE_TAG", "WEB")

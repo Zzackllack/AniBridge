@@ -18,6 +18,7 @@ from app.config import (
     PROXY_SCOPE,
 )
 import requests
+from contextlib import contextmanager
 
 configure_logger()
 
@@ -46,22 +47,38 @@ def _mask(url: str | None) -> str:
 def proxies_mapping() -> Dict[str, str]:
     """Return a requests-compatible proxies mapping if proxying is enabled.
 
-    Keys: 'http', 'https' (and optionally 'all' for clarity, though requests
-    uses only 'http'/'https'). Empty dict when disabled or no URL provided.
+    Keys: 'http', 'https'. Empty dict when disabled or no URL provided.
+
+    Important: Tokens generated for CDN links are IP-bound (contain parameters
+    like 'i=' and 'asn='). To avoid 403 from the CDN, the HTTP client used for
+    link extraction must egress via the same IP as the downloader. Therefore,
+    when PROXY_SCOPE is 'ytdlp', we still route requests via the same proxy
+    used by yt-dlp so both phases share the same public IP.
     """
     if not PROXY_ENABLED:
         return {}
-    if PROXY_SCOPE == "ytdlp":
-        logger.info("Proxy scope=ytdlp: HTTP clients will not use proxy.")
-        return {}
-    # Determine protocol-specific proxies (falling back to ALL/PROXY_URL handled in config)
-    http = EFFECTIVE_HTTP_PROXY or EFFECTIVE_ALL_PROXY
-    https = EFFECTIVE_HTTPS_PROXY or EFFECTIVE_ALL_PROXY or http
+
     proxies: Dict[str, str] = {}
-    if http:
-        proxies["http"] = http
-    if https:
-        proxies["https"] = https
+    if PROXY_SCOPE == "ytdlp":
+        # Align requests with yt-dlp proxy to keep IP consistent for tokenized URLs
+        p = EFFECTIVE_HTTPS_PROXY or EFFECTIVE_HTTP_PROXY or EFFECTIVE_ALL_PROXY
+        if p:
+            proxies = {"http": p, "https": p}
+            logger.info(
+                f"Proxy scope=ytdlp: aligning HTTP client with yt-dlp proxy http=https={_mask(p)}"
+            )
+        else:
+            logger.debug("Proxy scope=ytdlp but no effective proxy URL configured.")
+            return {}
+    else:
+        # Determine protocol-specific proxies (falling back to ALL/PROXY_URL handled in config)
+        http = EFFECTIVE_HTTP_PROXY or EFFECTIVE_ALL_PROXY
+        https = EFFECTIVE_HTTPS_PROXY or EFFECTIVE_ALL_PROXY or http
+        if http:
+            proxies["http"] = http
+        if https:
+            proxies["https"] = https
+
     if proxies:
         logger.info(
             f"Requests proxies active: http={_mask(proxies.get('http'))} https={_mask(proxies.get('https'))}"
@@ -80,9 +97,8 @@ def apply_global_proxy_env() -> None:
     if not PROXY_ENABLED:
         logger.info("Proxy disabled: outbound traffic uses direct connection.")
         return
-    if PROXY_SCOPE == "ytdlp":
-        logger.info("Proxy scope=ytdlp: skipping HTTP proxy env.")
-        return
+    # Even for PROXY_SCOPE=ytdlp we export env so tools honoring env vars
+    # (including some provider libraries) share the same egress IP as yt-dlp.
     if not PROXY_APPLY_ENV:
         logger.info("Proxy enabled but PROXY_APPLY_ENV=false (env vars not exported).")
         return
@@ -148,6 +164,9 @@ def log_proxy_config_summary() -> None:
     logger.info(
         f"Proxy: enabled http={_mask(http)} https={_mask(https)} "
         f"dns={'remote' if remote_dns else 'local'} verify_tls={'on' if requests_verify() else 'off'}"
+    )
+    logger.warning(
+        "Proxy integration is experimental and may be unreliable. Prefer a full VPN (e.g., Gluetun) for production."
     )
 
 
@@ -216,3 +235,37 @@ def start_ip_check_thread(stop_event: "threading.Event") -> Optional["threading.
     t = threading.Thread(target=_loop, name="proxy-ip", daemon=True)
     t.start()
     return t
+
+
+@contextmanager
+def disabled_proxy_env():
+    """Temporarily disable proxy environment variables within the context.
+
+    This affects libraries that read proxies from env (e.g., requests in
+    aniworld.*). Intended for last-resort fallback when proxyed resolution
+    is blocked and a direct connection is acceptable.
+    """
+    keys = [
+        "HTTP_PROXY",
+        "http_proxy",
+        "HTTPS_PROXY",
+        "https_proxy",
+        "ALL_PROXY",
+        "all_proxy",
+        "NO_PROXY",
+        "no_proxy",
+    ]
+    saved: Dict[str, Optional[str]] = {k: os.environ.get(k) for k in keys}
+    try:
+        for k in keys:
+            if k in os.environ:
+                del os.environ[k]
+        logger.info("Temporarily disabled proxy env for fallback resolution.")
+        yield
+    finally:
+        for k, v in saved.items():
+            if v is not None:
+                os.environ[k] = v
+            elif k in os.environ:
+                del os.environ[k]
+        logger.info("Restored proxy env after fallback resolution.")

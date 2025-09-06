@@ -60,3 +60,6 @@ Comprehensive list of env vars read in `app/config.py`.
 - `PROXY_DISABLE_CERT_VERIFY` (true: disable TLS verification for requests)
 - `PROXY_APPLY_ENV` (true: set HTTP(S)_PROXY/NO_PROXY in process env)
 - `PROXY_IP_CHECK_INTERVAL_MIN` (minutes; log current public IP periodically)
+
+> [!WARNING]
+> Proxy support is experimental. Use a full VPN (or a Gluetun sidecar in Docker) for stable production operation.

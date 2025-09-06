@@ -58,7 +58,10 @@ AniBridge is configured via environment variables (works well with Docker). Sens
 - `PROXY_APPLY_ENV` (export HTTP(S)_PROXY/NO_PROXY to environment)
 - `PROXY_IP_CHECK_INTERVAL_MIN` (minutes; periodically logs current public IP)
 
-See the dedicated [Networking & Proxies](/guide/networking) guide for examples.
+> [!WARNING]
+> Proxy support is experimental and may be unreliable with some providers/CDNs. Prefer a full VPN or Gluetun sidecar for production workloads.
+
+See the dedicated [Networking & Proxies](/guide/networking) guide for examples and caveats.
 
 ## Example `.env`
 

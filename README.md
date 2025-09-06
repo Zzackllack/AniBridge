@@ -54,6 +54,15 @@ python -m app.main
 Configure Prowlarr or other automation tools to point at the Torznab feed. Downloads are placed in
 `DOWNLOAD_DIR` as defined in the configuration.
 
+## Networking & Proxy (Important)
+
+> [!WARNING]
+> Proxy support is experimental and may be unreliable with some providers/CDNs. For production use, prefer running AniBridge behind a full VPN tunnel (system‑level) or inside a container attached to a VPN sidecar like Gluetun. Do not rely on the in‑app proxy for consistent operation.
+
+- Recommended: Run in Docker with a VPN container (e.g., Gluetun) and attach AniBridge to the same network so all HTTP requests and downloads egress through the VPN.
+- Alternative: Use a system‑level VPN on the host where AniBridge runs.
+- The built‑in proxy toggles are in active development and can fail to extract links or be blocked by hosters/CDNs.
+
 ## Contributing
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process
