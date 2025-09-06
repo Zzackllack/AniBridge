@@ -26,6 +26,8 @@ from app.config import (
     DOWNLOADS_TTL_HOURS,
     CLEANUP_SCAN_INTERVAL_MIN,
     ANIBRIDGE_RELOAD,
+    ANIBRIDGE_HOST,
+    ANIBRIDGE_PORT,
 )
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor, Future
@@ -431,14 +433,14 @@ if __name__ == "__main__":
     if reload_flag:
         uvicorn.run(
             "app.main:app",
-            host="0.0.0.0",
-            port=8000,
+            host=ANIBRIDGE_HOST,
+            port=ANIBRIDGE_PORT,
             reload=True,
         )
     else:
         uvicorn.run(
             app,
-            host="0.0.0.0",
-            port=8000,
+            host=ANIBRIDGE_HOST,
+            port=ANIBRIDGE_PORT,
             reload=False,
         )
