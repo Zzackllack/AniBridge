@@ -3,6 +3,9 @@
 name = "anibridge-docs"
 main = "src/worker.ts"
 compatibility_date = "2025-08-15"
+routes = [
+  { pattern = "anibridge-docs.zacklack.de", zone_name = "zacklack.de" }
+]
 
 # Build the VitePress site under docs/ and serve the output as static assets.
 [build]
@@ -23,11 +26,6 @@ binding = "ASSETS"
 
 # By default this deploys to <name>.<your-account>.workers.dev
 # To use a custom domain or route, uncomment and set your zone and pattern:
-# routes = [
-#   { pattern = "docs.example.com", zone_name = "example.com" },
-#   # or a path-based route on a zone
-#   # { pattern = "example.com/docs*", zone_name = "example.com" }
-# ]
 
 # Optional environment overrides (example for production). Remove if unused.
 # [env.production]
