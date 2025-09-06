@@ -57,8 +57,9 @@ function attachHeroCtaTracking() {
 
 const theme: Theme = {
   ...DefaultTheme,
-  enhanceApp({ app, router }) {
-    DefaultTheme.enhanceApp?.({ app, router })
+  enhanceApp(ctx) {
+    DefaultTheme.enhanceApp?.(ctx)
+    const { app, router } = ctx
     app.component('VideoPlayer', VideoPlayer)
     if (typeof window !== 'undefined') {
       // Attach initial listeners after hydration
@@ -67,7 +68,7 @@ const theme: Theme = {
         attachHeroCtaTracking()
       }, 0)
       // Track SPA navigations and re-bind outbound tracking
-      router.onAfterRouteChanged = () => {
+      router.onAfterRouteChange = () => {
         const w = window as any
         const url = window.location.pathname + window.location.search + window.location.hash
         if (w.umami?.trackView) {
