@@ -5,6 +5,10 @@ outline: deep
 
 # AniBridge Overview
 
+::: danger Legal Disclaimer
+Before you start, read the [Legal Disclaimer](/legal). You are responsible for lawful use and compliance with third‑party terms.
+:::
+
 AniBridge is a FastAPI-based bridge that exposes:
 
 - Torznab endpoint for discovery and search by indexers (e.g., Prowlarr)
@@ -54,4 +58,3 @@ See the full [API Reference](/api/endpoints) for parameters and examples.
 - Clean release filenames: `Series.S01E01.1080p.WEB.H264.GER-ANIWORLD.mkv`
 
 Next: continue to [Quickstart](/guide/quickstart) and wire up Prowlarr/Sonarr in minutes.
-

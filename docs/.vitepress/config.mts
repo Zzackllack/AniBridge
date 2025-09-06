@@ -41,6 +41,7 @@ export default defineConfig({
       { text: "API", link: "/api/endpoints" },
       { text: "Integrations", link: "/integrations/prowlarr" },
       { text: "Developer", link: "/developer/running" },
+      { text: "Legal", link: "/legal" },
       {
         text: "Changelog",
         link: "https://github.com/zzackllack/AniBridge/releases",

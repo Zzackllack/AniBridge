@@ -5,6 +5,10 @@ outline: deep
 
 # Running AniBridge
 
+::: danger Legal Disclaimer
+Read the [Legal Disclaimer](/legal) first. Ensure your usage complies with applicable laws and site policies.
+:::
+
 You can run AniBridge directly with Python or via Docker Compose.
 
 ## Python

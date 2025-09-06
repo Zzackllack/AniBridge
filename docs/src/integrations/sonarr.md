@@ -5,6 +5,10 @@ outline: deep
 
 # Sonarr Integration
 
+::: danger Legal Disclaimer
+Read the [Legal Disclaimer](/legal) before using integrations. Ensure lawful use and correct volume mappings.
+:::
+
 Point Sonarr at AniBridge’s qBittorrent-compatible API.
 
 ## Add Download Client
