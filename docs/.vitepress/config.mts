@@ -26,6 +26,14 @@ export default defineConfig({
       },
     ],
     ["link", { rel: "manifest", href: "/site.webmanifest" }],
+    [
+      "script",
+      {
+        defer: "",
+        src: "https://umami-analytics.zacklack.de/script.js",
+        "data-website-id": "9694e5ab-5398-43e4-9a46-37d135bf7536",
+      },
+    ],
     ["meta", { name: "theme-color", content: "#092e3fff" }],
     ["meta", { name: "twitter:card", content: "summary_large_image" }],
     ["meta", { name: "twitter:site", content: "@zzackllack" }],
@@ -46,7 +54,7 @@ export default defineConfig({
     hostname: siteUrl,
   },
   transformHead: ({ page, siteConfig }) => {
-    const rel = page?.relativePath || "index.md";
+    const rel = (page as any)?.relativePath || "index.md";
     const url = new URL(
       rel.replace(/(^|\/)index\.md$/, "$1").replace(/\.md$/, "/"),
       siteUrl
