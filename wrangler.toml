@@ -4,8 +4,16 @@ name = "anibridge-docs"
 main = "src/worker.ts"
 compatibility_date = "2025-08-15"
 
-# Serve the prebuilt VitePress output as static assets.
-# The Pages build step will run the docs build. Avoid duplicate builds here.
+# Build the VitePress site under docs/ and serve the output as static assets.
+[build]
+# Ensure docs deps are installed, then build VitePress
+command = "npm --prefix docs ci --no-audit --no-fund && npm --prefix docs run build"
+# Watch only content/config to avoid loops from node_modules or dist changes
+watch_dir = [
+  "docs/src",
+  "docs/.vitepress/config.mts",
+  "docs/.vitepress/theme"
+]
 
 # Static asset directory produced by VitePress: docs/.vitepress/dist
 [assets]
