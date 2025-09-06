@@ -71,6 +71,12 @@ PROXY_SCOPE = os.getenv("PROXY_SCOPE", "all").strip().lower()
 if PROXY_SCOPE not in ("all", "requests", "ytdlp"):
     PROXY_SCOPE = "all"
 
+# Always-on public IP monitor (even when proxy is disabled)
+PUBLIC_IP_CHECK_ENABLED = _as_bool(os.getenv("PUBLIC_IP_CHECK_ENABLED", None), False)
+PUBLIC_IP_CHECK_INTERVAL_MIN = int(
+    os.getenv("PUBLIC_IP_CHECK_INTERVAL_MIN", str(PROXY_IP_CHECK_INTERVAL_MIN)) or 0
+)
+
 # Internal helper to promote socks5 → socks5h when remote DNS is requested.
 def _normalize_proxy_scheme(url: str | None) -> str | None:
     if not url:

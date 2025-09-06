@@ -61,5 +61,16 @@ Comprehensive list of env vars read in `app/config.py`.
 - `PROXY_APPLY_ENV` (true: set HTTP(S)_PROXY/NO_PROXY in process env)
 - `PROXY_IP_CHECK_INTERVAL_MIN` (minutes; log current public IP periodically)
 
+## Public IP Monitor
+
+- `PUBLIC_IP_CHECK_ENABLED` (default: `false`) — enable periodic public IP logging even when proxy is disabled (useful behind VPN/Gluetun).
+- `PUBLIC_IP_CHECK_INTERVAL_MIN` (default: inherits `PROXY_IP_CHECK_INTERVAL_MIN`) — minutes between checks when `PUBLIC_IP_CHECK_ENABLED=true`.
+
+## Server Bind / Dev
+
+- `ANIBRIDGE_HOST` (default: `0.0.0.0`) — listen address.
+- `ANIBRIDGE_PORT` (default: `8000`) — listen port.
+- `ANIBRIDGE_RELOAD` (default: `false`) — enables Uvicorn reload (development only).
+
 > [!WARNING]
 > Proxy support is experimental. Use a full VPN (or a Gluetun sidecar in Docker) for stable production operation.

@@ -16,6 +16,7 @@ from app.infrastructure.network import (
     log_proxy_config_summary,
     start_ip_check_thread,
 )
+from app.infrastructure.system_info import log_full_system_report
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -70,19 +71,25 @@ async def lifespan(app: FastAPI):
     try:
         apply_global_proxy_env()
     except Exception as e:
-        logger.debug(f"apply_global_proxy_env failed: {e}")
+        logger.warning(f"apply_global_proxy_env failed: {e}")
     try:
         log_proxy_config_summary()
     except Exception as e:
-        logger.debug(f"log_proxy_config_summary failed: {e}")
+        logger.warning(f"log_proxy_config_summary failed: {e}")
     # Log version and update info (non-blocking best-effort)
+    # First, emit a comprehensive system report for diagnostics
+    try:
+        log_full_system_report()
+    except Exception as e:
+        logger.warning(f"log_full_system_report failed: {e}")
+
     notify_on_startup()
     logger.info("Application startup: creating DB and thread pool executor.")
     create_db_and_tables()
     with Session(engine) as s:
         cleaned = cleanup_dangling_jobs(s)
         if cleaned:
-            logger.info(f"Reset {cleaned} dangling jobs to 'failed'")
+            logger.warning(f"Reset {cleaned} dangling jobs to 'failed'")
     init_executor()
 
     # Start background cleanup if TTL is enabled (> 0)

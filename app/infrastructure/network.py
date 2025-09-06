@@ -16,6 +16,8 @@ from app.config import (
     PROXY_FORCE_REMOTE_DNS,
     PROXY_IP_CHECK_INTERVAL_MIN,
     PROXY_SCOPE,
+    PUBLIC_IP_CHECK_ENABLED,
+    PUBLIC_IP_CHECK_INTERVAL_MIN,
 )
 import requests
 from contextlib import contextmanager
@@ -205,32 +207,41 @@ def _fetch_public_ip() -> Optional[str]:
 
 
 def start_ip_check_thread(stop_event: "threading.Event") -> Optional["threading.Thread"]:
-    """Start a background thread that periodically logs the current public IP when proxy is enabled."""
+    """Start a background thread that periodically logs the current public IP.
+
+    Runs when either proxy is enabled or PUBLIC_IP_CHECK_ENABLED=true. Interval
+    is taken from PUBLIC_IP_CHECK_INTERVAL_MIN when the latter is enabled,
+    otherwise falls back to PROXY_IP_CHECK_INTERVAL_MIN.
+    """
     import threading
     import time
 
-    if not PROXY_ENABLED:
+    if not (PROXY_ENABLED or PUBLIC_IP_CHECK_ENABLED):
         return None
 
-    interval = max(0, int(PROXY_IP_CHECK_INTERVAL_MIN))
+    interval = (
+        max(0, int(PUBLIC_IP_CHECK_INTERVAL_MIN))
+        if PUBLIC_IP_CHECK_ENABLED
+        else max(0, int(PROXY_IP_CHECK_INTERVAL_MIN))
+    )
     if interval == 0:
         logger.debug("Proxy IP check disabled (interval=0).")
         return None
 
     def _loop():
-        logger.info(f"Starting proxy IP monitor: interval={interval} min")
+        logger.info(f"Starting public IP monitor: interval={interval} min")
         # Do an immediate check
         ip = _fetch_public_ip()
         if ip:
-            logger.info(f"Proxy public IP: {ip}")
+            logger.info(f"Public IP: {ip}")
         else:
-            logger.warning("Proxy public IP: unavailable")
+            logger.warning("Public IP: unavailable")
         while not stop_event.wait(interval * 60):
             ip = _fetch_public_ip()
             if ip:
-                logger.info(f"Proxy public IP: {ip}")
+                logger.info(f"Public IP: {ip}")
             else:
-                logger.warning("Proxy public IP: unavailable")
+                logger.warning("Public IP: unavailable")
 
     t = threading.Thread(target=_loop, name="proxy-ip", daemon=True)
     t.start()
