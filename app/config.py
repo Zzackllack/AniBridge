@@ -15,12 +15,14 @@ logger.debug("Checking if running in Docker...")
 IN_DOCKER = Path("/.dockerenv").exists()
 logger.debug(f"IN_DOCKER={IN_DOCKER}")
 
+
 # --- Networking / Proxy configuration ---
 def _as_bool(val: str | None, default: bool) -> bool:
     if val is None:
         return default
     v = val.strip().lower()
     return v in ("1", "true", "yes", "on")
+
 
 """Proxy configuration
 
@@ -37,7 +39,9 @@ PROXY_ENABLED = _as_bool(os.getenv("PROXY_ENABLED", None), False)
 # Split fields (optional builders)
 PROXY_HOST = os.getenv("PROXY_HOST", "").strip()
 PROXY_PORT = os.getenv("PROXY_PORT", "").strip()
-PROXY_SCHEME = os.getenv("PROXY_SCHEME", "socks5").strip()  # socks5 / socks5h / http / https
+PROXY_SCHEME = os.getenv(
+    "PROXY_SCHEME", "socks5"
+).strip()  # socks5 / socks5h / http / https
 PROXY_USERNAME = os.getenv("PROXY_USERNAME", "").strip()
 PROXY_PASSWORD = os.getenv("PROXY_PASSWORD", "").strip()
 
@@ -58,7 +62,9 @@ NO_PROXY = os.getenv("NO_PROXY", "").strip()
 PROXY_FORCE_REMOTE_DNS = _as_bool(os.getenv("PROXY_FORCE_REMOTE_DNS", None), True)
 
 # Requests TLS certificate verification (set false to allow corporate MITM proxies).
-PROXY_DISABLE_CERT_VERIFY = _as_bool(os.getenv("PROXY_DISABLE_CERT_VERIFY", None), False)
+PROXY_DISABLE_CERT_VERIFY = _as_bool(
+    os.getenv("PROXY_DISABLE_CERT_VERIFY", None), False
+)
 
 # Apply to process environment so libraries (including 3rd-party) respect proxies.
 PROXY_APPLY_ENV = _as_bool(os.getenv("PROXY_APPLY_ENV", None), True)
@@ -77,6 +83,7 @@ PUBLIC_IP_CHECK_INTERVAL_MIN = int(
     os.getenv("PUBLIC_IP_CHECK_INTERVAL_MIN", str(PROXY_IP_CHECK_INTERVAL_MIN)) or 0
 )
 
+
 # Internal helper to promote socks5 → socks5h when remote DNS is requested.
 def _normalize_proxy_scheme(url: str | None) -> str | None:
     if not url:
@@ -93,8 +100,10 @@ def _normalize_proxy_scheme(url: str | None) -> str | None:
     except Exception:
         return url
 
+
 def _effective_proxy_url(explicit: str | None, fallback: str | None) -> str | None:
     return _normalize_proxy_scheme(explicit.strip() if explicit else fallback)
+
 
 # Build base PROXY_URL from split fields if not provided
 def _build_from_parts() -> str | None:
@@ -110,6 +119,7 @@ def _build_from_parts() -> str | None:
             auth += f":{PROXY_PASSWORD}"
         auth += "@"
     return f"{scheme}://{auth}{PROXY_HOST}:{PROXY_PORT}"
+
 
 def _inject_auth(url: str | None, username: str, password: str) -> str | None:
     """Insert credentials into a proxy URL if not already present.
@@ -137,10 +147,13 @@ def _inject_auth(url: str | None, username: str, password: str) -> str | None:
     except Exception:
         return url
 
+
 # Resolve the base PROXY_URL including optional credentials and scheme normalization
 _base_proxy_url = _build_from_parts() or PROXY_URL
 if PROXY_USERNAME or PROXY_PASSWORD:
-    _base_proxy_url = _inject_auth(_base_proxy_url, PROXY_USERNAME, PROXY_PASSWORD) or _base_proxy_url
+    _base_proxy_url = (
+        _inject_auth(_base_proxy_url, PROXY_USERNAME, PROXY_PASSWORD) or _base_proxy_url
+    )
 
 # Normalized effective values used throughout the app.
 EFFECTIVE_HTTP_PROXY = _effective_proxy_url(
@@ -335,7 +348,9 @@ TORZNAB_TEST_LANGUAGE = os.getenv("TORZNAB_TEST_LANGUAGE", "German Dub")
 DELETE_FILES_ON_TORRENT_DELETE = _as_bool(
     os.getenv("DELETE_FILES_ON_TORRENT_DELETE", "true"), True
 )
-DOWNLOADS_TTL_HOURS = float(os.getenv("DOWNLOADS_TTL_HOURS", "0"))  # 0 disables TTL cleanup
+DOWNLOADS_TTL_HOURS = float(
+    os.getenv("DOWNLOADS_TTL_HOURS", "0")
+)  # 0 disables TTL cleanup
 CLEANUP_SCAN_INTERVAL_MIN = int(os.getenv("CLEANUP_SCAN_INTERVAL_MIN", "30"))
 logger.debug(
     f"DELETE_FILES_ON_TORRENT_DELETE={DELETE_FILES_ON_TORRENT_DELETE}, DOWNLOADS_TTL_HOURS={DOWNLOADS_TTL_HOURS}, CLEANUP_SCAN_INTERVAL_MIN={CLEANUP_SCAN_INTERVAL_MIN}"

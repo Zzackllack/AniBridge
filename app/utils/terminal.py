@@ -55,6 +55,7 @@ class ProgressReporter:
         if self._interactive and self._bar is None and total:
             try:
                 from tqdm import tqdm  # local import to avoid dependency at import time
+
                 # Send tqdm output directly to the underlying real stdout so it is NOT
                 # duplicated into the terminal log file by TerminalLogger.
                 bar_file = getattr(sys.stdout, "_stdout", None) or getattr(
@@ -67,12 +68,14 @@ class ProgressReporter:
                     unit_scale=True,
                     leave=True,
                     file=bar_file,
-                    ascii=False,            # force unicode blocks (█▉▊▌ etc.)
-                    dynamic_ncols=True,     # adapt to terminal width
-                    mininterval=0.2,        # avoid excessive redraws
+                    ascii=False,  # force unicode blocks (█▉▊▌ etc.)
+                    dynamic_ncols=True,  # adapt to terminal width
+                    mininterval=0.2,  # avoid excessive redraws
                 )
             except Exception as e:
-                logger.debug(f"tqdm init failed, fallback to non-interactive style: {e}")
+                logger.debug(
+                    f"tqdm init failed, fallback to non-interactive style: {e}"
+                )
                 self._interactive = False
 
         # Render

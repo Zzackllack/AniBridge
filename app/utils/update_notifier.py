@@ -157,9 +157,7 @@ def notify_on_startup() -> None:
         current, latest = check_for_update()
         if latest:
             cmp = _compare_versions(current, latest)
-            logger.info(
-                f"AniBridge version: current={current}, latest={latest}"
-            )
+            logger.info(f"AniBridge version: current={current}, latest={latest}")
             if cmp < 0:
                 if IN_DOCKER:
                     logger.warning(

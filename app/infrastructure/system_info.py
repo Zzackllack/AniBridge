@@ -63,7 +63,16 @@ def _mask_env_value(key: str, val: str) -> str:
     except Exception:
         pass
     # Generic secret patterns
-    secret_words = ("password", "passwd", "pwd", "secret", "token", "apikey", "api_key", "key")
+    secret_words = (
+        "password",
+        "passwd",
+        "pwd",
+        "secret",
+        "token",
+        "apikey",
+        "api_key",
+        "key",
+    )
     if any(sw in k for sw in secret_words):
         if not val:
             return val
@@ -101,10 +110,11 @@ def log_full_system_report() -> None:
 
         osrel = _parse_os_release()
         if osrel:
-            pretty = osrel.get("PRETTY_NAME") or " ".join(
-                [osrel.get("NAME", ""), osrel.get("VERSION", "")]
-            ).strip()
-            logger.info(f"SysInfo: os_release={pretty} id={osrel.get('ID','')}" )
+            pretty = (
+                osrel.get("PRETTY_NAME")
+                or " ".join([osrel.get("NAME", ""), osrel.get("VERSION", "")]).strip()
+            )
+            logger.info(f"SysInfo: os_release={pretty} id={osrel.get('ID','')}")
 
         # Container / cgroup
         logger.info(f"SysInfo: in_docker={IN_DOCKER}")
@@ -121,24 +131,36 @@ def log_full_system_report() -> None:
                 if ":" in line and line.lower().startswith("model name"):
                     model = line.split(":", 1)[1].strip()
                     break
-            logger.info(f"SysInfo: cpu_cores={os.cpu_count()} model={model or uname.processor}")
+            logger.info(
+                f"SysInfo: cpu_cores={os.cpu_count()} model={model or uname.processor}"
+            )
         except Exception:
             logger.info(f"SysInfo: cpu_cores={os.cpu_count()}")
 
         # Memory
         meminfo = _read_file("/proc/meminfo", max_bytes=5000)
         if meminfo:
-            lines = {l.split(":", 1)[0]: l.split(":", 1)[1].strip() for l in meminfo.splitlines() if ":" in l}
+            lines = {
+                l.split(":", 1)[0]: l.split(":", 1)[1].strip()
+                for l in meminfo.splitlines()
+                if ":" in l
+            }
             mt = lines.get("MemTotal")
             ma = lines.get("MemAvailable") or lines.get("MemFree")
             logger.info(f"SysInfo: mem_total={mt} mem_available={ma}")
 
         # Disk usage
-        for label, path in ("root", "/"), ("data_dir", str(DATA_DIR)), ("download_dir", str(DOWNLOAD_DIR)):
+        for label, path in (
+            ("root", "/"),
+            ("data_dir", str(DATA_DIR)),
+            ("download_dir", str(DOWNLOAD_DIR)),
+        ):
             du = _disk_usage(path)
             if du:
                 t, u, f = du
-                logger.info(f"SysInfo: disk_{label} total={t} used={u} free={f} path={path}")
+                logger.info(
+                    f"SysInfo: disk_{label} total={t} used={u} free={f} path={path}"
+                )
 
         # Network
         try:
@@ -174,7 +196,12 @@ def log_full_system_report() -> None:
         try:
             import importlib.metadata as importlib_metadata  # py3.8+
 
-            pkgs = sorted([f"{d.metadata['Name']}=={d.version}" for d in importlib_metadata.distributions()])
+            pkgs = sorted(
+                [
+                    f"{d.metadata['Name']}=={d.version}"
+                    for d in importlib_metadata.distributions()
+                ]
+            )
             # Limit to avoid huge logs
             head = pkgs[:100]
             more = max(0, len(pkgs) - len(head))

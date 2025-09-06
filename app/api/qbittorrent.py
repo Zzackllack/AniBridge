@@ -5,7 +5,11 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Response, Request
 from fastapi.responses import PlainTextResponse, JSONResponse
 from sqlmodel import Session
 from loguru import logger
-from app.config import DOWNLOAD_DIR, QBIT_PUBLIC_SAVE_PATH, DELETE_FILES_ON_TORRENT_DELETE
+from app.config import (
+    DOWNLOAD_DIR,
+    QBIT_PUBLIC_SAVE_PATH,
+    DELETE_FILES_ON_TORRENT_DELETE,
+)
 from app.utils.magnet import parse_magnet
 from app.models import (
     get_session,
@@ -21,6 +25,7 @@ configure_logger()
 
 router = APIRouter(prefix="/api/v2")
 
+
 def _public_save_path() -> str:
     """Return the path Sonarr/Radarr should see as the save location.
 
@@ -29,6 +34,7 @@ def _public_save_path() -> str:
     `DOWNLOAD_DIR`.
     """
     return QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR)
+
 
 # Log effective path mapping once for operator clarity
 try:
@@ -216,8 +222,10 @@ def sync_maindata(session: Session = Depends(get_session)):
         # Derive size, save_path and completion time more accurately on completion
         size_val = int(job.total_bytes or 0) if job else 0
         # Always prefer public mapping if configured
-        save_path_val = _public_save_path() if QBIT_PUBLIC_SAVE_PATH else (
-            r.save_path or str(DOWNLOAD_DIR)
+        save_path_val = (
+            _public_save_path()
+            if QBIT_PUBLIC_SAVE_PATH
+            else (r.save_path or str(DOWNLOAD_DIR))
         )
         # Prefer directory of the actual file if we know it
         if job and job.result_path:

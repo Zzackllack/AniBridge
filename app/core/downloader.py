@@ -320,7 +320,9 @@ def download_episode(
                 f"Direct link not found under proxy ({e}). Attempting direct fallback without proxy."
             )
             with disabled_proxy_env():
-                ep2 = build_episode(link=link, slug=slug, season=season, episode=episode)
+                ep2 = build_episode(
+                    link=link, slug=slug, season=season, episode=episode
+                )
                 direct, chosen = get_direct_url_with_fallback(
                     ep2, preferred=provider, language=language
                 )

@@ -7,7 +7,11 @@ from sqlmodel import Session
 import errno
 
 from app.config import MAX_CONCURRENCY, DOWNLOAD_DIR
-from app.utils.terminal import ProgressReporter, ProgressSnapshot, is_interactive_terminal
+from app.utils.terminal import (
+    ProgressReporter,
+    ProgressSnapshot,
+    is_interactive_terminal,
+)
 from app.models import engine, create_job, update_job
 from app.core.downloader import download_episode, Provider, Language
 from app.utils.logger import config as configure_logger

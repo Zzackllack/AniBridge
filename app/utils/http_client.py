@@ -22,6 +22,7 @@ def _build_session() -> requests.Session:
         s.proxies.update(proxies)
         try:
             from app.infrastructure.network import _mask  # type: ignore
+
             logger.info(
                 f"HTTP client proxies set: http={_mask(proxies.get('http'))} "
                 f"https={_mask(proxies.get('https'))}"
@@ -68,7 +69,9 @@ def get(url: str, *, timeout: float | int = 20, **kwargs: Any) -> requests.Respo
         if "bytes missing" in msg or "incomplete" in msg:
             headers = dict(kwargs.get("headers") or {})
             headers["Accept-Encoding"] = "identity"
-            logger.warning("HTTP GET retry with Accept-Encoding=identity due to decode error")
+            logger.warning(
+                "HTTP GET retry with Accept-Encoding=identity due to decode error"
+            )
             # remove old headers to avoid duplication
             kwargs = {k: v for k, v in kwargs.items() if k != "headers"}
             return s.get(url, timeout=timeout, headers=headers, **kwargs)
@@ -84,7 +87,9 @@ def post(url: str, *, timeout: float | int = 30, **kwargs: Any) -> requests.Resp
         if "bytes missing" in msg or "incomplete" in msg:
             headers = dict(kwargs.get("headers") or {})
             headers["Accept-Encoding"] = "identity"
-            logger.warning("HTTP POST retry with Accept-Encoding=identity due to decode error")
+            logger.warning(
+                "HTTP POST retry with Accept-Encoding=identity due to decode error"
+            )
             kwargs = {k: v for k, v in kwargs.items() if k != "headers"}
             return s.post(url, timeout=timeout, headers=headers, **kwargs)
         raise

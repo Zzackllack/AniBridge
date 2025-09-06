@@ -126,7 +126,9 @@ async def lifespan(app: FastAPI):
                                     os.remove(fpath)
                                     logger.success(f"TTL cleanup: deleted {fpath}")
                                 except Exception as e:
-                                    logger.warning(f"TTL cleanup: failed to delete {fpath}: {e}")
+                                    logger.warning(
+                                        f"TTL cleanup: failed to delete {fpath}: {e}"
+                                    )
                         except FileNotFoundError:
                             continue
                         except Exception as e:
@@ -144,7 +146,9 @@ async def lifespan(app: FastAPI):
     cleanup_thread = None
     ip_thread = None
     if DOWNLOADS_TTL_HOURS > 0:
-        cleanup_thread = threading.Thread(target=_cleanup_loop, name="cleanup", daemon=True)
+        cleanup_thread = threading.Thread(
+            target=_cleanup_loop, name="cleanup", daemon=True
+        )
         cleanup_thread.start()
     # Start proxy IP monitor if enabled
     try:

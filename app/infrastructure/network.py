@@ -24,6 +24,7 @@ from contextlib import contextmanager
 
 configure_logger()
 
+
 def _mask(url: str | None) -> str:
     """Mask credentials in a proxy URL for safe logging."""
     if not url:
@@ -206,7 +207,9 @@ def _fetch_public_ip() -> Optional[str]:
     return None
 
 
-def start_ip_check_thread(stop_event: "threading.Event") -> Optional["threading.Thread"]:
+def start_ip_check_thread(
+    stop_event: "threading.Event",
+) -> Optional["threading.Thread"]:
     """Start a background thread that periodically logs the current public IP.
 
     Runs when either proxy is enabled or PUBLIC_IP_CHECK_ENABLED=true. Interval
