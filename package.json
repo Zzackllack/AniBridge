@@ -1,0 +1,10 @@
+{
+  "name": "anibridge-root",
+  "private": true,
+  "description": "Root package to guide CI tooling; docs live under ./docs",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build:docs": "npm --prefix docs run build",
+    "ci:docs": "npm --prefix docs ci --no-audit --no-fund"
+  }
+}
