@@ -1,6 +1,8 @@
-import { defineConfig } from "vitepress";
+import { defineConfig, type HeadConfig } from "vitepress";
 
 // https://vitepress.dev/reference/site-config
+const siteUrl = "https://anibridge-docs.zacklack.de";
+
 export default defineConfig({
   head: [
     [
@@ -24,14 +26,46 @@ export default defineConfig({
       },
     ],
     ["link", { rel: "manifest", href: "/site.webmanifest" }],
+    ["meta", { name: "theme-color", content: "#092e3fff" }],
+    ["meta", { name: "twitter:card", content: "summary_large_image" }],
+    ["meta", { name: "twitter:site", content: "@zzackllack" }],
+    ["meta", { property: "og:type", content: "website" }],
+    ["meta", { property: "og:site_name", content: "AniBridge" }],
+    ["meta", { property: "og:image", content: `${siteUrl}/logo.png` }],
   ],
   srcDir: "src",
 
   title: "AniBridge Documentation",
   description:
     "AniBridge: FastAPI bridge exposing Torznab feed and qBittorrent-compatible API to automate anime downloads via Prowlarr/Sonarr.",
+  titleTemplate: ":title • AniBridge Docs",
   lastUpdated: true,
   ignoreDeadLinks: true,
+  cleanUrls: true,
+  sitemap: {
+    hostname: siteUrl,
+  },
+  transformHead: ({ page, siteConfig }) => {
+    const rel = page?.relativePath || "index.md";
+    const url = new URL(
+      rel.replace(/(^|\/)index\.md$/, "$1").replace(/\.md$/, "/"),
+      siteUrl
+    ).toString();
+    const baseTitle = (siteConfig as any)?.site?.title || "AniBridge Docs";
+    const pageTitle = (page as any)?.title;
+    const pageDesc = (page as any)?.description;
+    const title = pageTitle ? `${pageTitle} • ${baseTitle}` : baseTitle;
+    const description = pageDesc || (siteConfig as any)?.site?.description || "AniBridge documentation";
+    const tags: HeadConfig[] = [
+      ["link", { rel: "canonical", href: url }],
+      ["meta", { property: "og:url", content: url }],
+      ["meta", { property: "og:title", content: title }],
+      ["meta", { property: "og:description", content: description }],
+      ["meta", { name: "twitter:title", content: title }],
+      ["meta", { name: "twitter:description", content: description }],
+    ];
+    return tags;
+  },
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     logo: "/logo.png",

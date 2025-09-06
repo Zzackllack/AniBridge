@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://anibridge-docs.zacklack.de/sitemap.xml
