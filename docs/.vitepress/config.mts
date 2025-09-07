@@ -30,6 +30,14 @@ export default defineConfig({
     ],
     ["link", { rel: "manifest", href: "/site.webmanifest" }],
     [
+      "link",
+      {
+        rel: "preconnect",
+        href: "https://umami-analytics.zacklack.de",
+        crossorigin: "",
+      },
+    ],
+    [
       "script",
       {
         defer: "",
@@ -37,11 +45,21 @@ export default defineConfig({
         "data-website-id": "9694e5ab-5398-43e4-9a46-37d135bf7536",
       },
     ],
-    ["meta", { name: "theme-color", content: "#092e3fff" }],
+    // Use 6‑digit hex for broader UA compatibility
+    ["meta", { name: "theme-color", content: "#092e3f" }],
+    [
+      "meta",
+      {
+        name: "robots",
+        content:
+          "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1",
+      },
+    ],
     ["meta", { name: "twitter:card", content: "summary_large_image" }],
     ["meta", { name: "twitter:site", content: "@zzackllack" }],
     ["meta", { property: "og:type", content: "website" }],
     ["meta", { property: "og:site_name", content: "AniBridge Docs" }],
+    ["meta", { property: "og:locale", content: "en_US" }],
     ["meta", { property: "og:image", content: `${siteUrl}/logo.png` }],
     // Structured data: signal this subdomain as its own WebSite entity
     [
@@ -80,21 +98,80 @@ export default defineConfig({
     const baseTitle = (siteConfig as any)?.site?.title || "AniBridge Docs";
     const pageTitle = (page as any)?.title;
     const pageDesc = (page as any)?.description;
+    const lastUpdated = (page as any)?.lastUpdated ?? undefined;
     const title = pageTitle ? `${pageTitle} • ${baseTitle}` : baseTitle;
-    const description = pageDesc || (siteConfig as any)?.site?.description || "AniBridge documentation";
+    const description =
+      pageDesc ||
+      (siteConfig as any)?.site?.description ||
+      "AniBridge documentation";
+    // Build breadcrumb list from path parts
+    const path = url.replace(siteUrl, "");
+    const parts = path.split("/").filter(Boolean);
+    const breadcrumbItems = parts.map((p, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: p,
+      item: `${siteUrl}/${parts.slice(0, i + 1).join("/")}/`,
+    }));
     const tags: HeadConfig[] = [
       ["link", { rel: "canonical", href: url }],
+      ["link", { rel: "alternate", hreflang: "en", href: url }],
       ["meta", { property: "og:url", content: url }],
       ["meta", { property: "og:title", content: title }],
       ["meta", { property: "og:description", content: description }],
       ["meta", { name: "twitter:title", content: title }],
       ["meta", { name: "twitter:description", content: description }],
+      // Page-level structured data: TechArticle + Breadcrumbs
+      [
+        "script",
+        { type: "application/ld+json" },
+        JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "TechArticle",
+          headline: pageTitle || baseTitle,
+          description,
+          inLanguage: "en",
+          url,
+          dateModified: lastUpdated
+            ? new Date(lastUpdated).toISOString()
+            : undefined,
+          mainEntityOfPage: url,
+          publisher: {
+            "@type": "Organization",
+            name: "AniBridge",
+            url: siteUrl,
+            logo: {
+              "@type": "ImageObject",
+              url: `${siteUrl}/favicon.svg`,
+            },
+          },
+        }),
+      ],
+      [
+        "script",
+        { type: "application/ld+json" },
+        JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: breadcrumbItems.length
+            ? breadcrumbItems
+            : [
+                {
+                  "@type": "ListItem",
+                  position: 1,
+                  name: "home",
+                  item: `${siteUrl}/`,
+                },
+              ],
+        }),
+      ],
     ];
     return tags;
   },
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
-    logo: "/logo.png",
+    // Use a lightweight vector for header logo to improve LCP
+    logo: "/favicon.svg",
     siteTitle: "AniBridge",
     nav: [
       { text: "Guide", link: "/guide/overview" },
