@@ -17,6 +17,9 @@ export default defineConfig({
     ["link", { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" }],
     ["link", { rel: "icon", type: "image/x-icon", href: "/favicon.ico" }],
     ["link", { rel: "shortcut icon", href: "/favicon.ico" }],
+    // Explicit app/site names help Google use subdomain branding + favicon
+    ["meta", { name: "application-name", content: "AniBridge Docs" }],
+    ["meta", { name: "apple-mobile-web-app-title", content: "AniBridge Docs" }],
     [
       "link",
       {
@@ -38,8 +41,23 @@ export default defineConfig({
     ["meta", { name: "twitter:card", content: "summary_large_image" }],
     ["meta", { name: "twitter:site", content: "@zzackllack" }],
     ["meta", { property: "og:type", content: "website" }],
-    ["meta", { property: "og:site_name", content: "AniBridge" }],
+    ["meta", { property: "og:site_name", content: "AniBridge Docs" }],
     ["meta", { property: "og:image", content: `${siteUrl}/logo.png` }],
+    // Structured data: signal this subdomain as its own WebSite entity
+    [
+      "script",
+      {
+        type: "application/ld+json",
+      },
+      JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: "AniBridge Docs",
+        alternateName: "AniBridge Documentation",
+        url: `${siteUrl}/`,
+        inLanguage: "en",
+      }),
+    ],
   ],
   srcDir: "src",
 
