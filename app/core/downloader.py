@@ -226,17 +226,20 @@ def _ydl_download(
         dest_dir / (_sanitize_filename(title_hint or "%(title)s") + ".%(ext)s")
     )
     logger.debug(f"yt-dlp output template: {outtmpl}")
+    # Keep retries conservative to avoid endless retry loops on dead links
     ydl_opts: Dict[str, Any] = {
         "outtmpl": outtmpl,
-        "retries": 5,
+        "retries": 3,  # whole-request retries
+        "fragment_retries": 3,  # per-fragment retries
         "continuedl": True,
         "concurrent_fragment_downloads": 4,
         "quiet": True,
         "noprogress": True,
         "merge_output_format": "mkv",
-        "fragment_retries": 9999,
         "downloader": "ffmpeg",
         "hls_use_mpegts": True,
+        # Fail faster on broken CDNs
+        "socket_timeout": 20,
     }
 
     # Apply proxy for yt-dlp if configured
@@ -339,15 +342,85 @@ def download_episode(
         base_hint = f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
         logger.debug(f"Generated base_hint for filename: {base_hint}")
 
-    temp_path, info = _ydl_download(
-        direct,
-        dest_dir,
-        title_hint=base_hint,
-        cookiefile=cookiefile,
-        progress_cb=progress_cb,
-        stop_event=stop_event,
-        force_no_proxy=force_no_proxy,
-    )
+    try:
+        temp_path, info = _ydl_download(
+            direct,
+            dest_dir,
+            title_hint=base_hint,
+            cookiefile=cookiefile,
+            progress_cb=progress_cb,
+            stop_event=stop_event,
+            force_no_proxy=force_no_proxy,
+        )
+    except Exception as e:
+        # If the actual download fails (timeouts/CDN issues), try one controlled
+        # fallback path before giving up:
+        #  1) If we used proxy, re-resolve and download without proxy consistently
+        #  2) Otherwise, try to re-resolve with a different provider if available
+        msg = str(e)
+        logger.warning(f"Primary download failed: {msg}")
+
+        # Attempt no-proxy re-resolution+download if proxy was in play
+        tried_alt = False
+        if PROXY_ENABLED and not force_no_proxy and PROXY_SCOPE in ("all", "ytdlp"):
+            try:
+                with disabled_proxy_env():
+                    ep2 = build_episode(
+                        link=link, slug=slug, season=season, episode=episode
+                    )
+                    direct2, chosen2 = get_direct_url_with_fallback(
+                        ep2, preferred=provider, language=language
+                    )
+                    logger.info(
+                        f"Retrying download without proxy using provider {chosen2}"
+                    )
+                    temp_path, info = _ydl_download(
+                        direct2,
+                        dest_dir,
+                        title_hint=base_hint,
+                        cookiefile=cookiefile,
+                        progress_cb=progress_cb,
+                        stop_event=stop_event,
+                        force_no_proxy=True,
+                    )
+                    tried_alt = True
+            except Exception as e2:
+                logger.error(f"No-proxy fallback download failed: {e2}")
+                # fall through to final error or other alt attempts
+
+        if not tried_alt:
+            # As a last resort, try a different provider once (if any available)
+            try:
+                providers_left = [p for p in PROVIDER_ORDER if p != (provider or "")]
+                for p in providers_left:
+                    try:
+                        direct3, chosen3 = get_direct_url_with_fallback(
+                            ep, preferred=p, language=language
+                        )
+                        logger.info(
+                            f"Retrying download via alternate provider {chosen3}"
+                        )
+                        temp_path, info = _ydl_download(
+                            direct3,
+                            dest_dir,
+                            title_hint=base_hint,
+                            cookiefile=cookiefile,
+                            progress_cb=progress_cb,
+                            stop_event=stop_event,
+                            force_no_proxy=force_no_proxy,
+                        )
+                        tried_alt = True
+                        break
+                    except Exception as e3:
+                        logger.warning(
+                            f"Alternate provider {p} failed to download: {e3}"
+                        )
+            except Exception as e4:
+                logger.debug(f"Alternate-provider resolution failed: {e4}")
+
+        if not tried_alt:
+            # Give up with the original failure
+            raise
 
     logger.info(f"Download complete, renaming to release schema.")
     final_path = rename_to_release(
