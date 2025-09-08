@@ -158,9 +158,6 @@ import {
   Repeat,
 } from "lucide-vue-next";
 import {
-  defineProps,
-  withDefaults,
-  defineEmits,
   ref,
   computed,
   watch,
