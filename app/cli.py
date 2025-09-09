@@ -39,4 +39,3 @@ def run_server(app_obj):
             port=ANIBRIDGE_PORT,
             reload=False,
         )
-

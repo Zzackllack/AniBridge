@@ -112,4 +112,3 @@ def cancel_job(job_id: str):
     ev.set()
     fut.cancel()
     return {"status": "cancelling"}
-

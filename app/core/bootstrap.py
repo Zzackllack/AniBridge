@@ -19,4 +19,3 @@ def init() -> None:
     configure_logger()
     ensure_log_path(DATA_DIR)
     TerminalLogger(DATA_DIR)
-

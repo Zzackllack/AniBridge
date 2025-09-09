@@ -34,11 +34,14 @@ from app.models import (
 )
 
 
-def _start_ttl_cleanup_thread(stop_event: threading.Event) -> Optional[threading.Thread]:
+def _start_ttl_cleanup_thread(
+    stop_event: threading.Event,
+) -> Optional[threading.Thread]:
     """Start a background thread that deletes old downloads based on TTL."""
 
     def _cleanup_loop():
         import time
+
         exts = {".mp4", ".mkv", ".webm", ".avi", ".m4v"}
         ttl = timedelta(hours=float(DOWNLOADS_TTL_HOURS))
         logger.info(
@@ -144,4 +147,3 @@ async def lifespan(app: FastAPI):
             ip_stop.set()
         except Exception:
             pass
-
