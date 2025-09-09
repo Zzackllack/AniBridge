@@ -342,6 +342,10 @@ def download_episode(
         base_hint = f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
         logger.debug(f"Generated base_hint for filename: {base_hint}")
 
+    # ensure variables exist for static analyzers / linters
+    temp_path: Optional[Path] = None
+    info: Optional[Dict[str, Any]] = None
+
     try:
         temp_path, info = _ydl_download(
             direct,
@@ -421,6 +425,11 @@ def download_episode(
         if not tried_alt:
             # Give up with the original failure
             raise
+
+    # Safety check for linters: ensure temp_path and info are set
+    if temp_path is None or info is None:
+        logger.error("Download completed without producing a temp file or info dict.")
+        raise DownloadError("Download failed: no temp file or metadata produced.")
 
     logger.info(f"Download complete, renaming to release schema.")
     final_path = rename_to_release(
