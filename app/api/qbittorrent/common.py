@@ -21,4 +21,3 @@ from app.config import QBIT_PUBLIC_SAVE_PATH as _PUB
 CATEGORIES: Dict[str, dict] = {
     "prowlarr": {"name": "prowlarr", "savePath": _PUB or str(DOWNLOAD_DIR)}
 }
-

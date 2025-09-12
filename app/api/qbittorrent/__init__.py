@@ -33,4 +33,3 @@ from . import torrents  # noqa: F401
 from . import transfer  # noqa: F401
 
 __all__ = ["router"]
-

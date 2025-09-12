@@ -17,4 +17,3 @@ def transfer_info():
             "up_info_data": 0,
         }
     )
-

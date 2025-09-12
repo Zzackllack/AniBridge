@@ -24,4 +24,3 @@ def logout():
     resp.delete_cookie("SID")
     logger.success("Logout successful, SID cookie deleted.")
     return resp
-

@@ -37,7 +37,11 @@ def sync_maindata(session: Session = Depends(get_session)):
                 state = "pausedDL"
 
         size_val = int(job.total_bytes or 0) if job else 0
-        save_path_val = public_save_path() if QBIT_PUBLIC_SAVE_PATH else (r.save_path or str(DOWNLOAD_DIR))
+        save_path_val = (
+            public_save_path()
+            if QBIT_PUBLIC_SAVE_PATH
+            else (r.save_path or str(DOWNLOAD_DIR))
+        )
 
         if job and job.result_path:
             try:
@@ -91,6 +95,6 @@ def sync_maindata(session: Session = Depends(get_session)):
         }
     )
 
+
 # Required imports for datetime after function since we used it above
 from datetime import datetime, timezone  # noqa: E402
-

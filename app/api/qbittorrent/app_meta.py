@@ -60,4 +60,3 @@ def app_preferences():
             "web_ui_username": "admin",
         }
     )
-

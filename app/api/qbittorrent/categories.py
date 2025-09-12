@@ -44,7 +44,9 @@ def torrents_edit_category(
     else:
         if savePath is not None:
             CATEGORIES[cat]["savePath"] = savePath
-    logger.info("Edited category '{}' -> savePath='{}'".format(cat, CATEGORIES[cat]["savePath"]))
+    logger.info(
+        "Edited category '{}' -> savePath='{}'".format(cat, CATEGORIES[cat]["savePath"])
+    )
     return PlainTextResponse("Ok.")
 
 
@@ -66,4 +68,3 @@ def torrents_categories():
     """Return all known categories; used by Prowlarr connection test."""
     logger.debug("Torrents categories requested.")
     return JSONResponse(CATEGORIES)
-

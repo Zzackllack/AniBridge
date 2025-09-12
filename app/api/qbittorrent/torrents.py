@@ -323,4 +323,3 @@ def torrents_delete(
         delete_client_task(session, h)
         logger.success(f"Deleted client task for hash {h}")
     return PlainTextResponse("Ok.")
-
