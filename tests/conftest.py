@@ -29,11 +29,19 @@ def client(tmp_path, monkeypatch):
 
     SQLModel.metadata.clear()
 
+    # Ensure a clean import state including qbittorrent submodules, otherwise
+    # FastAPI routes may attach to a stale router instance and return 404.
     modules = [
         "app.config",
         "app.models",
         "app.api.torznab",
         "app.api.qbittorrent",
+        "app.api.qbittorrent.auth",
+        "app.api.qbittorrent.app_meta",
+        "app.api.qbittorrent.categories",
+        "app.api.qbittorrent.sync",
+        "app.api.qbittorrent.torrents",
+        "app.api.qbittorrent.transfer",
         "app.main",
     ]
     for m in modules:
