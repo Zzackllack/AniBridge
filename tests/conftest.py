@@ -18,11 +18,14 @@ def client(tmp_path, monkeypatch):
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
 
-    import types, argparse
+    import types
+    import argparse
+    from typing import Any, cast
 
     stub_parser = types.ModuleType("aniworld.parser")
-    stub_parser.parse_arguments = lambda: argparse.Namespace()
-    stub_parser.arguments = argparse.Namespace()
+    stub_parser_any = cast(Any, stub_parser)
+    stub_parser_any.parse_arguments = lambda: argparse.Namespace()
+    stub_parser_any.arguments = argparse.Namespace()
     sys.modules["aniworld.parser"] = stub_parser
 
     from sqlmodel import SQLModel

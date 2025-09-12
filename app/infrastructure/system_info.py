@@ -5,7 +5,7 @@ import sys
 import socket
 import platform
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
 from loguru import logger
 
@@ -86,7 +86,8 @@ def _mask_env_value(key: str, val: str) -> str:
 def log_full_system_report() -> None:
     """Emit a detailed, one-shot system report for diagnostics."""
     try:
-        now = datetime.utcnow().isoformat() + "Z"
+        # Use timezone-aware UTC timestamp (PEP 495) and render with 'Z'
+        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         logger.info(f"SysInfo: timestamp_utc={now}")
 
         # Python / process
