@@ -42,12 +42,13 @@ def client(tmp_path, monkeypatch):
 
     from app.main import app
     from app.models import create_db_and_tables
-    import app.api.qbittorrent as qb
+    # Patch scheduler calls where they are used (torrents module)
+    import app.api.qbittorrent.torrents as qb_torrents
 
     create_db_and_tables()
 
-    monkeypatch.setattr(qb, "schedule_download", lambda req: "job-1")
-    monkeypatch.setattr(qb, "cancel_job", lambda job_id: None)
+    monkeypatch.setattr(qb_torrents, "schedule_download", lambda req: "job-1")
+    monkeypatch.setattr(qb_torrents, "cancel_job", lambda job_id: None)
 
     with TestClient(app) as c:
         yield c
