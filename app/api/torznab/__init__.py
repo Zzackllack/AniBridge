@@ -69,4 +69,3 @@ __all__ = [
     "list_available_languages_cached",
     "upsert_availability",
 ]
-
