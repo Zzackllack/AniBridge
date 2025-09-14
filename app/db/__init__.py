@@ -8,4 +8,3 @@ imports should now use `from app.db import ...`.
 from .models import *  # re-export full surface for backwards compatibility
 
 __all__ = [name for name in globals() if not name.startswith("_")]
-

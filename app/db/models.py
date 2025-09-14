@@ -399,4 +399,3 @@ def delete_client_task(session: Session, hash: str) -> None:
         logger.success(f"Deleted client task for hash {hash}")
     else:
         logger.warning(f"Client task for hash {hash} not found, nothing to delete.")
-
