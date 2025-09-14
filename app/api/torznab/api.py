@@ -54,6 +54,7 @@ def torznab_api(
     # --- SEARCH (generic) ---
     if t == "search":
         import app.api.torznab as tn
+
         logger.debug("Handling 'search' request.")
         rss, channel = _rss_root()
         q_str = (q or "").strip()
@@ -71,9 +72,7 @@ def torznab_api(
                 language=TORZNAB_TEST_LANGUAGE,
                 provider=None,
             )
-            guid = (
-                f"aw:{TORZNAB_TEST_SLUG}:s{TORZNAB_TEST_SEASON}e{TORZNAB_TEST_EPISODE}:{TORZNAB_TEST_LANGUAGE}"
-            )
+            guid = f"aw:{TORZNAB_TEST_SLUG}:s{TORZNAB_TEST_SEASON}e{TORZNAB_TEST_EPISODE}:{TORZNAB_TEST_LANGUAGE}"
             now = datetime.now(timezone.utc)
 
             _build_item(
@@ -183,6 +182,7 @@ def torznab_api(
 
     # require at least q, and either both season+ep or only season (we'll default ep=1)
     import app.api.torznab as tn
+
     if q is None or season is None:
         rss, _channel = _rss_root()
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
