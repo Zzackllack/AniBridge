@@ -18,7 +18,7 @@ from app.config import (
     TORZNAB_TEST_SLUG,
     TORZNAB_TEST_TITLE,
 )
-from app.models import get_session
+from app.db import get_session
 
 from . import router
 from .utils import _build_item, _caps_xml, _require_apikey, _rss_root

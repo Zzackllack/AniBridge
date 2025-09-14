@@ -26,7 +26,7 @@ from app.config import (
 )
 
 from app.core.scheduler import init_executor, shutdown_executor
-from app.models import (
+from app.db import (
     engine,
     dispose_engine,
     create_db_and_tables,

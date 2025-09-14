@@ -126,10 +126,7 @@ class ClientTask(ModelBase, table=True):
     )  # queued/downloading/paused/completed/error
 
 
-import os
-
-# --- DB Bootstrap (use central DATA_DIR from config)
-logger.debug(f"DATA_DIR for jobs DB: {DATA_DIR}")
+# ---------------- Engine and Session utilities
 DATABASE_URL = f"sqlite:///{(DATA_DIR / 'anibridge_jobs.db').as_posix()}"
 logger.debug(f"DATABASE_URL: {DATABASE_URL}")
 
@@ -402,3 +399,4 @@ def delete_client_task(session: Session, hash: str) -> None:
         logger.success(f"Deleted client task for hash {hash}")
     else:
         logger.warning(f"Client task for hash {hash} not found, nothing to delete.")
+

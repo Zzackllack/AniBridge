@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from app.core.scheduler import schedule_download, RUNNING, RUNNING_LOCK
-from app.models import get_session, get_job as db_get_job
+from app.db import get_session, get_job as db_get_job
 
 from app.core.downloader import Provider, Language
 

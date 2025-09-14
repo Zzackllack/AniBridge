@@ -14,7 +14,7 @@ from app.config import (
     DELETE_FILES_ON_TORRENT_DELETE,
 )
 from app.utils.magnet import parse_magnet
-from app.models import (
+from app.db import (
     get_session,
     upsert_client_task,
     get_client_task,
@@ -99,7 +99,7 @@ def torrents_info(
     """List torrents (ClientTasks) in qBittorrent-compatible subset."""
     logger.debug("Fetching torrents info.")
     from sqlmodel import select
-    from app.models import ClientTask
+    from app.db import ClientTask
     import os
 
     rows = session.exec(select(ClientTask)).all()

@@ -34,7 +34,7 @@ def test_edit_and_remove_categories(client):
 def test_sync_maindata_state_mapping(client):
     # Prepare jobs and client tasks directly in DB
     from sqlmodel import Session
-    from app.models import engine, create_job, update_job, upsert_client_task
+    from app.db import engine, create_job, update_job, upsert_client_task
 
     with Session(engine) as s:
         # completed

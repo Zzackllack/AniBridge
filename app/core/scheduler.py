@@ -12,7 +12,7 @@ from app.utils.terminal import (
     ProgressSnapshot,
     is_interactive_terminal,
 )
-from app.models import engine, create_job, update_job
+from app.db import engine, create_job, update_job
 from app.core.downloader import download_episode, Provider, Language
 from app.utils.logger import config as configure_logger
 
@@ -47,7 +47,7 @@ def shutdown_executor() -> None:
 
 def _progress_updater(job_id: str, stop_event: threading.Event):
     from sqlmodel import Session
-    from app.models import engine, update_job
+    from app.db import engine, update_job
 
     reporter: ProgressReporter | None = None
     last_db_n = -1

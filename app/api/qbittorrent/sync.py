@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 from sqlmodel import Session
 
-from app.models import get_session, get_job
+from app.db import get_session, get_job
 
 from . import router
 from .common import CATEGORIES, public_save_path
@@ -17,7 +17,7 @@ def sync_maindata(session: Session = Depends(get_session)):
     """Minimal maindata dump accepted by Sonarr."""
     logger.debug("Sync maindata requested.")
     from sqlmodel import select
-    from app.models import ClientTask
+    from app.db import ClientTask
     import os
     import time
 

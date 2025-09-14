@@ -37,7 +37,7 @@ from app.utils.title_resolver import (  # noqa: E402
 from app.utils.naming import build_release_name  # noqa: E402
 from app.utils.probe_quality import probe_episode_quality  # noqa: E402
 from app.utils.magnet import build_magnet  # noqa: E402
-from app.models import (  # noqa: E402
+from app.db import (  # noqa: E402
     get_session,
     get_availability,
     list_available_languages_cached,
@@ -69,4 +69,3 @@ __all__ = [
     "list_available_languages_cached",
     "upsert_availability",
 ]
-

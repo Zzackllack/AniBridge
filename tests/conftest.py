@@ -36,7 +36,8 @@ def client(tmp_path, monkeypatch):
     # FastAPI routes may attach to a stale router instance and return 404.
     modules = [
         "app.config",
-        "app.models",
+        "app.db",
+        "app.db.models",
         "app.api.torznab",
         "app.api.torznab.api",
         "app.api.torznab.utils",
@@ -54,7 +55,7 @@ def client(tmp_path, monkeypatch):
             del sys.modules[m]
 
     from app.main import app
-    from app.models import create_db_and_tables
+    from app.db import create_db_and_tables
     # Patch scheduler calls where they are used (torrents module)
     import app.api.qbittorrent.torrents as qb_torrents
 

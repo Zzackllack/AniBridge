@@ -1,6 +1,6 @@
 def test_job_crud_and_cleanup(client):
     from sqlmodel import Session
-    from app.models import create_job, get_job, update_job, cleanup_dangling_jobs, engine
+    from app.db import create_job, get_job, update_job, cleanup_dangling_jobs, engine
 
     with Session(engine) as s:
         job = create_job(s)
@@ -17,7 +17,7 @@ def test_job_crud_and_cleanup(client):
 
 def test_availability_and_clienttask_crud(client):
     from sqlmodel import Session
-    from app.models import (
+    from app.db import (
         engine,
         upsert_availability,
         get_availability,
