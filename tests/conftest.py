@@ -38,6 +38,8 @@ def client(tmp_path, monkeypatch):
         "app.config",
         "app.models",
         "app.api.torznab",
+        "app.api.torznab.api",
+        "app.api.torznab.utils",
         "app.api.qbittorrent",
         "app.api.qbittorrent.auth",
         "app.api.qbittorrent.app_meta",
