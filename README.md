@@ -16,15 +16,20 @@ AniBridge is a minimal FastAPI service that bridges anime streaming services (cu
 - **qBittorrent API shim** allowing Prowlarr/Sonarr to enqueue downloads.
 - **Background scheduler** with progress tracking for downloads.
 - Simple `/health` endpoint for container or orchestration checks.
+- Docker Image for easy deployment
+
+## Currently work-in-progress / TODO
+
+- Better code structure and organization (refactoring, modularization, right now the code is a bit messy with comments in multiple languages, redundant code, etc. 😅)
+- Converting absolute episode numbers to relative ones (e.g., "001" to "S01E01"). If the series type is set to "Anime/Absolute", AniBridge currently will not find any episodes. This is because of the way AniWorld numbers episodes.
+- Documentation, configuration instructions, and examples...
 
 ## Planned Features
 
 - Support for non anime sites like s.to
 - Interactive user search via Prowlarr (currently only search via Sonarr/API possible)
 - Full support for RSS Sync
-- Documentation, configuration instructions, and examples...
-- Docker Image for easy deployment
-- Better code structure and organization (refactoring, modularization, right now the code is a bit messy with comments in multiple languages, redundant code, etc. 😅)
+- Toggleable WebUI
 
 ## Installation
 
