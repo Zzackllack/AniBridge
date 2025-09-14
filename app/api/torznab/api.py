@@ -21,13 +21,7 @@ from app.config import (
 from app.models import get_session
 
 from . import router
-from .utils import (
-    _build_item,
-    _caps_xml,
-    _require_apikey,
-    _rss_root,
-    _slug_from_query,
-)
+from .utils import _build_item, _caps_xml, _require_apikey, _rss_root
 
 
 @router.get("/api", response_class=FastAPIResponse)
@@ -92,7 +86,7 @@ def torznab_api(
             )
         elif q_str:
             # Preview search: S01E01 for requested series
-            slug = _slug_from_query(q_str)
+            slug = tn._slug_from_query(q_str)
             if slug:
                 display_title = tn.resolve_series_title(slug) or q_str
                 season_i, ep_i = 1, 1
@@ -182,11 +176,10 @@ def torznab_api(
 
     # --- TVSEARCH ---
     if t != "tvsearch":
-        # For any unsupported `t` value, return empty rss feed rather than error
-        rss, _channel = _rss_root()
-        xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
-        logger.debug("Returning empty RSS for unsupported 't' value.")
-        return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
+        # Maintain previous behavior: unknown t -> 400
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=400, detail="invalid t")
 
     # require at least q, and either both season+ep or only season (we'll default ep=1)
     import app.api.torznab as tn
@@ -208,7 +201,7 @@ def torznab_api(
     logger.debug(
         f"Searching for slug for query '{q_str}' (season={season_i}, ep={ep_i})"
     )
-    slug = _slug_from_query(q_str)
+    slug = tn._slug_from_query(q_str)
     if not slug:
         logger.warning(f"No slug found for query '{q_str}'. Returning empty RSS feed.")
         rss, _channel = _rss_root()

@@ -71,15 +71,16 @@ def _normalize_tokens(s: str) -> List[str]:
 
 
 def _slug_from_query(q: str) -> Optional[str]:
-    """Map free-text query -> slug using main and alternative titles."""
-    logger.debug(f"Resolving slug from query: '{q}'")
-    from app.utils.title_resolver import (
-        load_or_refresh_alternatives,
-        load_or_refresh_index,
-    )
+    """Map free-text query -> slug using main and alternative titles.
 
-    index = load_or_refresh_index()  # slug -> display title
-    alts = load_or_refresh_alternatives()  # slug -> [titles]
+    Import from the torznab package namespace so tests that monkeypatch
+    `app.api.torznab.load_or_refresh_index` affect this function too.
+    """
+    logger.debug(f"Resolving slug from query: '{q}'")
+    import app.api.torznab as tn
+
+    index = tn.load_or_refresh_index()  # slug -> display title
+    alts = tn.load_or_refresh_alternatives()  # slug -> [titles]
     q_tokens = set(_normalize_tokens(q))
     best_slug: Optional[str] = None
     best_score = 0
