@@ -47,7 +47,13 @@
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- **Service Contract Fidelity**: Document API changes, affected integrations, required migration notes, and the tests that will guard the contracts.
+- **Agent-Oriented Code Quality**: Describe module ownership, reuse of shared helpers, typing/docstring expectations, and configuration touchpoints.
+- **Test-Driven Assurance**: List the failing tests to be authored first (unit, integration, contract) and how they gate implementation.
+- **Operational Observability**: Explain how logging, health reporting, and job telemetry will be validated and extended.
+- **Controlled Automation & Compliance**: Surface legal/risk considerations, opt-in flags, secret handling, and documentation updates.
+- **Operational Constraints**: Confirm language/runtime baselines, dependency impacts, data migrations, and Docker/runtime implications.
+- **Workflow & Review Gates**: Plan for `/plan` + `/tasks` deliverables, documentation updates, and review evidence.
 
 ## Project Structure
 
@@ -64,42 +70,26 @@ specs/[###-feature]/
 
 ### Source Code (repository root)
 ```
-# Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+app/
+├── main.py
+├── torznab.py
+├── qbittorrent.py
+├── downloader.py
+├── scheduler.py
+├── config.py
+├── models.py
+└── utilities...
 
 tests/
-├── contract/
+├── api/
 ├── integration/
-└── unit/
+└── regression/
 
-# Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure]
+data/
+└── runtime artifacts (never modified in code changes)
 ```
 
-**Structure Decision**: [DEFAULT to Option 1 unless Technical Context indicates web/mobile app]
+**Structure Decision**: Default to the AniBridge layout above; deviations require justification in Constitution Check.
 
 ## Phase 0: Outline & Research
 1. **Extract unknowns from Technical Context** above:
@@ -209,4 +199,4 @@ ios/ or android/
 - [ ] Complexity deviations documented
 
 ---
-*Based on Constitution v2.1.1 - See `/memory/constitution.md`*
+ *Based on Constitution v1.0.0 - See `/memory/constitution.md`*

@@ -31,6 +31,7 @@
 - ✅ Focus on WHAT users need and WHY
 - ❌ Avoid HOW to implement (no tech stack, APIs, code structure)
 - 👥 Written for business stakeholders, not developers
+- ⚖️ Capture downstream contract impacts, observability expectations, and compliance notes so the plan can satisfy the constitution.
 
 ### Section Requirements
 - **Mandatory sections**: Must be completed for every feature
@@ -92,6 +93,8 @@ When creating this spec from a user prompt:
 - [ ] Focused on user value and business needs
 - [ ] Written for non-technical stakeholders
 - [ ] All mandatory sections completed
+- [ ] Downstream clients, contract changes, and compliance risks are explicitly noted
+- [ ] Observability or operational expectations are captured when behavior shifts
 
 ### Requirement Completeness
 - [ ] No [NEEDS CLARIFICATION] markers remain
@@ -99,6 +102,7 @@ When creating this spec from a user prompt:
 - [ ] Success criteria are measurable
 - [ ] Scope is clearly bounded
 - [ ] Dependencies and assumptions identified
+- [ ] Requirements acknowledge validation, logging, and automation guardrails where relevant
 
 ---
 
