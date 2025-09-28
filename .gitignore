@@ -529,6 +529,7 @@ release/
 /docs/.vitepress/cache/
 /docs/.vitepress/cache/**
 .wrangler/
+changelog.md
 
 # Codex overlay: keep auth/logs in ~/.codex; only track per-project prompts/commands
 # Ignore .codex/* but re-include .codex/prompts and .codex/commands below
