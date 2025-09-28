@@ -802,6 +802,7 @@ For every initiative, confirm adherence:
 
 - **Release Automation:**
   - When bumping version, ensure `VERSION`, `pyproject.toml`, changelog entries, and release notes aligned.
+  - For prompts requesting commit summaries (e.g., "Summarize the last 38 commits back to the last version update commit 'Bump version 1.14.4 -> 1.15.0'"), generate `changelog.md` using the structure: Overview, Highlights, Breaking Changes, Detailed Changes grouped by theme, and cite each referenced commit with GitHub hash links.
 
 ---
 
