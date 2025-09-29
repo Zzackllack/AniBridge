@@ -1,0 +1,15 @@
+# Nixpacks configuration for deploying the AniBridge FastAPI application.
+
+[providers.python]
+version = "3.12"
+
+[environment]
+PYTHONUNBUFFERED = "1"
+
+[phases.install]
+commands = [
+  "pip install --no-cache-dir -r requirements.runtime.txt"
+]
+
+[start]
+cmd = "python -m app.main"
