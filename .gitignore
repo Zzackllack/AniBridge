@@ -531,11 +531,43 @@ release/
 .wrangler/
 changelog.md
 
-# Codex overlay: keep auth/logs in ~/.codex; only track per-project prompts/commands
-# Ignore .codex/* but re-include .codex/prompts and .codex/commands below
+# ───── Spec-Kit (specify) ─────
 
+# Ignore ephemeral state
+.specify/.cache/
+.specify/tmp/
+.specify/logs/
+.specify/runs/
+
+# Keep authored artifacts
+!.specify/spec.md
+!.specify/plan.md
+!.specify/tasks.md
+!.specify/constitution.md
+!.specify/templates/**
+!.specify/scripts/**
+!.specify/specs/**
+
+# ───── Codex overlay ─────
+
+# Ignore everything by default inside .codex
 .codex/*
+
+# Keep project prompts & commands (versioned, shared)
 !.codex/prompts/
 !.codex/prompts/**
 !.codex/commands/
 !.codex/commands/**
+
+# Ignore junk that can appear under .codex
+.codex/logs/
+.codex/cache/
+.codex/sessions/
+.codex/*.db
+
+# ───── Agent-specific local dirs (other tools) ─────
+
+.cursor/
+.claude/
+.windsurf/
+.gemini/
