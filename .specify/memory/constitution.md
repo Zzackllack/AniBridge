@@ -1,14 +1,15 @@
 <!--
 Sync Impact Report
-Version change: none → 1.0.0
+Version change: 1.0.0 → 2.0.0
 Modified principles:
-- N/A → Service Contract Fidelity
-- N/A → Agent-Oriented Code Quality
-- N/A → Test-Driven Assurance
-- N/A → Operational Observability
-- N/A → Controlled Automation & Compliance
+- Service Contract Fidelity → User Experience Consistency
+- Agent-Oriented Code Quality → Code Quality Stewardship
+- Test-Driven Assurance → Test-Centric Reliability
+- Operational Observability → Performance & Resilience Discipline
+Removed sections:
+- Controlled Automation & Compliance (guidance consolidated under Operational Constraints)
 Added sections:
-- none (populated existing template placeholders)
+- none
 Removed sections:
 - none
 Templates requiring updates:
@@ -22,55 +23,53 @@ Follow-up TODOs:
 
 ## Core Principles
 
-### Service Contract Fidelity
-- AniBridge MUST preserve compatibility for Torznab, qBittorrent, downloader, and health endpoints; any contract change ships with updated FastAPI schemas, automated tests, and migration notes before merge.
-- Breaking changes MUST provide downstream guidance for Sonarr, Prowlarr, and other clients in README or release notes, including configuration updates when required.
-- Every new or modified endpoint MUST declare explicit request/response models, status codes, and error envelopes to keep integrations predictable.
-Rationale: Downstream automation depends on stable contracts; regressions translate directly into failed downloads and scheduler stalls.
+### Code Quality Stewardship
 
-### Agent-Oriented Code Quality
-- Production code MUST include Python 3.12 type hints, English docstrings, and concise comments that explain intent for both humans and AI agents.
-- Modules within `app/` MUST remain single-responsibility; reuse shared helpers (naming, magnet, scheduler) instead of duplicating logic.
-- Configuration, secrets, and file-system paths MUST flow through `app.config` or environment variables—never hard-coded.
-Rationale: Consistent structure and clear guidance let contributors and automation agents act safely without rediscovering context each time.
+- Production Python code MUST target 3.12, include explicit type hints, and carry intent-revealing docstrings so contributors and agents can safely reason about scheduler, downloader, and API flows.
+- Module boundaries in `app/` MUST stay cohesive: shared behavior lives in `app/utils` or `app/config`, API contracts stay under `app/api`, and background orchestration remains in `app/core`—duplicate logic or unchecked side effects are unconstitutional.
+- Configuration, filesystem paths, and secrets MUST pass through `app.config` and environment variables; hard-coded values, inline credentials, or silent mutations of `data/` assets are prohibited.
+Rationale: High-quality, structured code keeps the service maintainable and predictable for both human reviewers and automation.
 
-### Test-Driven Assurance
-- All behavioral changes MUST begin with failing `pytest` coverage (unit, integration, or contract) that captures the expected outcome before implementation.
-- CI and local workflows MUST run `pytest` and `black` with no failures before code review; skip-failing tests are prohibited except under documented hotfix procedures.
-- Bug fixes MUST add regression tests alongside documentation of root cause to stop repeating incidents.
-Rationale: Tests are the enforcement arm of the constitution—without them automation cannot guarantee reliability.
+### Test-Centric Reliability
 
-### Operational Observability
-- Logging MUST use `loguru` with structured fields for job ids, titles, and provider metadata; silent failures are unconstitutional.
-- The `/health` endpoint MUST reflect downloader, scheduler, and storage readiness; regressions require immediate test coverage.
-- Background jobs MUST emit progress events and persist status to SQLModel tables so operators can audit and recover work.
-Rationale: Observability keeps automated operations debuggable and auditable, enabling fast recovery when providers change behavior.
+- Every behavioral change MUST begin with failing `pytest` coverage—contract, unit, or integration—before implementation; skipping red tests or retrofitting coverage after the fact is disallowed.
+- API and scheduler contracts MUST be guarded by deterministic tests under `tests/api/` and `tests/integration/`, including qBittorrent shims, Torznab feeds, downloader lifecycles, and `/health` readiness.
+- Regression fixes MUST document the root cause in tests or commit notes and keep fixtures (e.g., AniWorld snapshots, download payloads) up to date for repeatable automation.
+Rationale: Tests are the enforcement layer that protects downstream automation from regressions.
 
-### Controlled Automation & Compliance
-- Features MUST respect the Legal Disclaimer; document any geo-routing, proxy, or scraping changes alongside risk notes before release.
-- Experimental capabilities (e.g., proxy toggles) MUST remain opt-in with defaults that favor safe execution and clear warnings in docs.
-- Sensitive identifiers (accounts, cookies, tokens) MUST enter via runtime configuration and stay out of logs, repos, and default data files.
-Rationale: Responsible automation protects contributors and users from legal, security, and reputational fallout.
+### User Experience Consistency
+
+- HTTP responses, status codes, and payload shapes MUST remain compatible with Sonarr, Prowlarr, and qBittorrent expectations; any deviation ships with updated FastAPI schemas, client guidance, and release notes.
+- User-facing assets—`README.md`, VitePress docs, CLI output, and health reporting—MUST be updated in the same change that alters behavior or configuration so operators never guess the new workflow.
+- Error messaging and logging MUST stay in English, be actionable, and avoid leaking secrets, enabling consistent troubleshooting across environments.
+Rationale: A stable, well-documented interface keeps automation chains and human operators aligned.
+
+### Performance & Resilience Discipline
+
+- Scheduler and downloader code MUST honor configurable concurrency limits, avoid blocking the FastAPI event loop, and prove long-running work executes in background threads with progress persisted to SQLModel tables.
+- `/health`, `/torznab/api`, and qBittorrent endpoints MUST maintain sub-200 ms p95 responses under nominal load; performance-sensitive changes require profiling evidence or load-test notes in the PR.
+- Logging via Loguru MUST remain structured (job ids, provider metadata, durations) and exception-safe, ensuring recovery data exists after failures or provider changes.
+Rationale: Performance guardrails keep AniBridge responsive while protecting reliability during heavy download windows.
 
 ## Operational Constraints
 
-- Runtime baseline is Python 3.12 with FastAPI, SQLModel, Loguru, and yt-dlp; adding or upgrading dependencies requires design review and compatibility testing.
-- Persistent artifacts live under `data/`; migrations MUST preserve forward compatibility and document rebuild steps when unavoidable.
-- Scheduler concurrency, download directories, and proxy behavior MUST remain configurable via environment variables or `config.py`—never hard-coded.
-- Docker images MUST run as non-root, expose `/health`, and document required volumes for persistence.
+- Runtime baseline is Python 3.12 with FastAPI, SQLModel, Loguru, and yt-dlp; adding or upgrading dependencies demands design review, compatibility testing, and updated deployment notes.
+- Persistent artifacts live under `data/`; schema or storage migrations MUST preserve forward compatibility and document rebuild or cleanup steps when unavoidable.
+- Proxy, scheduler, and download configuration MUST remain environment-driven; defaults favor safe execution with opt-in flags for experimental behavior.
+- Legal and compliance requirements from `LEGAL.md` remain binding: escalations involving proxies, scraping, or geo-routing MUST include risk commentary and secure secret handling.
 
 ## Workflow & Review Gates
 
-1. Every feature begins with `/plan` and `/tasks` outputs; constitution checks MUST pass before implementation proceeds.
-2. Pull requests MUST show passing tests, formatting, and updated documentation (README, AGENTS.md, or specs) for any user-visible change.
-3. Release notes MUST summarize contract changes, migrations, and observability impacts for operators.
-4. Contributors MUST translate non-English comments before merge and remove dead code discovered during review.
+1. Every feature begins with `/plan` and `/tasks`; Constitution checks MUST pass before implementation proceeds.
+2. Pull requests MUST demonstrate passing tests, formatting, and updated documentation/releases for any user-facing or configuration change.
+3. Release notes MUST summarize contract impacts, performance considerations, and migration actions required for operators.
+4. Contributors MUST translate non-English comments before merge, remove dead code, and ensure codeowners/maintainers can trace decisions to specs or tests.
 
 ## Governance
 
-- Amendments require an RFC or issue describing the rationale, evidence of downstream impact, and updates to dependent templates before merge.
-- Constitution versioning follows SemVer: MAJOR for incompatible governance changes, MINOR for new principles or sections, PATCH for clarifications.
-- A compliance review (at least once per quarter or before major releases) MUST confirm templates, specs, and runtime guidance reflect the current constitution.
-- Ratified amendments MUST update this file, the Sync Impact Report, and notify maintainers via release notes or changelog entry.
+- Amendments require an RFC or issue documenting rationale, downstream impacts, and updates to dependent templates before merge.
+- Constitution versioning follows SemVer: MAJOR for incompatible governance or principle overhauls, MINOR for new principles/sections, PATCH for clarifications.
+- Compliance reviews (at least quarterly or before major releases) MUST confirm templates, specs, and runtime guidance reflect this constitution and the legal posture.
+- Ratified amendments MUST update this file, the Sync Impact Report, and notify maintainers via release notes or changelog entries.
 
-**Version**: 1.0.0 | **Ratified**: 2025-09-21 | **Last Amended**: 2025-09-21
+**Version**: 2.0.0 | **Ratified**: 2025-09-21 | **Last Amended**: 2025-10-05

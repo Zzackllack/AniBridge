@@ -727,15 +727,15 @@ When running via Docker Compose, environment variables are pre-wired with defaul
 ## 25. Automation Framework (.specify)
 
 - **Constitution (`.specify/memory/constitution.md`):**
-  - Version 1.0.0, ratified 2025-09-21.
-  - Principles: Service Contract Fidelity, Agent-Oriented Code Quality, Test-Driven Assurance, Operational Observability, Controlled Automation & Compliance.
+  - Version 2.0.0, ratified 2025-09-21.
+  - Principles: Code Quality Stewardship, Test-Centric Reliability, User Experience Consistency, Performance & Resilience Discipline.
   - Additional sections: Operational Constraints, Workflow & Review Gates, Governance.
   - Sync Impact Report appended as HTML comment summarizing version changes.
 
 - **Templates:**
   - `plan-template.md` — Guides `/plan` command with constitution check gate, repository structure reference, and progress tracking.
-  - `spec-template.md` — Feature specification guidelines focusing on user value, contract impacts, observability, compliance.
-  - `tasks-template.md` — Defines TDD-first task generation with AniBridge-specific path conventions and compliance tasks.
+  - `spec-template.md` — Feature specification guidelines focusing on user value, contract impacts, user experience alignment, performance guardrails, and compliance.
+  - `tasks-template.md` — Defines TDD-first task generation with AniBridge-specific path conventions, performance/resilience hardening, and compliance tasks.
   - `agent-file-template.md` — Baseline instructions for agent overlays (Codex, Copilot, etc.).
 
 - **Scripts:** `.specify/scripts` contains automation helpers (inspect before use).
@@ -750,13 +750,12 @@ When running via Docker Compose, environment variables are pre-wired with defaul
 
 For every initiative, confirm adherence:
 
-1. **Service Contract Fidelity** — Document API impacts, update schema/test coverage, communicate downstream migration steps.
-2. **Agent-Oriented Code Quality** — Maintain modular boundaries, add type hints/docstrings, avoid duplication.
-3. **Test-Driven Assurance** — Author failing tests first, run `pytest` and `black` before PR.
-4. **Operational Observability** — Expand logging/health checks when behavior changes, keep telemetry structured.
-5. **Controlled Automation & Compliance** — Respect legal constraints, document proxy/geo changes, keep secrets out of logs.
-6. **Operational Constraints** — Maintain Python 3.12 baseline, coordinate dependency updates, document migrations.
-7. **Workflow & Review Gates** — Produce `/plan` and `/tasks`, update docs/changelogs, ensure reviewers can verify compliance.
+1. **Code Quality Stewardship** — Maintain modular boundaries, type hints, docstrings, and configuration hygiene.
+2. **Test-Centric Reliability** — Author failing tests first, run `pytest` and `black`, keep fixtures deterministic.
+3. **User Experience Consistency** — Document API impacts, update docs/releases, keep error messaging actionable.
+4. **Performance & Resilience Discipline** — Preserve concurrency limits, structured logging, and `/health` responsiveness.
+5. **Operational Constraints** — Maintain Python 3.12 baseline, coordinate dependency updates, document migrations and legal posture.
+6. **Workflow & Review Gates** — Produce `/plan` and `/tasks`, update docs/changelogs, ensure reviewers can verify compliance.
 
 ---
 
