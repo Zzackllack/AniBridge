@@ -1,137 +1,250 @@
+---
+description: "Task list template for feature implementation"
+---
+
 # Tasks: [FEATURE NAME]
 
 **Input**: Design documents from `/specs/[###-feature-name]/`
-**Prerequisites**: plan.md (required), research.md, data-model.md, contracts/
+**Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
-## Execution Flow (main)
+**Tests**: The examples below include test tasks. Tests are OPTIONAL - only include them if explicitly requested in the feature specification.
 
-```
-1. Load plan.md from feature directory
-   → If not found: ERROR "No implementation plan found"
-   → Extract: tech stack, libraries, structure
-2. Load optional design documents:
-   → data-model.md: Extract entities → model tasks
-   → contracts/: Each file → contract test task
-   → research.md: Extract decisions → setup tasks
-3. Generate tasks by category:
-   → Setup: project init, dependencies, linting
-   → Tests: contract tests, integration tests
-   → Core: models, services, CLI commands
-   → Integration: DB, middleware, logging
-   → Polish: unit tests, performance, docs
-4. Apply task rules:
-   → Different files = mark [P] for parallel
-   → Same file = sequential (no [P])
-   → Tests before implementation (TDD)
-5. Number tasks sequentially (T001, T002...)
-6. Generate dependency graph
-7. Create parallel execution examples
-8. Validate task completeness:
-   → All contracts have tests?
-   → All entities have models?
-   → All endpoints implemented?
-9. Return: SUCCESS (tasks ready for execution)
-```
+**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
-## Format: `[ID] [P?] Description`
-
+## Format: `[ID] [P?] [Story] Description`
 - **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
 - Include exact file paths in descriptions
 
 ## Path Conventions
+- **Single project**: `src/`, `tests/` at repository root
+- **Web app**: `backend/src/`, `frontend/src/`
+- **Mobile**: `api/src/`, `ios/src/` or `android/src/`
+- Paths shown below assume single project - adjust based on plan.md structure
 
-- Application modules live in `app/` (e.g., `torznab.py`, `qbittorrent.py`, `downloader.py`, `scheduler.py`).
-- Tests reside in `tests/` (`api/`, `integration/`, `regression/`) and MUST mirror the contracts they protect.
-- Persistent data and runtime artifacts live under `data/`; tasks NEVER mutate committed artifacts there.
-- Documentation and specs live in `.specify/`, `README.md`, `AGENTS.md`, and related docs.
+<!-- 
+  ============================================================================
+  IMPORTANT: The tasks below are SAMPLE TASKS for illustration purposes only.
+  
+  The /speckit.tasks command MUST replace these with actual tasks based on:
+  - User stories from spec.md (with their priorities P1, P2, P3...)
+  - Feature requirements from plan.md
+  - Entities from data-model.md
+  - Endpoints from contracts/
+  
+  Tasks MUST be organized by user story so each story can be:
+  - Implemented independently
+  - Tested independently
+  - Delivered as an MVP increment
+  
+  DO NOT keep these sample tasks in the generated tasks.md file.
+  ============================================================================
+-->
 
-## Phase 3.1: Setup
+## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Verify environment prerequisites and update `requirements.txt`, Docker files, or scripts per plan decisions.
-- [ ] T002 Document new configuration flags in `app/config.py` and `README.md` with safe defaults.
-- [ ] T003 [P] Capture deterministic fixtures (e.g., AniWorld responses, qBittorrent payloads) in `tests/fixtures/` for contract tests.
+**Purpose**: Project initialization and basic structure
 
-## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
+- [ ] T001 Create project structure per implementation plan
+- [ ] T002 Initialize [language] project with [framework] dependencies
+- [ ] T003 [P] Configure linting and formatting tools
 
-**CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
+---
 
-- [ ] T004 [P] Contract test `/torznab/api` caps response in `tests/api/test_torznab_caps.py`
-- [ ] T005 [P] Contract test `/api/v2/auth/login` flow in `tests/api/test_qbittorrent_auth.py`
-- [ ] T006 [P] Integration test downloader job lifecycle in `tests/integration/test_downloader_flow.py`
-- [ ] T007 [P] Health endpoint regression test reflecting scheduler/storage readiness in `tests/integration/test_health.py`
+## Phase 2: Foundational (Blocking Prerequisites)
 
-## Phase 3.3: Core Implementation (ONLY after tests are failing)
+**Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
 
-- [ ] T008 [P] Extend Torznab feed logic per spec in `app/torznab.py`
-- [ ] T009 [P] Update qBittorrent session handling in `app/qbittorrent.py`
-- [ ] T010 [P] Implement downloader orchestration changes in `app/downloader.py`
-- [ ] T011 Persist progress telemetry and invariants in `app/models.py`
-- [ ] T012 Wire configuration toggles and validation in `app/config.py`
+**⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-## Phase 3.4: Integration & Resilience
+Examples of foundational tasks (adjust based on your project):
 
-- [ ] T013 Align scheduler logging and metrics with structured fields in `app/scheduler.py`
-- [ ] T014 Update `/health` and associated routing in `app/main.py`
-- [ ] T015 Validate migrations/data persistence steps and document recovery guidance
-- [ ] T016 [P] Ensure sensitive data is redacted in logs and tests per compliance requirements
+- [ ] T004 Setup database schema and migrations framework
+- [ ] T005 [P] Implement authentication/authorization framework
+- [ ] T006 [P] Setup API routing and middleware structure
+- [ ] T007 Create base models/entities that all stories depend on
+- [ ] T008 Configure error handling and logging infrastructure
+- [ ] T009 Setup environment configuration management
 
-## Phase 3.5: Compliance & Polish
+**Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
-- [ ] T017 [P] Refresh README, AGENTS.md, and release notes with contract changes and migration steps
-- [ ] T018 Record legal/compliance considerations in `LEGAL.md` or release notes
-- [ ] T019 [P] Run full `pytest` suite and capture artifacts for PR validation
-- [ ] T020 Remove dead code, translate lingering non-English comments, and run `black`
+---
 
-## Dependencies
+## Phase 3: User Story 1 - [Title] (Priority: P1) 🎯 MVP
 
-- Tests (T004–T007) MUST precede implementation (T008–T012)
-- T008/T009/T010 feed into observability tasks (T013–T016)
-- Documentation and compliance polish (T017–T020) close out after implementation passes
+**Goal**: [Brief description of what this story delivers]
 
-## Parallel Example
+**Independent Test**: [How to verify this story works on its own]
 
+### Tests for User Story 1 (OPTIONAL - only if tests requested) ⚠️
+
+**NOTE: Write these tests FIRST, ensure they FAIL before implementation**
+
+- [ ] T010 [P] [US1] Contract test for [endpoint] in tests/contract/test_[name].py
+- [ ] T011 [P] [US1] Integration test for [user journey] in tests/integration/test_[name].py
+
+### Implementation for User Story 1
+
+- [ ] T012 [P] [US1] Create [Entity1] model in src/models/[entity1].py
+- [ ] T013 [P] [US1] Create [Entity2] model in src/models/[entity2].py
+- [ ] T014 [US1] Implement [Service] in src/services/[service].py (depends on T012, T013)
+- [ ] T015 [US1] Implement [endpoint/feature] in src/[location]/[file].py
+- [ ] T016 [US1] Add validation and error handling
+- [ ] T017 [US1] Add logging for user story 1 operations
+
+**Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
+
+---
+
+## Phase 4: User Story 2 - [Title] (Priority: P2)
+
+**Goal**: [Brief description of what this story delivers]
+
+**Independent Test**: [How to verify this story works on its own]
+
+### Tests for User Story 2 (OPTIONAL - only if tests requested) ⚠️
+
+- [ ] T018 [P] [US2] Contract test for [endpoint] in tests/contract/test_[name].py
+- [ ] T019 [P] [US2] Integration test for [user journey] in tests/integration/test_[name].py
+
+### Implementation for User Story 2
+
+- [ ] T020 [P] [US2] Create [Entity] model in src/models/[entity].py
+- [ ] T021 [US2] Implement [Service] in src/services/[service].py
+- [ ] T022 [US2] Implement [endpoint/feature] in src/[location]/[file].py
+- [ ] T023 [US2] Integrate with User Story 1 components (if needed)
+
+**Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
+
+---
+
+## Phase 5: User Story 3 - [Title] (Priority: P3)
+
+**Goal**: [Brief description of what this story delivers]
+
+**Independent Test**: [How to verify this story works on its own]
+
+### Tests for User Story 3 (OPTIONAL - only if tests requested) ⚠️
+
+- [ ] T024 [P] [US3] Contract test for [endpoint] in tests/contract/test_[name].py
+- [ ] T025 [P] [US3] Integration test for [user journey] in tests/integration/test_[name].py
+
+### Implementation for User Story 3
+
+- [ ] T026 [P] [US3] Create [Entity] model in src/models/[entity].py
+- [ ] T027 [US3] Implement [Service] in src/services/[service].py
+- [ ] T028 [US3] Implement [endpoint/feature] in src/[location]/[file].py
+
+**Checkpoint**: All user stories should now be independently functional
+
+---
+
+[Add more user story phases as needed, following the same pattern]
+
+---
+
+## Phase N: Polish & Cross-Cutting Concerns
+
+**Purpose**: Improvements that affect multiple user stories
+
+- [ ] TXXX [P] Documentation updates in docs/
+- [ ] TXXX Code cleanup and refactoring
+- [ ] TXXX Performance optimization across all stories
+- [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
+- [ ] TXXX Security hardening
+- [ ] TXXX Run quickstart.md validation
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Setup (Phase 1)**: No dependencies - can start immediately
+- **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all user stories
+- **User Stories (Phase 3+)**: All depend on Foundational phase completion
+  - User stories can then proceed in parallel (if staffed)
+  - Or sequentially in priority order (P1 → P2 → P3)
+- **Polish (Final Phase)**: Depends on all desired user stories being complete
+
+### User Story Dependencies
+
+- **User Story 1 (P1)**: Can start after Foundational (Phase 2) - No dependencies on other stories
+- **User Story 2 (P2)**: Can start after Foundational (Phase 2) - May integrate with US1 but should be independently testable
+- **User Story 3 (P3)**: Can start after Foundational (Phase 2) - May integrate with US1/US2 but should be independently testable
+
+### Within Each User Story
+
+- Tests (if included) MUST be written and FAIL before implementation
+- Models before services
+- Services before endpoints
+- Core implementation before integration
+- Story complete before moving to next priority
+
+### Parallel Opportunities
+
+- All Setup tasks marked [P] can run in parallel
+- All Foundational tasks marked [P] can run in parallel (within Phase 2)
+- Once Foundational phase completes, all user stories can start in parallel (if team capacity allows)
+- All tests for a user story marked [P] can run in parallel
+- Models within a story marked [P] can run in parallel
+- Different user stories can be worked on in parallel by different team members
+
+---
+
+## Parallel Example: User Story 1
+
+```bash
+# Launch all tests for User Story 1 together (if tests requested):
+Task: "Contract test for [endpoint] in tests/contract/test_[name].py"
+Task: "Integration test for [user journey] in tests/integration/test_[name].py"
+
+# Launch all models for User Story 1 together:
+Task: "Create [Entity1] model in src/models/[entity1].py"
+Task: "Create [Entity2] model in src/models/[entity2].py"
 ```
-# Launch T004–T007 together:
-Task: "Contract test /torznab/api caps response in tests/api/test_torznab_caps.py"
-Task: "Contract test /api/v2/auth/login in tests/api/test_qbittorrent_auth.py"
-Task: "Integration test downloader job lifecycle in tests/integration/test_downloader_flow.py"
-Task: "Health endpoint regression test in tests/integration/test_health.py"
-```
+
+---
+
+## Implementation Strategy
+
+### MVP First (User Story 1 Only)
+
+1. Complete Phase 1: Setup
+2. Complete Phase 2: Foundational (CRITICAL - blocks all stories)
+3. Complete Phase 3: User Story 1
+4. **STOP and VALIDATE**: Test User Story 1 independently
+5. Deploy/demo if ready
+
+### Incremental Delivery
+
+1. Complete Setup + Foundational → Foundation ready
+2. Add User Story 1 → Test independently → Deploy/Demo (MVP!)
+3. Add User Story 2 → Test independently → Deploy/Demo
+4. Add User Story 3 → Test independently → Deploy/Demo
+5. Each story adds value without breaking previous stories
+
+### Parallel Team Strategy
+
+With multiple developers:
+
+1. Team completes Setup + Foundational together
+2. Once Foundational is done:
+   - Developer A: User Story 1
+   - Developer B: User Story 2
+   - Developer C: User Story 3
+3. Stories complete and integrate independently
+
+---
 
 ## Notes
 
 - [P] tasks = different files, no dependencies
+- [Story] label maps task to specific user story for traceability
+- Each user story should be independently completable and testable
 - Verify tests fail before implementing
-- Document secrets handling and risk notes alongside code changes
-- Commit after each task; avoid concurrent edits to the same file
+- Commit after each task or logical group
+- Stop at any checkpoint to validate story independently
+- Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
 
-## Task Generation Rules
 
-*Applied during main() execution*
-
-1. **From Contracts**:
-   - Each FastAPI contract → contract test task [P] before implementation
-   - Each endpoint/service change → corresponding implementation task with file path
-
-2. **From Data Model & Scheduler**:
-   - Entities/tables → model or migration task [P]
-   - Scheduler/job orchestration updates → performance, resilience, and logging tasks
-
-3. **From User Stories & Compliance Notes**:
-   - User flows → integration tests and documentation tasks
-   - Legal or configuration requirements → compliance/documentation tasks
-
-4. **Ordering**:
-   - Setup → Tests → Core implementation → Observability/Integration → Compliance & Polish
-   - Dependencies block parallel execution; never parallelize edits on the same module
-
-## Validation Checklist
-
-*GATE: Checked by main() before returning*
-
-- [ ] All contracts have corresponding failing tests before implementation tasks
-- [ ] Scheduler, performance/resilience, logging, and compliance tasks exist for relevant changes
-- [ ] All tests precede implementation tasks in ordering
-- [ ] Parallel tasks operate on distinct files
-- [ ] Each task specifies exact file paths or docs impacted
-- [ ] Sensitive data handling and documentation updates are represented when required
