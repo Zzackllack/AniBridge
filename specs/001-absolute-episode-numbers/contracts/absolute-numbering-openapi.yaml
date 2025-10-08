@@ -1,0 +1,118 @@
+openapi: 3.1.0
+info:
+  title: AniBridge Absolute Numbering Extensions
+  version: "1.0.0"
+servers:
+  - url: https://anibridge.local
+paths:
+  /torznab/api:
+    get:
+      summary: Search AniWorld catalogue via Torznab
+      description: >
+        Supports both standard SxxExx identifiers and absolute numbering (e.g., "003") when the client is configured for anime absolute mode.
+      parameters:
+        - name: t
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [search, tvsearch, caps]
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search term or absolute identifier when `sonarrAbsolute` is true.
+        - name: sonarrAbsolute
+          in: query
+          schema:
+            type: boolean
+          description: Hint from Sonarr indicating the request was issued in absolute-numbering mode; detection primarily uses identifier parsing but this flag remains backward compatible.
+        - name: series
+          in: query
+          schema:
+            type: string
+          description: AniWorld slug / Sonarr series identifier.
+      responses:
+        "200":
+          description: Torznab response containing mapped episodes.
+          content:
+            application/xml:
+              schema:
+                type: string
+                description: >
+                  Torznab XML feed listing episodes. When handling absolute requests, results include an `anibridge:absoluteNumber` attribute indicating the original identifier.
+        "404":
+          description: No matching episodes found
+  /api/v2/sync/maindata:
+    get:
+      summary: qBittorrent compatibility endpoint
+      description: >
+        Returns job state including absolute identifiers when the request originated from an absolute-numbered search.
+      responses:
+        "200":
+          description: Sync payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  torrents:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          description: Includes `[ABS 003]` prefix when reporting absolute jobs.
+                        state:
+                          type: string
+                        progress:
+                          type: number
+                          format: float
+                          minimum: 0
+                          maximum: 1
+                        anibridgeAbsolute:
+                          type: integer
+                          description: Original absolute episode number when available.
+  /api/v2/torrents/info:
+    get:
+      summary: List torrents with absolute numbering metadata
+      responses:
+        "200":
+          description: Torrent list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      description: >
+                        File name returned to Sonarr; matches absolute numbering when the job originated from absolute mode.
+                    anibridgeAbsolute:
+                      type: integer
+                      nullable: true
+                      description: Absolute index used for the download; null when not applicable.
+components:
+  schemas:
+    EpisodeNumberMapping:
+      type: object
+      properties:
+        seriesSlug:
+          type: string
+        absoluteNumber:
+          type: integer
+          minimum: 1
+        season:
+          type: integer
+          minimum: 1
+        episode:
+          type: integer
+          minimum: 1
+        episodeTitle:
+          type: string
+        lastSyncedAt:
+          type: string
+          format: date-time
