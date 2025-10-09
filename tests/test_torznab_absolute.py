@@ -96,6 +96,57 @@ def test_tvsearch_absolute_converts_episode_indices(client, monkeypatch, availab
     assert captured["magnet_calls"] == [(2, 1)]
 
 
+def test_tvsearch_absolute_uses_series_param_when_query_missing(
+    client, monkeypatch, availability_record
+):
+    import app.api.torznab as tn
+    from app.utils import absolute_numbering as absmap
+
+    monkeypatch.setattr(tn, "_slug_from_query", lambda q: None)
+    monkeypatch.setattr(tn, "resolve_series_title", lambda slug: "Series ABS")
+
+    monkeypatch.setattr(
+        absmap,
+        "fetch_episode_catalog",
+        lambda slug: [
+            {"absolute": 3, "season": 1, "episode": 3, "title": "Episode 3"}
+        ],
+    )
+
+    monkeypatch.setattr(
+        tn,
+        "list_available_languages_cached",
+        lambda session, slug, season, episode: ["German Dub"],
+    )
+    monkeypatch.setattr(
+        tn,
+        "get_availability",
+        lambda session, slug, season, episode, language: availability_record,
+    )
+    monkeypatch.setattr(
+        tn,
+        "probe_episode_quality",
+        lambda slug, season, episode, language: (True, 1080, "h264", "prov", {}),
+    )
+
+    resp = client.get(
+        "/torznab/api",
+        params={
+            "t": "tvsearch",
+            "series": "series-abs",
+            "season": 1,
+            "ep": 3,
+            "sonarrAbsolute": "true",
+        },
+    )
+    assert resp.status_code == 200
+    root = ET.fromstring(resp.text)
+    attr = root.find(
+        ".//{http://torznab.com/schemas/2015/feed}attr[@name='absoluteNumber']"
+    )
+    assert attr is not None and attr.get("value") == "3"
+
+
 def test_tvsearch_absolute_fallback_returns_catalog(
     client, monkeypatch, availability_record, caplog
 ):
