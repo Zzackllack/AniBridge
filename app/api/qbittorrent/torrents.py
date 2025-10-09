@@ -193,10 +193,10 @@ def torrents_info(
                 "added_on": int(r.added_on.timestamp()),
                 "completion_on": int((r.completion_on or r.added_on).timestamp()),
                 "size": int(size or 0),
-        "num_seeds": 0,
-        "num_leechs": 0,
-        "anibridgeAbsolute": r.absolute_number,
-    }
+                "num_seeds": 0,
+                "num_leechs": 0,
+                "anibridgeAbsolute": r.absolute_number,
+            }
         )
     logger.success("Torrent info response generated.")
     return JSONResponse(out)

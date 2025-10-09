@@ -100,9 +100,7 @@ def torznab_api(
             if not slug and series:
                 slug = series.strip()
             if slug:
-                display_title = (
-                    tn.resolve_series_title(slug) or q_str or series or slug
-                )
+                display_title = tn.resolve_series_title(slug) or q_str or series or slug
                 fetch_catalog = lambda: absmap.fetch_episode_catalog(slug)
                 targets: List[dict]
                 fallback_used = False
@@ -302,7 +300,9 @@ def torznab_api(
                 "utf-8"
             )
             logger.debug("Absolute request resolved to no episodes.")
-            return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
+            return Response(
+                content=xml, media_type="application/rss+xml; charset=utf-8"
+            )
         targets = [
             {
                 "season": mapping.season_number,
@@ -319,7 +319,9 @@ def torznab_api(
                 "utf-8"
             )
             logger.debug("Standard request missing season/episode information.")
-            return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
+            return Response(
+                content=xml, media_type="application/rss+xml; charset=utf-8"
+            )
         targets = [
             {
                 "season": season_i,
@@ -394,11 +396,13 @@ def torznab_api(
                 )
             else:
                 try:
-                    available, height, vcodec, prov_used, _info = tn.probe_episode_quality(
-                        slug=slug,
-                        season=season_val,
-                        episode=episode_val,
-                        language=lang,
+                    available, height, vcodec, prov_used, _info = (
+                        tn.probe_episode_quality(
+                            slug=slug,
+                            season=season_val,
+                            episode=episode_val,
+                            language=lang,
+                        )
                     )
                 except Exception as e:
                     logger.error(
@@ -452,7 +456,9 @@ def torznab_api(
                     absolute_number=absolute_val,
                 )
             except Exception as e:
-                logger.error(f"Error building magnet for release '{release_title}': {e}")
+                logger.error(
+                    f"Error building magnet for release '{release_title}': {e}"
+                )
                 continue
 
             guid = f"aw:{slug}:s{season_val}e{episode_val}:{lang}"
@@ -472,7 +478,9 @@ def torznab_api(
                 if fallback_used and absolute_candidate is not None:
                     tn._add_torznab_attr(item, "anibridgeFallback", "true")
             except Exception as e:
-                logger.error(f"Error building RSS item for release '{release_title}': {e}")
+                logger.error(
+                    f"Error building RSS item for release '{release_title}': {e}"
+                )
                 continue
 
             count += 1
