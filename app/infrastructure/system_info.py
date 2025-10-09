@@ -189,7 +189,7 @@ def log_full_system_report() -> None:
         # Environment (masked)
         try:
             masked = {k: _mask_env_value(k, v) for k, v in os.environ.items()}
-            logger.info(f"SysInfo: env={masked}")
+            logger.debug(f"SysInfo: env={masked}")
         except Exception:
             pass
 
@@ -206,7 +206,7 @@ def log_full_system_report() -> None:
             # Limit to avoid huge logs
             head = pkgs[:100]
             more = max(0, len(pkgs) - len(head))
-            logger.info(f"SysInfo: packages(first100)={head} more={more}")
+            logger.debug(f"SysInfo: packages(first100)={head} more={more}")
         except Exception:
             pass
 
