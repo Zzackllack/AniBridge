@@ -17,6 +17,8 @@ logger.add(
 )
 
 from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JSON
+from sqlalchemy import UniqueConstraint
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import registry as sa_registry
 from sqlalchemy.pool import NullPool
 
@@ -104,6 +106,22 @@ class EpisodeAvailability(ModelBase, table=True):
         return age <= timedelta(hours=AVAILABILITY_TTL_HOURS)
 
 
+# ---------------- Absolute Episode Mapping
+class EpisodeNumberMapping(ModelBase, table=True):
+    __table_args__ = (
+        UniqueConstraint("series_slug", "absolute_number"),
+        UniqueConstraint("series_slug", "season_number", "episode_number"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    series_slug: str = Field(index=True)
+    absolute_number: int
+    season_number: int
+    episode_number: int
+    episode_title: Optional[str] = None
+    last_synced_at: datetime = Field(default_factory=utcnow, index=True)
+
+
 # ---------------- qBittorrent-Shim: ClientTask
 class ClientTask(ModelBase, table=True):
     """
@@ -115,6 +133,7 @@ class ClientTask(ModelBase, table=True):
     slug: str
     season: int
     episode: int
+    absolute_number: Optional[int] = Field(default=None, index=True)
     language: str
     job_id: Optional[str] = Field(default=None, index=True)
     save_path: Optional[str] = None
@@ -144,6 +163,25 @@ def create_db_and_tables() -> None:
         # Use this module's private metadata
         ModelBase.metadata.create_all(engine)
         logger.success("Database and tables created or already exist.")
+        table_names = sorted(ModelBase.metadata.tables.keys())
+        logger.debug("Available tables after creation: {}", table_names)
+        try:
+            insp = inspect(engine)
+            columns = {col["name"] for col in insp.get_columns("clienttask")}
+            if "absolute_number" not in columns:
+                logger.info(
+                    "Adding missing 'absolute_number' column to clienttask table."
+                )
+                with engine.begin() as conn:
+                    conn.execute(
+                        text(
+                            "ALTER TABLE clienttask ADD COLUMN absolute_number INTEGER"
+                        )
+                    )
+        except Exception as mig_exc:
+            logger.error(
+                "Failed to verify or add clienttask.absolute_number column: {}", mig_exc
+            )
     except Exception as e:
         logger.error(f"Error creating DB and tables: {e}")
 
@@ -326,6 +364,132 @@ def list_available_languages_cached(
     return fresh_langs
 
 
+# --- Episode Mapping CRUD
+def _ensure_positive(value: int, name: str) -> None:
+    if value <= 0:
+        raise ValueError(f"{name} must be positive, got {value}")
+
+
+def upsert_episode_mapping(
+    session: Session,
+    *,
+    series_slug: str,
+    absolute_number: int,
+    season_number: int,
+    episode_number: int,
+    episode_title: Optional[str] = None,
+    last_synced_at: Optional[datetime] = None,
+) -> EpisodeNumberMapping:
+    logger.debug(
+        "Upserting episode mapping for slug={} abs={} S{}E{}",
+        series_slug,
+        absolute_number,
+        season_number,
+        episode_number,
+    )
+    _ensure_positive(absolute_number, "absolute_number")
+    _ensure_positive(season_number, "season_number")
+    _ensure_positive(episode_number, "episode_number")
+
+    mapping = session.exec(
+        select(EpisodeNumberMapping).where(
+            (EpisodeNumberMapping.series_slug == series_slug)
+            & (EpisodeNumberMapping.absolute_number == absolute_number)
+        )
+    ).first()
+
+    if mapping is None:
+        mapping = session.exec(
+            select(EpisodeNumberMapping).where(
+                (EpisodeNumberMapping.series_slug == series_slug)
+                & (EpisodeNumberMapping.season_number == season_number)
+                & (EpisodeNumberMapping.episode_number == episode_number)
+            )
+        ).first()
+
+    if mapping is None:
+        mapping = EpisodeNumberMapping(
+            series_slug=series_slug,
+            absolute_number=absolute_number,
+            season_number=season_number,
+            episode_number=episode_number,
+            episode_title=episode_title,
+            last_synced_at=as_aware_utc(last_synced_at) if last_synced_at else utcnow(),
+        )
+        session.add(mapping)
+    else:
+        mapping.absolute_number = absolute_number
+        mapping.season_number = season_number
+        mapping.episode_number = episode_number
+        if episode_title is not None:
+            mapping.episode_title = episode_title
+        mapping.last_synced_at = (
+            as_aware_utc(last_synced_at) if last_synced_at else utcnow()
+        )
+        session.add(mapping)
+
+    try:
+        session.commit()
+        session.refresh(mapping)
+        logger.success(
+            "Upserted episode mapping slug={} abs={} S{}E{}",
+            series_slug,
+            absolute_number,
+            season_number,
+            episode_number,
+        )
+    except Exception as e:
+        logger.error("Failed to upsert episode mapping: {}", e)
+        session.rollback()
+        raise
+    return mapping
+
+
+def get_episode_mapping_by_absolute(
+    session: Session, *, series_slug: str, absolute_number: int
+) -> Optional[EpisodeNumberMapping]:
+    logger.debug(
+        "Fetching episode mapping by absolute number slug={} abs={}",
+        series_slug,
+        absolute_number,
+    )
+    return session.exec(
+        select(EpisodeNumberMapping).where(
+            (EpisodeNumberMapping.series_slug == series_slug)
+            & (EpisodeNumberMapping.absolute_number == absolute_number)
+        )
+    ).first()
+
+
+def get_episode_mapping_by_season_episode(
+    session: Session, *, series_slug: str, season_number: int, episode_number: int
+) -> Optional[EpisodeNumberMapping]:
+    logger.debug(
+        "Fetching episode mapping by season/episode slug={} S{}E{}",
+        series_slug,
+        season_number,
+        episode_number,
+    )
+    return session.exec(
+        select(EpisodeNumberMapping).where(
+            (EpisodeNumberMapping.series_slug == series_slug)
+            & (EpisodeNumberMapping.season_number == season_number)
+            & (EpisodeNumberMapping.episode_number == episode_number)
+        )
+    ).first()
+
+
+def list_episode_mappings_for_series(
+    session: Session, *, series_slug: str
+) -> List[EpisodeNumberMapping]:
+    logger.debug("Listing episode mappings for slug={}", series_slug)
+    return session.exec(
+        select(EpisodeNumberMapping)
+        .where(EpisodeNumberMapping.series_slug == series_slug)
+        .order_by(EpisodeNumberMapping.absolute_number)
+    ).all()
+
+
 # --- ClientTask CRUD
 def upsert_client_task(
     session: Session,
@@ -335,6 +499,7 @@ def upsert_client_task(
     slug: str,
     season: int,
     episode: int,
+    absolute_number: Optional[int] = None,
     language: str,
     save_path: Optional[str],
     category: Optional[str],
@@ -351,6 +516,7 @@ def upsert_client_task(
             slug=slug,
             season=season,
             episode=episode,
+            absolute_number=absolute_number,
             language=language,
             save_path=save_path,
             category=category,
@@ -364,6 +530,7 @@ def upsert_client_task(
         rec.slug = slug
         rec.season = season
         rec.episode = episode
+        rec.absolute_number = absolute_number
         rec.language = language
         rec.save_path = save_path
         rec.category = category

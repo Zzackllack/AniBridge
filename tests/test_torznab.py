@@ -36,16 +36,32 @@ def test_tvsearch_happy_path(client, monkeypatch):
         "get_availability",
         lambda session, slug, season, episode, language: Rec(),
     )
-    monkeypatch.setattr(
-        tn,
-        "build_release_name",
-        lambda series_title, season, episode, height, vcodec, language: "Title",
-    )
-    monkeypatch.setattr(
-        tn,
-        "build_magnet",
-        lambda title, slug, season, episode, language, provider: "magnet:?xt=urn:btih:test&dn=Title&aw_slug=slug&aw_s=1&aw_e=1&aw_lang=German+Dub",
-    )
+    def fake_build_release_name(
+        *,
+        series_title,
+        season,
+        episode,
+        absolute_number=None,
+        height=None,
+        vcodec=None,
+        language,
+    ):
+        return "Title"
+
+    def fake_build_magnet(
+        *,
+        title,
+        slug,
+        season,
+        episode,
+        language,
+        provider=None,
+        absolute_number=None,
+    ):
+        return "magnet:?xt=urn:btih:test&dn=Title&aw_slug=slug&aw_s=1&aw_e=1&aw_lang=German+Dub"
+
+    monkeypatch.setattr(tn, "build_release_name", fake_build_release_name)
+    monkeypatch.setattr(tn, "build_magnet", fake_build_magnet)
 
     resp = client.get(
         "/torznab/api",

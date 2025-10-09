@@ -122,6 +122,7 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
             slug=req.get("slug"),
             season=req.get("season"),
             episode=req.get("episode"),
+            absolute_number=req.get("absolute_number"),
             provider=req.get("provider"),
             language=(
                 str(req.get("language")) if req.get("language") is not None else ""
