@@ -433,15 +433,15 @@ def torznab_api(
             logger.debug(f"Built release title: '{release_title}'")
 
             try:
-            magnet = tn.build_magnet(
-                title=release_title,
-                slug=slug,
-                season=season_val,
-                episode=episode_val,
-                language=lang,
-                provider=prov_used,
-                absolute_number=absolute_val,
-            )
+                magnet = tn.build_magnet(
+                    title=release_title,
+                    slug=slug,
+                    season=season_val,
+                    episode=episode_val,
+                    language=lang,
+                    provider=prov_used,
+                    absolute_number=absolute_val,
+                )
             except Exception as e:
                 logger.error(f"Error building magnet for release '{release_title}': {e}")
                 continue

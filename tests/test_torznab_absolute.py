@@ -52,11 +52,21 @@ def test_tvsearch_absolute_converts_episode_indices(client, monkeypatch, availab
 
     captured = {}
 
-    def fake_release_name(series_title, season, episode, height, vcodec, language):
+    def fake_release_name(
+        series_title, season, episode, absolute_number=None, height=None, vcodec=None, language=None
+    ):
         captured.setdefault("release_calls", []).append((season, episode))
         return f"{series_title} S{season:02d}E{episode:02d}"
 
-    def fake_magnet(title, slug, season, episode, language, provider):
+    def fake_magnet(
+        title,
+        slug,
+        season,
+        episode,
+        language,
+        provider=None,
+        absolute_number=None,
+    ):
         captured.setdefault("magnet_calls", []).append((season, episode))
         return f"magnet:?xt=urn:btih:{slug}-{season}-{episode}"
 
@@ -126,12 +136,12 @@ def test_tvsearch_absolute_fallback_returns_catalog(
     monkeypatch.setattr(
         tn,
         "build_release_name",
-        lambda series_title, season, episode, height, vcodec, language: f"{series_title} S{season:02d}E{episode:02d}",
+        lambda series_title, season, episode, absolute_number=None, height=None, vcodec=None, language=None: f"{series_title} S{season:02d}E{episode:02d}",
     )
     monkeypatch.setattr(
         tn,
         "build_magnet",
-        lambda title, slug, season, episode, language, provider: f"magnet:?xt=urn:btih:{slug}-{season}-{episode}",
+        lambda title, slug, season, episode, language, provider=None, absolute_number=None: f"magnet:?xt=urn:btih:{slug}-{season}-{episode}",
     )
 
     monkeypatch.setattr(config, "ANIBRIDGE_FALLBACK_ALL_EPISODES", True)
