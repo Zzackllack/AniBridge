@@ -325,6 +325,14 @@ TORZNAB_CAT_ANIME = int(os.getenv("TORZNAB_CAT_ANIME", "5070"))
 AVAILABILITY_TTL_HOURS = float(os.getenv("AVAILABILITY_TTL_HOURS", "24"))
 logger.debug(f"AVAILABILITY_TTL_HOURS={AVAILABILITY_TTL_HOURS}")
 
+# --- Absolute numbering fallback toggle ---
+ANIBRIDGE_FALLBACK_ALL_EPISODES = _as_bool(
+    os.getenv("ANIBRIDGE_FALLBACK_ALL_EPISODES", None), False
+)
+logger.debug(
+    f"ANIBRIDGE_FALLBACK_ALL_EPISODES={ANIBRIDGE_FALLBACK_ALL_EPISODES}"
+)
+
 # ---- Fake Seeder/Leecher für Torznab-Items (für Prowlarr-Minimum) ----
 TORZNAB_FAKE_SEEDERS = int(os.getenv("TORZNAB_FAKE_SEEDERS", "999"))
 TORZNAB_FAKE_LEECHERS = int(os.getenv("TORZNAB_FAKE_LEECHERS", "787"))

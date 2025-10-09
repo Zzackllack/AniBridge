@@ -135,6 +135,7 @@ def build_release_name(
     series_title: str,
     season: Optional[int],
     episode: Optional[int],
+    absolute_number: Optional[int] = None,
     height: Optional[int],
     vcodec: Optional[str],
     language: str,
@@ -145,11 +146,14 @@ def build_release_name(
         f"Building release name for series_title={series_title}, season={season}, episode={episode}, height={height}, vcodec={vcodec}, language={language}"
     )
     series_part = _series_component(series_title)
-    se_part = (
-        f"S{int(season):02d}E{int(episode):02d}"
-        if (season is not None and episode is not None)
-        else ""
-    )
+    if absolute_number is not None:
+        se_part = f"ABS{int(absolute_number):03d}"
+    else:
+        se_part = (
+            f"S{int(season):02d}E{int(episode):02d}"
+            if (season is not None and episode is not None)
+            else ""
+        )
     qual_part = _map_height_to_quality(height)
     codec_part = _map_codec_name(vcodec)
     lang_part = LANG_TAG_MAP.get(language, _safe_component(language))
@@ -183,6 +187,7 @@ def rename_to_release(
     season: Optional[int],
     episode: Optional[int],
     language: str,
+    absolute_number: Optional[int] = None,
 ) -> Path:
     logger.info(f"Renaming file to release schema: {path}")
     # 1) Serien-Titel bestimmen
@@ -208,6 +213,7 @@ def rename_to_release(
         series_title=display_title,
         season=season,
         episode=episode,
+        absolute_number=absolute_number,
         height=h,
         vcodec=vc,
         language=language,

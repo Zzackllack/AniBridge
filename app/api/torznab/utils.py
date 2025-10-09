@@ -16,7 +16,7 @@ from app.config import (
 )
 
 
-SUPPORTED_PARAMS = "q,season,ep"
+SUPPORTED_PARAMS = "q,season,ep,sonarrAbsolute"
 
 
 def _require_apikey(apikey: Optional[str]) -> None:

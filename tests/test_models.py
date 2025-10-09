@@ -62,3 +62,73 @@ def test_availability_and_clienttask_crud(client):
         assert get_client_task(s, "abc")
         delete_client_task(s, "abc")
         assert get_client_task(s, "abc") is None
+
+
+def test_episode_number_mapping_crud(client):
+    from sqlmodel import Session
+    from app.db import (
+        engine,
+        upsert_episode_mapping,
+        get_episode_mapping_by_absolute,
+        get_episode_mapping_by_season_episode,
+        list_episode_mappings_for_series,
+    )
+
+    with Session(engine) as s:
+        first = upsert_episode_mapping(
+            s,
+            series_slug="series-a",
+            absolute_number=1,
+            season_number=1,
+            episode_number=1,
+            episode_title="Pilot",
+        )
+        assert first.id is not None
+        assert first.last_synced_at is not None
+
+        fetched = get_episode_mapping_by_absolute(
+            s, series_slug="series-a", absolute_number=1
+        )
+        assert fetched and fetched.season_number == 1 and fetched.episode_number == 1
+
+        updated = upsert_episode_mapping(
+            s,
+            series_slug="series-a",
+            absolute_number=1,
+            season_number=1,
+            episode_number=1,
+            episode_title="Pilot (Updated)",
+        )
+        assert updated.id == first.id
+        assert updated.episode_title == "Pilot (Updated)"
+        assert updated.last_synced_at >= first.last_synced_at
+
+        upsert_episode_mapping(
+            s,
+            series_slug="series-a",
+            absolute_number=2,
+            season_number=1,
+            episode_number=2,
+            episode_title="Second",
+        )
+
+        items = list_episode_mappings_for_series(s, series_slug="series-a")
+        assert len(items) == 2
+        assert {m.absolute_number for m in items} == {1, 2}
+
+        # Re-using the same season/episode should update the existing row instead of duplicating
+        remapped = upsert_episode_mapping(
+            s,
+            series_slug="series-a",
+            absolute_number=5,
+            season_number=1,
+            episode_number=1,
+            episode_title="Remap",
+        )
+        assert remapped.id == first.id
+        assert remapped.absolute_number == 5
+
+        by_pair = get_episode_mapping_by_season_episode(
+            s, series_slug="series-a", season_number=1, episode_number=1
+        )
+        assert by_pair and by_pair.absolute_number == 5

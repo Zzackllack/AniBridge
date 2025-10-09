@@ -15,10 +15,10 @@
 
 **Purpose**: Core infrastructure that MUST be complete before any user story work begins.**
 
-- [ ] T002 [Foundation] Add failing coverage in `tests/test_models.py` for the forthcoming `EpisodeNumberMapping` SQLModel (creation, unique constraints, timestamp defaults).
-- [ ] T003 [Foundation] Implement the `EpisodeNumberMapping` table and helper CRUD utilities in `app/db/models.py` per data-model.md (ensure uniqueness and timestamp handling).
-- [ ] T004 [Foundation] Extend database bootstrap flows (`app/db/models.py:create_db_and_tables`, any startup hooks) so the new mapping table is included in initialization and cleanup routines.
-- [ ] T005 [Foundation] Introduce `ANIBRIDGE_FALLBACK_ALL_EPISODES` configuration in `app/config.py` with default `False`, typed accessors, and inline documentation.
+- [X] T002 [Foundation] Add failing coverage in `tests/test_models.py` for the forthcoming `EpisodeNumberMapping` SQLModel (creation, unique constraints, timestamp defaults).
+- [X] T003 [Foundation] Implement the `EpisodeNumberMapping` table and helper CRUD utilities in `app/db/models.py` per data-model.md (ensure uniqueness and timestamp handling).
+- [X] T004 [Foundation] Extend database bootstrap flows (`app/db/models.py:create_db_and_tables`, any startup hooks) so the new mapping table is included in initialization and cleanup routines.
+- [X] T005 [Foundation] Introduce `ANIBRIDGE_FALLBACK_ALL_EPISODES` configuration in `app/config.py` with default `False`, typed accessors, and inline documentation.
 
 **Checkpoint**: Episode mapping persistence and configuration toggle are available—user stories may now proceed.
 
@@ -31,15 +31,15 @@
 
 ### Tests (write first, ensure they FAIL)
 
-- [ ] T006 [P] [US1] Create `tests/test_absolute_numbering.py` covering detection of absolute identifiers, mapping lookups, and exclusion of specials.
-- [ ] T007 [P] [US1] Add Torznab integration test `tests/test_torznab_absolute.py` validating search results, logging, and fallback toggle handling.
+- [X] T006 [P] [US1] Create `tests/test_absolute_numbering.py` covering detection of absolute identifiers, mapping lookups, and exclusion of specials.
+- [X] T007 [P] [US1] Add Torznab integration test `tests/test_torznab_absolute.py` validating search results, logging, and fallback toggle handling.
 
 ### Implementation
 
-- [ ] T008 [US1] Implement absolute-number parsing and mapping helpers in `app/utils/absolute_numbering.py`, including detection heuristics and database integration.
-- [ ] T009 [US1] Update Torznab request pipeline (`app/api/torznab/api.py` and supporting utilities) to invoke the conversion helper before AniWorld queries and to enrich responses with absolute metadata.
-- [ ] T010 [US1] Wire fallback behaviour and logging: honour `ANIBRIDGE_FALLBACK_ALL_EPISODES`, surface “cannot map episode” errors, and optionally return the full catalogue in standard numbering.
-- [ ] T011 [US1] Ensure AniWorld catalogue fetch routines (e.g., `app/utils/title_resolver.py` or equivalent) populate or refresh `EpisodeNumberMapping` entries when new data is observed.
+- [X] T008 [US1] Implement absolute-number parsing and mapping helpers in `app/utils/absolute_numbering.py`, including detection heuristics and database integration.
+- [X] T009 [US1] Update Torznab request pipeline (`app/api/torznab/api.py` and supporting utilities) to invoke the conversion helper before AniWorld queries and to enrich responses with absolute metadata.
+- [X] T010 [US1] Wire fallback behaviour and logging: honour `ANIBRIDGE_FALLBACK_ALL_EPISODES`, surface “cannot map episode” errors, and optionally return the full catalogue in standard numbering.
+- [X] T011 [US1] Ensure AniWorld catalogue fetch routines (e.g., `app/utils/title_resolver.py` or equivalent) populate or refresh `EpisodeNumberMapping` entries when new data is observed.
 
 **Checkpoint**: Torznab absolute searches succeed and existing SxxEyy behaviour remains unaffected.
 
@@ -52,14 +52,14 @@
 
 ### Tests (write first, ensure they FAIL)
 
-- [ ] T012 [P] [US2] Add `tests/test_qbittorrent_absolute.py` to assert `/api/v2/sync/maindata` and `/api/v2/torrents/info` expose `anibridgeAbsolute` metadata.
-- [ ] T013 [P] [US2] Extend downloader progress tests (e.g., `tests/test_qbittorrent_more.py` or new cases) to expect absolute-aware naming when the request originated in absolute mode.
+- [X] T012 [P] [US2] Add `tests/test_qbittorrent_absolute.py` to assert `/api/v2/sync/maindata` and `/api/v2/torrents/info` expose `anibridgeAbsolute` metadata.
+- [X] T013 [P] [US2] Extend downloader progress tests (e.g., `tests/test_qbittorrent_more.py` or new cases) to expect absolute-aware naming when the request originated in absolute mode.
 
 ### Implementation
 
-- [ ] T014 [US2] Persist the originating absolute number on jobs/client tasks by extending `ClientTask` (and any related records) plus scheduler wiring in `app/core/scheduler.py`.
-- [ ] T015 [US2] Update qBittorrent shim endpoints (`app/api/qbittorrent/sync.py`, `app/api/qbittorrent/torrents.py`) to surface absolute metadata and maintain compatibility with existing fields.
-- [ ] T016 [US2] Adjust naming/downloader utilities (`app/utils/naming.py`, `app/core/downloader.py`) so completed files and progress updates reflect absolute numbering when applicable.
+- [X] T014 [US2] Persist the originating absolute number on jobs/client tasks by extending `ClientTask` (and any related records) plus scheduler wiring in `app/core/scheduler.py`.
+- [X] T015 [US2] Update qBittorrent shim endpoints (`app/api/qbittorrent/sync.py`, `app/api/qbittorrent/torrents.py`) to surface absolute metadata and maintain compatibility with existing fields.
+- [X] T016 [US2] Adjust naming/downloader utilities (`app/utils/naming.py`, `app/core/downloader.py`) so completed files and progress updates reflect absolute numbering when applicable.
 
 **Checkpoint**: Sonarr imports absolute-downloads seamlessly with consistent identifiers across lifecycle updates.
 
@@ -72,12 +72,12 @@
 
 ### Tests (write first, ensure they FAIL)
 
-- [ ] T017 [P] [US3] Add `tests/test_preview_absolute.py` covering manual search and capability previews for absolute-numbered series.
+- [X] T017 [P] [US3] Add `tests/test_preview_absolute.py` covering manual search and capability previews for absolute-numbered series.
 
 ### Implementation
 
-- [ ] T018 [US3] Update Torznab preview/caps responses (`app/api/torznab/api.py`, helpers) to include absolute identifiers in result metadata.
-- [ ] T019 [US3] Ensure any shared rendering utilities (e.g., `app/api/torznab/utils.py`) format preview rows with absolute labels while leaving standard mode unchanged.
+- [X] T018 [US3] Update Torznab preview/caps responses (`app/api/torznab/api.py`, helpers) to include absolute identifiers in result metadata.
+- [X] T019 [US3] Ensure any shared rendering utilities (e.g., `app/api/torznab/utils.py`) format preview rows with absolute labels while leaving standard mode unchanged.
 
 **Checkpoint**: Preview tooling reliably reflects absolute numbering preferences.
 
@@ -87,9 +87,9 @@
 
 **Purpose**: Finalize documentation, validation, and release-ready artifacts.
 
-- [ ] T020 [P] Update VitePress docs (`docs/src/guide/configuration.md`, `docs/src/api/torznab.md`, related sections) to describe absolute numbering support, fallback toggle, and limitations.
+- [X] T020 [P] Update VitePress docs (`docs/src/guide/configuration.md`, `docs/src/api/torznab.md`, related sections) to describe absolute numbering support, fallback toggle, and limitations.
 - [ ] T021 Run the full `pytest` suite to confirm all new tests pass and regressions are avoided.
-- [ ] T022 Capture release notes/README updates summarizing the feature and configuration changes.
+- [X] T022 Capture release notes/README updates summarizing the feature and configuration changes.
 
 ---
 
