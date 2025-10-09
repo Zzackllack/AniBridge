@@ -18,6 +18,7 @@ logger.add(
 
 from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JSON
 from sqlalchemy import UniqueConstraint
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import registry as sa_registry
 from sqlalchemy.pool import NullPool
 
@@ -164,6 +165,21 @@ def create_db_and_tables() -> None:
         logger.success("Database and tables created or already exist.")
         table_names = sorted(ModelBase.metadata.tables.keys())
         logger.debug("Available tables after creation: {}", table_names)
+        try:
+            insp = inspect(engine)
+            columns = {col["name"] for col in insp.get_columns("clienttask")}
+            if "absolute_number" not in columns:
+                logger.info(
+                    "Adding missing 'absolute_number' column to clienttask table."
+                )
+                with engine.begin() as conn:
+                    conn.execute(
+                        text("ALTER TABLE clienttask ADD COLUMN absolute_number INTEGER")
+                    )
+        except Exception as mig_exc:
+            logger.error(
+                "Failed to verify or add clienttask.absolute_number column: {}", mig_exc
+            )
     except Exception as e:
         logger.error(f"Error creating DB and tables: {e}")
 

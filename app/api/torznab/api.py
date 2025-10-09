@@ -32,6 +32,7 @@ def torznab_api(
     t: str = Query(..., description="caps|tvsearch|search"),
     apikey: Optional[str] = Query(default=None),
     q: Optional[str] = Query(default=None),
+    series: Optional[str] = Query(default=None),
     season: Optional[int] = Query(default=None),
     ep: Optional[int] = Query(default=None),
     cat: Optional[str] = Query(default=None),
@@ -63,7 +64,7 @@ def torznab_api(
         q_str = (q or "").strip()
         logger.debug(f"Search query string: '{q_str}'")
 
-        if not q_str and TORZNAB_RETURN_TEST_RESULT:
+        if not q_str and not series and TORZNAB_RETURN_TEST_RESULT:
             logger.debug("Returning synthetic test result for empty query.")
             # synthetic test result
             release_title = TORZNAB_TEST_TITLE
@@ -86,17 +87,22 @@ def torznab_api(
                 cat_id=TORZNAB_CAT_ANIME,
                 guid_str=guid,
             )
-        elif q_str:
+        elif q_str or series:
             absolute_candidate = absmap.detect_absolute_number(
-                query=q_str,
+                query=q_str or series,
                 season=None,
                 episode=None,
                 absolute_hint=sonarr_absolute,
             )
 
-            slug = tn._slug_from_query(q_str)
+            slug_hint = q_str or series or ""
+            slug = tn._slug_from_query(slug_hint)
+            if not slug and series:
+                slug = series.strip()
             if slug:
-                display_title = tn.resolve_series_title(slug) or q_str
+                display_title = (
+                    tn.resolve_series_title(slug) or q_str or series or slug
+                )
                 fetch_catalog = lambda: absmap.fetch_episode_catalog(slug)
                 targets: List[dict]
                 fallback_used = False
@@ -236,14 +242,15 @@ def torznab_api(
     # require at least q, and either both season+ep or only season (we'll default ep=1)
     import app.api.torznab as tn
 
+    search_hint = q or series
     absolute_candidate = absmap.detect_absolute_number(
-        query=q,
+        query=search_hint,
         season=season,
         episode=ep,
         absolute_hint=sonarr_absolute,
     )
 
-    if absolute_candidate is None and (q is None or season is None):
+    if absolute_candidate is None and (search_hint is None or season is None):
         rss, _channel = _rss_root()
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
         logger.debug("Returning empty RSS feed due to missing parameters.")
@@ -252,13 +259,13 @@ def torznab_api(
         logger.debug("tvsearch: ep missing; defaulting ep=1 for preview")
         ep = 1
 
-    if q is None:
+    if search_hint is None:
         rss, _channel = _rss_root()
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
         logger.debug("Returning empty RSS feed due to missing query string.")
         return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
 
-    q_str = str(q)
+    q_str = str(search_hint)
     season_i = int(season) if season is not None else None
     ep_i = int(ep) if ep is not None else None
 
@@ -266,6 +273,8 @@ def torznab_api(
         f"Searching for slug for query '{q_str}' (season={season_i}, ep={ep_i})"
     )
     slug = tn._slug_from_query(q_str)
+    if not slug and series:
+        slug = series.strip()
     if not slug:
         logger.warning(f"No slug found for query '{q_str}'. Returning empty RSS feed.")
         rss, _channel = _rss_root()
