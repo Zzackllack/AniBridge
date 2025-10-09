@@ -174,7 +174,9 @@ def create_db_and_tables() -> None:
                 )
                 with engine.begin() as conn:
                     conn.execute(
-                        text("ALTER TABLE clienttask ADD COLUMN absolute_number INTEGER")
+                        text(
+                            "ALTER TABLE clienttask ADD COLUMN absolute_number INTEGER"
+                        )
                     )
         except Exception as mig_exc:
             logger.error(
@@ -421,7 +423,9 @@ def upsert_episode_mapping(
         mapping.episode_number = episode_number
         if episode_title is not None:
             mapping.episode_title = episode_title
-        mapping.last_synced_at = as_aware_utc(last_synced_at) if last_synced_at else utcnow()
+        mapping.last_synced_at = (
+            as_aware_utc(last_synced_at) if last_synced_at else utcnow()
+        )
         session.add(mapping)
 
     try:

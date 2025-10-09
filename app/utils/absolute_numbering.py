@@ -233,7 +233,9 @@ def resolve_absolute_episode(
     if mapping and mapping.season_number > 0:
         return mapping
 
-    ensure_catalog_mappings(session, series_slug=series_slug, fetch_catalog=fetch_catalog)
+    ensure_catalog_mappings(
+        session, series_slug=series_slug, fetch_catalog=fetch_catalog
+    )
 
     mapping = get_episode_mapping_by_absolute(
         session, series_slug=series_slug, absolute_number=absolute_number
