@@ -27,6 +27,10 @@ AniBridge reports progress, save path, and final `content_path` so Sonarr can im
 
 If Sonarr runs in a different container with a different mount, set `QBIT_PUBLIC_SAVE_PATH` to the path Sonarr sees (inside the Sonarr container), and ensure both containers mount the same host folder to that path.
 
+### Absolute-numbered Series
+
+No additional Sonarr configuration is required when a series uses absolute numbering. AniBridge detects `sonarrAbsolute=true` requests (and numeric episode identifiers) automatically, maps them to AniWorld’s season/episode structure, and echoes the original absolute number via `anibridgeAbsolute` in the qBittorrent shim. Enable `ANIBRIDGE_FALLBACK_ALL_EPISODES=true` if you prefer AniBridge to return the full catalogue when a specific absolute episode is missing from the mapping.
+
 ### Required Docker volume mapping
 
 - AniBridge container: mount your host downloads folder to `/data/downloads/anime` (default) or any path you prefer.
