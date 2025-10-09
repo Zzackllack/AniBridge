@@ -24,6 +24,7 @@ dependencies = [
     "loguru>=0.7.3",
     "packaging>=25.0",
     "pysocks>=1.7.1",
+    "pytest>=8.4.2",
     "python-dotenv>=1.1.1",
     "python-multipart>=0.0.20",
     "pyyaml>=6.0.2",
