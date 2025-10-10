@@ -30,11 +30,13 @@ def torznab_api(
     t: str = Query(..., description="caps|tvsearch|search"),
     apikey: Optional[str] = Query(default=None),
     q: Optional[str] = Query(default=None),
+    series: Optional[str] = Query(default=None),
     season: Optional[int] = Query(default=None),
     ep: Optional[int] = Query(default=None),
     cat: Optional[str] = Query(default=None),
     offset: int = Query(default=0),
     limit: int = Query(default=50),
+    sonarr_absolute: Optional[bool] = Query(default=None),
     session: Session = Depends(get_session),
 ) -> Response:
     logger.info(
