@@ -183,10 +183,24 @@ def torznab_api(
     # require at least q, and either both season+ep or only season (we'll default ep=1)
     import app.api.torznab as tn
 
+    logger.debug(
+        "tvsearch request received: q=%r series=%r season=%r ep=%r cat=%r sonarrAbsolute=%r",
+        q,
+        series,
+        season,
+        ep,
+        cat,
+        sonarr_absolute,
+    )
+
     if q is None or season is None:
         rss, _channel = _rss_root()
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
-        logger.debug("Returning empty RSS feed due to missing parameters.")
+        logger.debug(
+            "tvsearch returning empty feed because mandatory parameters were missing (q=%r, season=%r)",
+            q,
+            season,
+        )
         return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
     if season is not None and ep is None:
         logger.debug("tvsearch: ep missing; defaulting ep=1 for preview")
