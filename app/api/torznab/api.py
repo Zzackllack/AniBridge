@@ -56,11 +56,20 @@ def torznab_api(
         import app.api.torznab as tn
 
         logger.debug("Handling 'search' request.")
+        logger.debug(
+            "search request parameters: q=%r series=%r season=%r ep=%r cat=%r sonarrAbsolute=%r",
+            q,
+            series,
+            season,
+            ep,
+            cat,
+            sonarr_absolute,
+        )
         rss, channel = _rss_root()
         q_str = (q or "").strip()
         logger.debug(f"Search query string: '{q_str}'")
 
-        if not q_str and TORZNAB_RETURN_TEST_RESULT:
+        if not q_str and not series and TORZNAB_RETURN_TEST_RESULT:
             logger.debug("Returning synthetic test result for empty query.")
             # synthetic test result
             release_title = TORZNAB_TEST_TITLE
