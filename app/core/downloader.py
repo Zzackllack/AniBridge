@@ -293,7 +293,6 @@ def download_episode(
     slug: Optional[str] = None,
     season: Optional[int] = None,
     episode: Optional[int] = None,
-    absolute_number: Optional[int] = None,
     provider: Optional[Provider] = "VOE",
     language: str = "German Dub",
     dest_dir: Path,
@@ -340,10 +339,7 @@ def download_episode(
     # Sinnvolle Default-Benennung für den temporären Download
     base_hint = title_hint
     if not base_hint and slug and season and episode:
-        if absolute_number is not None:
-            base_hint = f"{slug}-ABS{absolute_number:03d}-{language}-{chosen}"
-        else:
-            base_hint = f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
+        base_hint = f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
         logger.debug(f"Generated base_hint for filename: {base_hint}")
 
     # ensure variables exist for static analyzers / linters
@@ -443,7 +439,6 @@ def download_episode(
         season=season,
         episode=episode,
         language=language,
-        absolute_number=absolute_number,
     )
     logger.success(f"Final file path: {final_path}")
     return final_path
