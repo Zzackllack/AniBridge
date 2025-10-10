@@ -32,8 +32,8 @@ POST /api/v2/torrents/delete?hashes={btih}
 
 Behavior notes:
 
-- `torrents/add` parses AniBridge magnet payload and enqueues an internal job. When `aw_abs` is present, the task records the original absolute episode number and prefixes the display name with `[ABS 005]`.
-- `torrents/info` mirrors progress, state, size, paths, and times from the job, and exposes `anibridgeAbsolute` when the originating request used absolute numbering.
+- `torrents/add` parses AniBridge magnet payload and enqueues an internal job.
+- `torrents/info` mirrors progress, state, size, paths, and times from the job.
 - `torrents/files` returns a single-file view with progress and size.
 - `torrents/properties` exposes save path and size; values stabilize after completion.
 
@@ -56,8 +56,6 @@ GET /api/v2/sync/maindata
 
 Minimal object with `torrents`, `categories`, and `server_state` that Sonarr expects.
 
-Each torrent entry contains `anibridgeAbsolute` when available so Sonarr can reconcile absolute-numbered series.
-
 ## App
 
 ```http
@@ -68,3 +66,4 @@ GET /api/v2/app/preferences
 ```
 
 Preferences include `save_path` and a few harmless defaults.
+

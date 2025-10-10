@@ -25,11 +25,6 @@ AniBridge is configured via environment variables (works well with Docker). Sens
 - Connectivity test result: `TORZNAB_RETURN_TEST_RESULT` (`true|false`)
 - Test release fields: `TORZNAB_TEST_TITLE`, `TORZNAB_TEST_SLUG`, `TORZNAB_TEST_SEASON`, `TORZNAB_TEST_EPISODE`, `TORZNAB_TEST_LANGUAGE`
 
-## Absolute Numbering
-
-- `ANIBRIDGE_FALLBACK_ALL_EPISODES` (default: `false`)
-  - When enabled, AniBridge responds to unmapped absolute-number requests with the entire catalogue for the series, labeled with absolute identifiers so Sonarr can reconcile the download. Leave disabled to preserve legacy "no match" behaviour.
-
 ## Provider & Language
 
 - `PROVIDER_ORDER`: comma-separated providers by priority (e.g., `VOE,Filemoon,Streamtape,...`)

@@ -51,24 +51,7 @@ def torrents_add(
     season = int(payload["aw_s"])
     episode = int(payload["aw_e"])
     language = payload["aw_lang"]
-    absolute_raw = payload.get("aw_abs")
-    absolute_number = None
-    if absolute_raw is not None:
-        try:
-            absolute_number = int(absolute_raw)
-        except ValueError:
-            logger.warning(f"Invalid absolute number in magnet: {absolute_raw}")
-
-    default_name = (
-        f"{slug}.ABS{int(absolute_number):03d}.{language}"
-        if absolute_number is not None
-        else f"{slug}.S{season:02d}E{episode:02d}.{language}"
-    )
-    name = payload.get("dn", default_name)
-    if absolute_number is not None:
-        prefix = f"[ABS {absolute_number:03d}] "
-        if prefix not in name:
-            name = f"{prefix}{name}"
+    name = payload.get("dn", f"{slug}.S{season:02d}E{episode:02d}.{language}")
     xt = payload["xt"]
     btih = xt.split(":")[-1].lower()
 
@@ -78,13 +61,7 @@ def torrents_add(
         )
     )
 
-    req = {
-        "slug": slug,
-        "season": season,
-        "episode": episode,
-        "language": language,
-        "absolute_number": absolute_number,
-    }
+    req = {"slug": slug, "season": season, "episode": episode, "language": language}
     job_id = schedule_download(req)
     logger.debug(f"Scheduled job_id: {job_id}")
 
@@ -99,7 +76,6 @@ def torrents_add(
         slug=slug,
         season=season,
         episode=episode,
-        absolute_number=absolute_number,
         language=language,
         save_path=published_savepath,
         category=category,
@@ -195,7 +171,6 @@ def torrents_info(
                 "size": int(size or 0),
                 "num_seeds": 0,
                 "num_leechs": 0,
-                "anibridgeAbsolute": r.absolute_number,
             }
         )
     logger.success("Torrent info response generated.")

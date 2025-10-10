@@ -81,7 +81,6 @@ def sync_maindata(session: Session = Depends(get_session)):
             "size": size_val,
             "added_on": int(r.added_on.timestamp()),
             "completion_on": completion_ts,
-            "anibridgeAbsolute": r.absolute_number,
         }
 
     return JSONResponse(
