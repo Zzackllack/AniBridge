@@ -67,7 +67,15 @@ def probe_episode_quality(
         f"Probing episode quality for slug={slug}, season={season}, episode={episode}, language={language}, "
         f"preferred_provider={preferred_provider}, timeout={timeout}"
     )
-    ep = build_episode(slug=slug, season=season, episode=episode)
+    try:
+        ep = build_episode(slug=slug, season=season, episode=episode)
+    except ValueError as exc:
+        logger.error(
+            "build_episode rejected parameters slug={} season={} episode={} language={}: {}".format(
+                slug, season, episode, language, exc
+            )
+        )
+        raise
     logger.debug(f"Built episode object: {ep}")
     candidates: List[str] = []
     if preferred_provider:

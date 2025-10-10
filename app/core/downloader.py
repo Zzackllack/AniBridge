@@ -93,9 +93,16 @@ def build_episode(
     if link:
         logger.debug("Using direct link for episode.")
         return Episode(link=link)
-    if slug and season and episode:
-        logger.debug("Using slug/season/episode for episode.")
-        return Episode(slug=slug, season=season, episode=episode)
+    if slug is not None and season is not None and episode is not None:
+        if season <= 0 or episode <= 0:
+            logger.debug(
+                "Non-positive season/episode detected (season={}, episode={}) for slug={} - likely absolute-numbered request.".format(
+                    season, episode, slug
+                )
+            )
+        if slug and season and episode:
+            logger.debug("Using slug/season/episode for episode.")
+            return Episode(slug=slug, season=season, episode=episode)
     logger.error(
         "Invalid episode parameters: must provide either link or (slug, season, episode)."
     )

@@ -223,9 +223,19 @@ def torznab_api(
     ep_i = int(ep)
     q_str = str(q)
 
+    is_absolute_query = bool(sonarr_absolute) or season_i == 0
     logger.debug(
-        f"Searching for slug for query '{q_str}' (season={season_i}, ep={ep_i})"
+        "Searching for slug for query '{}' (season={}, ep={}, absolute={})".format(
+            q_str, season_i, ep_i, is_absolute_query
+        )
     )
+    if is_absolute_query:
+        logger.debug(
+            "tvsearch request flagged as absolute numbering. "
+            "AniBridge currently expects season/episode based numbering and will reuse season={} as-is.".format(
+                season_i
+            )
+        )
     slug = tn._slug_from_query(q_str)
     if not slug:
         logger.warning(f"No slug found for query '{q_str}'. Returning empty RSS feed.")
@@ -244,7 +254,9 @@ def torznab_api(
         cached_langs if cached_langs else ["German Dub", "German Sub", "English Sub"]
     )
     logger.debug(
-        f"Candidate languages for slug '{slug}', season {season_i}, episode {ep_i}: {candidate_langs}"
+        "Candidate languages for slug '{}', season={}, episode={}, absolute={}: {}".format(
+            slug, season_i, ep_i, is_absolute_query, candidate_langs
+        )
     )
 
     rss, channel = _rss_root()
@@ -260,8 +272,8 @@ def torznab_api(
             )
         except Exception as e:
             logger.error(
-                "Error reading availability cache for slug={}, S{}E{}, lang={}: {}".format(
-                    slug, season_i, ep_i, lang, e
+                "Error reading availability cache for slug={}, S{}E{}, lang={}, absolute={}: {}".format(
+                    slug, season_i, ep_i, lang, is_absolute_query, e
                 )
             )
             rec = None
@@ -284,9 +296,18 @@ def torznab_api(
                 available, height, vcodec, prov_used, _info = tn.probe_episode_quality(
                     slug=slug, season=season_i, episode=ep_i, language=lang
                 )
+            except ValueError as e:
+                logger.warning(
+                    "Probe aborted for slug={} S{}E{} lang={} absolute={}: {}".format(
+                        slug, season_i, ep_i, lang, is_absolute_query, e
+                    )
+                )
+                available = False
             except Exception as e:
                 logger.error(
-                    f"Error probing quality for slug={slug}, S{season_i}E{ep_i}, lang={lang}: {e}"
+                    "Error probing quality for slug={} S{}E{} lang={} absolute={}: {}".format(
+                        slug, season_i, ep_i, lang, is_absolute_query, e
+                    )
                 )
                 available = False
 
