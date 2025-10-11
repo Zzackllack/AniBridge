@@ -230,12 +230,35 @@ def torznab_api(
         )
     )
     if is_absolute_query:
-        logger.debug(
-            "tvsearch request flagged as absolute numbering. "
-            "AniBridge currently expects season/episode based numbering and will reuse season={} as-is.".format(
-                season_i
+        logger.warning(
+            "Received Sonarr tvsearch request using absolute numbering (q='{}', season={}, ep={}, sonarr_absolute={}). "
+            "AniBridge currently does not support absolute-numbered lookups; returning synthetic notice item.".format(
+                q_str, season_i, ep_i, sonarr_absolute
             )
         )
+        rss, channel = _rss_root()
+        suffix = f"{max(ep_i, 0):03d}"
+        synthetic_title = f"AniBridge-does-not-support-absolute-numbering-{suffix}"
+        synthetic_guid = f"anibridge:absolute:{suffix}"
+        synthetic_magnet = (
+            f"magnet:?xt=urn:btih:ANIBRIDGEABS{suffix}&dn={synthetic_title}"
+        )
+        now = datetime.now(timezone.utc)
+        try:
+            _build_item(
+                channel=channel,
+                title=synthetic_title,
+                magnet=synthetic_magnet,
+                pubdate=now,
+                cat_id=TORZNAB_CAT_ANIME,
+                guid_str=synthetic_guid,
+            )
+        except Exception as e:
+            logger.error(
+                "Failed to build synthetic absolute-numbering notice item: %s", e
+            )
+        xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
+        return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
     slug = tn._slug_from_query(q_str)
     if not slug:
         logger.warning(f"No slug found for query '{q_str}'. Returning empty RSS feed.")
