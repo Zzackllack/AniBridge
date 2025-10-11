@@ -138,6 +138,7 @@ def build_release_name(
     height: Optional[int],
     vcodec: Optional[str],
     language: str,
+    absolute: Optional[int] = None,
     source_tag: str = SOURCE_TAG,
     release_group: str = RELEASE_GROUP,
 ) -> str:
@@ -153,6 +154,9 @@ def build_release_name(
     qual_part = _map_height_to_quality(height)
     codec_part = _map_codec_name(vcodec)
     lang_part = LANG_TAG_MAP.get(language, _safe_component(language))
+    abs_part = (
+        f"E{int(absolute):03d}" if absolute is not None and int(absolute) > 0 else ""
+    )
 
     base = ".".join(
         [
@@ -160,6 +164,7 @@ def build_release_name(
             for p in [
                 series_part,
                 se_part,
+                abs_part,
                 qual_part,
                 source_tag,
                 codec_part,

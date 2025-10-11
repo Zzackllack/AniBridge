@@ -175,6 +175,8 @@ def torznab_api(
                             pubdate=now,
                             cat_id=TORZNAB_CAT_ANIME,
                             guid_str=guid,
+                            season=season_i,
+                            episode=ep_i,
                         )
                     except Exception as e:
                         logger.error(
@@ -224,47 +226,41 @@ def torznab_api(
     q_str = str(q)
 
     is_absolute_query = bool(sonarr_absolute) or season_i == 0
+    requested_absolute = ep_i if is_absolute_query else None
     logger.debug(
-        "Searching for slug for query '{}' (season={}, ep={}, absolute={})".format(
-            q_str, season_i, ep_i, is_absolute_query
+        "Searching for slug for query '{}' (season={}, ep={}, requested_absolute={})".format(
+            q_str, season_i, ep_i, requested_absolute
         )
     )
-    if is_absolute_query:
-        logger.warning(
-            "Received Sonarr tvsearch request using absolute numbering (q='{}', season={}, ep={}, sonarr_absolute={}). "
-            "AniBridge currently does not support absolute-numbered lookups; returning synthetic notice item.".format(
-                q_str, season_i, ep_i, sonarr_absolute
-            )
-        )
-        rss, channel = _rss_root()
-        suffix = f"{max(ep_i, 0):03d}"
-        synthetic_title = f"AniBridge-does-not-support-absolute-numbering-{suffix}"
-        synthetic_guid = f"anibridge:absolute:{suffix}"
-        synthetic_magnet = (
-            f"magnet:?xt=urn:btih:ANIBRIDGEABS{suffix}&dn={synthetic_title}"
-        )
-        now = datetime.now(timezone.utc)
-        try:
-            _build_item(
-                channel=channel,
-                title=synthetic_title,
-                magnet=synthetic_magnet,
-                pubdate=now,
-                cat_id=TORZNAB_CAT_ANIME,
-                guid_str=synthetic_guid,
-            )
-        except Exception as e:
-            logger.error(
-                "Failed to build synthetic absolute-numbering notice item: %s", e
-            )
-        xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
-        return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
     slug = tn._slug_from_query(q_str)
     if not slug:
         logger.warning(f"No slug found for query '{q_str}'. Returning empty RSS feed.")
         rss, _channel = _rss_root()
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
         return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
+
+    if is_absolute_query and requested_absolute is not None:
+        resolved = tn.resolve_absolute_episode(slug, requested_absolute)
+        if not resolved:
+            logger.warning(
+                "Unable to resolve absolute number {} for slug '{}' (query='{}'). Returning empty feed.",
+                requested_absolute,
+                slug,
+                q_str,
+            )
+            rss, _channel = _rss_root()
+            xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
+            return Response(
+                content=xml, media_type="application/rss+xml; charset=utf-8"
+            )
+        season_i, ep_i = resolved
+        logger.info(
+            "Resolved absolute request {} for slug '{}' -> season={} episode={}",
+            requested_absolute,
+            slug,
+            season_i,
+            ep_i,
+        )
 
     display_title = tn.resolve_series_title(slug) or q_str
     logger.debug(f"Resolved display title: '{display_title}' for slug '{slug}'")
@@ -277,8 +273,8 @@ def torznab_api(
         cached_langs if cached_langs else ["German Dub", "German Sub", "English Sub"]
     )
     logger.debug(
-        "Candidate languages for slug '{}', season={}, episode={}, absolute={}: {}".format(
-            slug, season_i, ep_i, is_absolute_query, candidate_langs
+        "Candidate languages for slug '{}', season={}, episode={}, requested_absolute={}: {}".format(
+            slug, season_i, ep_i, requested_absolute, candidate_langs
         )
     )
 
@@ -295,8 +291,8 @@ def torznab_api(
             )
         except Exception as e:
             logger.error(
-                "Error reading availability cache for slug={}, S{}E{}, lang={}, absolute={}: {}".format(
-                    slug, season_i, ep_i, lang, is_absolute_query, e
+                "Error reading availability cache for slug={}, S{}E{}, lang={}, requested_absolute={}: {}".format(
+                    slug, season_i, ep_i, lang, requested_absolute, e
                 )
             )
             rec = None
@@ -312,7 +308,15 @@ def torznab_api(
             vcodec = rec.vcodec
             prov_used = rec.provider
             logger.debug(
-                f"Using cached availability for {slug} S{season_i}E{ep_i} {lang}: h={height}, vcodec={vcodec}, prov={prov_used}"
+                "Using cached availability for {} S{:02d}E{:02d} {} (requested_absolute={}): h={}, vcodec={}, prov={}",
+                slug,
+                season_i,
+                ep_i,
+                lang,
+                requested_absolute,
+                height,
+                vcodec,
+                prov_used,
             )
         else:
             try:
@@ -321,15 +325,15 @@ def torznab_api(
                 )
             except ValueError as e:
                 logger.warning(
-                    "Probe aborted for slug={} S{}E{} lang={} absolute={}: {}".format(
-                        slug, season_i, ep_i, lang, is_absolute_query, e
+                    "Probe aborted for slug={} S{}E{} lang={} requested_absolute={}: {}".format(
+                        slug, season_i, ep_i, lang, requested_absolute, e
                     )
                 )
                 available = False
             except Exception as e:
                 logger.error(
-                    "Error probing quality for slug={} S{}E{} lang={} absolute={}: {}".format(
-                        slug, season_i, ep_i, lang, is_absolute_query, e
+                    "Error probing quality for slug={} S{}E{} lang={} requested_absolute={}: {}".format(
+                        slug, season_i, ep_i, lang, requested_absolute, e
                     )
                 )
                 available = False
@@ -363,6 +367,7 @@ def torznab_api(
             series_title=display_title,
             season=season_i,
             episode=ep_i,
+            absolute=requested_absolute,
             height=height,
             vcodec=vcodec,
             language=lang,
@@ -377,6 +382,7 @@ def torznab_api(
                 episode=ep_i,
                 language=lang,
                 provider=prov_used,
+                absolute=requested_absolute,
             )
         except Exception as e:
             logger.error(f"Error building magnet for release '{release_title}': {e}")
@@ -392,6 +398,9 @@ def torznab_api(
                 pubdate=now,
                 cat_id=TORZNAB_CAT_ANIME,
                 guid_str=guid,
+                season=season_i,
+                episode=ep_i,
+                absolute=requested_absolute,
             )
         except Exception as e:
             logger.error(f"Error building RSS item for release '{release_title}': {e}")

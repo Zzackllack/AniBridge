@@ -155,6 +155,9 @@ def _build_item(
     pubdate: Optional[datetime],
     cat_id: int,
     guid_str: str,
+    season: Optional[int] = None,
+    episode: Optional[int] = None,
+    absolute: Optional[int] = None,
 ) -> None:
     logger.debug(
         f"Building RSS item: title='{title}', guid='{guid_str}', magnet='{magnet}'"
@@ -183,6 +186,13 @@ def _build_item(
     btih = _parse_btih_from_magnet(magnet)
     if btih:
         _add_torznab_attr(item, "infohash", btih)
+
+    if season is not None:
+        _add_torznab_attr(item, "season", str(season))
+    if episode is not None:
+        _add_torznab_attr(item, "episode", str(episode))
+    if absolute is not None and absolute > 0:
+        _add_torznab_attr(item, "absolute", str(absolute))
 
     # Fake Seed-/Leech-Werte (per ENV konfigurierbar)
     seeders = max(0, int(TORZNAB_FAKE_SEEDERS))

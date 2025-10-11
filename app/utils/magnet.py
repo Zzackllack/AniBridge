@@ -29,6 +29,7 @@ def build_magnet(
     episode: int,
     language: str,
     provider: str | None = None,
+    absolute: int | None = None,
 ) -> str:
     """
     Synthetischer Magnet mit notwendiger Payload für den Shim.
@@ -51,6 +52,9 @@ def build_magnet(
     if provider:
         params.append(("aw_provider", provider))
         logger.debug(f"Added provider to magnet: {provider}")
+    if absolute is not None and absolute > 0:
+        params.append(("aw_abs", str(absolute)))
+        logger.debug("Added absolute number to magnet: {}", absolute)
 
     # Encode each param individually; keep ':' in xt unescaped
     encoded_parts: list[str] = []

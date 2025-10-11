@@ -27,6 +27,7 @@ from .utils import (  # noqa: E402
     _parse_btih_from_magnet,
     _build_item,
 )
+from app.utils.absolute import resolve_absolute_episode  # noqa: E402
 
 # Also surface dependencies the tests patch on the torznab module namespace
 from app.utils.title_resolver import (  # noqa: E402
@@ -57,6 +58,7 @@ __all__ = [
     "_estimate_size_from_title_bytes",
     "_parse_btih_from_magnet",
     "_build_item",
+    "resolve_absolute_episode",
     # external functions used downstream and by tests
     "load_or_refresh_index",
     "resolve_series_title",
