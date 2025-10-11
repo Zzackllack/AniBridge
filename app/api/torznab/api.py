@@ -249,7 +249,9 @@ def torznab_api(
                 q_str,
             )
             rss, _channel = _rss_root()
-            xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
+            xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode(
+                "utf-8"
+            )
             return Response(
                 content=xml, media_type="application/rss+xml; charset=utf-8"
             )

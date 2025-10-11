@@ -18,7 +18,9 @@ def _season_counts(slug: str) -> Dict[int, int]:
     try:
         counts = get_season_episode_count(slug)
     except Exception as exc:  # pragma: no cover - safety net around external lib
-        logger.error("Failed to load season episode counts for slug='{}': {}", slug, exc)
+        logger.error(
+            "Failed to load season episode counts for slug='{}': {}", slug, exc
+        )
         counts = {}
     if not counts:
         logger.warning("Season episode counts empty for slug='{}'", slug)
