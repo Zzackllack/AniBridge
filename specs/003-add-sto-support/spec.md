@@ -5,11 +5,19 @@
 **Status**: Draft  
 **Input**: User description: "I want to integrate the platform s.to into the AniBridge app/project; the underlying library aniworld-downloader already has support for the platform s.to, so we need to update everything accordingly. You can look at the library implementation under .venv/lib/python3.13/site-packages/aniworld. In the file data/githubissue.md you will find a GitHub issue regarding this topic."
 
+## Clarifications
+
+### Session 2025-10-18
+
+- Q: How should AniBridge query the enabled catalogues when handling each search request? → A: Query all enabled catalogues in parallel and merge responses before returning
+- Q: When AniBridge receives matching releases from both AniWorld and s.to, should it return both entries or filter to a single source? → A: Return both catalogue entries, sorted by configured priority
+- Q: How should AniBridge handle season and episode availability caches when the same title exists on both AniWorld and s.to? → A: Maintain separate caches per catalogue and never cross-populate
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Sonarr finds s.to shows (Priority: P1)
 
-Operators using Sonarr/Prowlarr route a search or download request for a series that only exists on s.to and expect AniBridge to locate, present, and trigger downloads without manual intervention.
+Operators using Sonarr/Prowlarr route a search or download request for a series that only exists on s.to and expect AniBridge to locate, present, and trigger downloads without manual intervention while the system queries all enabled catalogues in parallel.
 
 **Why this priority**: Without this capability the integration delivers no new value; s.to catalogues remain unreachable and automation workflows fail.
 
@@ -48,7 +56,7 @@ Administrators must be able to enable, disable, or reorder the supported catalog
 **Acceptance Scenarios**:
 
 1. **Given** s.to is disabled in configuration, **When** a client searches for a title exclusive to s.to, **Then** AniBridge returns a clear "not found" style response and does not attempt to contact s.to.
-2. **Given** both catalogues are enabled with a configured priority order, **When** a query matches releases on both sites, **Then** results honour the configured order or merge rule and expose the source site for each option.
+2. **Given** both catalogues are enabled with a configured priority order, **When** a query matches releases on both sites, **Then** results honour the configured order or merge rule, expose the source site for each option, reflect the merged outcome of parallel catalogue lookups, and retain both entries so clients can choose their preferred release.
 
 ---
 
@@ -63,12 +71,12 @@ Administrators must be able to enable, disable, or reorder the supported catalog
 
 ### Functional Requirements
 
-- **FR-001**: The bridge MUST aggregate search and browse requests across the enabled catalogues and return a unified response that includes s.to results alongside AniWorld entries when applicable.
+- **FR-001**: The bridge MUST aggregate search and browse requests across the enabled catalogues by querying them in parallel and return a unified response that includes s.to results alongside AniWorld entries when applicable. When multiple catalogues return the same episode, both entries MUST be surfaced in priority order so downstream clients can decide which to consume.
 - **FR-002**: The system MUST resolve user queries to site-specific slugs by maintaining per-site title indices and return both the slug and originating site with each match.
 - **FR-003**: Download scheduling MUST respect the originating site, ensuring every job, availability check, and retry uses links, language maps, and fallbacks appropriate for that catalogue.
 - **FR-004**: The bridge MUST persist and expose the source site for every job, availability entry, magnet payload, and API response consumed by Sonarr, qBittorrent, or other clients.
 - **FR-005**: Operators MUST be able to configure which catalogues are active, define their priority order, and override site-specific defaults (such as base URLs or preferred languages) without modifying code.
-- **FR-006**: The system MUST prevent cross-site cache contamination by tracking freshness, episode counts, and availability independently per catalogue.
+- **FR-006**: The system MUST prevent cross-site cache contamination by tracking freshness, episode counts, and availability independently per catalogue, maintaining separate cache stores for AniWorld and s.to even when titles share names.
 - **FR-007**: Naming, magnet metadata, and audit logs MUST incorporate clear site identifiers so downstream systems can distinguish AniWorld releases from s.to releases.
 - **FR-008**: Official documentation, onboarding materials, and configuration guides MUST describe the new dual-catalogue behaviour, configuration options, and observable differences for end users.
 
