@@ -20,7 +20,7 @@ from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JS
 from sqlalchemy.orm import registry as sa_registry
 from sqlalchemy.pool import NullPool
 
-from app.config import AVAILABILITY_TTL_HOURS, DATA_DIR
+from app.config import AVAILABILITY_TTL_HOURS, DATA_DIR, ENABLED_CATALOG_IDS
 
 JobStatus = Literal["queued", "downloading", "completed", "failed", "cancelled"]
 
@@ -55,6 +55,9 @@ class ModelBase(SQLModel, registry=_registry):  # type: ignore[call-arg]
     pass
 
 
+DEFAULT_SOURCE_SITE = ENABLED_CATALOG_IDS[0] if ENABLED_CATALOG_IDS else "aniworld"
+
+
 class Job(ModelBase, table=True):
     id: str = Field(default_factory=lambda: uuid4().hex, primary_key=True, index=True)
     status: str = Field(default="queued", index=True)
@@ -65,6 +68,8 @@ class Job(ModelBase, table=True):
     eta: Optional[int] = None
     message: Optional[str] = None
     result_path: Optional[str] = None
+
+    source_site: str = Field(default=DEFAULT_SOURCE_SITE, index=True)
 
     created_at: datetime = Field(default_factory=utcnow, index=True)
     updated_at: datetime = Field(default_factory=utcnow, index=True)
@@ -80,6 +85,7 @@ class EpisodeAvailability(ModelBase, table=True):
       - checked_at: wann zuletzt geprüft
     """
 
+    source_site: str = Field(default=DEFAULT_SOURCE_SITE, primary_key=True)
     slug: str = Field(primary_key=True)
     season: int = Field(primary_key=True)
     episode: int = Field(primary_key=True)
@@ -172,10 +178,10 @@ def dispose_engine() -> None:
 
 
 # --- Jobs CRUD
-def create_job(session: Session) -> Job:
+def create_job(session: Session, source_site: str = DEFAULT_SOURCE_SITE) -> Job:
     logger.debug("Creating new job entry in DB.")
     try:
-        job = Job()
+        job = Job(source_site=source_site)
         session.add(job)
         session.commit()
         session.refresh(job)
@@ -238,6 +244,7 @@ def cleanup_dangling_jobs(session: Session) -> int:
 def upsert_availability(
     session: Session,
     *,
+    source_site: str = DEFAULT_SOURCE_SITE,
     slug: str,
     season: int,
     episode: int,
@@ -248,11 +255,16 @@ def upsert_availability(
     provider: Optional[str],
     extra: Optional[dict] = None,
 ) -> EpisodeAvailability:
-    logger.debug(f"Upserting availability for {slug} S{season}E{episode} {language}")
-    rec = session.get(EpisodeAvailability, (slug, season, episode, language))
+    logger.debug(
+        f"Upserting availability for {source_site}:{slug} S{season}E{episode} {language}"
+    )
+    rec = session.get(
+        EpisodeAvailability, (source_site, slug, season, episode, language)
+    )
     if rec is None:
         logger.info("No existing availability record found, creating new.")
         rec = EpisodeAvailability(
+            source_site=source_site,
             slug=slug,
             season=season,
             episode=episode,
@@ -278,7 +290,7 @@ def upsert_availability(
         session.commit()
         session.refresh(rec)
         logger.success(
-            f"Upserted availability for {slug} S{season}E{episode} {language}"
+            f"Upserted availability for {source_site}:{slug} S{season}E{episode} {language}"
         )
     except Exception as e:
         logger.error(f"Failed to upsert availability: {e}")
@@ -287,10 +299,20 @@ def upsert_availability(
 
 
 def get_availability(
-    session: Session, *, slug: str, season: int, episode: int, language: str
+    session: Session,
+    *,
+    source_site: str = DEFAULT_SOURCE_SITE,
+    slug: str,
+    season: int,
+    episode: int,
+    language: str,
 ) -> Optional[EpisodeAvailability]:
-    logger.debug(f"Fetching availability for {slug} S{season}E{episode} {language}")
-    rec = session.get(EpisodeAvailability, (slug, season, episode, language))
+    logger.debug(
+        f"Fetching availability for {source_site}:{slug} S{season}E{episode} {language}"
+    )
+    rec = session.get(
+        EpisodeAvailability, (source_site, slug, season, episode, language)
+    )
     if rec:
         logger.debug("Availability record found.")
     else:
@@ -299,12 +321,20 @@ def get_availability(
 
 
 def list_available_languages_cached(
-    session: Session, *, slug: str, season: int, episode: int
+    session: Session,
+    *,
+    source_site: str = DEFAULT_SOURCE_SITE,
+    slug: str,
+    season: int,
+    episode: int,
 ) -> List[str]:
-    logger.debug(f"Listing available cached languages for {slug} S{season}E{episode}")
+    logger.debug(
+        f"Listing available cached languages for {source_site}:{slug} S{season}E{episode}"
+    )
     rows = session.exec(
         select(EpisodeAvailability).where(
-            (EpisodeAvailability.slug == slug)
+            (EpisodeAvailability.source_site == source_site)
+            & (EpisodeAvailability.slug == slug)
             & (EpisodeAvailability.season == season)
             & (EpisodeAvailability.episode == episode)
             & (EpisodeAvailability.available == True)

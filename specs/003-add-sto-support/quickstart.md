@@ -11,7 +11,7 @@
    - Re-run `pip install -r requirements-dev.txt` for development environments.
 
 3. **Run migrations / data prep**
-   - Execute a lightweight migration adding `source_site` columns to job/availability tables (SQLModel migration script TBD).
+   - Execute `python scripts/migrations/20251018_add_source_site.py` (or `.venv/bin/python ...`) to add `source_site` columns and rebuild availability caches.
    - Purge or backfill caches to ensure the new per-site keys populate cleanly.
 
 4. **Start AniBridge**

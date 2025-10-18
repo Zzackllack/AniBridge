@@ -25,6 +25,13 @@ AniBridge is configured via environment variables (works well with Docker). Sens
 - Connectivity test result: `TORZNAB_RETURN_TEST_RESULT` (`true|false`)
 - Test release fields: `TORZNAB_TEST_TITLE`, `TORZNAB_TEST_SLUG`, `TORZNAB_TEST_SEASON`, `TORZNAB_TEST_EPISODE`, `TORZNAB_TEST_LANGUAGE`
 
+## Catalogues
+
+- `CATALOG_SITES` (default: `aniworld,s.to`) — comma-separated list specifying enabled catalogues and their lookup order.
+- `SITE_BASE_URL_ANIWORLD`, `SITE_BASE_URL_STO` — optional overrides for catalogue base URLs (use when mirrors or IPs change).
+- `PREFERRED_LANGUAGES_ANIWORLD`, `PREFERRED_LANGUAGES_STO` — comma-separated language preferences applied per catalogue.
+- `CATALOG_SEARCH_TIMEOUT_SECONDS` — default network timeout applied to each catalogue fetch when not overridden individually.
+
 ## Provider & Language
 
 - `PROVIDER_ORDER`: comma-separated providers by priority (e.g., `VOE,Filemoon,Streamtape,...`)
@@ -68,6 +75,11 @@ See the dedicated [Networking & Proxies](/guide/networking) guide for examples a
 ```ini
 DOWNLOAD_DIR=./data/downloads/anime
 DATA_DIR=./data
+CATALOG_SITES=aniworld,s.to
+SITE_BASE_URL_ANIWORLD=https://aniworld.to
+SITE_BASE_URL_STO=http://186.2.175.5
+PREFERRED_LANGUAGES_ANIWORLD=German Dub,German Sub,English Sub
+PREFERRED_LANGUAGES_STO=English Dub,English Sub,German Dub
 INDEXER_NAME="AniBridge Torznab"
 TORZNAB_RETURN_TEST_RESULT=true
 PROVIDER_ORDER=VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza

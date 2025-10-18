@@ -84,6 +84,112 @@ PUBLIC_IP_CHECK_INTERVAL_MIN = int(
 )
 
 
+def _env_suffix(site_id: str) -> str:
+    """Create an ENV suffix (ANIWORLD, STO, etc.)."""
+    return site_id.replace(".", "").replace("-", "").upper()
+
+
+def _normalize_site_id(raw: str) -> str:
+    value = (raw or "").strip().lower()
+    if value in ("s.to", "sto"):
+        return "sto"
+    return value
+
+
+# --- Catalogue configuration ---
+SUPPORTED_CATALOGUES: dict[str, dict[str, object]] = {
+    "aniworld": {
+        "display_name": "AniWorld",
+        "default_base_url": "https://aniworld.to",
+        "base_url_env": "SITE_BASE_URL_ANIWORLD",
+        "default_languages": ["German Dub", "German Sub", "English Sub"],
+        "languages_env": "PREFERRED_LANGUAGES_ANIWORLD",
+    },
+    "sto": {
+        "display_name": "s.to",
+        "default_base_url": "http://186.2.175.5",
+        "base_url_env": "SITE_BASE_URL_STO",
+        "default_languages": ["English Dub", "English Sub", "German Dub"],
+        "languages_env": "PREFERRED_LANGUAGES_STO",
+    },
+}
+
+CATALOG_SEARCH_TIMEOUT_SECONDS = int(
+    os.getenv("CATALOG_SEARCH_TIMEOUT_SECONDS", "10") or 10
+)
+
+_raw_catalog_sites = os.getenv("CATALOG_SITES", "aniworld,sto")
+CATALOG_SITE_IDS: list[str] = []
+for entry in _raw_catalog_sites.split(","):
+    site = _normalize_site_id(entry)
+    if not site:
+        continue
+    if site not in SUPPORTED_CATALOGUES:
+        logger.warning(f"Ignoring unsupported catalogue '{entry.strip()}' in CATALOG_SITES")
+        continue
+    if site in CATALOG_SITE_IDS:
+        continue
+    CATALOG_SITE_IDS.append(site)
+
+# Fallback: enable AniWorld if no valid entries found to avoid empty configuration
+if not CATALOG_SITE_IDS:
+    CATALOG_SITE_IDS.append("aniworld")
+    logger.warning(
+        "CATALOG_SITES resulted in no valid entries. Falling back to ['aniworld']."
+    )
+
+
+def _catalog_preferred_languages(site_id: str) -> list[str]:
+    config = SUPPORTED_CATALOGUES[site_id]
+    env_key = config["languages_env"]
+    raw = os.getenv(env_key, "")
+    if raw:
+        langs = [lang.strip() for lang in str(raw).split(",") if lang.strip()]
+        if langs:
+            return langs
+    return list(config["default_languages"])  # copy
+
+
+def _catalog_base_url(site_id: str) -> str:
+    config = SUPPORTED_CATALOGUES[site_id]
+    env_key = config["base_url_env"]
+    raw = os.getenv(env_key, "")
+    if raw and raw.strip():
+        return raw.strip()
+    return str(config["default_base_url"])
+
+
+def _catalog_timeout(site_id: str) -> int:
+    suffix = _env_suffix(site_id)
+    env_key = f"SITE_SEARCH_TIMEOUT_SECONDS_{suffix}"
+    raw = os.getenv(env_key, "")
+    if raw and raw.strip():
+        try:
+            value = int(raw.strip())
+            return max(1, value)
+        except ValueError:
+            logger.warning(
+                f"Invalid {env_key}='{raw}'. Using default {CATALOG_SEARCH_TIMEOUT_SECONDS}s."
+            )
+    return CATALOG_SEARCH_TIMEOUT_SECONDS
+
+
+CATALOG_CONFIG = [
+    {
+        "site_id": site_id,
+        "display_name": SUPPORTED_CATALOGUES[site_id]["display_name"],
+        "base_url": _catalog_base_url(site_id),
+        "search_priority": idx,
+        "preferred_languages": _catalog_preferred_languages(site_id),
+        "search_timeout_seconds": _catalog_timeout(site_id),
+    }
+    for idx, site_id in enumerate(CATALOG_SITE_IDS, start=1)
+]
+
+ENABLED_CATALOG_IDS = tuple(config["site_id"] for config in CATALOG_CONFIG)
+CATALOG_CONFIG_BY_ID = {config["site_id"]: config for config in CATALOG_CONFIG}
+
+
 # Internal helper to promote socks5 → socks5h when remote DNS is requested.
 def _normalize_proxy_scheme(url: str | None) -> str | None:
     if not url:
