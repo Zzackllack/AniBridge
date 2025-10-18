@@ -25,14 +25,14 @@
 
 **Purpose**: Core groundwork required before implementing user stories.
 
-- [x] T003 Expand site configuration schema in `app/config.py` (catalogue toggles, priorities, base URLs, languages)
-- [x] T004 [P] Add per-site configuration defaults and validation tests in `tests/unit/test_config.py`
-- [x] T005 [P] Introduce `site_id` enums/constants in `app/domain/models.py` and `app/utils/naming.py`
-- [x] T006 Create SQLModel migration script adding `source_site` field to job and availability tables under `scripts/migrations/`
-- [x] T007 [P] Extend SQLModel definitions in `app/db/models.py` for `source_site` and site-aware helpers
-- [x] T008 [P] Add migration/backfill tests covering legacy data handling in `tests/unit/test_models.py`
-- [x] T009 Update scheduler bootstrap in `app/core/bootstrap.py` (or related) to load enabled catalogues list from config
-- [x] T010 [P] Refresh developer quickstart noting migration steps in `specs/003-add-sto-support/quickstart.md`
+- [ ] T003 Expand site configuration schema in `app/config.py` (catalogue toggles, priorities, base URLs, languages)
+- [ ] T004 [P] Add per-site configuration defaults and validation tests in `tests/unit/test_config.py`
+- [ ] T005 [P] Introduce `site_id` enums/constants in `app/domain/models.py` and `app/utils/naming.py`
+- [ ] T006 Create SQLModel migration script adding `source_site` field to job and availability tables under `scripts/migrations/`
+- [ ] T007 [P] Extend SQLModel definitions in `app/db/models.py` for `source_site` and site-aware helpers
+- [ ] T008 [P] Add migration/backfill tests covering legacy data handling in `tests/unit/test_models.py`
+- [ ] T009 Update scheduler bootstrap in `app/core/bootstrap.py` (or related) to load enabled catalogues list from config
+- [ ] T010 [P] Refresh developer quickstart noting migration steps in `specs/003-add-sto-support/quickstart.md`
 
 **Checkpoint**: Configuration, models, and migrations support dual catalogues.
 

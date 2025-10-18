@@ -13,13 +13,6 @@ Comprehensive list of env vars read in `app/config.py`.
 - `DATA_DIR`: where the SQLite DB and logs live
 - `QBIT_PUBLIC_SAVE_PATH`: path override reported to clients (e.g., Sonarr)
 
-## Catalogues
-
-- `CATALOG_SITES` (default: `aniworld,s.to`) — comma-separated list defining enabled catalogues and priority order.
-- `SITE_BASE_URL_ANIWORLD`, `SITE_BASE_URL_STO` — optional overrides for catalogue base URLs or mirrors.
-- `PREFERRED_LANGUAGES_ANIWORLD`, `PREFERRED_LANGUAGES_STO` — comma-separated language preferences evaluated per catalogue.
-- `CATALOG_SEARCH_TIMEOUT_SECONDS` (default: `10`) — default timeout applied to each catalogue request unless overridden.
-
 ## Indexer (Torznab)
 
 - `INDEXER_NAME` (default: `AniBridge Torznab`)

@@ -13,19 +13,12 @@ import re
 import subprocess
 
 from app.config import SOURCE_TAG, RELEASE_GROUP
-from app.domain.models import CatalogueSite
 from app.utils.title_resolver import resolve_series_title
 
 LANG_TAG_MAP = {
     "German Dub": "GER",
     "German Sub": "GER.SUB",
     "English Sub": "ENG.SUB",
-    "English Dub": "ENG",
-}
-
-SITE_RELEASE_GROUP_ALIASES = {
-    CatalogueSite.ANIWORLD.value: "aniworld",
-    CatalogueSite.STO.value: "sto",
 }
 
 
