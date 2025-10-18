@@ -65,6 +65,7 @@ class Job(ModelBase, table=True):
     eta: Optional[int] = None
     message: Optional[str] = None
     result_path: Optional[str] = None
+    source_site: Optional[str] = Field(default="aniworld.to", index=True)  # Track originating site
 
     created_at: datetime = Field(default_factory=utcnow, index=True)
     updated_at: datetime = Field(default_factory=utcnow, index=True)
@@ -73,17 +74,19 @@ class Job(ModelBase, table=True):
 # ---------------- Semi-Cache: Episode Availability
 class EpisodeAvailability(ModelBase, table=True):
     """
-    Semi-Cache: pro (slug, season, episode, language) speichern wir:
+    Semi-Cache: pro (slug, season, episode, language, site) speichern wir:
       - height/vcodec (aus Preflight-Probe)
       - available (bool): Sprache wirklich verfügbar?
       - provider (optional): welcher Provider hat funktioniert
       - checked_at: wann zuletzt geprüft
+      - site: which catalogue site this episode is from (aniworld.to or s.to)
     """
 
     slug: str = Field(primary_key=True)
     season: int = Field(primary_key=True)
     episode: int = Field(primary_key=True)
     language: str = Field(primary_key=True)
+    site: str = Field(default="aniworld.to", primary_key=True)  # Add site to primary key
     available: bool = True
     height: Optional[int] = None
     vcodec: Optional[str] = None
@@ -116,6 +119,7 @@ class ClientTask(ModelBase, table=True):
     season: int
     episode: int
     language: str
+    site: Optional[str] = Field(default="aniworld.to", index=True)  # Track source site
     job_id: Optional[str] = Field(default=None, index=True)
     save_path: Optional[str] = None
     category: Optional[str] = None
@@ -247,9 +251,10 @@ def upsert_availability(
     vcodec: Optional[str],
     provider: Optional[str],
     extra: Optional[dict] = None,
+    site: str = "aniworld.to",
 ) -> EpisodeAvailability:
-    logger.debug(f"Upserting availability for {slug} S{season}E{episode} {language}")
-    rec = session.get(EpisodeAvailability, (slug, season, episode, language))
+    logger.debug(f"Upserting availability for {slug} S{season}E{episode} {language} on {site}")
+    rec = session.get(EpisodeAvailability, (slug, season, episode, language, site))
     if rec is None:
         logger.info("No existing availability record found, creating new.")
         rec = EpisodeAvailability(
@@ -257,6 +262,7 @@ def upsert_availability(
             season=season,
             episode=episode,
             language=language,
+            site=site,
             available=available,
             height=height,
             vcodec=vcodec,
@@ -278,7 +284,7 @@ def upsert_availability(
         session.commit()
         session.refresh(rec)
         logger.success(
-            f"Upserted availability for {slug} S{season}E{episode} {language}"
+            f"Upserted availability for {slug} S{season}E{episode} {language} on {site}"
         )
     except Exception as e:
         logger.error(f"Failed to upsert availability: {e}")
@@ -287,10 +293,10 @@ def upsert_availability(
 
 
 def get_availability(
-    session: Session, *, slug: str, season: int, episode: int, language: str
+    session: Session, *, slug: str, season: int, episode: int, language: str, site: str = "aniworld.to"
 ) -> Optional[EpisodeAvailability]:
-    logger.debug(f"Fetching availability for {slug} S{season}E{episode} {language}")
-    rec = session.get(EpisodeAvailability, (slug, season, episode, language))
+    logger.debug(f"Fetching availability for {slug} S{season}E{episode} {language} on {site}")
+    rec = session.get(EpisodeAvailability, (slug, season, episode, language, site))
     if rec:
         logger.debug("Availability record found.")
     else:
@@ -299,14 +305,15 @@ def get_availability(
 
 
 def list_available_languages_cached(
-    session: Session, *, slug: str, season: int, episode: int
+    session: Session, *, slug: str, season: int, episode: int, site: str = "aniworld.to"
 ) -> List[str]:
-    logger.debug(f"Listing available cached languages for {slug} S{season}E{episode}")
+    logger.debug(f"Listing available cached languages for {slug} S{season}E{episode} on {site}")
     rows = session.exec(
         select(EpisodeAvailability).where(
             (EpisodeAvailability.slug == slug)
             & (EpisodeAvailability.season == season)
             & (EpisodeAvailability.episode == episode)
+            & (EpisodeAvailability.site == site)
             & (EpisodeAvailability.available == True)
         )
     ).all()
