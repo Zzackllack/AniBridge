@@ -8,8 +8,16 @@ def test_caps_xml_parses():
 
 
 def test_slug_from_query_basic(monkeypatch):
-    from app.api import torznab as tn
+    from app.api.torznab import utils as torznab_utils
+    from app import utils as app_utils
 
-    monkeypatch.setattr(tn, "load_or_refresh_index", lambda: {"slug": "My Title"})
-    assert tn._slug_from_query("My Title") == "slug"
-    assert tn._slug_from_query("Unknown") is None
+    # Mock the title_resolver slug_from_query
+    def mock_slug_from_query(q, site=None):
+        if "My Title" in q:
+            return ("aniworld.to", "slug")
+        return None
+    
+    monkeypatch.setattr(app_utils.title_resolver, "slug_from_query", mock_slug_from_query)
+    result = torznab_utils._slug_from_query("My Title")
+    assert result == ("aniworld.to", "slug")
+    assert torznab_utils._slug_from_query("Unknown") is None

@@ -58,6 +58,7 @@ def probe_episode_quality(
     language: str,
     preferred_provider: Optional[str] = None,
     timeout: float = 6.0,
+    site: str = "aniworld.to",
 ) -> tuple[bool, Optional[int], Optional[str], Optional[str], Dict[str, Any] | None]:
     """
     Gibt zurück: (available, height, vcodec, provider_used, raw_info)
@@ -65,9 +66,9 @@ def probe_episode_quality(
     """
     logger.info(
         f"Probing episode quality for slug={slug}, season={season}, episode={episode}, language={language}, "
-        f"preferred_provider={preferred_provider}, timeout={timeout}"
+        f"preferred_provider={preferred_provider}, timeout={timeout}, site={site}"
     )
-    ep = build_episode(slug=slug, season=season, episode=episode)
+    ep = build_episode(slug=slug, season=season, episode=episode, site=site)
     logger.debug(f"Built episode object: {ep}")
     candidates: List[str] = []
     if preferred_provider:

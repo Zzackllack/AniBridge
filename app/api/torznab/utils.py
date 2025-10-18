@@ -70,42 +70,28 @@ def _normalize_tokens(s: str) -> List[str]:
     return "".join(ch.lower() if ch.isalnum() else " " for ch in s).split()
 
 
-def _slug_from_query(q: str) -> Optional[str]:
-    """Map free-text query -> slug using main and alternative titles.
-
-    Import from the torznab package namespace so tests that monkeypatch
-    `app.api.torznab.load_or_refresh_index` affect this function too.
+def _slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, str]]:
+    """Map free-text query -> (site, slug) using main and alternative titles.
+    
+    If site is specified, only searches that site. Otherwise searches all enabled sites.
+    Returns (site, slug) tuple or None.
+    
+    Import from the title_resolver module for the actual implementation.
     """
-    logger.debug(f"Resolving slug from query: '{q}'")
-    import app.api.torznab as tn
-
-    index = tn.load_or_refresh_index()  # slug -> display title
-    alts = tn.load_or_refresh_alternatives()  # slug -> [titles]
-    q_tokens = set(_normalize_tokens(q))
-    best_slug: Optional[str] = None
-    best_score = 0
-
-    for s, title in index.items():
-        candidates: List[str] = [title]
-        if s in alts and alts[s]:
-            candidates.extend(alts[s])
-        local_best = 0
-        for cand in candidates:
-            t_tokens = set(_normalize_tokens(cand))
-            inter = len(q_tokens & t_tokens)
-            if inter > local_best:
-                local_best = inter
-        if local_best > best_score:
-            best_score = local_best
-            best_slug = s
-
-    if not best_slug:
-        logger.warning(f"No slug match found for query: '{q}'")
-    else:
+    logger.debug(f"Resolving slug from query: '{q}', site filter: {site}")
+    from app.utils.title_resolver import slug_from_query
+    
+    # Use the new multi-site slug_from_query
+    result = slug_from_query(q, site)
+    if result:
+        site_found, slug_found = result
         logger.debug(
-            f"Best slug match for '{q}' is '{best_slug}' with score {best_score}"
+            f"Best match for '{q}' is slug '{slug_found}' on site '{site_found}'"
         )
-    return best_slug
+        return (site_found, slug_found)
+    else:
+        logger.warning(f"No slug match found for query: '{q}'")
+        return None
 
 
 def _add_torznab_attr(item: ET.Element, name: str, value: str) -> None:
