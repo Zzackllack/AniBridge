@@ -17,7 +17,7 @@ from app.utils.naming import rename_to_release
 from app.config import PROVIDER_ORDER, PROXY_ENABLED, PROXY_SCOPE
 from app.infrastructure.network import yt_dlp_proxy, disabled_proxy_env
 
-Language = Literal["German Dub", "German Sub", "English Sub"]
+Language = Literal["German Dub", "German Sub", "English Sub", "English Dub"]
 Provider = Literal[
     "VOE",
     "Vidoza",
@@ -63,6 +63,10 @@ _LANG_ALIASES = {
     "engsub": "English Sub",
     "suben": "English Sub",
     "en-sub": "English Sub",
+    "englishdub": "English Dub",
+    "engdub": "English Dub",
+    "duben": "English Dub",
+    "en-dub": "English Dub",
 }
 
 
@@ -86,16 +90,17 @@ def build_episode(
     slug: Optional[str] = None,
     season: Optional[int] = None,
     episode: Optional[int] = None,
+    site: str = "aniworld.to",
 ) -> Episode:
     logger.info(
-        f"Building episode: link={link}, slug={slug}, season={season}, episode={episode}"
+        f"Building episode: link={link}, slug={slug}, season={season}, episode={episode}, site={site}"
     )
     if link:
         logger.debug("Using direct link for episode.")
-        return Episode(link=link)
+        return Episode(link=link, site=site)
     if slug and season and episode:
         logger.debug("Using slug/season/episode for episode.")
-        return Episode(slug=slug, season=season, episode=episode)
+        return Episode(slug=slug, season=season, episode=episode, site=site)
     logger.error(
         "Invalid episode parameters: must provide either link or (slug, season, episode)."
     )
@@ -300,12 +305,13 @@ def download_episode(
     cookiefile: Optional[Path] = None,
     progress_cb: Optional[ProgressCb] = None,
     stop_event: Optional[threading.Event] = None,
+    site: str = "aniworld.to",
 ) -> Path:
     language = _normalize_language(language)
     logger.info(
-        f"Starting download_episode: link={link}, slug={slug}, season={season}, episode={episode}, provider={provider}, language={language}, dest_dir={dest_dir}"
+        f"Starting download_episode: link={link}, slug={slug}, season={season}, episode={episode}, provider={provider}, language={language}, dest_dir={dest_dir}, site={site}"
     )
-    ep = build_episode(link=link, slug=slug, season=season, episode=episode)
+    ep = build_episode(link=link, slug=slug, season=season, episode=episode, site=site)
 
     # Fallback-Strategie (with proxy-aware retry)
     force_no_proxy = False
@@ -324,7 +330,7 @@ def download_episode(
             )
             with disabled_proxy_env():
                 ep2 = build_episode(
-                    link=link, slug=slug, season=season, episode=episode
+                    link=link, slug=slug, season=season, episode=episode, site=site
                 )
                 direct, chosen = get_direct_url_with_fallback(
                     ep2, preferred=provider, language=language
@@ -370,7 +376,7 @@ def download_episode(
             try:
                 with disabled_proxy_env():
                     ep2 = build_episode(
-                        link=link, slug=slug, season=season, episode=episode
+                        link=link, slug=slug, season=season, episode=episode, site=site
                     )
                     direct2, chosen2 = get_direct_url_with_fallback(
                         ep2, preferred=provider, language=language
@@ -439,6 +445,7 @@ def download_episode(
         season=season,
         episode=episode,
         language=language,
+        site=site,
     )
     logger.success(f"Final file path: {final_path}")
     return final_path

@@ -29,27 +29,34 @@ def build_magnet(
     episode: int,
     language: str,
     provider: str | None = None,
+    site: str = "aniworld.to",
 ) -> str:
     """
     Synthetischer Magnet mit notwendiger Payload für den Shim.
+    Now includes site parameter to distinguish between aniworld.to and s.to content.
     """
     logger.debug(
-        f"Building magnet for title='{title}', slug='{slug}', season={season}, episode={episode}, language='{language}', provider='{provider}'"
+        f"Building magnet for title='{title}', slug='{slug}', season={season}, episode={episode}, language='{language}', provider='{provider}', site='{site}'"
     )
     xt = f"urn:btih:{_hash_id(slug, season, episode, language)}"
     # Build query params, but ensure 'xt=urn:btih:...' keeps ':' unescaped.
     # Some consumers (Prowlarr/qBittorrent) are strict and expect a literal
     # 'urn:btih:' instead of the percent-encoded variant.
+    
+    # Use site-specific prefixes
+    prefix = "aw" if site == "aniworld.to" else "sto"
+    
     params: list[tuple[str, str]] = [
         ("xt", xt),
         ("dn", title),
-        ("aw_slug", slug),
-        ("aw_s", str(season)),
-        ("aw_e", str(episode)),
-        ("aw_lang", language),
+        (f"{prefix}_slug", slug),
+        (f"{prefix}_s", str(season)),
+        (f"{prefix}_e", str(episode)),
+        (f"{prefix}_lang", language),
+        (f"{prefix}_site", site),  # Add site metadata
     ]
     if provider:
-        params.append(("aw_provider", provider))
+        params.append((f"{prefix}_provider", provider))
         logger.debug(f"Added provider to magnet: {provider}")
 
     # Encode each param individually; keep ':' in xt unescaped
@@ -68,7 +75,8 @@ def build_magnet(
 
 def parse_magnet(magnet: str) -> Dict[str, str]:
     """
-    Extrahiert unsere Payload (aw_*), dn, xt.
+    Extrahiert unsere Payload (aw_* or sto_*), dn, xt.
+    Now supports both aniworld (aw_*) and s.to (sto_*) prefixes.
     """
     logger.debug(f"Parsing magnet URI: {magnet}")
     if not magnet.startswith("magnet:?"):
@@ -83,10 +91,25 @@ def parse_magnet(magnet: str) -> Dict[str, str]:
             continue
         flat[k] = v[0]
         logger.debug(f"Magnet param parsed: {k}={v[0]}")
-    # sanity
-    for req in ("dn", "xt", "aw_slug", "aw_s", "aw_e", "aw_lang"):
+    
+    # Determine which prefix is used
+    has_aw = any(k.startswith("aw_") for k in flat.keys())
+    has_sto = any(k.startswith("sto_") for k in flat.keys())
+    
+    if has_aw:
+        prefix = "aw"
+    elif has_sto:
+        prefix = "sto"
+    else:
+        # Backward compatibility: default to aw_
+        prefix = "aw"
+    
+    # Check required params
+    required_params = ["dn", "xt", f"{prefix}_slug", f"{prefix}_s", f"{prefix}_e", f"{prefix}_lang"]
+    for req in required_params:
         if req not in flat:
             logger.error(f"Missing required magnet param: {req}")
             raise ValueError(f"missing magnet param: {req}")
+    
     logger.success(f"Magnet parsed successfully: {flat}")
     return flat

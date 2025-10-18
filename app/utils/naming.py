@@ -12,13 +12,14 @@ import json
 import re
 import subprocess
 
-from app.config import SOURCE_TAG, RELEASE_GROUP
+from app.config import SOURCE_TAG, RELEASE_GROUP, RELEASE_GROUP_ANIWORLD, RELEASE_GROUP_STO
 from app.utils.title_resolver import resolve_series_title
 
 LANG_TAG_MAP = {
     "German Dub": "GER",
     "German Sub": "GER.SUB",
     "English Sub": "ENG.SUB",
+    "English Dub": "ENG",
 }
 
 
@@ -140,10 +141,18 @@ def build_release_name(
     language: str,
     source_tag: str = SOURCE_TAG,
     release_group: str = RELEASE_GROUP,
+    site: str = "aniworld.to",
 ) -> str:
     logger.info(
-        f"Building release name for series_title={series_title}, season={season}, episode={episode}, height={height}, vcodec={vcodec}, language={language}"
+        f"Building release name for series_title={series_title}, season={season}, episode={episode}, height={height}, vcodec={vcodec}, language={language}, site={site}"
     )
+    
+    # Use site-specific release group if available
+    if site == "s.to":
+        release_group = RELEASE_GROUP_STO
+    elif site == "aniworld.to":
+        release_group = RELEASE_GROUP_ANIWORLD
+    
     series_part = _series_component(series_title)
     se_part = (
         f"S{int(season):02d}E{int(episode):02d}"
@@ -183,12 +192,13 @@ def rename_to_release(
     season: Optional[int],
     episode: Optional[int],
     language: str,
+    site: str = "aniworld.to",
 ) -> Path:
-    logger.info(f"Renaming file to release schema: {path}")
+    logger.info(f"Renaming file to release schema: {path} (site: {site})")
     # 1) Serien-Titel bestimmen
     display_title = None
     if slug:
-        display_title = resolve_series_title(slug)
+        display_title = resolve_series_title(slug, site)
     if not display_title and slug:
         display_title = slug.replace("-", " ").title()
     if not display_title:
@@ -211,6 +221,7 @@ def rename_to_release(
         height=h,
         vcodec=vc,
         language=language,
+        site=site,
     )
 
     new_path = path.with_name(f"{release}{path.suffix.lower()}")

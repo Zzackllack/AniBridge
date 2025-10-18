@@ -16,17 +16,29 @@ from app.utils.http_client import get as http_get  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 
 from app.config import (
+    CATALOG_SITES_LIST,
     ANIWORLD_ALPHABET_HTML,
     ANIWORLD_ALPHABET_URL,
     ANIWORLD_TITLES_REFRESH_HOURS,
+    STO_ALPHABET_HTML,
+    STO_ALPHABET_URL,
+    STO_TITLES_REFRESH_HOURS,
 )
 
-HREF_RE = re.compile(r"/anime/stream/([^/?#]+)")
+# Site-specific regex patterns for slug extraction
+HREF_PATTERNS = {
+    "aniworld.to": re.compile(r"/anime/stream/([^/?#]+)"),
+    "s.to": re.compile(r"/serie/stream/([^/?#]+)"),
+}
+
+# Legacy pattern for backward compatibility
+HREF_RE = HREF_PATTERNS["aniworld.to"]
 
 
-def _extract_slug(href: str) -> Optional[str]:
-    logger.debug(f"Extracting slug from href: {href}")
-    m = HREF_RE.search(href or "")
+def _extract_slug(href: str, site: str = "aniworld.to") -> Optional[str]:
+    logger.debug(f"Extracting slug from href: {href} for site: {site}")
+    pattern = HREF_PATTERNS.get(site, HREF_PATTERNS["aniworld.to"])
+    m = pattern.search(href or "")
     if m:
         logger.debug(f"Extracted slug: {m.group(1)}")
     else:
@@ -34,13 +46,13 @@ def _extract_slug(href: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
-def build_index_from_html(html_text: str) -> Dict[str, str]:
-    logger.info("Building index from HTML text.")
+def build_index_from_html(html_text: str, site: str = "aniworld.to") -> Dict[str, str]:
+    logger.info(f"Building index from HTML text for site: {site}.")
     soup = BeautifulSoup(html_text, "html.parser")
     result: Dict[str, str] = {}
     for a in soup.find_all("a"):
         href = a.get("href") or ""  # type: ignore
-        slug = _extract_slug(href)  # type: ignore
+        slug = _extract_slug(href, site)  # type: ignore
         if not slug:
             logger.debug(f"Skipping anchor with no valid slug: {href}")
             continue
@@ -50,43 +62,41 @@ def build_index_from_html(html_text: str) -> Dict[str, str]:
             logger.debug(f"Added entry: slug={slug}, title={title}")
         else:
             logger.warning(f"Anchor with slug '{slug}' has empty title.")
-    logger.success(f"Built index with {len(result)} entries.")
+    logger.success(f"Built index with {len(result)} entries for site: {site}.")
     return result
 
 
-# -------- Live-Fetch + Cache --------
+# -------- Live-Fetch + Cache (Multi-Site Support) --------
 
-_cached_index: Dict[str, str] | None = None
-_cached_alts: Dict[str, List[str]] | None = (
-    None  # slug -> alternative titles (incl. main)
-)
-_cached_at: float | None = None
+# Per-site caches
+_cached_indices: Dict[str, Dict[str, str] | None] = {}  # site -> (slug -> title)
+_cached_alts: Dict[str, Dict[str, List[str]] | None] = {}  # site -> (slug -> [titles])
+_cached_at: Dict[str, float | None] = {}  # site -> timestamp
 
 
-def _should_refresh(now: float) -> bool:
+def _should_refresh(site: str, now: float, refresh_hours: float) -> bool:
     logger.debug(
-        f"Checking if cache should refresh. now={now}, _cached_at={_cached_at}, refresh_hours={ANIWORLD_TITLES_REFRESH_HOURS}"
+        f"Checking if cache should refresh for site={site}. now={now}, _cached_at={_cached_at.get(site)}, refresh_hours={refresh_hours}"
     )
-    if _cached_index is None:
-        logger.info("No cached index found. Refresh needed.")
+    if site not in _cached_indices or _cached_indices[site] is None:
+        logger.info(f"No cached index found for {site}. Refresh needed.")
         return True
-    if ANIWORLD_TITLES_REFRESH_HOURS <= 0:
-        logger.info("Refresh hours <= 0. No refresh needed.")
+    if refresh_hours <= 0:
+        logger.info(f"Refresh hours <= 0 for {site}. No refresh needed.")
         return False
-    if _cached_at is None:
-        logger.info("No cached timestamp found. Refresh needed.")
+    if site not in _cached_at or _cached_at[site] is None:
+        logger.info(f"No cached timestamp found for {site}. Refresh needed.")
         return True
-    expired = (now - _cached_at) > ANIWORLD_TITLES_REFRESH_HOURS * 3600.0
+    expired = (now - _cached_at[site]) > refresh_hours * 3600.0
     if expired:
-        logger.info("Cache expired. Refresh needed.")
+        logger.info(f"Cache expired for {site}. Refresh needed.")
     else:
-
-        logger.debug("Cache still valid. No refresh needed.")
+        logger.debug(f"Cache still valid for {site}. No refresh needed.")
     return expired
 
 
 def _parse_index_and_alts(
-    html_text: str,
+    html_text: str, site: str = "aniworld.to"
 ) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
     """
     Parse HTML to produce:
@@ -96,11 +106,15 @@ def _parse_index_and_alts(
     soup = BeautifulSoup(html_text, "html.parser")
     idx: Dict[str, str] = {}
     alts: Dict[str, List[str]] = {}
+    pattern = HREF_PATTERNS.get(site, HREF_PATTERNS["aniworld.to"])
+    
     for a in soup.find_all("a"):
         href = a.get("href") or ""  # type: ignore
-        slug = _extract_slug(href)  # type: ignore
-        if not slug:
+        m = pattern.search(href)
+        if not m:
             continue
+        slug = m.group(1)
+        
         title = (a.get_text() or "").strip()
         alt_raw = (a.get("data-alternative-title") or "").strip()  # type: ignore
         # Split by comma and normalize pieces
@@ -120,157 +134,196 @@ def _parse_index_and_alts(
     return idx, alts
 
 
-def _fetch_index_from_url() -> Tuple[Dict[str, str], Dict[str, List[str]]]:
-    logger.info(f"Fetching index from URL: {ANIWORLD_ALPHABET_URL}")
+def _fetch_index_from_url(
+    url: str, site: str = "aniworld.to"
+) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
+    logger.info(f"Fetching index from URL: {url} for site: {site}")
     try:
-        resp = http_get(ANIWORLD_ALPHABET_URL, timeout=20)
+        resp = http_get(url, timeout=20)
         resp.raise_for_status()
-        logger.success("Successfully fetched index from URL.")
-        return _parse_index_and_alts(resp.text)
+        logger.success(f"Successfully fetched index from URL for site: {site}.")
+        return _parse_index_and_alts(resp.text, site)
     except Exception as e:
-        logger.error(f"Failed to fetch index from URL: {e}")
+        logger.error(f"Failed to fetch index from URL for {site}: {e}")
         raise
 
 
-def _load_index_from_file(path: Path) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
+def _load_index_from_file(
+    path: Path, site: str = "aniworld.to"
+) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
     """
     Load the index strictly from the provided file path.
     Intentionally avoids implicit fallbacks so tests can point to a
     minimal, deterministic HTML sample via ANIWORLD_ALPHABET_HTML.
     """
-    logger.info(f"Loading index from file: {path}")
+    logger.info(f"Loading index from file: {path} for site: {site}")
     if not path.exists():
         logger.warning(f"Configured HTML file does not exist: {path}")
         return {}, {}
     try:
         html_text = path.read_text(encoding="utf-8", errors="ignore")
-        logger.success(f"Successfully read file: {path}")
-        return _parse_index_and_alts(html_text)
+        logger.success(f"Successfully read file: {path} for site: {site}")
+        return _parse_index_and_alts(html_text, site)
     except Exception as e:
-        logger.error(f"Failed to read file {path}: {e}")
+        logger.error(f"Failed to read file {path} for {site}: {e}")
         raise
 
 
-def load_or_refresh_index() -> Dict[str, str]:
+def load_or_refresh_index(site: str = "aniworld.to") -> Dict[str, str]:
     """
-    Bevorzugt Live-URL (falls konfiguriert), sonst lokale Datei.
-    Nutzt In-Memory-Cache mit TTL und Fallback-Strategie.
+    Load or refresh the title index for a specific site.
+    Prefers live URL (if configured), otherwise falls back to local file.
+    Uses in-memory cache with TTL and fallback strategy.
     """
-    global _cached_index, _cached_at, _cached_alts
+    global _cached_indices, _cached_at, _cached_alts
     now = time()
 
-    logger.debug("Starting load_or_refresh_index.")
+    logger.debug(f"Starting load_or_refresh_index for site: {site}.")
 
-    # Refresh-Bedingung prüfen
-    if not _should_refresh(now):
-        logger.info("Returning cached index.")
-        return _cached_index or {}
+    # Site configuration
+    if site == "aniworld.to":
+        url = ANIWORLD_ALPHABET_URL
+        html_file = ANIWORLD_ALPHABET_HTML
+        refresh_hours = ANIWORLD_TITLES_REFRESH_HOURS
+    elif site == "s.to":
+        url = STO_ALPHABET_URL
+        html_file = STO_ALPHABET_HTML
+        refresh_hours = STO_TITLES_REFRESH_HOURS
+    else:
+        logger.warning(f"Unknown site: {site}. Defaulting to aniworld.to configuration.")
+        url = ANIWORLD_ALPHABET_URL
+        html_file = ANIWORLD_ALPHABET_HTML
+        refresh_hours = ANIWORLD_TITLES_REFRESH_HOURS
 
-    # 1) Versuche Live-URL (falls gesetzt/nicht leer)
+    # Check refresh condition
+    if not _should_refresh(site, now, refresh_hours):
+        logger.info(f"Returning cached index for {site}.")
+        return _cached_indices.get(site) or {}
+
+    # 1) Try live URL (if set/not empty)
     index: Dict[str, str] = {}
     alts: Dict[str, List[str]] = {}
-    url = (ANIWORLD_ALPHABET_URL or "").strip()
-    if url:
+    url_stripped = (url or "").strip()
+    if url_stripped:
         try:
-            logger.info("Attempting to fetch index from live URL.")
-            index, alts = _fetch_index_from_url()
+            logger.info(f"Attempting to fetch index from live URL for {site}.")
+            index, alts = _fetch_index_from_url(url_stripped, site)
             if index:
-                logger.success("Index fetched from live URL. Updating cache.")
-                _cached_index = index
-                _cached_alts = alts
-                _cached_at = now
+                logger.success(f"Index fetched from live URL for {site}. Updating cache.")
+                _cached_indices[site] = index
+                _cached_alts[site] = alts
+                _cached_at[site] = now
                 return index
             else:
-                logger.warning("Fetched index from live URL is empty.")
+                logger.warning(f"Fetched index from live URL is empty for {site}.")
         except Exception as e:
-            logger.error(f"Error fetching index from live URL: {e}")
-            # Fallback auf Datei
+            logger.error(f"Error fetching index from live URL for {site}: {e}")
+            # Fallback to file
 
-    # 2) Fallback: Lokale Datei
+    # 2) Fallback: Local file
     try:
-        logger.info("Attempting to load index from local file.")
-        index, alts = _load_index_from_file(ANIWORLD_ALPHABET_HTML)
+        logger.info(f"Attempting to load index from local file for {site}.")
+        index, alts = _load_index_from_file(html_file, site)
         if index:
-            logger.success("Index loaded from local file. Updating cache.")
-            _cached_index = index
-            _cached_alts = alts
-            _cached_at = now
+            logger.success(f"Index loaded from local file for {site}. Updating cache.")
+            _cached_indices[site] = index
+            _cached_alts[site] = alts
+            _cached_at[site] = now
             return index
         else:
-            logger.warning("Index loaded from local file is empty.")
+            logger.warning(f"Index loaded from local file is empty for {site}.")
     except Exception as e:
-        logger.error(f"Error loading index from local file: {e}")
+        logger.error(f"Error loading index from local file for {site}: {e}")
 
-    # 3) Nichts gefunden
+    # 3) Nothing found
     logger.warning(
-        "No index found from live URL or local file. Returning cached index (may be empty)."
+        f"No index found from live URL or local file for {site}. Returning cached index (may be empty)."
     )
-    _cached_index = _cached_index or {}
-    _cached_alts = _cached_alts or {}
-    _cached_at = _cached_at or now
-    return _cached_index
+    if site not in _cached_indices:
+        _cached_indices[site] = {}
+    if site not in _cached_alts:
+        _cached_alts[site] = {}
+    if site not in _cached_at:
+        _cached_at[site] = now
+    return _cached_indices[site] or {}
 
 
-def resolve_series_title(slug: Optional[str]) -> Optional[str]:
-    logger.debug(f"Resolving series title for slug: {slug}")
+def resolve_series_title(slug: Optional[str], site: str = "aniworld.to") -> Optional[str]:
+    logger.debug(f"Resolving series title for slug: {slug}, site: {site}")
     if not slug:
         logger.warning("No slug provided to resolve_series_title.")
         return None
-    index = load_or_refresh_index()
+    index = load_or_refresh_index(site)
     title = index.get(slug)
     if title:
-        logger.info(f"Resolved title for slug '{slug}': {title}")
+        logger.info(f"Resolved title for slug '{slug}' on {site}: {title}")
     else:
-        logger.warning(f"No title found for slug: {slug}")
+        logger.warning(f"No title found for slug: {slug} on {site}")
     return title
 
 
-def load_or_refresh_alternatives() -> Dict[str, List[str]]:
+def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[str]]:
     """
     Ensure alternative titles are cached and return them. Will also populate
     the main index cache if needed.
     """
     global _cached_alts
     now = time()
-    if _should_refresh(now):
+    refresh_hours = (
+        ANIWORLD_TITLES_REFRESH_HOURS if site == "aniworld.to" else STO_TITLES_REFRESH_HOURS
+    )
+    if _should_refresh(site, now, refresh_hours):
         # Trigger a refresh through the main loader
-        load_or_refresh_index()
-    return _cached_alts or {}
+        load_or_refresh_index(site)
+    return _cached_alts.get(site) or {}
 
 
 def _normalize_tokens(s: str) -> Set[str]:
     return set("".join(ch.lower() if ch.isalnum() else " " for ch in s).split())
 
 
-def slug_from_query(q: str) -> Optional[str]:
+def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, str]]:
     """
     Resolve a slug by matching the query against both the main display titles
-    and any alternative titles parsed from the AniWorld index HTML.
+    and any alternative titles parsed from the index HTML.
+    
+    Returns a tuple of (site, slug) if found, or None if no match.
+    If site is provided, only searches that site. Otherwise searches all enabled sites.
     """
-    index = load_or_refresh_index()  # slug -> display title
-    alts = load_or_refresh_alternatives()  # slug -> [titles]
     if not q:
         return None
+    
     q_tokens = _normalize_tokens(q)
     best_slug: Optional[str] = None
+    best_site: Optional[str] = None
     best_score = 0
+    
+    # Determine which sites to search
+    sites_to_search = [site] if site else CATALOG_SITES_LIST
+    
+    for search_site in sites_to_search:
+        index = load_or_refresh_index(search_site)  # slug -> display title
+        alts = load_or_refresh_alternatives(search_site)  # slug -> [titles]
+        
+        for slug, main_title in index.items():
+            # Start with main title tokens
+            titles_for_slug: List[str] = [main_title]
+            if slug in alts and alts[slug]:
+                titles_for_slug.extend(alts[slug])
 
-    for slug, main_title in index.items():
-        # Start with main title tokens
-        titles_for_slug: List[str] = [main_title]
-        if slug in alts and alts[slug]:
-            titles_for_slug.extend(alts[slug])
+            # Evaluate best overlap score across all candidate titles
+            local_best = 0
+            for candidate in titles_for_slug:
+                t_tokens = _normalize_tokens(candidate)
+                inter = len(q_tokens & t_tokens)
+                if inter > local_best:
+                    local_best = inter
 
-        # Evaluate best overlap score across all candidate titles
-        local_best = 0
-        for candidate in titles_for_slug:
-            t_tokens = _normalize_tokens(candidate)
-            inter = len(q_tokens & t_tokens)
-            if inter > local_best:
-                local_best = inter
+            if local_best > best_score:
+                best_score = local_best
+                best_slug = slug
+                best_site = search_site
 
-        if local_best > best_score:
-            best_score = local_best
-            best_slug = slug
-
-    return best_slug
+    if best_slug and best_site:
+        return (best_site, best_slug)
+    return None
