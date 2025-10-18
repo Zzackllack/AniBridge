@@ -16,8 +16,8 @@
 
 **Purpose**: Prepare configuration scaffolding and tooling needed by all stories.
 
-- [x] T001 Document catalogue configuration variables in `docs/src/guide/configuration.md`
-- [x] T002 Update `.env.example` or configuration reference in `docs/src/api/environment.md`
+- [ ] T001 Document catalogue configuration variables in `docs/src/guide/configuration.md`
+- [ ] T002 Update `.env.example` and configuration reference in `docs/src/api/environment.md`
 
 ---
 
