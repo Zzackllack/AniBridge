@@ -47,21 +47,31 @@ def torrents_add(
     logger.debug(f"Parsing magnet: {magnet}")
     payload = parse_magnet(magnet)
 
-    slug = payload["aw_slug"]
-    season = int(payload["aw_s"])
-    episode = int(payload["aw_e"])
-    language = payload["aw_lang"]
+    # Determine which prefix is used (aw_ or sto_)
+    prefix = "aw" if "aw_slug" in payload else "sto"
+    
+    slug = payload[f"{prefix}_slug"]
+    season = int(payload[f"{prefix}_s"])
+    episode = int(payload[f"{prefix}_e"])
+    language = payload[f"{prefix}_lang"]
+    site = payload.get(f"{prefix}_site", "aniworld.to" if prefix == "aw" else "s.to")
     name = payload.get("dn", f"{slug}.S{season:02d}E{episode:02d}.{language}")
     xt = payload["xt"]
     btih = xt.split(":")[-1].lower()
 
     logger.info(
-        "Scheduling download for {} (slug={}, season={}, episode={}, lang={})".format(
-            name, slug, season, episode, language
+        "Scheduling download for {} (slug={}, season={}, episode={}, lang={}, site={})".format(
+            name, slug, season, episode, language, site
         )
     )
 
-    req = {"slug": slug, "season": season, "episode": episode, "language": language}
+    req = {
+        "slug": slug,
+        "season": season,
+        "episode": episode,
+        "language": language,
+        "site": site,
+    }
     job_id = schedule_download(req)
     logger.debug(f"Scheduled job_id: {job_id}")
 
@@ -77,14 +87,15 @@ def torrents_add(
         season=season,
         episode=episode,
         language=language,
+        site=site,
         save_path=published_savepath,
         category=category,
         job_id=job_id,
         state="queued" if paused else "downloading",
     )
     logger.success(
-        "Torrent task upserted for hash={}, state={}".format(
-            btih, "queued" if paused else "downloading"
+        "Torrent task upserted for hash={}, state={}, site={}".format(
+            btih, "queued" if paused else "downloading", site
         )
     )
     return PlainTextResponse("Ok.")

@@ -347,8 +347,9 @@ def upsert_client_task(
     category: Optional[str],
     job_id: Optional[str],
     state: str = "queued",
+    site: str = "aniworld.to",
 ) -> ClientTask:
-    logger.debug(f"Upserting client task for hash {hash}")
+    logger.debug(f"Upserting client task for hash {hash} on site {site}")
     rec = session.get(ClientTask, hash)
     if rec is None:
         logger.info("No existing client task found, creating new.")
@@ -359,6 +360,7 @@ def upsert_client_task(
             season=season,
             episode=episode,
             language=language,
+            site=site,
             save_path=save_path,
             category=category,
             job_id=job_id,
@@ -372,6 +374,7 @@ def upsert_client_task(
         rec.season = season
         rec.episode = episode
         rec.language = language
+        rec.site = site
         rec.save_path = save_path
         rec.category = category
         rec.job_id = job_id
@@ -380,7 +383,7 @@ def upsert_client_task(
     try:
         session.commit()
         session.refresh(rec)
-        logger.success(f"Upserted client task for hash {hash}")
+        logger.success(f"Upserted client task for hash {hash} on site {site}")
     except Exception as e:
         logger.error(f"Failed to upsert client task: {e}")
         raise

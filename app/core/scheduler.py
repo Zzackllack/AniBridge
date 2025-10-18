@@ -115,7 +115,8 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
 def _run_download(job_id: str, req: dict, stop_event: threading.Event):
     try:
         with Session(engine) as s:
-            update_job(s, job_id, status="downloading", message=None)
+            site = req.get("site", "aniworld.to")
+            update_job(s, job_id, status="downloading", message=None, source_site=site)
 
         dest = download_episode(
             link=req.get("link"),
@@ -130,6 +131,7 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
             title_hint=req.get("title_hint"),
             progress_cb=_progress_updater(job_id, stop_event),
             stop_event=stop_event,
+            site=req.get("site", "aniworld.to"),
         )
 
         with Session(engine) as s:
