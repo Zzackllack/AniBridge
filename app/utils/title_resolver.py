@@ -24,14 +24,26 @@ from app.config import (
 HREF_RE = re.compile(r"/anime/stream/([^/?#]+)")
 
 
+# suppress repetitive logging from _extract_slug by emitting each message only once
+_extracted_any: bool = False
+_no_slug_warned: bool = False
+
+
 def _extract_slug(href: str) -> Optional[str]:
-    logger.debug(f"Extracting slug from href: {href}")
+    global _extracted_any, _no_slug_warned
     m = HREF_RE.search(href or "")
     if m:
-        logger.debug(f"Extracted slug: {m.group(1)}")
+        if not _extracted_any:
+            logger.debug("Slug extraction: first successful match found; further matches will not be logged.")
+            _extracted_any = True
+        return m.group(1)
     else:
-        logger.warning(f"No slug found in href: {href}")
-    return m.group(1) if m else None
+        if not _no_slug_warned:
+            logger.warning(
+                "Slug extraction: encountered hrefs that do not match pattern; further misses will be suppressed."
+            )
+            _no_slug_warned = True
+        return None
 
 
 def build_index_from_html(html_text: str) -> Dict[str, str]:
