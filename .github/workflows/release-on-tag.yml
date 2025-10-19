@@ -136,6 +136,7 @@ jobs:
 
   generate-release-notes:
     name: Generate Release Notes With Gemini
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     needs: prepare-release-context
     env:
