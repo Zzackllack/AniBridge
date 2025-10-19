@@ -107,10 +107,14 @@ def build_episode(
     # via slug/season/episode. When link stays None the provider scrape later
     # fails. Force-run the helper if available.
     if getattr(ep, "link", None) is None:
-        logger.warning("Episode link is None after init; attempting to auto-fill basic details. Are you using aniworld>=3.6.4?")
+        logger.warning(
+            "Episode link is None after init; attempting to auto-fill basic details. Are you using aniworld>=3.6.4?"
+        )
         auto_basic = getattr(ep, "_auto_fill_basic_details", None)
         if callable(auto_basic):
-            logger.warning("Running _auto_fill_basic_details() to populate episode basics.")
+            logger.warning(
+                "Running _auto_fill_basic_details() to populate episode basics."
+            )
             # Guard against the flag short-circuiting the helper.
             if getattr(ep, "_basic_details_filled", False):
                 setattr(ep, "_basic_details_filled", False)

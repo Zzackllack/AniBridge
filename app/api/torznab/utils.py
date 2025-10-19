@@ -69,6 +69,7 @@ def _caps_xml() -> str:
 _normalize_tokens_logged = False
 _normalize_tokens_log_lock = threading.Lock()
 
+
 def _normalize_tokens(s: str) -> List[str]:
     global _normalize_tokens_logged
     if not _normalize_tokens_logged:

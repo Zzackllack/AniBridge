@@ -34,7 +34,9 @@ def _extract_slug(href: str) -> Optional[str]:
     m = HREF_RE.search(href or "")
     if m:
         if not _extracted_any:
-            logger.debug("Slug extraction: first successful match found; further matches will not be logged.")
+            logger.debug(
+                "Slug extraction: first successful match found; further matches will not be logged."
+            )
             _extracted_any = True
         return m.group(1)
     else:
