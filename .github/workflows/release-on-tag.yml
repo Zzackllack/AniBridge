@@ -167,9 +167,8 @@ jobs:
             import os
             import textwrap
             import urllib.request
+            from pathlib import Path
             REPO_URL = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}"
-
-            REPO_URL = "https://github.com/Zzackllack/AniBridge"
             CONTEXT_PATH = Path("release-context/commit_context.json")
             OUTPUT_PATH = Path("release-notes.md")
 
@@ -290,6 +289,7 @@ jobs:
         with:
           name: release-notes
           path: release-notes.md
+          retention-days: 7
 
   build-python-dists:
     runs-on: ubuntu-latest
