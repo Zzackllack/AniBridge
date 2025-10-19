@@ -6,6 +6,132 @@ on:
       - "v*"
 
 jobs:
+  prepare-release-context:
+    name: Prepare Commit Context For LLM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag range
+        id: tags
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current="${GITHUB_REF_NAME:-${GITHUB_REF#refs/tags/}}"
+          if [[ -z "${current}" ]]; then
+            echo "Unable to resolve current tag from workflow context." >&2
+            exit 1
+          fi
+
+          previous="$(git tag --sort=-creatordate | grep -E '^v' | grep -vxF "${current}" | head -n 1 || true)"
+
+          echo "current_tag=${current}" >> "${GITHUB_OUTPUT}"
+          echo "previous_tag=${previous}" >> "${GITHUB_OUTPUT}"
+
+      - name: Generate commit context artifacts
+        env:
+          CURRENT_TAG: ${{ steps.tags.outputs.current_tag }}
+          PREVIOUS_TAG: ${{ steps.tags.outputs.previous_tag }}
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          current_tag = os.environ["CURRENT_TAG"]
+          previous_tag = os.environ.get("PREVIOUS_TAG") or ""
+
+          if previous_tag:
+              log_range = f"{previous_tag}..{current_tag}"
+          else:
+              log_range = current_tag
+
+          pretty = "%H%x00%h%x00%an%x00%ae%x00%cI%x00%s%x00%b%x1e"
+          try:
+              log_output = subprocess.check_output(
+                  ["git", "log", "--reverse", f"--pretty=format:{pretty}", log_range],
+                  text=True,
+              )
+          except subprocess.CalledProcessError as exc:
+              raise SystemExit(f"git log failed for range '{log_range}': {exc}") from exc
+
+          entries = []
+          for chunk in log_output.strip().split("\x1e"):
+              if not chunk.strip():
+                  continue
+              parts = chunk.split("\x00")
+              if len(parts) != 7:
+                  continue
+              commit, abbrev, author_name, author_email, authored_iso, subject, body = parts
+              entries.append(
+                  {
+                      "commit": commit,
+                      "abbrev": abbrev,
+                      "subject": subject.strip(),
+                      "body": body.strip(),
+                      "author": {
+                          "name": author_name.strip(),
+                          "email": author_email.strip(),
+                      },
+                      "date": authored_iso.strip(),
+                  }
+              )
+
+          context = {
+              "current_tag": current_tag,
+              "previous_tag": previous_tag or None,
+              "commit_count": len(entries),
+              "commits": entries,
+          }
+
+          Path("commit_context.json").write_text(
+              json.dumps(context, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
+          lines = [
+              "# Release Commit Context",
+              "",
+              f"- Current tag: {current_tag}",
+              f"- Previous tag: {previous_tag or '(none — initial release)'}",
+              f"- Commit count: {len(entries)}",
+          ]
+
+          if entries:
+              lines.append("")
+              lines.append("## Commits")
+              lines.append("")
+              for entry in entries:
+                  lines.append(f"- `{entry['abbrev']}` {entry['subject']}")
+                  lines.append(f"  Author: {entry['author']['name']} <{entry['author']['email']}>")
+                  lines.append(f"  Date: {entry['date']}")
+                  if entry["body"]:
+                      lines.append("  Message:")
+                      for body_line in entry["body"].splitlines():
+                          lines.append(f"    {body_line}")
+                  lines.append("")
+          else:
+              lines.append("")
+              lines.append("No commits found for the selected range.")
+
+          Path("llm_release_context.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+          PY
+
+                - name: Upload commit context artifact
+                  uses: actions/upload-artifact@v4
+                  with:
+                    name: release-commit-context
+                    path: |
+                      commit_context.json
+                      llm_release_context.md
+
   build-python-dists:
     runs-on: ubuntu-latest
     steps:
