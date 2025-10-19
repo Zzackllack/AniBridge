@@ -124,18 +124,174 @@ jobs:
           Path("llm_release_context.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
           PY
 
-                - name: Upload commit context artifact
-                  uses: actions/upload-artifact@v4
-                  with:
-                    name: release-commit-context
-                    path: |
-                      commit_context.json
-                      llm_release_context.md
+      - name: Upload commit context artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-commit-context
+          path: |
+            commit_context.json
+            llm_release_context.md
+
+  generate-release-notes:
+    name: Generate Release Notes With Gemini
+    runs-on: ubuntu-latest
+    needs: prepare-release-context
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Download commit context artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-commit-context
+          path: release-context
+
+      - name: Call Gemini to craft release notes
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "GEMINI_API_KEY secret is required to generate release notes." >&2
+            exit 1
+          fi
+
+          python - <<'PY'
+            import json
+            import os
+            import textwrap
+            import urllib.request
+            from pathlib import Path
+
+            REPO_URL = "https://github.com/Zzackllack/AniBridge"
+            CONTEXT_PATH = Path("release-context/commit_context.json")
+            OUTPUT_PATH = Path("release-notes.md")
+
+            context = json.loads(CONTEXT_PATH.read_text(encoding="utf-8"))
+            current_tag = context.get("current_tag")
+            previous_tag = context.get("previous_tag")
+            commits = context.get("commits", [])
+
+            def sanitize(text: str, limit: int = 600) -> str:
+                if not text:
+                    return ""
+                text = text.strip()
+                if len(text) <= limit:
+                    return text
+                return text[: limit - 3].rstrip() + "..."
+
+            commit_lines = []
+            for entry in commits[:200]:
+                subject = sanitize(entry.get("subject", ""))
+                body = sanitize(entry.get("body", ""))
+                author = entry.get("author", {}) or {}
+                date_iso = entry.get("date", "")
+                commit_hash = entry.get("commit", "")
+                url = f"{REPO_URL}/commit/{commit_hash}"
+                blob = {
+                    "subject": subject,
+                    "body": body,
+                    "author": f"{author.get('name', '')} <{author.get('email', '')}>".strip(),
+                    "date": date_iso,
+                    "url": url,
+                }
+                commit_lines.append(blob)
+
+            commit_json = json.dumps(commit_lines, indent=2)
+
+            instructions = f"""
+            Draft release notes for the AniBridge project.
+
+            Repository: {REPO_URL}
+            Current release tag: {current_tag}
+            Previous release tag: {previous_tag or "none"}
+
+            Follow this structure exactly:
+            1. Start with a concise, single-paragraph summary (no heading) describing the overall release.
+            2. Add a section titled "Breaking Changes". If there are none, write "Breaking Changes" followed by "None." on the next line.
+            3. Add a section titled "New Features". If there are none, state that explicitly.
+            4. Add a section titled "Other Changes". Include remaining noteworthy updates or say "None." if empty.
+
+            Section formatting rules:
+            - Use Markdown headings (`## Heading`) for "Breaking Changes", "New Features", and "Other Changes".
+            - Inside each section, list items as bullet points.
+            - Each bullet should cite the related commit using a Markdown link with the pattern `[short description](commit_url)`. Prefer the commit subject as the description.
+            - When possible, group multiple commits from the same theme into a single bullet referencing multiple links.
+            - Mention authors or additional context when the commit message alone is ambiguous.
+
+            Commit data (JSON list of objects with subject, body, author, date, and url):
+            {commit_json}
+            """
+
+            payload = {
+                "contents": [
+                    {
+                        "parts": [
+                            {
+                                "text": textwrap.dedent(instructions).strip()
+                            }
+                        ]
+                    }
+                ]
+            }
+
+            api_key = os.environ["GEMINI_API_KEY"]
+            base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+            request_data = json.dumps(payload).encode("utf-8")
+            request = urllib.request.Request(
+                url=f"{base_url}?key={api_key}",
+                data=request_data,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+
+            try:
+                with urllib.request.urlopen(request, timeout=60) as response:
+                    response_body = response.read()
+            except Exception as exc:  # pragma: no cover - network failure handling
+                raise SystemExit(f"Gemini API request failed: {exc}") from exc
+
+            response_json = json.loads(response_body.decode("utf-8"))
+
+            candidates = response_json.get("candidates") or []
+            if not candidates:
+                raise SystemExit(f"Gemini API returned no candidates: {response_json}")
+
+            parts = candidates[0].get("content", {}).get("parts") or []
+            generated_text = ""
+            for part in parts:
+                if "text" in part:
+                    generated_text += part["text"]
+
+            generated_text = generated_text.strip()
+            if not generated_text:
+                raise SystemExit("Gemini API returned empty release notes.")
+
+            OUTPUT_PATH.write_text(generated_text + "\n", encoding="utf-8")
+
+            summary_path_value = os.environ.get("GITHUB_STEP_SUMMARY")
+            if summary_path_value:
+                summary_path = Path(summary_path_value)
+                summary_path.write_text(
+                    "# Release Notes Preview\n\n" + generated_text + "\n",
+                    encoding="utf-8",
+                )
+            PY
+
+      - name: Upload release notes artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
 
   build-python-dists:
     runs-on: ubuntu-latest
+    needs: generate-release-notes
     steps:
       - uses: actions/checkout@v4
+      - name: Download release notes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -151,6 +307,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: "dist/*"
+          body_path: release-notes/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
