@@ -163,126 +163,127 @@ jobs:
           fi
 
           python - <<'PY'
-            import json
-            import os
-            import textwrap
-            import urllib.request
-            from pathlib import Path
-            REPO_URL = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}"
-            CONTEXT_PATH = Path("release-context/commit_context.json")
-            OUTPUT_PATH = Path("release-notes.md")
+          import json
+          import os
+          import textwrap
+          import urllib.request
+          from pathlib import Path
 
-            context = json.loads(CONTEXT_PATH.read_text(encoding="utf-8"))
-            current_tag = context.get("current_tag")
-            previous_tag = context.get("previous_tag")
-            commits = context.get("commits", [])
+          REPO_URL = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}"
+          CONTEXT_PATH = Path("release-context/commit_context.json")
+          OUTPUT_PATH = Path("release-notes.md")
 
-            def sanitize(text: str, limit: int = 600) -> str:
-                if not text:
-                    return ""
-                text = text.strip()
-                if len(text) <= limit:
-                    return text
-                return text[: limit - 3].rstrip() + "..."
+          context = json.loads(CONTEXT_PATH.read_text(encoding="utf-8"))
+          current_tag = context.get("current_tag")
+          previous_tag = context.get("previous_tag")
+          commits = context.get("commits", [])
 
-            commit_lines = []
-            for entry in commits[:200]:
-                subject = sanitize(entry.get("subject", ""))
-                body = sanitize(entry.get("body", ""))
-                author = entry.get("author", {}) or {}
-                date_iso = entry.get("date", "")
-                commit_hash = entry.get("commit", "")
-                url = f"{REPO_URL}/commit/{commit_hash}"
-                author_name = (author.get("name") or "").strip()  # Redact emails before sending to Gemini
-                blob = {
-                    "subject": subject,
-                    "body": body,
-                    "author": author_name,
-                    "date": date_iso,
-                    "url": url,
-                }
-                commit_lines.append(blob)
+          def sanitize(text: str, limit: int = 600) -> str:
+              if not text:
+                  return ""
+              text = text.strip()
+              if len(text) <= limit:
+                  return text
+              return text[: limit - 3].rstrip() + "..."
 
-            commit_json = json.dumps(commit_lines, indent=2)
+          commit_lines = []
+          for entry in commits[:200]:
+              subject = sanitize(entry.get("subject", ""))
+              body = sanitize(entry.get("body", ""))
+              author = entry.get("author", {}) or {}
+              date_iso = entry.get("date", "")
+              commit_hash = entry.get("commit", "")
+              url = f"{REPO_URL}/commit/{commit_hash}"
+              author_name = (author.get("name") or "").strip()  # Redact emails before sending to Gemini
+              blob = {
+                  "subject": subject,
+                  "body": body,
+                  "author": author_name,
+                  "date": date_iso,
+                  "url": url,
+              }
+              commit_lines.append(blob)
 
-            instructions = f"""
-            Draft release notes for the AniBridge project.
+          commit_json = json.dumps(commit_lines, indent=2)
 
-            Repository: {REPO_URL}
-            Current release tag: {current_tag}
-            Previous release tag: {previous_tag or "none"}
+          instructions = f"""
+          Draft release notes for the AniBridge project.
 
-            Follow this structure exactly:
-            1. Start with a concise, single-paragraph summary (no heading) describing the overall release.
-            2. Add a section titled "Breaking Changes". If there are none, write "Breaking Changes" followed by "None." on the next line.
-            3. Add a section titled "New Features". If there are none, state that explicitly.
-            4. Add a section titled "Other Changes". Include remaining noteworthy updates or say "None." if empty.
+          Repository: {REPO_URL}
+          Current release tag: {current_tag}
+          Previous release tag: {previous_tag or "none"}
 
-            Section formatting rules:
-            - Use Markdown headings (`## Heading`) for "Breaking Changes", "New Features", and "Other Changes".
-            - Inside each section, list items as bullet points.
-            - Each bullet should cite the related commit using a Markdown link with the pattern `[short description](commit_url)`. Prefer the commit subject as the description.
-            - When possible, group multiple commits from the same theme into a single bullet referencing multiple links.
-            - Mention authors or additional context when the commit message alone is ambiguous.
+          Follow this structure exactly:
+          1. Start with a concise, single-paragraph summary (no heading) describing the overall release.
+          2. Add a section titled "Breaking Changes". If there are none, write "Breaking Changes" followed by "None." on the next line.
+          3. Add a section titled "New Features". If there are none, state that explicitly.
+          4. Add a section titled "Other Changes". Include remaining noteworthy updates or say "None." if empty.
 
-            Commit data (JSON list of objects with subject, body, author, date, and url):
-            {commit_json}
-            """
+          Section formatting rules:
+          - Use Markdown headings (`## Heading`) for "Breaking Changes", "New Features", and "Other Changes".
+          - Inside each section, list items as bullet points.
+          - Each bullet should cite the related commit using a Markdown link with the pattern `[short description](commit_url)`. Prefer the commit subject as the description.
+          - When possible, group multiple commits from the same theme into a single bullet referencing multiple links.
+          - Mention authors or additional context when the commit message alone is ambiguous.
 
-            payload = {
-                "contents": [
-                    {
-                        "parts": [
-                            {
-                                "text": textwrap.dedent(instructions).strip()
-                            }
-                        ]
-                    }
-                ]
-            }
+          Commit data (JSON list of objects with subject, body, author, date, and url):
+          {commit_json}
+          """
 
-            api_key = os.environ["GEMINI_API_KEY"]
-            base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
-            request_data = json.dumps(payload).encode("utf-8")
-            request = urllib.request.Request(
-                url=f"{base_url}?key={api_key}",
-                data=request_data,
-                headers={"Content-Type": "application/json"},
-                method="POST",
-            )
+          payload = {
+              "contents": [
+                  {
+                      "parts": [
+                          {
+                              "text": textwrap.dedent(instructions).strip()
+                          }
+                      ]
+                  }
+              ]
+          }
 
-            try:
-                with urllib.request.urlopen(request, timeout=60) as response:
-                    response_body = response.read()
-            except Exception as exc:  # pragma: no cover - network failure handling
-                raise SystemExit(f"Gemini API request failed: {exc}") from exc
+          api_key = os.environ["GEMINI_API_KEY"]
+          base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+          request_data = json.dumps(payload).encode("utf-8")
+          request = urllib.request.Request(
+              url=f"{base_url}?key={api_key}",
+              data=request_data,
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
 
-            response_json = json.loads(response_body.decode("utf-8"))
+          try:
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  response_body = response.read()
+          except Exception as exc:  # pragma: no cover - network failure handling
+              raise SystemExit(f"Gemini API request failed: {exc}") from exc
 
-            candidates = response_json.get("candidates") or []
-            if not candidates:
-                raise SystemExit(f"Gemini API returned no candidates: {response_json}")
+          response_json = json.loads(response_body.decode("utf-8"))
 
-            parts = candidates[0].get("content", {}).get("parts") or []
-            generated_text = ""
-            for part in parts:
-                if "text" in part:
-                    generated_text += part["text"]
+          candidates = response_json.get("candidates") or []
+          if not candidates:
+              raise SystemExit(f"Gemini API returned no candidates: {response_json}")
 
-            generated_text = generated_text.strip()
-            if not generated_text:
-                raise SystemExit("Gemini API returned empty release notes.")
+          parts = candidates[0].get("content", {}).get("parts") or []
+          generated_text = ""
+          for part in parts:
+              if "text" in part:
+                  generated_text += part["text"]
 
-            OUTPUT_PATH.write_text(generated_text + "\n", encoding="utf-8")
+          generated_text = generated_text.strip()
+          if not generated_text:
+              raise SystemExit("Gemini API returned empty release notes.")
 
-            summary_path_value = os.environ.get("GITHUB_STEP_SUMMARY")
-            if summary_path_value:
-                summary_path = Path(summary_path_value)
-                summary_path.write_text(
-                    "# Release Notes Preview\n\n" + generated_text + "\n",
-                    encoding="utf-8",
-                )
-            PY
+          OUTPUT_PATH.write_text(generated_text + "\n", encoding="utf-8")
+
+          summary_path_value = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary_path_value:
+              summary_path = Path(summary_path_value)
+              summary_path.write_text(
+                  "# Release Notes Preview\n\n" + generated_text + "\n",
+                  encoding="utf-8",
+              )
+          PY
 
       - name: Upload release notes artifact
         uses: actions/upload-artifact@v4
