@@ -133,6 +133,7 @@ jobs:
           path: |
             commit_context.json
             llm_release_context.md
+            retention-days: 7
 
   generate-release-notes:
     name: Generate Release Notes With Gemini
