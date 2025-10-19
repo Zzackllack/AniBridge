@@ -161,7 +161,7 @@ jobs:
             import os
             import textwrap
             import urllib.request
-            from pathlib import Path
+            REPO_URL = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}"
 
             REPO_URL = "https://github.com/Zzackllack/AniBridge"
             CONTEXT_PATH = Path("release-context/commit_context.json")
@@ -188,10 +188,11 @@ jobs:
                 date_iso = entry.get("date", "")
                 commit_hash = entry.get("commit", "")
                 url = f"{REPO_URL}/commit/{commit_hash}"
+                author_name = (author.get("name") or "").strip()  # Redact emails before sending to Gemini
                 blob = {
                     "subject": subject,
                     "body": body,
-                    "author": f"{author.get('name', '')} <{author.get('email', '')}>".strip(),
+                    "author": author_name,
                     "date": date_iso,
                     "url": url,
                 }
