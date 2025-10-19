@@ -530,6 +530,7 @@ release/
 /docs/.vitepress/cache/**
 .wrangler/
 changelog.md
+!scripts/release/
 
 # ───── Spec-Kit (specify) ─────
 
