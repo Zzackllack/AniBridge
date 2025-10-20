@@ -15,18 +15,10 @@ import re
 from app.utils.http_client import get as http_get  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 
-from app.config import (
-    CATALOG_SITES_LIST,
-    ANIWORLD_ALPHABET_HTML,
-    ANIWORLD_ALPHABET_URL,
-    ANIWORLD_TITLES_REFRESH_HOURS,
-    STO_ALPHABET_HTML,
-    STO_ALPHABET_URL,
-    STO_TITLES_REFRESH_HOURS,
-)
+from app.config import CATALOG_SITES_LIST, CATALOG_SITE_CONFIGS
 
 # Site-specific regex patterns for slug extraction
-HREF_PATTERNS = {
+HREF_PATTERNS: Dict[str, re.Pattern[str]] = {
     "aniworld.to": re.compile(r"/anime/stream/([^/?#]+)"),
     "s.to": re.compile(r"/serie/stream/([^/?#]+)"),
 }
@@ -146,14 +138,12 @@ def _parse_index_and_alts(
     soup = BeautifulSoup(html_text, "html.parser")
     idx: Dict[str, str] = {}
     alts: Dict[str, List[str]] = {}
-    pattern = HREF_PATTERNS.get(site, HREF_PATTERNS["aniworld.to"])
 
     for a in soup.find_all("a"):
         href = a.get("href") or ""  # type: ignore
-        m = pattern.search(href)
-        if not m:
+        slug = _extract_slug(href, site)  # type: ignore
+        if not slug:
             continue
-        slug = m.group(1)
 
         title = (a.get_text() or "").strip()
         alt_raw = (a.get("data-alternative-title") or "").strip()  # type: ignore
@@ -249,22 +239,22 @@ def load_or_refresh_index(site: str = "aniworld.to") -> Dict[str, str]:
 
     logger.debug(f"Starting load_or_refresh_index for site: {site}.")
 
-    # Site configuration
-    if site == "aniworld.to":
-        url = ANIWORLD_ALPHABET_URL
-        html_file = ANIWORLD_ALPHABET_HTML
-        refresh_hours = ANIWORLD_TITLES_REFRESH_HOURS
-    elif site == "s.to":
-        url = STO_ALPHABET_URL
-        html_file = STO_ALPHABET_HTML
-        refresh_hours = STO_TITLES_REFRESH_HOURS
-    else:
+    site_cfg = CATALOG_SITE_CONFIGS.get(site)
+    if not site_cfg:
         logger.warning(
-            f"Unknown site: {site}. Defaulting to aniworld.to configuration."
+            f"Unknown site '{site}' requested. Falling back to aniworld.to configuration."
         )
-        url = ANIWORLD_ALPHABET_URL
-        html_file = ANIWORLD_ALPHABET_HTML
-        refresh_hours = ANIWORLD_TITLES_REFRESH_HOURS
+        site_cfg = CATALOG_SITE_CONFIGS.get("aniworld.to", {})
+
+    url = str(site_cfg.get("alphabet_url", "") or "")
+    html_file_value = site_cfg.get("alphabet_html")
+    if isinstance(html_file_value, Path):
+        html_file = html_file_value
+    elif html_file_value:
+        html_file = Path(html_file_value)
+    else:
+        html_file = None
+    refresh_hours = float(site_cfg.get("titles_refresh_hours", 24.0))
 
     # Check refresh condition
     if not _should_refresh(site, now, refresh_hours):
@@ -274,7 +264,7 @@ def load_or_refresh_index(site: str = "aniworld.to") -> Dict[str, str]:
     # 1) Try live URL (if set/not empty)
     index: Dict[str, str] = {}
     alts: Dict[str, List[str]] = {}
-    url_stripped = (url or "").strip()
+    url_stripped = url.strip()
     if url_stripped:
         try:
             logger.info(f"Attempting to fetch index from live URL for {site}.")
@@ -294,19 +284,26 @@ def load_or_refresh_index(site: str = "aniworld.to") -> Dict[str, str]:
             # Fallback to file
 
     # 2) Fallback: Local file
-    try:
-        logger.info(f"Attempting to load index from local file for {site}.")
-        index, alts = _load_index_from_file(html_file, site)
-        if index:
-            logger.success(f"Index loaded from local file for {site}. Updating cache.")
-            _cached_indices[site] = index
-            _cached_alts[site] = alts
-            _cached_at[site] = now
-            return index
-        else:
-            logger.warning(f"Index loaded from local file is empty for {site}.")
-    except Exception as e:
-        logger.error(f"Error loading index from local file for {site}: {e}")
+    if html_file:
+        try:
+            logger.info(f"Attempting to load index from local file for {site}.")
+            index, alts = _load_index_from_file(html_file, site)
+            if index:
+                logger.success(
+                    f"Index loaded from local file for {site}. Updating cache."
+                )
+                _cached_indices[site] = index
+                _cached_alts[site] = alts
+                _cached_at[site] = now
+                return index
+            else:
+                logger.warning(f"Index loaded from local file is empty for {site}.")
+        except Exception as e:
+            logger.error(f"Error loading index from local file for {site}: {e}")
+    else:
+        logger.warning(
+            f"No local alphabet HTML configured for {site}; skipping file fallback."
+        )
 
     # 3) Nothing found
     logger.warning(
@@ -359,11 +356,10 @@ def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[st
     """
     global _cached_alts
     now = time()
-    refresh_hours = (
-        ANIWORLD_TITLES_REFRESH_HOURS
-        if site == "aniworld.to"
-        else STO_TITLES_REFRESH_HOURS
+    site_cfg = CATALOG_SITE_CONFIGS.get(site) or CATALOG_SITE_CONFIGS.get(
+        "aniworld.to", {}
     )
+    refresh_hours = float(site_cfg.get("titles_refresh_hours", 24.0))
     if _should_refresh(site, now, refresh_hours):
         # Trigger a refresh through the main loader
         load_or_refresh_index(site)

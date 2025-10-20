@@ -1,20 +1,12 @@
 from __future__ import annotations
-import sys
-import os
+
 from typing import Optional, Literal, Generator, Any, List
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from loguru import logger
+from app.utils.logger import config as configure_logger
 
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
-logger.remove()
-logger.add(
-    sys.stdout,
-    level=LOG_LEVEL,
-    colorize=True,
-    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
-    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-)
+configure_logger()
 
 from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JSON
 from sqlalchemy.orm import registry as sa_registry
@@ -146,9 +138,82 @@ engine = create_engine(
 logger.debug("SQLModel engine created.")
 
 
+def _migrate_episode_availability_table() -> None:
+    """
+    Ensure the episodeavailability table includes the site column in its primary key.
+    Performs an in-place SQLite migration when running against an existing database
+    created before multi-site support was introduced.
+    """
+    try:
+        with engine.begin() as conn:
+            table_present = conn.exec_driver_sql(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='episodeavailability'"
+            ).fetchone()
+            if not table_present:
+                logger.debug(
+                    "episodeavailability table not found; no migration necessary."
+                )
+                return
+
+            columns = conn.exec_driver_sql(
+                "PRAGMA table_info('episodeavailability')"
+            ).fetchall()
+            if any(col[1] == "site" for col in columns):
+                logger.debug(
+                    "episodeavailability table already contains 'site' column."
+                )
+                return
+
+            logger.info(
+                "Migrating episodeavailability table to include site column."
+            )
+            conn.exec_driver_sql(
+                """
+                CREATE TABLE episodeavailability_new (
+                    slug TEXT NOT NULL,
+                    season INTEGER NOT NULL,
+                    episode INTEGER NOT NULL,
+                    language TEXT NOT NULL,
+                    site TEXT NOT NULL DEFAULT 'aniworld.to',
+                    available BOOLEAN NOT NULL,
+                    height INTEGER,
+                    vcodec TEXT,
+                    provider TEXT,
+                    checked_at DATETIME NOT NULL,
+                    extra JSON,
+                    PRIMARY KEY (slug, season, episode, language, site)
+                )
+                """
+            )
+            conn.exec_driver_sql(
+                """
+                INSERT INTO episodeavailability_new (
+                    slug, season, episode, language, site,
+                    available, height, vcodec, provider, checked_at, extra
+                )
+                SELECT
+                    slug, season, episode, language,
+                    'aniworld.to' AS site,
+                    available, height, vcodec, provider, checked_at, extra
+                FROM episodeavailability
+                """
+            )
+            conn.exec_driver_sql("DROP TABLE episodeavailability")
+            conn.exec_driver_sql(
+                "ALTER TABLE episodeavailability_new RENAME TO episodeavailability"
+            )
+            logger.success(
+                "episodeavailability table migrated to include site column."
+            )
+    except Exception as exc:
+        logger.error(f"Failed to migrate episodeavailability table: {exc}")
+        raise
+
+
 def create_db_and_tables() -> None:
     logger.debug("Creating DB and tables if not exist.")
     try:
+        _migrate_episode_availability_table()
         # Use this module's private metadata
         ModelBase.metadata.create_all(engine)
         logger.success("Database and tables created or already exist.")
@@ -180,10 +245,13 @@ def dispose_engine() -> None:
 
 
 # --- Jobs CRUD
-def create_job(session: Session) -> Job:
+def create_job(session: Session, *, source_site: Optional[str] = None) -> Job:
     logger.debug("Creating new job entry in DB.")
     try:
-        job = Job()
+        job_kwargs: dict[str, Any] = {}
+        if source_site:
+            job_kwargs["source_site"] = source_site
+        job = Job(**job_kwargs)
         session.add(job)
         session.commit()
         session.refresh(job)

@@ -10,6 +10,7 @@ from loguru import logger
 from sqlmodel import Session
 
 from app.config import (
+    CATALOG_SITE_CONFIGS,
     TORZNAB_CAT_ANIME,
     TORZNAB_RETURN_TEST_RESULT,
     TORZNAB_TEST_EPISODE,
@@ -22,6 +23,23 @@ from app.db import get_session
 
 from . import router
 from .utils import _build_item, _caps_xml, _require_apikey, _rss_root
+
+
+def _default_languages_for_site(site: str) -> List[str]:
+    """
+    Return the default language preference ordering for a catalogue site.
+    Falls back to AniWorld defaults when a site-specific mapping is not found.
+    """
+    cfg = CATALOG_SITE_CONFIGS.get(site)
+    if cfg:
+        languages = cfg.get("default_languages")
+        if isinstance(languages, list) and languages:
+            # return a shallow copy to avoid accidental mutation of config state
+            return list(languages)
+    fallback = CATALOG_SITE_CONFIGS.get("aniworld.to", {}).get(
+        "default_languages", ["German Dub", "German Sub", "English Sub"]
+    )
+    return list(fallback)
 
 
 @router.get("/api", response_class=FastAPIResponse)
@@ -120,12 +138,7 @@ def torznab_api(
                     session, slug=slug, season=season_i, episode=ep_i, site=site_found
                 )
 
-                # Default languages based on site
-                if site_found == "s.to":
-                    default_langs = ["German Dub", "English Dub", "German Sub"]
-                else:
-                    default_langs = ["German Dub", "German Sub", "English Sub"]
-
+                default_langs = _default_languages_for_site(site_found)
                 candidate_langs: List[str] = (
                     cached_langs if cached_langs else default_langs
                 )
@@ -260,12 +273,7 @@ def torznab_api(
         session, slug=slug, season=season_i, episode=ep_i, site=site_found
     )
 
-    # Default languages based on site
-    if site_found == "s.to":
-        default_langs = ["German Dub", "English Dub", "German Sub"]
-    else:
-        default_langs = ["German Dub", "German Sub", "English Sub"]
-
+    default_langs = _default_languages_for_site(site_found)
     candidate_langs: List[str] = cached_langs if cached_langs else default_langs
     logger.debug(
         f"Candidate languages for slug '{slug}', season {season_i}, episode {ep_i}, site '{site_found}': {candidate_langs}"

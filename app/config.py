@@ -1,5 +1,6 @@
-import sys
 import os
+from copy import deepcopy
+from typing import Any
 from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
@@ -283,9 +284,7 @@ ANIWORLD_ALPHABET_URL = os.getenv(
 ).strip()
 
 # S.to (series)
-STO_BASE_URL = os.getenv(
-    "STO_BASE_URL", "https://s.to"
-).strip()  # valid options are https://s.to, https://serienstream.to and http://186.2.175.5
+STO_BASE_URL = os.getenv("STO_BASE_URL", "https://s.to").strip()
 STO_ALPHABET_HTML = Path(
     os.getenv("STO_ALPHABET_HTML", DATA_DIR / "sto-alphabeth.html")
 )
@@ -322,6 +321,35 @@ logger.debug(f"RELEASE_GROUP={RELEASE_GROUP}")
 logger.debug(
     f"RELEASE_GROUP_ANIWORLD={RELEASE_GROUP_ANIWORLD}, RELEASE_GROUP_STO={RELEASE_GROUP_STO}"
 )
+
+_DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
+    "aniworld.to": {
+        "base_url": ANIWORLD_BASE_URL,
+        "alphabet_html": ANIWORLD_ALPHABET_HTML,
+        "alphabet_url": ANIWORLD_ALPHABET_URL,
+        "titles_refresh_hours": ANIWORLD_TITLES_REFRESH_HOURS,
+        "default_languages": ["German Dub", "German Sub", "English Sub"],
+        "release_group": RELEASE_GROUP_ANIWORLD,
+    },
+    "s.to": {
+        "base_url": STO_BASE_URL,
+        "alphabet_html": STO_ALPHABET_HTML,
+        "alphabet_url": STO_ALPHABET_URL,
+        "titles_refresh_hours": STO_TITLES_REFRESH_HOURS,
+        "default_languages": ["German Dub", "English Dub", "German Sub"],
+        "release_group": RELEASE_GROUP_STO,
+    },
+}
+
+CATALOG_SITE_CONFIGS: dict[str, dict[str, Any]] = {}
+for site in CATALOG_SITES_LIST:
+    base_cfg = _DEFAULT_SITE_CONFIGS.get(site)
+    if not base_cfg:
+        logger.warning(
+            f"No built-in configuration for catalogue site '{site}'. Provide environment overrides to enable it."
+        )
+        continue
+    CATALOG_SITE_CONFIGS[site] = deepcopy(base_cfg)
 
 # ---- Provider-Fallback ----
 # Kommagetrennte Liste, z. B. "VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza"

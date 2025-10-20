@@ -116,16 +116,21 @@ def parse_magnet(magnet: str) -> Dict[str, str]:
         flat[k] = v[0]
         logger.debug(f"Magnet param parsed: {k}={v[0]}")
 
-    # Determine which prefix is used
-    has_aw = any(k.startswith("aw_") for k in flat.keys())
-    has_sto = any(k.startswith("sto_") for k in flat.keys())
-
-    if has_aw:
-        prefix = "aw"
-    elif has_sto:
-        prefix = "sto"
-    else:
-        # Backward compatibility: default to aw_
+    # Determine which prefix is used while rejecting mixed usage
+    prefix: str | None = None
+    for key in flat.keys():
+        if key.startswith("aw_"):
+            if prefix and prefix != "aw":
+                logger.error("Magnet contains mixed prefixes: aw_ and sto_")
+                raise ValueError("mixed magnet prefixes: aw_ and sto_")
+            prefix = "aw"
+        elif key.startswith("sto_"):
+            if prefix and prefix != "sto":
+                logger.error("Magnet contains mixed prefixes: aw_ and sto_")
+                raise ValueError("mixed magnet prefixes: aw_ and sto_")
+            prefix = "sto"
+    if prefix is None:
+        # Backward compatibility: default to aw_ when no explicit prefix detected
         prefix = "aw"
 
     # Check required params
