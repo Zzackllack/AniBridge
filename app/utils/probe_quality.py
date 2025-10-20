@@ -61,8 +61,24 @@ def probe_episode_quality(
     site: str = "aniworld.to",
 ) -> tuple[bool, Optional[int], Optional[str], Optional[str], Dict[str, Any] | None]:
     """
-    Gibt zurück: (available, height, vcodec, provider_used, raw_info)
-      - available=False, wenn kein Provider/Language funktioniert.
+    Probe whether an episode is available in the requested language and return the provider used along with reported video quality.
+
+    Parameters:
+        slug (str): Episode identifier (series slug).
+        season (int): Season number.
+        episode (int): Episode number.
+        language (str): Desired audio/subtitle language code.
+        preferred_provider (Optional[str]): Provider to try first, if any.
+        timeout (float): Socket/metadata probe timeout in seconds.
+        site (str): Site identifier used when building the episode object.
+
+    Returns:
+        tuple[bool, Optional[int], Optional[str], Optional[str], Dict[str, Any] | None]:
+            - available (bool): True if a provider yielded playable metadata for the requested language, False otherwise.
+            - height (Optional[int]): Reported video height in pixels, or None if unavailable.
+            - vcodec (Optional[str]): Reported video codec string, or None if unavailable.
+            - provider_used (Optional[str]): Name of the provider that succeeded, or None if none succeeded.
+            - raw_info (Dict[str, Any] | None): Raw metadata returned by the probe, or None if unavailable.
     """
     logger.info(
         f"Probing episode quality for slug={slug}, season={season}, episode={episode}, language={language}, "

@@ -32,8 +32,19 @@ def build_magnet(
     site: str = "aniworld.to",
 ) -> str:
     """
-    Synthetischer Magnet mit notwendiger Payload für den Shim.
-    Now includes site parameter to distinguish between aniworld.to and s.to content.
+    Constructs a site-aware magnet URI containing metadata required by the Shim.
+
+    Parameters:
+        title (str): Display name to include as the magnet's `dn` parameter.
+        slug (str): Content identifier used in the site-prefixed slug parameter.
+        season (int): Season number included as the site-prefixed `s` parameter.
+        episode (int): Episode number included as the site-prefixed `e` parameter.
+        language (str): Language code included as the site-prefixed `lang` parameter.
+        provider (str | None): Optional provider identifier included as the site-prefixed `provider` parameter when provided.
+        site (str): Source site; selects the parameter prefix — `"aw"` when `"aniworld.to"`, `"sto"` otherwise.
+
+    Returns:
+        magnet_uri (str): A magnet URI that includes `xt`, `dn`, and site-prefixed metadata (slug, s, e, lang, site, and optionally provider).
     """
     logger.debug(
         f"Building magnet for title='{title}', slug='{slug}', season={season}, episode={episode}, language='{language}', provider='{provider}', site='{site}'"
@@ -42,10 +53,10 @@ def build_magnet(
     # Build query params, but ensure 'xt=urn:btih:...' keeps ':' unescaped.
     # Some consumers (Prowlarr/qBittorrent) are strict and expect a literal
     # 'urn:btih:' instead of the percent-encoded variant.
-    
+
     # Use site-specific prefixes
     prefix = "aw" if site == "aniworld.to" else "sto"
-    
+
     params: list[tuple[str, str]] = [
         ("xt", xt),
         ("dn", title),
@@ -75,8 +86,21 @@ def build_magnet(
 
 def parse_magnet(magnet: str) -> Dict[str, str]:
     """
-    Extrahiert unsere Payload (aw_* or sto_*), dn, xt.
-    Now supports both aniworld (aw_*) and s.to (sto_*) prefixes.
+    Parse a magnet URI and extract its payload parameters.
+
+    Supports payloads using either the "aw_" (aniworld) or "sto_" (s.to) prefix; defaults to "aw_" if no prefix is detected.
+
+    Parameters:
+        magnet (str): A magnet URI beginning with "magnet:?". Query parameters are parsed and flattened to single string values.
+
+    Returns:
+        Dict[str, str]: A mapping of parameter names to their single string value. The returned dict will include at minimum:
+            - "dn" (display name)
+            - "xt" (exact topic, e.g., "urn:btih:...")
+            - "{prefix}_slug", "{prefix}_s", "{prefix}_e", "{prefix}_lang" where "{prefix}" is "aw" or "sto".
+
+    Raises:
+        ValueError: If the input does not start with "magnet:?" or if any required parameter is missing.
     """
     logger.debug(f"Parsing magnet URI: {magnet}")
     if not magnet.startswith("magnet:?"):
@@ -91,11 +115,11 @@ def parse_magnet(magnet: str) -> Dict[str, str]:
             continue
         flat[k] = v[0]
         logger.debug(f"Magnet param parsed: {k}={v[0]}")
-    
+
     # Determine which prefix is used
     has_aw = any(k.startswith("aw_") for k in flat.keys())
     has_sto = any(k.startswith("sto_") for k in flat.keys())
-    
+
     if has_aw:
         prefix = "aw"
     elif has_sto:
@@ -103,13 +127,20 @@ def parse_magnet(magnet: str) -> Dict[str, str]:
     else:
         # Backward compatibility: default to aw_
         prefix = "aw"
-    
+
     # Check required params
-    required_params = ["dn", "xt", f"{prefix}_slug", f"{prefix}_s", f"{prefix}_e", f"{prefix}_lang"]
+    required_params = [
+        "dn",
+        "xt",
+        f"{prefix}_slug",
+        f"{prefix}_s",
+        f"{prefix}_e",
+        f"{prefix}_lang",
+    ]
     for req in required_params:
         if req not in flat:
             logger.error(f"Missing required magnet param: {req}")
             raise ValueError(f"missing magnet param: {req}")
-    
+
     logger.success(f"Magnet parsed successfully: {flat}")
     return flat
