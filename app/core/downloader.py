@@ -92,6 +92,22 @@ def build_episode(
     episode: Optional[int] = None,
     site: str = "aniworld.to",
 ) -> Episode:
+    """
+    Construct an Episode from a direct link or from slug, season, and episode with the given site.
+    
+    Parameters:
+        link (Optional[str]): Direct episode URL. If provided, it is used and `slug/season/episode` are ignored.
+        slug (Optional[str]): Series identifier used with `season` and `episode` to build the Episode when `link` is not provided.
+        season (Optional[int]): Season number used with `slug` and `episode`.
+        episode (Optional[int]): Episode number used with `slug` and `season`.
+        site (str): Host site identifier included in the created Episode (default: "aniworld.to").
+    
+    Returns:
+        Episode: An Episode constructed from `link` (if present) or from `slug`, `season`, and `episode`.
+    
+    Raises:
+        ValueError: If neither `link` nor the combination of `slug`, `season`, and `episode` are provided.
+    """
     logger.info(
         f"Building episode: link={link}, slug={slug}, season={season}, episode={episode}, site={site}"
     )
@@ -307,6 +323,31 @@ def download_episode(
     stop_event: Optional[threading.Event] = None,
     site: str = "aniworld.to",
 ) -> Path:
+    """
+    Download an episode to the specified directory, resolving a direct stream URL with provider fallback and proxy-aware retry logic.
+    
+    This function builds an Episode from the provided identifiers, attempts to resolve a direct download URL (optionally preferring a provider), downloads the media via yt-dlp with progress callbacks and cancellation support, and renames the downloaded file into the repository's release naming schema. If extraction or download fails, controlled fallback attempts are performed (no-proxy re-resolution and alternate providers) before failing.
+    
+    Parameters:
+        link (Optional[str]): Direct episode page URL; if provided, used instead of slug/season/episode.
+        slug (Optional[str]): Series identifier used to construct an Episode when `link` is not given.
+        season (Optional[int]): Season number to construct an Episode when `link` is not given.
+        episode (Optional[int]): Episode number to construct an Episode when `link` is not given.
+        provider (Optional[Provider]): Preferred provider name to try first when resolving a direct URL.
+        language (str): Desired language label (will be normalized); used when resolving available streams.
+        dest_dir (Path): Destination directory where the temporary download will be written.
+        title_hint (Optional[str]): Hint for the temporary output filename; if omitted and slug/season/episode are given, a default is generated.
+        cookiefile (Optional[Path]): Path to a cookies file passed to yt-dlp, if required by the provider/site.
+        progress_cb (Optional[ProgressCb]): Optional callback that receives yt-dlp progress dictionaries.
+        stop_event (Optional[threading.Event]): Optional event that, when set, requests download cancellation.
+        site (str): Site identifier to use when constructing the Episode (defaults to "aniworld.to").
+    
+    Returns:
+        Path: Final path to the renamed release file.
+    
+    Raises:
+        DownloadError: When URL resolution or download ultimately fails after all fallback attempts.
+    """
     language = _normalize_language(language)
     logger.info(
         f"Starting download_episode: link={link}, slug={slug}, season={season}, episode={episode}, provider={provider}, language={language}, dest_dir={dest_dir}, site={site}"

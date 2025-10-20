@@ -36,6 +36,16 @@ HREF_RE = HREF_PATTERNS["aniworld.to"]
 
 
 def _extract_slug(href: str, site: str = "aniworld.to") -> Optional[str]:
+    """
+    Extract a slug from a link href using the site-specific extraction pattern.
+    
+    Parameters:
+        href (str): The href string to search for a slug.
+        site (str): Site identifier used to select the pattern (for example "aniworld.to" or "s.to").
+    
+    Returns:
+        slug (Optional[str]): The first capture group from the site's href regex if matched, otherwise `None`.
+    """
     logger.debug(f"Extracting slug from href: {href} for site: {site}")
     pattern = HREF_PATTERNS.get(site, HREF_PATTERNS["aniworld.to"])
     m = pattern.search(href or "")
@@ -47,6 +57,18 @@ def _extract_slug(href: str, site: str = "aniworld.to") -> Optional[str]:
 
 
 def build_index_from_html(html_text: str, site: str = "aniworld.to") -> Dict[str, str]:
+    """
+    Builds a mapping from series slug to display title by parsing the provided HTML for the specified site.
+    
+    Parses anchor tags and, using site-specific slug extraction rules, associates each extracted slug with the anchor's trimmed text if non-empty.
+    
+    Parameters:
+        html_text (str): Raw HTML content to parse.
+        site (str): Site identifier used to select slug extraction rules (e.g., "aniworld.to").
+    
+    Returns:
+        Dict[str, str]: A dictionary mapping each discovered slug to its display title.
+    """
     logger.info(f"Building index from HTML text for site: {site}.")
     soup = BeautifulSoup(html_text, "html.parser")
     result: Dict[str, str] = {}
@@ -75,6 +97,17 @@ _cached_at: Dict[str, float | None] = {}  # site -> timestamp
 
 
 def _should_refresh(site: str, now: float, refresh_hours: float) -> bool:
+    """
+    Decide whether the cached index for a given site needs to be refreshed.
+    
+    Parameters:
+        site (str): Site identifier (e.g., "aniworld.to") whose cache is being evaluated.
+        now (float): Current time as a UNIX timestamp in seconds.
+        refresh_hours (float): Time-to-live in hours for the cache; a value <= 0 disables periodic refresh.
+    
+    Returns:
+        bool: `true` if the cache should be refreshed (missing index, missing timestamp, or TTL exceeded), `false` otherwise.
+    """
     logger.debug(
         f"Checking if cache should refresh for site={site}. now={now}, _cached_at={_cached_at.get(site)}, refresh_hours={refresh_hours}"
     )
@@ -99,9 +132,16 @@ def _parse_index_and_alts(
     html_text: str, site: str = "aniworld.to"
 ) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
     """
-    Parse HTML to produce:
-    - slug -> display title
-    - slug -> list of alternative titles (including the display title)
+    Parse HTML and extract slug-to-title mappings and per-slug alternative titles for a given site.
+    
+    The function finds anchor tags whose href matches the site-specific slug pattern, uses the anchor text as the display title, and reads comma-separated alternative titles from the `data-alternative-title` attribute (trimmed of surrounding quotes and whitespace).
+    
+    Parameters:
+        html_text (str): Raw HTML to parse.
+        site (str): Site identifier used to select the href-to-slug extraction pattern (defaults to "aniworld.to").
+    
+    Returns:
+        Tuple[Dict[str, str], Dict[str, List[str]]]: A tuple where the first element is a mapping from slug to display title, and the second element maps slug to a list of alternative titles. When a display title is present it will be included as the first element of its alternatives list.
     """
     soup = BeautifulSoup(html_text, "html.parser")
     idx: Dict[str, str] = {}
@@ -137,6 +177,21 @@ def _parse_index_and_alts(
 def _fetch_index_from_url(
     url: str, site: str = "aniworld.to"
 ) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
+    """
+    Fetches HTML from the given URL and parses it into slug-to-title and slug-to-alternatives mappings for the specified site.
+    
+    Parameters:
+        url (str): The HTTP(S) URL to fetch the index HTML from.
+        site (str): Site identifier used for site-specific parsing rules (e.g., "aniworld.to").
+    
+    Returns:
+        Tuple[Dict[str, str], Dict[str, List[str]]]: A tuple of two dictionaries:
+            - index: mapping of slug -> display title.
+            - alternatives: mapping of slug -> list of alternative titles (the main title is included as the first element when available).
+    
+    Raises:
+        Exception: If the HTTP request fails or parsing the fetched content raises an error.
+    """
     logger.info(f"Fetching index from URL: {url} for site: {site}")
     try:
         resp = http_get(url, timeout=20)
@@ -152,9 +207,20 @@ def _load_index_from_file(
     path: Path, site: str = "aniworld.to"
 ) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
     """
-    Load the index strictly from the provided file path.
-    Intentionally avoids implicit fallbacks so tests can point to a
-    minimal, deterministic HTML sample via ANIWORLD_ALPHABET_HTML.
+    Load a slug-to-title index and alternative titles from a local HTML file for the given site.
+    
+    Parameters:
+        path (Path): Path to the local HTML file to parse.
+        site (str): Site identifier used for slug extraction and parsing rules.
+    
+    Returns:
+        Tuple[Dict[str, str], Dict[str, List[str]]]: A tuple (index, alternatives) where
+            - index maps slug -> display title
+            - alternatives maps slug -> list of alternative titles (first element is the main title when present)
+    
+    Behavior:
+        - If the file does not exist, returns ({}, {}).
+        - If reading or parsing fails, the exception is logged and re-raised.
     """
     logger.info(f"Loading index from file: {path} for site: {site}")
     if not path.exists():
@@ -171,9 +237,12 @@ def _load_index_from_file(
 
 def load_or_refresh_index(site: str = "aniworld.to") -> Dict[str, str]:
     """
-    Load or refresh the title index for a specific site.
-    Prefers live URL (if configured), otherwise falls back to local file.
-    Uses in-memory cache with TTL and fallback strategy.
+    Obtain the slug-to-display-title index for a site, refreshing the per-site cache when appropriate.
+    
+    Prefers fetching a live HTML index (when configured) and falls back to a local HTML file; successful refreshes update the in-memory per-site index, alternative titles, and timestamp used for TTL checks.
+    
+    Returns:
+        slug_to_title (Dict[str, str]): Mapping of slug -> display title for the requested site (empty if no index is available).
     """
     global _cached_indices, _cached_at, _cached_alts
     now = time()
@@ -249,6 +318,16 @@ def load_or_refresh_index(site: str = "aniworld.to") -> Dict[str, str]:
 
 
 def resolve_series_title(slug: Optional[str], site: str = "aniworld.to") -> Optional[str]:
+    """
+    Resolve the display title for a series slug on the given site.
+    
+    Parameters:
+        slug (Optional[str]): The series slug (path identifier) to look up. If not provided or empty, the function returns `None`.
+        site (str): Site identifier used to select which index to consult (e.g., "aniworld.to").
+    
+    Returns:
+        Optional[str]: The resolved display title for the slug if found, `None` otherwise.
+    """
     logger.debug(f"Resolving series title for slug: {slug}, site: {site}")
     if not slug:
         logger.warning("No slug provided to resolve_series_title.")
@@ -264,8 +343,13 @@ def resolve_series_title(slug: Optional[str], site: str = "aniworld.to") -> Opti
 
 def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[str]]:
     """
-    Ensure alternative titles are cached and return them. Will also populate
-    the main index cache if needed.
+    Return the map of alternative titles for each slug for the given site, refreshing caches if necessary.
+    
+    Parameters:
+        site (str): Site identifier to load alternatives for (e.g., "aniworld.to" or "s.to").
+    
+    Returns:
+        Dict[str, List[str]]: Mapping from slug to a list of alternative display titles (the first element is the primary/display title). If no alternatives are available, returns an empty dict.
     """
     global _cached_alts
     now = time()
@@ -279,6 +363,15 @@ def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[st
 
 
 def _normalize_tokens(s: str) -> Set[str]:
+    """
+    Extract unique lowercase alphanumeric tokens from a string.
+    
+    Parameters:
+        s (str): Input text to tokenize.
+    
+    Returns:
+        Set[str]: A set of unique tokens produced by splitting the input on non-alphanumeric characters and lowercasing the result.
+    """
     return set("".join(ch.lower() if ch.isalnum() else " " for ch in s).split())
 
 
