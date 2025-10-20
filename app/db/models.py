@@ -200,6 +200,9 @@ def _migrate_episode_availability_table() -> None:
             conn.exec_driver_sql(
                 "ALTER TABLE episodeavailability_new RENAME TO episodeavailability"
             )
+            conn.exec_driver_sql(
+                "CREATE INDEX ix_episodeavailability_checked_at ON episodeavailability(checked_at)"
+            )
             logger.success("episodeavailability table migrated to include site column.")
     except Exception as exc:
         logger.error(f"Failed to migrate episodeavailability table: {exc}")
