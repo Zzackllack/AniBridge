@@ -283,12 +283,14 @@ ANIWORLD_ALPHABET_URL = os.getenv(
 ).strip()
 
 # S.to (series)
-STO_BASE_URL = os.getenv("STO_BASE_URL", "http://186.2.175.5").strip()
+STO_BASE_URL = os.getenv(
+    "STO_BASE_URL", "https://s.to"
+).strip()  # valid options are https://s.to, https://serienstream.to and http://186.2.175.5
 STO_ALPHABET_HTML = Path(
     os.getenv("STO_ALPHABET_HTML", DATA_DIR / "sto-alphabeth.html")
 )
 STO_ALPHABET_URL = os.getenv(
-    "STO_ALPHABET_URL", f"{STO_BASE_URL}/serienstream-alphabet"
+    "STO_ALPHABET_URL", f"{STO_BASE_URL}/serien-alphabet"
 ).strip()
 
 logger.debug(
@@ -317,7 +319,9 @@ RELEASE_GROUP = os.getenv("RELEASE_GROUP", "aniworld")
 RELEASE_GROUP_ANIWORLD = os.getenv("RELEASE_GROUP_ANIWORLD", RELEASE_GROUP)
 RELEASE_GROUP_STO = os.getenv("RELEASE_GROUP_STO", "sto")
 logger.debug(f"RELEASE_GROUP={RELEASE_GROUP}")
-logger.debug(f"RELEASE_GROUP_ANIWORLD={RELEASE_GROUP_ANIWORLD}, RELEASE_GROUP_STO={RELEASE_GROUP_STO}")
+logger.debug(
+    f"RELEASE_GROUP_ANIWORLD={RELEASE_GROUP_ANIWORLD}, RELEASE_GROUP_STO={RELEASE_GROUP_STO}"
+)
 
 # ---- Provider-Fallback ----
 # Kommagetrennte Liste, z. B. "VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza"
