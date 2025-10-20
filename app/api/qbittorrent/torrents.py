@@ -70,12 +70,16 @@ def torrents_add(
         season = int(payload[f"{prefix}_s"])
         episode = int(payload[f"{prefix}_e"])
         language = payload[f"{prefix}_lang"]
-        site = payload.get(f"{prefix}_site", "aniworld.to" if prefix == "aw" else "s.to")
+        site = payload.get(
+            f"{prefix}_site", "aniworld.to" if prefix == "aw" else "s.to"
+        )
         name = payload.get("dn", f"{slug}.S{season:02d}E{episode:02d}.{language}")
         xt = payload["xt"]
     except (KeyError, ValueError) as exc:
         logger.warning(f"Malformed magnet parameters: {exc}")
-        raise HTTPException(status_code=400, detail="malformed magnet parameters") from exc
+        raise HTTPException(
+            status_code=400, detail="malformed magnet parameters"
+        ) from exc
 
     btih = xt.split(":")[-1].lower()
 

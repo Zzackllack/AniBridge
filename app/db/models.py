@@ -164,9 +164,7 @@ def _migrate_episode_availability_table() -> None:
                 )
                 return
 
-            logger.info(
-                "Migrating episodeavailability table to include site column."
-            )
+            logger.info("Migrating episodeavailability table to include site column.")
             conn.exec_driver_sql(
                 """
                 CREATE TABLE episodeavailability_new (
@@ -202,9 +200,7 @@ def _migrate_episode_availability_table() -> None:
             conn.exec_driver_sql(
                 "ALTER TABLE episodeavailability_new RENAME TO episodeavailability"
             )
-            logger.success(
-                "episodeavailability table migrated to include site column."
-            )
+            logger.success("episodeavailability table migrated to include site column.")
     except Exception as exc:
         logger.error(f"Failed to migrate episodeavailability table: {exc}")
         raise
