@@ -37,6 +37,32 @@ def torznab_api(
     limit: int = Query(default=50),
     session: Session = Depends(get_session),
 ) -> Response:
+    """
+    Handle torznab-compatible API requests and return the corresponding XML response.
+    
+    Supports three request modes determined by `t`:
+    - "caps": return the server capabilities XML.
+    - "search": perform a generic/preview search and return an RSS feed with zero or more synthetic or discovered items.
+    - "tvsearch": search for a specific TV episode (requires `q` and `season`; `ep` defaults to 1 if omitted) and return an RSS feed of available releases.
+    
+    Parameters:
+        request: FastAPI Request object for the incoming HTTP request.
+        t (str): One of "caps", "search", or "tvsearch", selecting the API mode.
+        apikey (Optional[str]): API key for access control; presence/validity is required.
+        q (Optional[str]): Query string identifying a series or search terms.
+        season (Optional[int]): Season number for TV episode searches; required for "tvsearch".
+        ep (Optional[int]): Episode number for TV episode searches; defaults to 1 for previews when omitted.
+        cat (Optional[str]): Category filter (passed through but not required).
+        offset (int): Result offset for paging.
+        limit (int): Maximum number of RSS items to include.
+        session: Database session (provided via dependency injection; omitted from docs for common DI services).
+    
+    Returns:
+        Response: A FastAPI Response containing XML:
+          - application/xml; charset=utf-8 for "caps"
+          - application/rss+xml; charset=utf-8 for "search" and "tvsearch"
+          - HTTP 400 is raised for unknown `t` values; empty RSS feeds are returned when required parameters or slug resolution are missing.
+    """
     logger.info(
         "Torznab request: t={}, q={}, season={}, ep={}, cat={}, offset={}, limit={}, apikey={}".format(
             t, q, season, ep, cat, offset, limit, "<set>" if apikey else "<none>"

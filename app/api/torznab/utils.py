@@ -66,17 +66,31 @@ def _caps_xml() -> str:
 
 
 def _normalize_tokens(s: str) -> List[str]:
+    """
+    Split a string into lowercase alphanumeric tokens.
+    
+    Non-alphanumeric characters are treated as token separators; letters are lowercased and digits are preserved.
+    
+    Parameters:
+        s (str): Input string to tokenize.
+    
+    Returns:
+        List[str]: A list of lowercase alphanumeric tokens extracted from the input.
+    """
     logger.debug(f"Normalizing tokens for string: '{s}'")
     return "".join(ch.lower() if ch.isalnum() else " " for ch in s).split()
 
 
 def _slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, str]]:
-    """Map free-text query -> (site, slug) using main and alternative titles.
+    """
+    Resolve a free-text query to the best-matching site and canonical slug.
     
-    If site is specified, only searches that site. Otherwise searches all enabled sites.
-    Returns (site, slug) tuple or None.
+    Parameters:
+        q (str): The free-text query to resolve (e.g., a title).
+        site (Optional[str]): If provided, restrict resolution to the specified site identifier.
     
-    Import from the title_resolver module for the actual implementation.
+    Returns:
+        Optional[Tuple[str, str]]: A tuple (site, slug) with the site identifier and resolved slug when a match is found, `None` if no match exists.
     """
     logger.debug(f"Resolving slug from query: '{q}', site filter: {site}")
     from app.utils.title_resolver import slug_from_query
@@ -95,6 +109,16 @@ def _slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, 
 
 
 def _add_torznab_attr(item: ET.Element, name: str, value: str) -> None:
+    """
+    Add a torznab `attr` subelement to an RSS item.
+    
+    Creates a `torznab:attr` element (namespace http://torznab.com/schemas/2015/feed) as a child of `item` and sets its `name` and `value` attributes.
+    
+    Parameters:
+        item (xml.etree.ElementTree.Element): The RSS `<item>` element to which the torznab attribute will be added.
+        name (str): The `name` attribute to set on the torznab `attr` element.
+        value (str): The `value` attribute to set on the torznab `attr` element.
+    """
     attr = ET.SubElement(item, "{http://torznab.com/schemas/2015/feed}attr")
     attr.set("name", name)
     attr.set("value", value)
