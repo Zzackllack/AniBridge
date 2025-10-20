@@ -115,7 +115,7 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
 def _run_download(job_id: str, req: dict, stop_event: threading.Event):
     """
     Execute a download job: start the episode download, update the job record in the database with progress/result, and handle errors or cancellation.
-    
+
     Parameters:
         job_id (str): Identifier of the job being run.
         req (dict): Download request containing keys used by the downloader:
@@ -126,7 +126,7 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
             - 'link' (optional)
             - 'site' (optional, defaults to "aniworld.to")
         stop_event (threading.Event): Event that, when set, requests cancellation of the download.
-    
+
     Side effects:
         - Updates the job row in the database with status, progress, messages, source site, and result path.
         - Removes the job from the RUNNING registry when finished.

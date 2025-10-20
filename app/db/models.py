@@ -65,7 +65,9 @@ class Job(ModelBase, table=True):
     eta: Optional[int] = None
     message: Optional[str] = None
     result_path: Optional[str] = None
-    source_site: Optional[str] = Field(default="aniworld.to", index=True)  # Track originating site
+    source_site: Optional[str] = Field(
+        default="aniworld.to", index=True
+    )  # Track originating site
 
     created_at: datetime = Field(default_factory=utcnow, index=True)
     updated_at: datetime = Field(default_factory=utcnow, index=True)
@@ -86,7 +88,9 @@ class EpisodeAvailability(ModelBase, table=True):
     season: int = Field(primary_key=True)
     episode: int = Field(primary_key=True)
     language: str = Field(primary_key=True)
-    site: str = Field(default="aniworld.to", primary_key=True)  # Add site to primary key
+    site: str = Field(
+        default="aniworld.to", primary_key=True
+    )  # Add site to primary key
     available: bool = True
     height: Optional[int] = None
     vcodec: Optional[str] = None
@@ -255,7 +259,7 @@ def upsert_availability(
 ) -> EpisodeAvailability:
     """
     Create or update the cached availability record for a specific episode/language on a site and persist the result.
-    
+
     Parameters:
         session (Session): Database session used to read and persist the record.
         slug (str): Series identifier.
@@ -268,11 +272,13 @@ def upsert_availability(
         provider (Optional[str]): Provider name/source, or `None` if unknown.
         extra (Optional[dict]): Optional auxiliary metadata for the record.
         site (str): Site identifier to scope the availability entry.
-    
+
     Returns:
         EpisodeAvailability: The persisted availability record reflecting the created or updated state.
     """
-    logger.debug(f"Upserting availability for {slug} S{season}E{episode} {language} on {site}")
+    logger.debug(
+        f"Upserting availability for {slug} S{season}E{episode} {language} on {site}"
+    )
     rec = session.get(EpisodeAvailability, (slug, season, episode, language, site))
     if rec is None:
         logger.info("No existing availability record found, creating new.")
@@ -312,18 +318,26 @@ def upsert_availability(
 
 
 def get_availability(
-    session: Session, *, slug: str, season: int, episode: int, language: str, site: str = "aniworld.to"
+    session: Session,
+    *,
+    slug: str,
+    season: int,
+    episode: int,
+    language: str,
+    site: str = "aniworld.to",
 ) -> Optional[EpisodeAvailability]:
     """
     Retrieve the cached availability record for a specific episode identified by slug, season, episode, language, and site.
-    
+
     Parameters:
         site (str): Site identifier to query for (default "aniworld.to").
-    
+
     Returns:
         EpisodeAvailability | None: The matching EpisodeAvailability if found, `None` otherwise.
     """
-    logger.debug(f"Fetching availability for {slug} S{season}E{episode} {language} on {site}")
+    logger.debug(
+        f"Fetching availability for {slug} S{season}E{episode} {language} on {site}"
+    )
     rec = session.get(EpisodeAvailability, (slug, season, episode, language, site))
     if rec:
         logger.debug("Availability record found.")
@@ -337,17 +351,19 @@ def list_available_languages_cached(
 ) -> List[str]:
     """
     List languages with fresh cached availability for a specific episode on a site.
-    
+
     Parameters:
         slug (str): Episode/series identifier used to look up availability.
         season (int): Season number of the episode.
         episode (int): Episode number within the season.
         site (str): Site identifier to scope the availability records (defaults to "aniworld.to").
-    
+
     Returns:
         List[str]: Languages that have a cached availability record considered fresh.
     """
-    logger.debug(f"Listing available cached languages for {slug} S{season}E{episode} on {site}")
+    logger.debug(
+        f"Listing available cached languages for {slug} S{season}E{episode} on {site}"
+    )
     rows = session.exec(
         select(EpisodeAvailability).where(
             (EpisodeAvailability.slug == slug)
@@ -391,11 +407,11 @@ def upsert_client_task(
 ) -> ClientTask:
     """
     Create or update a ClientTask record for the given torrent/file hash.
-    
+
     Parameters:
         hash (str): Unique identifier for the client task (primary key).
         site (str): Site identifier to store on the record; defaults to "aniworld.to".
-    
+
     Returns:
         ClientTask: The inserted or updated ClientTask instance refreshed from the database.
     """

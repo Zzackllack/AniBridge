@@ -317,7 +317,9 @@ RELEASE_GROUP = os.getenv("RELEASE_GROUP", "aniworld")
 RELEASE_GROUP_ANIWORLD = os.getenv("RELEASE_GROUP_ANIWORLD", RELEASE_GROUP)
 RELEASE_GROUP_STO = os.getenv("RELEASE_GROUP_STO", "sto")
 logger.debug(f"RELEASE_GROUP={RELEASE_GROUP}")
-logger.debug(f"RELEASE_GROUP_ANIWORLD={RELEASE_GROUP_ANIWORLD}, RELEASE_GROUP_STO={RELEASE_GROUP_STO}")
+logger.debug(
+    f"RELEASE_GROUP_ANIWORLD={RELEASE_GROUP_ANIWORLD}, RELEASE_GROUP_STO={RELEASE_GROUP_STO}"
+)
 
 # ---- Provider-Fallback ----
 # Kommagetrennte Liste, z. B. "VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza"

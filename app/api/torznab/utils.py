@@ -68,12 +68,12 @@ def _caps_xml() -> str:
 def _normalize_tokens(s: str) -> List[str]:
     """
     Split a string into lowercase alphanumeric tokens.
-    
+
     Non-alphanumeric characters are treated as token separators; letters are lowercased and digits are preserved.
-    
+
     Parameters:
         s (str): Input string to tokenize.
-    
+
     Returns:
         List[str]: A list of lowercase alphanumeric tokens extracted from the input.
     """
@@ -84,17 +84,17 @@ def _normalize_tokens(s: str) -> List[str]:
 def _slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, str]]:
     """
     Resolve a free-text query to the best-matching site and canonical slug.
-    
+
     Parameters:
         q (str): The free-text query to resolve (e.g., a title).
         site (Optional[str]): If provided, restrict resolution to the specified site identifier.
-    
+
     Returns:
         Optional[Tuple[str, str]]: A tuple (site, slug) with the site identifier and resolved slug when a match is found, `None` if no match exists.
     """
     logger.debug(f"Resolving slug from query: '{q}', site filter: {site}")
     from app.utils.title_resolver import slug_from_query
-    
+
     # Use the new multi-site slug_from_query
     result = slug_from_query(q, site)
     if result:
@@ -111,9 +111,9 @@ def _slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, 
 def _add_torznab_attr(item: ET.Element, name: str, value: str) -> None:
     """
     Add a torznab `attr` subelement to an RSS item.
-    
+
     Creates a `torznab:attr` element (namespace http://torznab.com/schemas/2015/feed) as a child of `item` and sets its `name` and `value` attributes.
-    
+
     Parameters:
         item (xml.etree.ElementTree.Element): The RSS `<item>` element to which the torznab attribute will be added.
         name (str): The `name` attribute to set on the torznab `attr` element.
