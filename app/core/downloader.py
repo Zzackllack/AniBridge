@@ -67,6 +67,7 @@ _LANG_ALIASES = {
     "engdub": "English Dub",
     "duben": "English Dub",
     "en-dub": "English Dub",
+    "endub": "English Dub",
 }
 
 
