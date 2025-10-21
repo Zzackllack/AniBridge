@@ -211,7 +211,7 @@ def _migrate_episode_availability_table() -> None:
 def create_db_and_tables() -> None:
     """
     Ensure the application's SQLite database file and ORM tables exist, running any required schema migration first.
-    
+
     Performs any necessary episode availability migration and creates tables defined on the module's private metadata, creating the database file if it does not already exist.
     """
     logger.debug("Creating DB and tables if not exist.")
@@ -251,10 +251,10 @@ def dispose_engine() -> None:
 def create_job(session: Session, *, source_site: Optional[str] = None) -> Job:
     """
     Create and persist a new Job record in the database.
-    
+
     Parameters:
         source_site (Optional[str]): Optional source site identifier to associate with the job; if omitted the model's default is used.
-    
+
     Returns:
         Job: The created Job instance refreshed from the database (includes generated id and timestamps).
     """
@@ -408,10 +408,10 @@ def get_availability(
 ) -> Optional[EpisodeAvailability]:
     """
     Retrieve the cached availability record for a specific episode identified by slug, season, episode, language, and site.
-    
+
     Parameters:
         site (str): Site identifier to query for (default "aniworld.to").
-    
+
     Returns:
         EpisodeAvailability | None: `EpisodeAvailability` if a matching record exists, `None` otherwise.
     """

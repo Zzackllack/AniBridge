@@ -13,10 +13,10 @@ configure_logger()
 def _site_prefix(site: str) -> str:
     """
     Determine the parameter prefix associated with a site.
-    
+
     Parameters:
         site (str): Hostname of the site (e.g., "aniworld.to" or "s.to").
-    
+
     Returns:
         str: "aw" for "aniworld.to", "sto" for "s.to", and "aw" for any other site (default). Logs a warning when defaulting.
     """
@@ -31,7 +31,7 @@ def _site_prefix(site: str) -> str:
 def _hash_id(slug: str, season: int, episode: int, language: str) -> str:
     """
     Compute a deterministic SHA-1 identifier for the specified content.
-    
+
     Returns:
         A hexadecimal SHA-1 digest of the string "{slug}|{season}|{episode}|{language}" using UTF-8 encoding.
     """

@@ -19,10 +19,10 @@ def probe_episode_quality_once(
 ) -> tuple[Optional[int], Optional[str], Dict[str, Any] | None]:
     """
     Retrieve reported video height, video codec, and metadata from a direct media URL without downloading the media.
-    
+
     Parameters:
         timeout (float): Socket timeout in seconds used when probing the URL.
-    
+
     Returns:
         tuple: A three-item tuple (height, vcodec, info_dict) where `height` is the reported video height in pixels or `None` if unavailable, `vcodec` is the reported video codec string or `None` if unavailable, and `info_dict` is the extracted metadata dictionary from yt-dlp or `None` if extraction failed.
     """

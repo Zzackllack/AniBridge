@@ -115,13 +115,13 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
 def _run_download(job_id: str, req: dict, stop_event: threading.Event):
     """
     Run a download task and record its progress and final state in the database.
-    
+
     Executes the episode download described by `req`, updates the job row with lifecycle states
     (e.g., "downloading", "completed", "failed", "cancelled"), writes final `result_path` on success,
     and removes the job from the in-memory RUNNING registry when finished. If the download is cancelled
     or an exception occurs, the job status and message are updated accordingly. An OSError caused by
     an unwritable download directory sets the job to "failed" with a directory-specific message.
-    
+
     Parameters:
         job_id (str): Identifier of the job being run.
         req (dict): Download request with keys used by the downloader. Recognized keys:
@@ -185,7 +185,7 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
 def schedule_download(req: dict) -> str:
     """
     Schedule a background download job and return its job identifier.
-    
+
     Parameters:
         req (dict): Download request containing:
             - slug (str): Content identifier.
@@ -196,10 +196,10 @@ def schedule_download(req: dict) -> str:
             - title_hint (str, optional): Suggested title for the download destination.
             - link (str, optional): Direct link or reference.
             - site (str, optional): Source site name; used as the job's source_site (defaults to "aniworld.to").
-    
+
     Returns:
         str: The created job's identifier.
-    
+
     Raises:
         RuntimeError: If the thread pool executor is unavailable after initialization.
     """

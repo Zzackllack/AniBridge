@@ -96,17 +96,17 @@ def build_episode(
 ) -> Episode:
     """
     Construct an Episode from either a direct link or a slug/season/episode triple for the specified site.
-    
+
     Parameters:
         link (Optional[str]): Direct episode URL; used when provided and takes precedence over slug/season/episode.
         slug (Optional[str]): Series identifier used with `season` and `episode` when `link` is not provided.
         season (Optional[int]): Season number paired with `slug` and `episode`.
         episode (Optional[int]): Episode number paired with `slug` and `season`.
         site (str): Host site identifier to attach to the created Episode (default: "aniworld.to").
-    
+
     Returns:
         Episode: The constructed Episode using the provided inputs.
-    
+
     Raises:
         ValueError: If neither `link` nor the combination of `slug`, `season`, and `episode` are supplied.
     """
@@ -178,18 +178,17 @@ def get_direct_url_with_fallback(
     preferred: Optional[str],
     language: str,
 ) -> Tuple[str, str]:
-
     """
     Resolve a direct download URL for an episode, trying a preferred provider first and falling back to the configured provider order.
-    
+
     Parameters:
         ep (Episode): Episode object to resolve the direct link for.
         preferred (Optional[str]): Provider name to try first; ignored if empty or None.
         language (str): Desired language label; will be normalized before use.
-    
+
     Returns:
         tuple: (direct_url, provider_name) where `direct_url` is the resolved URL and `provider_name` is the provider that supplied it.
-    
+
     Raises:
         LanguageUnavailableError: If the requested language is not offered by the episode or a provider indicates the language is unavailable.
         DownloadError: If no provider yields a direct URL after all fallbacks.
@@ -268,9 +267,9 @@ def _ydl_download(
 ) -> Tuple[Path, Dict[str, Any]]:
     """
     Download a media resource via yt-dlp and return the downloaded file path and metadata.
-    
+
     Uses yt-dlp to download the resource at `direct_url` into `dest_dir`, applying an optional filename hint, cookiefile, proxy configuration, progress callbacks, and cancellation via `stop_event`.
-    
+
     Parameters:
         direct_url (str): Direct media URL or playlist identifier to pass to yt-dlp.
         dest_dir (Path): Directory where the download and temporary files will be stored; created if missing.
@@ -279,7 +278,7 @@ def _ydl_download(
         progress_cb (Optional[callable]): Callback invoked with yt-dlp progress dictionaries as they arrive.
         stop_event (Optional[threading.Event]): If set during download, the operation will be cancelled and raise DownloadError("Cancelled").
         force_no_proxy (bool): When true, disable any configured proxy for this yt-dlp invocation.
-    
+
     Returns:
         Tuple[Path, Dict[str, Any]]: A tuple containing the final downloaded file path and the yt-dlp info dictionary.
     """

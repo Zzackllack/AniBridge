@@ -84,11 +84,11 @@ def _normalize_tokens(s: str) -> List[str]:
 def _slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, str]]:
     """
     Resolve a free-text query to the best-matching site and canonical slug.
-    
+
     Parameters:
         q (str): The free-text title or query to resolve.
         site (Optional[str]): Optional site identifier to restrict resolution to a specific site.
-    
+
     Returns:
         Optional[Tuple[str, str]]: `(site, slug)` with the site identifier and resolved canonical slug when a match is found, `None` otherwise.
     """
