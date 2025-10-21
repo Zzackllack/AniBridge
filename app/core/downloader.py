@@ -241,7 +241,11 @@ def get_direct_url_with_fallback(
         # See https://github.com/phoenixthrush/AniWorld-Downloader/issues/98
         # Fixed in >=3.7.1, see https://github.com/phoenixthrush/AniWorld-Downloader/pull/100
         # Try known auto-fill helpers defensively.
-        for _auto_name in ("auto_fill_details", "_auto_fill_basic_details", "auto_fill_basic_details"):
+        for _auto_name in (
+            "auto_fill_details",
+            "_auto_fill_basic_details",
+            "auto_fill_basic_details",
+        ):
             _auto = getattr(ep, _auto_name, None)
             if callable(_auto):
                 try:
