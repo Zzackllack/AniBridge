@@ -5,6 +5,7 @@ from typing import Optional, Literal, Callable, Tuple, Dict, Any, List, cast
 import re
 import threading
 import yt_dlp
+from yt_dlp.utils import DownloadError as YTDLPDownloadError
 from loguru import logger
 from app.utils.logger import config as configure_logger
 
@@ -314,10 +315,17 @@ def _ydl_download(
                 raise DownloadError("yt-dlp did not return info dict.")
             filename = ydl.prepare_filename(info)
             logger.success(f"Download finished: {filename}")
-        return (Path(filename), cast(Dict[str, Any], info))
-    except Exception as e:
+            # return the downloaded file path and the info dict to satisfy the declared return type
+            return Path(filename), cast(Dict[str, Any], info)
+    except YTDLPDownloadError as e:
         logger.error(f"yt-dlp download failed: {e}")
-        raise
+        raise DownloadError(str(e))
+    except TimeoutError as e:
+        logger.error(f"yt-dlp timeout: {e}")
+        raise DownloadError("Timeout") from e
+    except Exception as e:  # noqa: BLE001 — unexpected failures
+        logger.error(f"yt-dlp unexpected error: {e}")
+        raise DownloadError("Unexpected error") from e
 
 
 # -------- public API --------
