@@ -18,7 +18,13 @@ def probe_episode_quality_once(
     direct_url: str, timeout: float = 6.0
 ) -> tuple[Optional[int], Optional[str], Dict[str, Any] | None]:
     """
-    Lädt KEINE Daten. Holt nur Info über Formate/Höhe/Codec.
+    Retrieve reported video height, video codec, and metadata from a direct media URL without downloading the media.
+
+    Parameters:
+        timeout (float): Socket timeout in seconds used when probing the URL.
+
+    Returns:
+        tuple: A three-item tuple (height, vcodec, info_dict) where `height` is the reported video height in pixels or `None` if unavailable, `vcodec` is the reported video codec string or `None` if unavailable, and `info_dict` is the extracted metadata dictionary from yt-dlp or `None` if extraction failed.
     """
     logger.debug(
         f"Probing episode quality for URL: {direct_url} with timeout={timeout}"
