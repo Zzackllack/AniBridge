@@ -1,7 +1,7 @@
 import os
 import sys
 from pathlib import Path
-from typing import Optional, Literal, Callable, Tuple, Dict, Any, List
+from typing import Optional, Literal, Callable, Tuple, Dict, Any, List, cast
 import re
 import threading
 import yt_dlp
@@ -304,14 +304,17 @@ def _ydl_download(
         ydl_opts["cookiefile"] = str(cookiefile)
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        # yt_dlp.YoutubeDL expects a specific Params type; cast to satisfy type checkers.
+        # Keep a runtime-safe cast so the dict is passed unchanged at runtime.
+        ydl_params = cast("yt_dlp.YoutubeDL.Params", ydl_opts)  # type: ignore[arg-type]
+        with yt_dlp.YoutubeDL(ydl_params) as ydl:
             info = ydl.extract_info(direct_url, download=True)
             if info is None:
                 logger.error("yt-dlp did not return info dict.")
                 raise DownloadError("yt-dlp did not return info dict.")
             filename = ydl.prepare_filename(info)
             logger.success(f"Download finished: {filename}")
-        return (Path(filename), info)
+        return (Path(filename), cast(Dict[str, Any], info))
     except Exception as e:
         logger.error(f"yt-dlp download failed: {e}")
         raise
