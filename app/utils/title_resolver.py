@@ -111,10 +111,12 @@ def _should_refresh(site: str, now: float, refresh_hours: float) -> bool:
     if refresh_hours <= 0:
         logger.info(f"Refresh hours <= 0 for {site}. No refresh needed.")
         return False
-    if site not in _cached_at or _cached_at[site] is None:
+    # Safely obtain the cached timestamp and handle None explicitly to satisfy static type checkers
+    ts = _cached_at.get(site)
+    if ts is None:
         logger.info(f"No cached timestamp found for {site}. Refresh needed.")
         return True
-    expired = (now - _cached_at[site]) > refresh_hours * 3600.0
+    expired = (now - ts) > refresh_hours * 3600.0
     if expired:
         logger.info(f"Cache expired for {site}. Refresh needed.")
     else:
