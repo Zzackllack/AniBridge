@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional, Tuple
 import xml.etree.ElementTree as ET
+import threading
 
 from fastapi import HTTPException
 from loguru import logger
@@ -65,6 +66,10 @@ def _caps_xml() -> str:
     return ET.tostring(caps, encoding="utf-8", xml_declaration=True).decode("utf-8")
 
 
+_normalize_tokens_logged = False
+_normalize_tokens_log_lock = threading.Lock()
+
+
 def _normalize_tokens(s: str) -> List[str]:
     """
     Split a string into lowercase alphanumeric tokens.
@@ -77,7 +82,12 @@ def _normalize_tokens(s: str) -> List[str]:
     Returns:
         List[str]: A list of lowercase alphanumeric tokens extracted from the input.
     """
-    logger.debug(f"Normalizing tokens for string: '{s}'")
+    global _normalize_tokens_logged
+    if not _normalize_tokens_logged:
+        with _normalize_tokens_log_lock:
+            if not _normalize_tokens_logged:
+                logger.debug("Normalizing tokens for episode/title strings")
+                _normalize_tokens_logged = True
     return "".join(ch.lower() if ch.isalnum() else " " for ch in s).split()
 
 

@@ -230,6 +230,7 @@ export default defineConfig({
             { text: "Testing", link: "/developer/testing" },
             { text: "Contributing", link: "/developer/contributing" },
             { text: "Logging", link: "/developer/logging" },
+            { text: "Testing with cURL", link: "/developer/testing-with-curl" },
           ],
         },
       ],

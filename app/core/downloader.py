@@ -113,16 +113,47 @@ def build_episode(
     logger.info(
         f"Building episode: link={link}, slug={slug}, season={season}, episode={episode}, site={site}"
     )
+    ep: Optional[Episode] = None
     if link:
         logger.debug("Using direct link for episode.")
-        return Episode(link=link, site=site)
-    if slug and season and episode:
+        ep = Episode(link=link, site=site)
+    elif slug and season and episode:
         logger.debug("Using slug/season/episode for episode.")
-        return Episode(slug=slug, season=season, episode=episode, site=site)
-    logger.error(
-        "Invalid episode parameters: must provide either link or (slug, season, episode)."
-    )
-    raise ValueError("Provide either link OR (slug, season, episode).")
+        ep = Episode(slug=slug, season=season, episode=episode, site=site)
+    else:
+        logger.error(
+            "Invalid episode parameters: must provide either link or (slug, season, episode)."
+        )
+        raise ValueError("Provide either link OR (slug, season, episode).")
+
+    # aniworld>=3.6.4 stopped auto-populating basic details when instantiated
+    # via slug/season/episode. When link stays None the provider scrape later
+    # fails. Force-run the helper if available.
+    if getattr(ep, "link", None) is None:
+        logger.warning(
+            "Episode link is None after init; attempting to auto-fill basic details. Are you using aniworld>=3.6.4?"
+        )
+        auto_basic = getattr(ep, "_auto_fill_basic_details", None)
+        if callable(auto_basic):
+            logger.warning(
+                "Running _auto_fill_basic_details() to populate episode basics."
+            )
+            # Guard against the flag short-circuiting the helper.
+            if getattr(ep, "_basic_details_filled", False):
+                setattr(ep, "_basic_details_filled", False)
+                logger.warning("Reset _basic_details_filled flag to False.")
+            try:
+                auto_basic()
+                logger.warning("Successfully populated episode basics.")
+            except Exception as err:  # pragma: no cover - defensive
+                logger.warning(
+                    "Failed to populate episode basics (slug=%s, season=%s, episode=%s): %s",
+                    getattr(ep, "slug", slug),
+                    getattr(ep, "season", season),
+                    getattr(ep, "episode", episode),
+                    err,
+                )
+    return ep
 
 
 # ----- provider/lang probing ------
@@ -205,6 +236,29 @@ def get_direct_url_with_fallback(
         or getattr(ep, "languages", None)
         or getattr(ep, "available_languages", None)
     )
+    if not _langs:
+        # AniWorld >=3.6.4 no longer auto-populates language metadata during __init__.
+        # See https://github.com/phoenixthrush/AniWorld-Downloader/issues/98
+        # Fixed in >=3.7.1, see https://github.com/phoenixthrush/AniWorld-Downloader/pull/100
+        # Try known auto-fill helpers defensively.
+        for _auto_name in ("auto_fill_details", "_auto_fill_basic_details", "auto_fill_basic_details"):
+            _auto = getattr(ep, _auto_name, None)
+            if callable(_auto):
+                try:
+                    _auto()
+                    break
+                except Exception as err:  # pragma: no cover - defensive
+                    logger.warning(
+                        "Failed to auto-fill episode details using %s(): %s",
+                        _auto_name,
+                        err,
+                    )
+        _langs = (
+            getattr(ep, "language_name", None)
+            or getattr(ep, "languages", None)
+            or getattr(ep, "available_languages", None)
+        )
+
     if _langs is not None:
         if isinstance(_langs, str):
             _langs_iter = [_langs]
