@@ -1,6 +1,4 @@
 from __future__ import annotations
-import sys
-import os
 from loguru import logger
 from app.utils.logger import config as configure_logger
 
@@ -10,8 +8,6 @@ from typing import Dict, List, Optional, Set, Tuple
 import time
 import requests.exceptions
 from pathlib import Path
-from functools import lru_cache
-from time import time
 
 import re
 from app.utils.http_client import get as http_get  # type: ignore
@@ -239,7 +235,7 @@ def load_or_refresh_index(site: str = "aniworld.to") -> Dict[str, str]:
         slug_to_title (Dict[str, str]): Mapping of slug -> display title for the requested site (empty if no index is available).
     """
     global _cached_indices, _cached_at, _cached_alts
-    now = time()
+    now = time.time()
 
     logger.debug(f"Starting load_or_refresh_index for site: {site}.")
 
@@ -359,7 +355,7 @@ def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[st
         Dict[str, List[str]]: Mapping from slug to a list of alternative display titles (the first element is the primary/display title). If no alternatives are available, returns an empty dict.
     """
     global _cached_alts
-    now = time()
+    now = time.time()
     site_cfg = CATALOG_SITE_CONFIGS.get(site) or CATALOG_SITE_CONFIGS.get(
         "aniworld.to", {}
     )
