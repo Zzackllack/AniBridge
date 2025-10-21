@@ -11,7 +11,12 @@ configure_logger()
 
 
 def _site_prefix(site: str) -> str:
-    return "aw" if site == "aniworld.to" else "sto"
+    if site == "aniworld.to":
+        return "aw"
+    if site == "s.to":
+        return "sto"
+    logger.warning(f"Unknown site '{site}', defaulting to 'aw' prefix")
+    return "aw"
 
 
 def _hash_id(slug: str, season: int, episode: int, language: str) -> str:
