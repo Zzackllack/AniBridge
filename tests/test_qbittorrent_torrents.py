@@ -55,6 +55,7 @@ def test_torrents_add_aw_and_sto_prefixes(client):
         season=1,
         episode=1,
         language="German Dub",
+        site="s.to",
     )
     add_sto = client.post(
         "/api/v2/torrents/add", data={"urls": magnet_sto, "category": "anime"}
