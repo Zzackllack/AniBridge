@@ -6,7 +6,9 @@ from app.utils.logger import config as configure_logger
 
 configure_logger()
 
-from typing import Dict, Optional, Tuple, List, Set
+from typing import Dict, List, Optional, Set, Tuple
+import time
+import requests.exceptions
 from pathlib import Path
 from functools import lru_cache
 from time import time
@@ -188,7 +190,7 @@ def _fetch_index_from_url(
         resp.raise_for_status()
         logger.success(f"Successfully fetched index from URL for site: {site}.")
         return _parse_index_and_alts(resp.text, site)
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         logger.error(f"Failed to fetch index from URL for {site}: {e}")
         raise
 
@@ -220,7 +222,7 @@ def _load_index_from_file(
         html_text = path.read_text(encoding="utf-8", errors="ignore")
         logger.success(f"Successfully read file: {path} for site: {site}")
         return _parse_index_and_alts(html_text, site)
-    except Exception as e:
+    except (OSError, UnicodeDecodeError) as e:
         logger.error(f"Failed to read file {path} for {site}: {e}")
         raise
 
@@ -405,8 +407,9 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
         for slug, main_title in index.items():
             # Start with main title tokens
             titles_for_slug: List[str] = [main_title]
-            if slug in alts and alts[slug]:
-                titles_for_slug.extend(alts[slug])
+            alt_list = alts.get(slug)
+            if alt_list:
+                titles_for_slug.extend(alt_list)
 
             # Evaluate best overlap score across all candidate titles
             local_best = 0

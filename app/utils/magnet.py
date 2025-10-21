@@ -10,6 +10,10 @@ from app.utils.logger import config as configure_logger
 configure_logger()
 
 
+def _site_prefix(site: str) -> str:
+    return "aw" if site == "aniworld.to" else "sto"
+
+
 def _hash_id(slug: str, season: int, episode: int, language: str) -> str:
     logger.debug(
         f"Hashing ID with slug={slug}, season={season}, episode={episode}, language={language}"
@@ -55,7 +59,7 @@ def build_magnet(
     # 'urn:btih:' instead of the percent-encoded variant.
 
     # Use site-specific prefixes
-    prefix = "aw" if site == "aniworld.to" else "sto"
+    prefix = _site_prefix(site)
 
     params: list[tuple[str, str]] = [
         ("xt", xt),
@@ -122,12 +126,12 @@ def parse_magnet(magnet: str) -> Dict[str, str]:
         if key.startswith("aw_"):
             if prefix and prefix != "aw":
                 logger.error("Magnet contains mixed prefixes: aw_ and sto_")
-                raise ValueError("mixed magnet prefixes: aw_ and sto_")
+                raise ValueError("mixed magnet prefixes")
             prefix = "aw"
         elif key.startswith("sto_"):
             if prefix and prefix != "sto":
                 logger.error("Magnet contains mixed prefixes: aw_ and sto_")
-                raise ValueError("mixed magnet prefixes: aw_ and sto_")
+                raise ValueError("mixed magnet prefixes")
             prefix = "sto"
     if prefix is None:
         # Backward compatibility: default to aw_ when no explicit prefix detected
@@ -145,7 +149,7 @@ def parse_magnet(magnet: str) -> Dict[str, str]:
     for req in required_params:
         if req not in flat:
             logger.error(f"Missing required magnet param: {req}")
-            raise ValueError(f"missing magnet param: {req}")
+            raise ValueError(f"missing param: {req}")
 
     logger.success(f"Magnet parsed successfully: {flat}")
     return flat

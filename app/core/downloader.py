@@ -185,13 +185,24 @@ def get_direct_url_with_fallback(
     tried: List[str] = []
 
     # Early language validation
-    available_languages = getattr(ep, "language_name", None)
-    if available_languages is not None:
-        if language not in available_languages:
+    _langs = (
+        getattr(ep, "language_name", None)
+        or getattr(ep, "languages", None)
+        or getattr(ep, "available_languages", None)
+    )
+    if _langs is not None:
+        if isinstance(_langs, str):
+            _langs_iter = [_langs]
+        else:
+            try:
+                _langs_iter = list(_langs)
+            except Exception:
+                _langs_iter = None
+        if _langs_iter is not None and language not in _langs_iter:
             logger.error(
-                f"Requested language '{language}' not available. Available: {available_languages}"
+                f"Requested language '{language}' not available. Available: {_langs_iter}"
             )
-            raise LanguageUnavailableError(language, available_languages)
+            raise LanguageUnavailableError(language, _langs_iter)
 
     # preferred zuerst (wenn gesetzt)
     if preferred:

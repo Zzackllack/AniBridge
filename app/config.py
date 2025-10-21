@@ -270,7 +270,9 @@ if QBIT_PUBLIC_SAVE_PATH:
 # ---- Multi-Site Catalogue Configuration ----
 # Comma-separated list of enabled catalogues (aniworld.to, s.to)
 CATALOG_SITES = os.getenv("CATALOG_SITES", "aniworld.to,s.to").strip()
-CATALOG_SITES_LIST = [s.strip() for s in CATALOG_SITES.split(",") if s.strip()]
+CATALOG_SITES_LIST = list(
+    dict.fromkeys(s.strip() for s in CATALOG_SITES.split(",") if s.strip())
+)
 logger.debug(f"CATALOG_SITES={CATALOG_SITES_LIST}")
 
 # Site-specific configuration

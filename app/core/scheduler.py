@@ -190,7 +190,7 @@ def schedule_download(req: dict) -> str:
         raise RuntimeError("executor not available")
 
     with Session(engine) as s:
-        job = create_job(s, source_site=req.get("site"))
+        job = create_job(s, source_site=req.get("site") or "aniworld.to")
 
     stop_event = threading.Event()
     fut = EXECUTOR.submit(_run_download, job.id, req, stop_event)

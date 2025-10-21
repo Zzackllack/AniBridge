@@ -4,9 +4,8 @@ from typing import Optional, Literal, Generator, Any, List
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from loguru import logger
-from app.utils.logger import config as configure_logger
 
-configure_logger()
+# Defer logger configuration to application startup
 
 from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JSON
 from sqlalchemy.orm import registry as sa_registry
@@ -437,7 +436,7 @@ def list_available_languages_cached(
             & (EpisodeAvailability.season == season)
             & (EpisodeAvailability.episode == episode)
             & (EpisodeAvailability.site == site)
-            & (EpisodeAvailability.available == True)
+            & (EpisodeAvailability.available.is_(True))
         )
     ).all()
     fresh_langs: List[str] = []

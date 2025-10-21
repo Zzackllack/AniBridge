@@ -170,10 +170,14 @@ def build_release_name(
     )
 
     # Use site-specific release group if available
-    if site == "s.to":
-        release_group = RELEASE_GROUP_STO
-    elif site == "aniworld.to":
-        release_group = RELEASE_GROUP_ANIWORLD
+    try:
+        from app.config import CATALOG_SITE_CONFIGS  # local import to avoid cycles
+
+        release_group = CATALOG_SITE_CONFIGS.get(site, {}).get(
+            "release_group", release_group
+        )
+    except Exception:
+        pass
 
     series_part = _series_component(series_title)
     se_part = (

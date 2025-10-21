@@ -20,6 +20,7 @@ from app.config import (
     TORZNAB_TEST_TITLE,
 )
 from app.db import get_session
+from app.utils.magnet import _site_prefix
 
 from . import router
 from .utils import _build_item, _caps_xml, _require_apikey, _rss_root
@@ -153,7 +154,7 @@ def torznab_api(
                             language=lang,
                             site=site_found,
                         )
-                    except Exception as e:
+                    except (ValueError, RuntimeError) as e:
                         logger.error(
                             "Error probing preview quality for slug={}, S{}E{}, lang={}, site={}: {}".format(
                                 slug, season_i, ep_i, lang, site_found, e
@@ -174,7 +175,7 @@ def torznab_api(
                             extra=None,
                             site=site_found,
                         )
-                    except Exception as e:
+                    except (ValueError, RuntimeError) as e:
                         logger.error(
                             "Error upserting preview availability for slug={}, S{}E{}, lang={}, site={}: {}".format(
                                 slug, season_i, ep_i, lang, site_found, e
@@ -208,7 +209,7 @@ def torznab_api(
                         continue
 
                     # Use site-appropriate prefix for GUID
-                    prefix = "aw" if site_found == "aniworld.to" else "sto"
+                    prefix = _site_prefix(site_found)
                     guid = f"{prefix}:{slug}:s{season_i}e{ep_i}:{lang}"
                     try:
                         _build_item(
@@ -295,7 +296,7 @@ def torznab_api(
                 language=lang,
                 site=site_found,
             )
-        except Exception as e:
+        except (ValueError, RuntimeError) as e:
             logger.error(
                 "Error reading availability cache for slug={}, S{}E{}, lang={}, site={}: {}".format(
                     slug, season_i, ep_i, lang, site_found, e
@@ -325,7 +326,7 @@ def torznab_api(
                     language=lang,
                     site=site_found,
                 )
-            except Exception as e:
+            except (ValueError, RuntimeError) as e:
                 logger.error(
                     f"Error probing quality for slug={slug}, S{season_i}E{ep_i}, lang={lang}, site={site_found}: {e}"
                 )
@@ -345,7 +346,7 @@ def torznab_api(
                     extra=None,
                     site=site_found,
                 )
-            except Exception as e:
+            except (ValueError, RuntimeError) as e:
                 logger.error(
                     f"Error upserting availability for slug={slug}, S{season_i}E{ep_i}, lang={lang}, site={site_found}: {e}"
                 )
@@ -383,7 +384,7 @@ def torznab_api(
             continue
 
         # Use site-appropriate prefix for GUID
-        prefix = "aw" if site_found == "aniworld.to" else "sto"
+        prefix = _site_prefix(site_found)
         guid = f"{prefix}:{slug}:s{season_i}e{ep_i}:{lang}"
 
         try:

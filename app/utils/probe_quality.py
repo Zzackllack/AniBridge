@@ -7,7 +7,7 @@ import sys
 
 from app.core.downloader import get_direct_url_with_fallback, build_episode
 from app.utils.naming import quality_from_info
-from app.config import PROVIDER_ORDER
+from app.config import PROVIDER_ORDER, CATALOG_SITE_CONFIGS
 from app.utils.logger import config as configure_logger
 from app.infrastructure.network import yt_dlp_proxy
 
@@ -84,6 +84,9 @@ def probe_episode_quality(
         f"Probing episode quality for slug={slug}, season={season}, episode={episode}, language={language}, "
         f"preferred_provider={preferred_provider}, timeout={timeout}, site={site}"
     )
+    if site not in CATALOG_SITE_CONFIGS:
+        logger.warning(f"Unknown site '{site}', defaulting to aniworld.to")
+        site = "aniworld.to"
     ep = build_episode(slug=slug, season=season, episode=episode, site=site)
     logger.debug(f"Built episode object: {ep}")
     candidates: List[str] = []
