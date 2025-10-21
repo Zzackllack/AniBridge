@@ -93,7 +93,7 @@ def _slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, 
         Optional[Tuple[str, str]]: A tuple (site, slug) with the site identifier and resolved slug when a match is found, `None` if no match exists.
     """
     logger.debug(f"Resolving slug from query: '{q}', site filter: {site}")
-    from app.utils.title_resolver import slug_from_query # type: ignore
+    from app.utils.title_resolver import slug_from_query  # type: ignore
 
     # Use the new multi-site slug_from_query
     result = slug_from_query(q, site)
