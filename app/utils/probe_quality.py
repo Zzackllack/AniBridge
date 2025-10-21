@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, Tuple, Dict, Any, List
+from typing import Optional, Tuple, Dict, Any, List, cast
 from loguru import logger
 import yt_dlp
 import os
@@ -36,15 +36,17 @@ def probe_episode_quality_once(
     except Exception as e:
         logger.debug(f"yt-dlp probe proxy configuration failed: {e}")
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(cast(Any, ydl_opts)) as ydl:
             info = ydl.extract_info(direct_url, download=False)
             logger.debug(f"yt_dlp.extract_info returned: {info}")
         if not info:
             logger.warning("No info extracted from the URL.")
             return (None, None, None)
-        h, vc = quality_from_info(info)
+        # yt_dlp returns a specialized _InfoDict; cast to plain Dict for type checkers
+        info_dict = cast(Dict[str, Any], info)
+        h, vc = quality_from_info(info_dict)
         logger.info(f"Extracted quality: height={h}, vcodec={vc}")
-        return (h, vc, info)
+        return (h, vc, info_dict)
     except Exception as e:
         logger.warning(f"Preflight probe failed for URL {direct_url}: {e}")
         return (None, None, None)
