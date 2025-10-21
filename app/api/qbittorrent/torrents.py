@@ -37,7 +37,24 @@ def torrents_add(
     paused: Optional[bool] = Form(default=False),
     tags: Optional[str] = Form(default=None),
 ):
-    """Sonarr posts magnet URL(s) here. We accept the first one."""
+    """
+    Accept a Sonarr POST of magnet URL(s), schedule the download for the first magnet, and record a ClientTask.
+
+    Parses the first magnet line from `urls`, extracts metadata (slug, season, episode, language, site, name, and torrent hash), schedules a download job, and upserts a ClientTask with the job and save path. If `savepath` is not provided, the configured download directory is used; if a public save path is configured it is stored as the task's save path.
+
+    Parameters:
+        urls (str): One or more magnet URLs separated by newlines; only the first line is processed.
+        savepath (Optional[str]): Optional explicit save directory for the torrent. If omitted, the configured DOWNLOAD_DIR is used; a configured QBIT_PUBLIC_SAVE_PATH will be preferred when stored.
+        category (Optional[str]): Optional category to record with the task.
+        paused (Optional[bool]): If true, the created task is marked as queued instead of downloading.
+        tags (Optional[str]): Optional tags provided by the caller (accepted but not otherwise interpreted here).
+
+    Returns:
+        PlainTextResponse: A plain-text response with the body "Ok." on success.
+
+    Raises:
+        HTTPException: Raised with status 400 when `urls` is empty or missing.
+    """
     logger.info(f"Received request to add torrent(s): {urls}")
     if not urls:
         logger.warning("No URLs provided in torrents_add.")
@@ -45,23 +62,40 @@ def torrents_add(
 
     magnet = urls.splitlines()[0].strip()
     logger.debug(f"Parsing magnet: {magnet}")
-    payload = parse_magnet(magnet)
+    try:
+        payload = parse_magnet(magnet)
+        prefix = "aw" if "aw_slug" in payload else "sto"
 
-    slug = payload["aw_slug"]
-    season = int(payload["aw_s"])
-    episode = int(payload["aw_e"])
-    language = payload["aw_lang"]
-    name = payload.get("dn", f"{slug}.S{season:02d}E{episode:02d}.{language}")
-    xt = payload["xt"]
+        slug = payload[f"{prefix}_slug"]
+        season = int(payload[f"{prefix}_s"])
+        episode = int(payload[f"{prefix}_e"])
+        language = payload[f"{prefix}_lang"]
+        site = payload.get(
+            f"{prefix}_site", "aniworld.to" if prefix == "aw" else "s.to"
+        )
+        name = payload.get("dn", f"{slug}.S{season:02d}E{episode:02d}.{language}")
+        xt = payload["xt"]
+    except (KeyError, ValueError) as exc:
+        logger.warning(f"Malformed magnet parameters: {exc}")
+        raise HTTPException(
+            status_code=400, detail="malformed magnet parameters"
+        ) from exc
+
     btih = xt.split(":")[-1].lower()
 
     logger.info(
-        "Scheduling download for {} (slug={}, season={}, episode={}, lang={})".format(
-            name, slug, season, episode, language
+        "Scheduling download for {} (slug={}, season={}, episode={}, lang={}, site={})".format(
+            name, slug, season, episode, language, site
         )
     )
 
-    req = {"slug": slug, "season": season, "episode": episode, "language": language}
+    req = {
+        "slug": slug,
+        "season": season,
+        "episode": episode,
+        "language": language,
+        "site": site,
+    }
     job_id = schedule_download(req)
     logger.debug(f"Scheduled job_id: {job_id}")
 
@@ -77,14 +111,15 @@ def torrents_add(
         season=season,
         episode=episode,
         language=language,
+        site=site,
         save_path=published_savepath,
         category=category,
         job_id=job_id,
         state="queued" if paused else "downloading",
     )
     logger.success(
-        "Torrent task upserted for hash={}, state={}".format(
-            btih, "queued" if paused else "downloading"
+        "Torrent task upserted for hash={}, state={}, site={}".format(
+            btih, "queued" if paused else "downloading", site
         )
     )
     return PlainTextResponse("Ok.")

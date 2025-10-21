@@ -10,6 +10,7 @@ from loguru import logger
 from sqlmodel import Session
 
 from app.config import (
+    CATALOG_SITE_CONFIGS,
     TORZNAB_CAT_ANIME,
     TORZNAB_RETURN_TEST_RESULT,
     TORZNAB_TEST_EPISODE,
@@ -19,9 +20,32 @@ from app.config import (
     TORZNAB_TEST_TITLE,
 )
 from app.db import get_session
+from app.utils.magnet import _site_prefix
 
 from . import router
 from .utils import _build_item, _caps_xml, _require_apikey, _rss_root
+
+
+def _default_languages_for_site(site: str) -> List[str]:
+    """
+    Get the default language preference ordering for a catalogue site.
+
+    Parameters:
+        site (str): Catalogue site key to look up in CATALOG_SITE_CONFIGS.
+
+    Returns:
+        List[str]: Language names in preference order. If the site has no valid mapping, returns the configured aniworld.to defaults (fallbacking to ["German Dub", "German Sub", "English Sub"] if that configuration is absent).
+    """
+    cfg = CATALOG_SITE_CONFIGS.get(site)
+    if cfg:
+        languages = cfg.get("default_languages")
+        if isinstance(languages, list) and languages:
+            # return a shallow copy to avoid accidental mutation of config state
+            return list(languages)
+    fallback = CATALOG_SITE_CONFIGS.get("aniworld.to", {}).get(
+        "default_languages", ["German Dub", "German Sub", "English Sub"]
+    )
+    return list(fallback)
 
 
 @router.get("/api", response_class=FastAPIResponse)
@@ -37,6 +61,32 @@ def torznab_api(
     limit: int = Query(default=50),
     session: Session = Depends(get_session),
 ) -> Response:
+    """
+    Handle torznab-compatible API requests and return the corresponding XML response.
+
+    Supports three request modes determined by `t`:
+    - "caps": return the server capabilities XML.
+    - "search": perform a generic/preview search and return an RSS feed with zero or more synthetic or discovered items.
+    - "tvsearch": search for a specific TV episode (requires `q` and `season`; `ep` defaults to 1 if omitted) and return an RSS feed of available releases.
+
+    Parameters:
+        request: FastAPI Request object for the incoming HTTP request.
+        t (str): One of "caps", "search", or "tvsearch", selecting the API mode.
+        apikey (Optional[str]): API key for access control; presence/validity is required.
+        q (Optional[str]): Query string identifying a series or search terms.
+        season (Optional[int]): Season number for TV episode searches; required for "tvsearch".
+        ep (Optional[int]): Episode number for TV episode searches; defaults to 1 for previews when omitted.
+        cat (Optional[str]): Category filter (passed through but not required).
+        offset (int): Result offset for paging.
+        limit (int): Maximum number of RSS items to include.
+        session: Database session (provided via dependency injection; omitted from docs for common DI services).
+
+    Returns:
+        Response: A FastAPI Response containing XML:
+          - application/xml; charset=utf-8 for "caps"
+          - application/rss+xml; charset=utf-8 for "search" and "tvsearch"
+          - HTTP 400 is raised for unknown `t` values; empty RSS feeds are returned when required parameters or slug resolution are missing.
+    """
     logger.info(
         "Torznab request: t={}, q={}, season={}, ep={}, cat={}, offset={}, limit={}, apikey={}".format(
             t, q, season, ep, cat, offset, limit, "<set>" if apikey else "<none>"
@@ -85,29 +135,34 @@ def torznab_api(
             )
         elif q_str:
             # Preview search: S01E01 for requested series
-            slug = tn._slug_from_query(q_str)
-            if slug:
-                display_title = tn.resolve_series_title(slug) or q_str
+            result = tn._slug_from_query(q_str)
+            if result:
+                site_found, slug = result
+                display_title = tn.resolve_series_title(slug, site_found) or q_str
                 season_i, ep_i = 1, 1
                 cached_langs = tn.list_available_languages_cached(
-                    session, slug=slug, season=season_i, episode=ep_i
+                    session, slug=slug, season=season_i, episode=ep_i, site=site_found
                 )
+
+                default_langs = _default_languages_for_site(site_found)
                 candidate_langs: List[str] = (
-                    cached_langs
-                    if cached_langs
-                    else ["German Dub", "German Sub", "English Sub"]
+                    cached_langs if cached_langs else default_langs
                 )
                 now = datetime.now(timezone.utc)
                 count = 0
                 for lang in candidate_langs:
                     try:
                         available, h, vc, prov, _info = tn.probe_episode_quality(
-                            slug=slug, season=season_i, episode=ep_i, language=lang
+                            slug=slug,
+                            season=season_i,
+                            episode=ep_i,
+                            language=lang,
+                            site=site_found,
                         )
-                    except Exception as e:
+                    except (ValueError, RuntimeError) as e:
                         logger.error(
-                            "Error probing preview quality for slug={}, S{}E{}, lang={}: {}".format(
-                                slug, season_i, ep_i, lang, e
+                            "Error probing preview quality for slug={}, S{}E{}, lang={}, site={}: {}".format(
+                                slug, season_i, ep_i, lang, site_found, e
                             )
                         )
                         continue
@@ -123,11 +178,12 @@ def torznab_api(
                             vcodec=vc,
                             provider=prov,
                             extra=None,
+                            site=site_found,
                         )
-                    except Exception as e:
+                    except (ValueError, RuntimeError) as e:
                         logger.error(
-                            "Error upserting preview availability for slug={}, S{}E{}, lang={}: {}".format(
-                                slug, season_i, ep_i, lang, e
+                            "Error upserting preview availability for slug={}, S{}E{}, lang={}, site={}: {}".format(
+                                slug, season_i, ep_i, lang, site_found, e
                             )
                         )
                     if not available:
@@ -139,6 +195,7 @@ def torznab_api(
                         height=h,
                         vcodec=vc,
                         language=lang,
+                        site=site_found,
                     )
                     try:
                         magnet = tn.build_magnet(
@@ -148,6 +205,7 @@ def torznab_api(
                             episode=ep_i,
                             language=lang,
                             provider=prov,
+                            site=site_found,
                         )
                     except Exception as e:
                         logger.error(
@@ -155,7 +213,9 @@ def torznab_api(
                         )
                         continue
 
-                    guid = f"aw:{slug}:s{season_i}e{ep_i}:{lang}"
+                    # Use site-appropriate prefix for GUID
+                    prefix = _site_prefix(site_found)
+                    guid = f"{prefix}:{slug}:s{season_i}e{ep_i}:{lang}"
                     try:
                         _build_item(
                             channel=channel,
@@ -201,25 +261,28 @@ def torznab_api(
     logger.debug(
         f"Searching for slug for query '{q_str}' (season={season_i}, ep={ep_i})"
     )
-    slug = tn._slug_from_query(q_str)
-    if not slug:
+    result = tn._slug_from_query(q_str)
+    if not result:
         logger.warning(f"No slug found for query '{q_str}'. Returning empty RSS feed.")
         rss, _channel = _rss_root()
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
         return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
 
-    display_title = tn.resolve_series_title(slug) or q_str
-    logger.debug(f"Resolved display title: '{display_title}' for slug '{slug}'")
+    site_found, slug = result
+    display_title = tn.resolve_series_title(slug, site_found) or q_str
+    logger.debug(
+        f"Resolved display title: '{display_title}' for slug '{slug}' on site '{site_found}'"
+    )
 
     # language candidates from cache or defaults
     cached_langs = tn.list_available_languages_cached(
-        session, slug=slug, season=season_i, episode=ep_i
+        session, slug=slug, season=season_i, episode=ep_i, site=site_found
     )
-    candidate_langs: List[str] = (
-        cached_langs if cached_langs else ["German Dub", "German Sub", "English Sub"]
-    )
+
+    default_langs = _default_languages_for_site(site_found)
+    candidate_langs: List[str] = cached_langs if cached_langs else default_langs
     logger.debug(
-        f"Candidate languages for slug '{slug}', season {season_i}, episode {ep_i}: {candidate_langs}"
+        f"Candidate languages for slug '{slug}', season {season_i}, episode {ep_i}, site '{site_found}': {candidate_langs}"
     )
 
     rss, channel = _rss_root()
@@ -231,12 +294,17 @@ def torznab_api(
         # check cache per language
         try:
             rec = tn.get_availability(
-                session, slug=slug, season=season_i, episode=ep_i, language=lang
+                session,
+                slug=slug,
+                season=season_i,
+                episode=ep_i,
+                language=lang,
+                site=site_found,
             )
-        except Exception as e:
+        except (ValueError, RuntimeError) as e:
             logger.error(
-                "Error reading availability cache for slug={}, S{}E{}, lang={}: {}".format(
-                    slug, season_i, ep_i, lang, e
+                "Error reading availability cache for slug={}, S{}E{}, lang={}, site={}: {}".format(
+                    slug, season_i, ep_i, lang, site_found, e
                 )
             )
             rec = None
@@ -252,16 +320,20 @@ def torznab_api(
             vcodec = rec.vcodec
             prov_used = rec.provider
             logger.debug(
-                f"Using cached availability for {slug} S{season_i}E{ep_i} {lang}: h={height}, vcodec={vcodec}, prov={prov_used}"
+                f"Using cached availability for {slug} S{season_i}E{ep_i} {lang} on {site_found}: h={height}, vcodec={vcodec}, prov={prov_used}"
             )
         else:
             try:
                 available, height, vcodec, prov_used, _info = tn.probe_episode_quality(
-                    slug=slug, season=season_i, episode=ep_i, language=lang
+                    slug=slug,
+                    season=season_i,
+                    episode=ep_i,
+                    language=lang,
+                    site=site_found,
                 )
-            except Exception as e:
+            except (ValueError, RuntimeError) as e:
                 logger.error(
-                    f"Error probing quality for slug={slug}, S{season_i}E{ep_i}, lang={lang}: {e}"
+                    f"Error probing quality for slug={slug}, S{season_i}E{ep_i}, lang={lang}, site={site_found}: {e}"
                 )
                 available = False
 
@@ -277,15 +349,16 @@ def torznab_api(
                     vcodec=vcodec,
                     provider=prov_used,
                     extra=None,
+                    site=site_found,
                 )
-            except Exception as e:
+            except (ValueError, RuntimeError) as e:
                 logger.error(
-                    f"Error upserting availability for slug={slug}, S{season_i}E{ep_i}, lang={lang}: {e}"
+                    f"Error upserting availability for slug={slug}, S{season_i}E{ep_i}, lang={lang}, site={site_found}: {e}"
                 )
 
         if not available:
             logger.debug(
-                f"Language '{lang}' currently not available for {slug} S{season_i}E{ep_i}. Skipping."
+                f"Language '{lang}' currently not available for {slug} S{season_i}E{ep_i} on {site_found}. Skipping."
             )
             continue
 
@@ -297,6 +370,7 @@ def torznab_api(
             height=height,
             vcodec=vcodec,
             language=lang,
+            site=site_found,
         )
         logger.debug(f"Built release title: '{release_title}'")
 
@@ -308,12 +382,15 @@ def torznab_api(
                 episode=ep_i,
                 language=lang,
                 provider=prov_used,
+                site=site_found,
             )
         except Exception as e:
             logger.error(f"Error building magnet for release '{release_title}': {e}")
             continue
 
-        guid = f"aw:{slug}:s{season_i}e{ep_i}:{lang}"
+        # Use site-appropriate prefix for GUID
+        prefix = _site_prefix(site_found)
+        guid = f"{prefix}:{slug}:s{season_i}e{ep_i}:{lang}"
 
         try:
             _build_item(

@@ -71,6 +71,17 @@ _normalize_tokens_log_lock = threading.Lock()
 
 
 def _normalize_tokens(s: str) -> List[str]:
+    """
+    Split a string into lowercase alphanumeric tokens.
+
+    Non-alphanumeric characters are treated as token separators; letters are lowercased and digits are preserved.
+
+    Parameters:
+        s (str): Input string to tokenize.
+
+    Returns:
+        List[str]: A list of lowercase alphanumeric tokens extracted from the input.
+    """
     global _normalize_tokens_logged
     if not _normalize_tokens_logged:
         with _normalize_tokens_log_lock:
@@ -80,45 +91,44 @@ def _normalize_tokens(s: str) -> List[str]:
     return "".join(ch.lower() if ch.isalnum() else " " for ch in s).split()
 
 
-def _slug_from_query(q: str) -> Optional[str]:
-    """Map free-text query -> slug using main and alternative titles.
-
-    Import from the torznab package namespace so tests that monkeypatch
-    `app.api.torznab.load_or_refresh_index` affect this function too.
+def _slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, str]]:
     """
-    logger.debug(f"Resolving slug from query: '{q}'")
-    import app.api.torznab as tn
+    Resolve a free-text query to the best-matching site and canonical slug.
 
-    index = tn.load_or_refresh_index()  # slug -> display title
-    alts = tn.load_or_refresh_alternatives()  # slug -> [titles]
-    q_tokens = set(_normalize_tokens(q))
-    best_slug: Optional[str] = None
-    best_score = 0
+    Parameters:
+        q (str): The free-text title or query to resolve.
+        site (Optional[str]): Optional site identifier to restrict resolution to a specific site.
 
-    for s, title in index.items():
-        candidates: List[str] = [title]
-        if s in alts and alts[s]:
-            candidates.extend(alts[s])
-        local_best = 0
-        for cand in candidates:
-            t_tokens = set(_normalize_tokens(cand))
-            inter = len(q_tokens & t_tokens)
-            if inter > local_best:
-                local_best = inter
-        if local_best > best_score:
-            best_score = local_best
-            best_slug = s
+    Returns:
+        Optional[Tuple[str, str]]: `(site, slug)` with the site identifier and resolved canonical slug when a match is found, `None` otherwise.
+    """
+    logger.debug(f"Resolving slug from query: '{q}', site filter: {site}")
+    from app.utils.title_resolver import slug_from_query  # type: ignore
 
-    if not best_slug:
-        logger.warning(f"No slug match found for query: '{q}'")
-    else:
+    # Use the new multi-site slug_from_query
+    result = slug_from_query(q, site)
+    if result:
+        site_found, slug_found = result
         logger.debug(
-            f"Best slug match for '{q}' is '{best_slug}' with score {best_score}"
+            f"Best match for '{q}' is slug '{slug_found}' on site '{site_found}'"
         )
-    return best_slug
+        return (site_found, slug_found)
+    else:
+        logger.warning(f"No slug match found for query: '{q}'")
+        return None
 
 
 def _add_torznab_attr(item: ET.Element, name: str, value: str) -> None:
+    """
+    Add a torznab `attr` subelement to an RSS item.
+
+    Creates a `torznab:attr` element (namespace http://torznab.com/schemas/2015/feed) as a child of `item` and sets its `name` and `value` attributes.
+
+    Parameters:
+        item (xml.etree.ElementTree.Element): The RSS `<item>` element to which the torznab attribute will be added.
+        name (str): The `name` attribute to set on the torznab `attr` element.
+        value (str): The `value` attribute to set on the torznab `attr` element.
+    """
     attr = ET.SubElement(item, "{http://torznab.com/schemas/2015/feed}attr")
     attr.set("name", name)
     attr.set("value", value)

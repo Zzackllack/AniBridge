@@ -30,17 +30,26 @@ Comprehensive list of env vars read in `app/config.py`.
 ## Providers & Languages
 
 - `PROVIDER_ORDER` (CSV; priority-ordered)
+- Supported languages: `German Dub`, `German Sub`, `English Sub`, `English Dub`
 
 ## Title Resolution
 
+- `CATALOG_SITES` (default: `aniworld.to,s.to`)
+- `ANIWORLD_BASE_URL` (default: `https://aniworld.to`)
 - `ANIWORLD_ALPHABET_URL` (default: `https://aniworld.to/animes-alphabet`)
 - `ANIWORLD_ALPHABET_HTML` (local fallback file)
 - `ANIWORLD_TITLES_REFRESH_HOURS` (TTL, default: `24`)
+- `STO_BASE_URL` (default: `https://s.to`)
+- `STO_ALPHABET_URL` (default: `https://s.to/serien-alphabet`)
+- `STO_ALPHABET_HTML` (local fallback file)
+- `STO_TITLES_REFRESH_HOURS` (TTL, default: `24`)
 
 ## Naming
 
 - `SOURCE_TAG` (default: `WEB`)
 - `RELEASE_GROUP` (default: `aniworld`)
+- `RELEASE_GROUP_ANIWORLD` (default: `RELEASE_GROUP`)
+- `RELEASE_GROUP_STO` (default: `sto`)
 
 ## Scheduler
 

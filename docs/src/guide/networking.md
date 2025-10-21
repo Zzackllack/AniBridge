@@ -11,7 +11,7 @@ outline: deep
 AniBridge can route all outbound HTTP/HTTPS requests and downloads through an HTTP/HTTPS or SOCKS proxy (e.g., a local SOCKS5 client from a VPN provider like NordVPN).
 
 This applies to:
-- Title index fetches (AniWorld alphabet page)
+- Title index fetches (AniWorld and Serienstream alphabet pages)
 - Update checks (GitHub / GHCR)
 - Provider page access via the `aniworld` library
 - Downloads and probes performed by `yt-dlp`

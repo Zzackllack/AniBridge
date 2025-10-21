@@ -28,18 +28,25 @@ AniBridge is configured via environment variables (works well with Docker). Sens
 ## Provider & Language
 
 - `PROVIDER_ORDER`: comma-separated providers by priority (e.g., `VOE,Filemoon,Streamtape,...`)
-- Languages supported: `German Dub`, `German Sub`, `English Sub`
+- Languages supported: `German Dub`, `German Sub`, `English Sub`, `English Dub`
 
-## Titles & Alternatives
+## Catalogue Sites & Title Indices
 
-- `ANIWORLD_ALPHABET_URL` (default: `https://aniworld.to/animes-alphabet`)
-- `ANIWORLD_ALPHABET_HTML` (fallback local HTML snapshot path)
-- `ANIWORLD_TITLES_REFRESH_HOURS` (TTL for in-memory cache)
+- `CATALOG_SITES`: enabled catalogues (default `aniworld.to,s.to`). Order controls search priority.
+- `ANIWORLD_BASE_URL`: AniWorld base URL (default `https://aniworld.to`).
+- `ANIWORLD_ALPHABET_URL`: AniWorld alphabet page (default `https://aniworld.to/animes-alphabet`).
+- `ANIWORLD_ALPHABET_HTML`: local AniWorld snapshot path (default `./data/aniworld-alphabeth.html`).
+- `ANIWORLD_TITLES_REFRESH_HOURS`: AniWorld index refresh cadence (default `24`).
+- `STO_BASE_URL`: Serienstream/s.to base URL (default `https://s.to`).
+- `STO_ALPHABET_URL`: Serienstream alphabet page (default `https://s.to/serien-alphabet`).
+- `STO_ALPHABET_HTML`: local Serienstream snapshot path (default `./data/sto-alphabeth.html`).
+- `STO_TITLES_REFRESH_HOURS`: Serienstream index refresh cadence (default `24`).
 
 ## Naming
 
 - `SOURCE_TAG` (e.g., `WEB`, `WEB-DL`)
 - `RELEASE_GROUP` (e.g., `aniworld` -> becomes `-ANIWORLD`)
+- `RELEASE_GROUP_ANIWORLD` / `RELEASE_GROUP_STO`: per-catalogue overrides for release group suffix
 
 ## Scheduler
 
@@ -66,13 +73,17 @@ See the dedicated [Networking & Proxies](/guide/networking) guide for examples a
 ## Example `.env`
 
 ```ini
+CATALOG_SITES=aniworld.to,s.to
 DOWNLOAD_DIR=./data/downloads/anime
 DATA_DIR=./data
+ANIWORLD_BASE_URL=https://aniworld.to
+STO_BASE_URL=https://s.to
 INDEXER_NAME="AniBridge Torznab"
 TORZNAB_RETURN_TEST_RESULT=true
 PROVIDER_ORDER=VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza
 SOURCE_TAG=WEB
 RELEASE_GROUP=aniworld
+RELEASE_GROUP_STO=sto
 MAX_CONCURRENCY=3
 ```
 
