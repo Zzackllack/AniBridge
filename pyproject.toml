@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "anibridge"
-version = "1.16.0"
-description = "AniBridge - small utility to bridge aniworld.to site for anime releases to the *arr stack"
+version = "1.16.1"
+description = "AniBridge - small utility to bridge AniWorld and Serienstream (s.to) catalogues to the *arr stack"
 readme = "README.md"
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
@@ -17,7 +17,7 @@ classifiers = [
 		"Operating System :: OS Independent",
 ]
 dependencies = [
-    "aniworld>=3.5.2",
+    "aniworld<=3.6.3",
     "anyio>=4.10.0",
     "beautifulsoup4>=4.13.5",
     "black>=25.9.0",

@@ -12,13 +12,19 @@ import json
 import re
 import subprocess
 
-from app.config import SOURCE_TAG, RELEASE_GROUP
+from app.config import (
+    SOURCE_TAG,
+    RELEASE_GROUP,
+    RELEASE_GROUP_ANIWORLD,
+    RELEASE_GROUP_STO,
+)
 from app.utils.title_resolver import resolve_series_title
 
 LANG_TAG_MAP = {
     "German Dub": "GER",
     "German Sub": "GER.SUB",
     "English Sub": "ENG.SUB",
+    "English Dub": "ENG",
 }
 
 
@@ -140,10 +146,42 @@ def build_release_name(
     language: str,
     source_tag: str = SOURCE_TAG,
     release_group: str = RELEASE_GROUP,
+    site: str = "aniworld.to",
 ) -> str:
+    """
+    Constructs a standardized release filename for a media episode.
+
+    Parameters:
+        series_title (str): Display title used to build the series component; sanitized for filesystem use.
+        season (Optional[int]): Season number; when provided together with `episode` forms an `SxxEyy` component.
+        episode (Optional[int]): Episode number; when provided together with `season` forms an `SxxEyy` component.
+        height (Optional[int]): Video height in pixels used to derive a quality tag (e.g., 1080p, 720p, SD).
+        vcodec (Optional[str]): Video codec name that will be normalized to a canonical codec tag (e.g., H264, H265, AV1).
+        language (str): Human-readable language label mapped to a language tag (falls back to a sanitized form if unmapped).
+        source_tag (str): Source identifier included in the release name (defaults to the module's SOURCE_TAG).
+        release_group (str): Release group suffix appended to the name if non-empty; may be overridden by `site`.
+        site (str): Site identifier that can select a site-specific release group (e.g., "s.to", "aniworld.to").
+
+    Returns:
+        str: The constructed release name string.
+    """
     logger.info(
-        f"Building release name for series_title={series_title}, season={season}, episode={episode}, height={height}, vcodec={vcodec}, language={language}"
+        f"Building release name for series_title={series_title}, season={season}, episode={episode}, height={height}, vcodec={vcodec}, language={language}, site={site}"
     )
+
+    # Use site-specific release group if available
+    try:
+        from app.config import CATALOG_SITE_CONFIGS  # local import to avoid cycles
+    except ImportError:
+        pass
+    else:
+        try:
+            release_group = CATALOG_SITE_CONFIGS.get(site, {}).get(
+                "release_group", release_group
+            )
+        except Exception as e:
+            logger.debug(f"Error accessing CATALOG_SITE_CONFIGS for site {site}: {e}")
+
     series_part = _series_component(series_title)
     se_part = (
         f"S{int(season):02d}E{int(episode):02d}"
@@ -183,12 +221,33 @@ def rename_to_release(
     season: Optional[int],
     episode: Optional[int],
     language: str,
+    site: str = "aniworld.to",
 ) -> Path:
-    logger.info(f"Renaming file to release schema: {path}")
+    """
+    Generate a release-style filename for a media file and rename the file on disk.
+
+    Determines a display title from `slug` (via resolve_series_title or a slug-to-title fallback, or "Episode"), obtains height and video codec from `info` or by probing the file with ffprobe, constructs a release name using build_release_name (site-aware), ensures the target filename is unique by appending an increasing numeric suffix when necessary, and renames the file if the new name differs from the current one.
+
+    Parameters:
+        path (Path): Path to the existing media file to rename.
+        info (Optional[Dict[str, Any]]): Optional metadata (e.g., formats, requested_downloads) used to derive height and codec.
+        slug (Optional[str]): Series slug used to resolve or construct the display title.
+        season (Optional[int]): Season number for the release name (used when provided).
+        episode (Optional[int]): Episode number for the release name (used when provided).
+        language (str): Language label to include in the release name.
+        site (str): Site identifier that may alter release-group selection and title resolution.
+
+    Returns:
+        Path: The resulting path after renaming (may be unchanged if no rename was needed).
+
+    Side effects:
+        Renames the file on disk to the generated release-style filename.
+    """
+    logger.info(f"Renaming file to release schema: {path} (site: {site})")
     # 1) Serien-Titel bestimmen
     display_title = None
     if slug:
-        display_title = resolve_series_title(slug)
+        display_title = resolve_series_title(slug, site)
     if not display_title and slug:
         display_title = slug.replace("-", " ").title()
     if not display_title:
@@ -211,6 +270,7 @@ def rename_to_release(
         height=h,
         vcodec=vc,
         language=language,
+        site=site,
     )
 
     new_path = path.with_name(f"{release}{path.suffix.lower()}")

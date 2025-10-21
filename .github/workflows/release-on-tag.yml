@@ -1,15 +1,112 @@
 name: Build Release Artifacts
+permissions:
+  contents: read
 
 on:
   push:
     tags:
       - "v*"
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build-python-dists:
+  prepare-release-context:
+    name: Prepare Commit Context For LLM
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag range
+        id: tags
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current="${GITHUB_REF_NAME:-${GITHUB_REF#refs/tags/}}"
+          if [[ -z "${current}" ]]; then
+            echo "Unable to resolve current tag from workflow context." >&2
+            exit 1
+          fi
+
+          previous="$(git tag --sort=-creatordate | grep -E '^v' | grep -vxF "${current}" | head -n 1 || true)"
+
+          echo "current_tag=${current}" >> "${GITHUB_OUTPUT}"
+          echo "previous_tag=${previous}" >> "${GITHUB_OUTPUT}"
+
+      - name: Generate commit context artifacts
+        env:
+          CURRENT_TAG: ${{ steps.tags.outputs.current_tag }}
+          PREVIOUS_TAG: ${{ steps.tags.outputs.previous_tag }}
+        run: |
+          set -euo pipefail
+
+          args=(--current-tag "${CURRENT_TAG}" --output-dir ".")
+          if [[ -n "${PREVIOUS_TAG}" ]]; then
+            args+=(--previous-tag "${PREVIOUS_TAG}")
+          fi
+
+          python scripts/release/generate_commit_context.py "${args[@]}"
+
+      - name: Upload commit context artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-commit-context
+          path: |
+            commit_context.json
+            llm_release_context.md
+          retention-days: 7
+
+  generate-release-notes:
+    name: Generate Release Notes With Gemini
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    needs: prepare-release-context
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Download commit context artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-commit-context
+          path: release-context
+
+      - name: Call Gemini to craft release notes
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "GEMINI_API_KEY secret is required to generate release notes." >&2
+            exit 1
+          fi
+
+          python scripts/release/generate_release_notes.py \
+            --context-json release-context/commit_context.json \
+            --output release-notes/release-notes.md
+
+      - name: Upload release notes artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+          retention-days: 7
+
+  build-python-dists:
+    runs-on: ubuntu-latest
+    needs: generate-release-notes
+    permissions:
+      contents: write
+    steps:
       - uses: actions/checkout@v4
+      - name: Download release notes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -25,6 +122,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: "dist/*"
+          body_path: release-notes/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -33,6 +131,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python

@@ -30,3 +30,10 @@ def test_parse_magnet_errors():
     bad = "magnet:?dn=Title&xt=urn:btih:abc&aw_slug=slug&aw_s=1&aw_e=2"
     with pytest.raises(ValueError):
         parse_magnet(bad)
+
+    mixed = (
+        "magnet:?dn=Title&xt=urn:btih:abc&aw_slug=slug&aw_s=1&aw_e=2&aw_lang=German+Dub"
+        "&sto_slug=other"
+    )
+    with pytest.raises(ValueError):
+        parse_magnet(mixed)

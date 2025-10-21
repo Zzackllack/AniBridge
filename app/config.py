@@ -1,5 +1,6 @@
-import sys
 import os
+from copy import deepcopy
+from typing import Any
 from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
@@ -266,22 +267,45 @@ if QBIT_PUBLIC_SAVE_PATH:
     except Exception:
         pass
 
-# Titelquelle (Slug -> Display-Title)
-# Option A: lokale HTML-Datei (Snapshot der Alphabet-Seite)
+# ---- Multi-Site Catalogue Configuration ----
+# Comma-separated list of enabled catalogues (aniworld.to, s.to)
+CATALOG_SITES = os.getenv("CATALOG_SITES", "aniworld.to,s.to").strip()
+CATALOG_SITES_LIST = list(
+    dict.fromkeys(s.strip() for s in CATALOG_SITES.split(",") if s.strip())
+)
+logger.debug(f"CATALOG_SITES={CATALOG_SITES_LIST}")
+
+# Site-specific configuration
+# AniWorld (anime)
+ANIWORLD_BASE_URL = os.getenv("ANIWORLD_BASE_URL", "https://aniworld.to").strip()
 ANIWORLD_ALPHABET_HTML = Path(
     os.getenv("ANIWORLD_ALPHABET_HTML", DATA_DIR / "aniworld-alphabeth.html")
 )
-# Option B: Live von der Website holen (immer up-to-date)
 ANIWORLD_ALPHABET_URL = os.getenv(
-    "ANIWORLD_ALPHABET_URL", "https://aniworld.to/animes-alphabet"
+    "ANIWORLD_ALPHABET_URL", f"{ANIWORLD_BASE_URL}/animes-alphabet"
 ).strip()
+
+# S.to (series)
+STO_BASE_URL = os.getenv("STO_BASE_URL", "https://s.to").strip()
+STO_ALPHABET_HTML = Path(
+    os.getenv("STO_ALPHABET_HTML", DATA_DIR / "sto-alphabeth.html")
+)
+STO_ALPHABET_URL = os.getenv(
+    "STO_ALPHABET_URL", f"{STO_BASE_URL}/serien-alphabet"
+).strip()
+
 logger.debug(
     f"ANIWORLD_ALPHABET_HTML={ANIWORLD_ALPHABET_HTML}, ANIWORLD_ALPHABET_URL={ANIWORLD_ALPHABET_URL}"
+)
+logger.debug(
+    f"STO_ALPHABET_HTML={STO_ALPHABET_HTML}, STO_ALPHABET_URL={STO_ALPHABET_URL}"
 )
 
 # TTL (Stunden) für Live-Index; 0 = nie neu laden (nur einmal pro Prozess)
 ANIWORLD_TITLES_REFRESH_HOURS = float(os.getenv("ANIWORLD_TITLES_REFRESH_HOURS", "24"))
+STO_TITLES_REFRESH_HOURS = float(os.getenv("STO_TITLES_REFRESH_HOURS", "24"))
 logger.debug(f"ANIWORLD_TITLES_REFRESH_HOURS={ANIWORLD_TITLES_REFRESH_HOURS}")
+logger.debug(f"STO_TITLES_REFRESH_HOURS={STO_TITLES_REFRESH_HOURS}")
 
 # (Removed) Built-in VPN control has been removed. Use an external VPN
 # (e.g., system-level or Gluetun) instead. See README for guidance.
@@ -291,8 +315,43 @@ SOURCE_TAG = os.getenv("SOURCE_TAG", "WEB")
 logger.debug(f"SOURCE_TAG={SOURCE_TAG}")
 
 # Release Group (am Ende nach Bindestrich angehängt)
+# Can be site-specific: RELEASE_GROUP_ANIWORLD, RELEASE_GROUP_STO
 RELEASE_GROUP = os.getenv("RELEASE_GROUP", "aniworld")
+RELEASE_GROUP_ANIWORLD = os.getenv("RELEASE_GROUP_ANIWORLD", RELEASE_GROUP)
+RELEASE_GROUP_STO = os.getenv("RELEASE_GROUP_STO", "sto")
 logger.debug(f"RELEASE_GROUP={RELEASE_GROUP}")
+logger.debug(
+    f"RELEASE_GROUP_ANIWORLD={RELEASE_GROUP_ANIWORLD}, RELEASE_GROUP_STO={RELEASE_GROUP_STO}"
+)
+
+_DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
+    "aniworld.to": {
+        "base_url": ANIWORLD_BASE_URL,
+        "alphabet_html": ANIWORLD_ALPHABET_HTML,
+        "alphabet_url": ANIWORLD_ALPHABET_URL,
+        "titles_refresh_hours": ANIWORLD_TITLES_REFRESH_HOURS,
+        "default_languages": ["German Dub", "German Sub", "English Sub"],
+        "release_group": RELEASE_GROUP_ANIWORLD,
+    },
+    "s.to": {
+        "base_url": STO_BASE_URL,
+        "alphabet_html": STO_ALPHABET_HTML,
+        "alphabet_url": STO_ALPHABET_URL,
+        "titles_refresh_hours": STO_TITLES_REFRESH_HOURS,
+        "default_languages": ["German Dub", "English Dub", "German Sub"],
+        "release_group": RELEASE_GROUP_STO,
+    },
+}
+
+CATALOG_SITE_CONFIGS: dict[str, dict[str, Any]] = {}
+for site in CATALOG_SITES_LIST:
+    base_cfg = _DEFAULT_SITE_CONFIGS.get(site)
+    if not base_cfg:
+        logger.warning(
+            f"No built-in configuration for catalogue site '{site}'. Provide environment overrides to enable it."
+        )
+        continue
+    CATALOG_SITE_CONFIGS[site] = deepcopy(base_cfg)
 
 # ---- Provider-Fallback ----
 # Kommagetrennte Liste, z. B. "VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza"

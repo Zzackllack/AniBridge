@@ -14,7 +14,7 @@ Important: Please read this entire notice carefully before installing, running, 
 - AniBridge is an automation bridge and API compatibility layer built on FastAPI. It exposes synthetic Torznab and qBittorrent-compatible endpoints to integrate with automation tools (e.g., Prowlarr, Sonarr). It does not host, store, seed, mirror, upload, or otherwise provide any audiovisual works or copyrighted content.
 - The project’s “magnet-like” identifiers are synthetic metadata for internal job routing. They are not links to BitTorrent swarms and do not initiate peer-to-peer distribution. The qBittorrent “shim” exists solely to satisfy client APIs and does not join or seed any BitTorrent network.
 - AniBridge may programmatically request data or files from third-party websites or file hosts only at the explicit direction of the end user and subject to the user’s configuration. The maintainers neither curate nor supply any catalog of content, links, or sources.
-- This project is not affiliated with, endorsed by, or sponsored by any third-party service, including “AniWorld,” its operators, or any hosting providers referenced by configuration or code (e.g., VOE, Doodstream, Filemoon, Streamtape, etc.). All names and trademarks belong to their respective owners and are used solely for identification and interoperability discussion.
+- This project is not affiliated with, endorsed by, or sponsored by any third-party service, including “AniWorld,” “Serienstream”/“s.to,” their operators, or any hosting providers referenced by configuration or code (e.g., VOE, Doodstream, Filemoon, Streamtape, etc.). All names and trademarks belong to their respective owners and are used solely for identification and interoperability discussion.
 
 2) User Responsibility and Compliance
 
@@ -38,7 +38,7 @@ Important: Please read this entire notice carefully before installing, running, 
 5) Third-Party Services, Terms, and “AniWorld” Disclaimer
 
 - AniBridge can be configured to interact with third-party sites and hosting providers. Each such service has its own terms, policies, and rights-management practices. The availability or technical possibility to download content does not imply permission.
-- “AniWorld” and similar platforms may operate in legal gray areas or jurisdictions with inconsistent enforcement. AniBridge does not operate, partner with, or endorse such services. References in the codebase exist solely for technical interoperability by end users who accept full responsibility for compliance.
+- “AniWorld,” “Serienstream,” and similar platforms may operate in legal gray areas or jurisdictions with inconsistent enforcement. AniBridge does not operate, partner with, or endorse such services. References in the codebase exist solely for technical interoperability by end users who accept full responsibility for compliance.
 - If a third-party service’s terms prohibit automated access, scraping, or downloading, you must not configure AniBridge to do so. This project does not provide or condone any means to defeat paywalls, authentication gates, or DRM.
 
 5.1) AniWorld Terms (“Nutzungsbedingungen”) and DMCA

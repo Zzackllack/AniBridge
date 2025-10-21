@@ -113,9 +113,30 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
 
 
 def _run_download(job_id: str, req: dict, stop_event: threading.Event):
+    """
+    Run a download task and record its progress and final state in the database.
+
+    Executes the episode download described by `req`, updates the job row with lifecycle states
+    (e.g., "downloading", "completed", "failed", "cancelled"), writes final `result_path` on success,
+    and removes the job from the in-memory RUNNING registry when finished. If the download is cancelled
+    or an exception occurs, the job status and message are updated accordingly. An OSError caused by
+    an unwritable download directory sets the job to "failed" with a directory-specific message.
+
+    Parameters:
+        job_id (str): Identifier of the job being run.
+        req (dict): Download request with keys used by the downloader. Recognized keys:
+            - 'slug', 'season', 'episode' (episode identifiers)
+            - 'language' (optional)
+            - 'provider' (optional)
+            - 'title_hint' (optional)
+            - 'link' (optional)
+            - 'site' (optional, defaults to "aniworld.to")
+        stop_event (threading.Event): Event that, when set, requests cancellation of the download.
+    """
     try:
         with Session(engine) as s:
-            update_job(s, job_id, status="downloading", message=None)
+            site = req.get("site", "aniworld.to")
+            update_job(s, job_id, status="downloading", message=None, source_site=site)
 
         dest = download_episode(
             link=req.get("link"),
@@ -130,6 +151,7 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
             title_hint=req.get("title_hint"),
             progress_cb=_progress_updater(job_id, stop_event),
             stop_event=stop_event,
+            site=req.get("site", "aniworld.to"),
         )
 
         with Session(engine) as s:
@@ -162,15 +184,31 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
 
 def schedule_download(req: dict) -> str:
     """
-    req: {slug, season, episode, language, provider?, title_hint?, link?}
-    returns job_id
+    Schedule a background download job and return its job identifier.
+
+    Parameters:
+        req (dict): Download request containing:
+            - slug (str): Content identifier.
+            - season (int | str): Season number or identifier.
+            - episode (int | str): Episode number or identifier.
+            - language (str): Desired audio/subtitle language.
+            - provider (str, optional): Provider to use.
+            - title_hint (str, optional): Suggested title for the download destination.
+            - link (str, optional): Direct link or reference.
+            - site (str, optional): Source site name; used as the job's source_site (defaults to "aniworld.to").
+
+    Returns:
+        str: The created job's identifier.
+
+    Raises:
+        RuntimeError: If the thread pool executor is unavailable after initialization.
     """
     init_executor()
     if EXECUTOR is None:
         raise RuntimeError("executor not available")
 
     with Session(engine) as s:
-        job = create_job(s)
+        job = create_job(s, source_site=req.get("site") or "aniworld.to")
 
     stop_event = threading.Event()
     fut = EXECUTOR.submit(_run_download, job.id, req, stop_event)

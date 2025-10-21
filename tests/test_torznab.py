@@ -24,27 +24,28 @@ def test_tvsearch_happy_path(client, monkeypatch):
         vcodec = "h264"
         provider = "prov"
 
-    monkeypatch.setattr(tn, "_slug_from_query", lambda q: "slug")
-    monkeypatch.setattr(tn, "resolve_series_title", lambda slug: "Series")
+    # Return (site, slug) tuple for new multi-site API
+    monkeypatch.setattr(tn, "_slug_from_query", lambda q, site=None: ("aniworld.to", "slug"))
+    monkeypatch.setattr(tn, "resolve_series_title", lambda slug, site="aniworld.to": "Series")
     monkeypatch.setattr(
         tn,
         "list_available_languages_cached",
-        lambda session, slug, season, episode: ["German Dub"],
+        lambda session, slug, season, episode, site="aniworld.to": ["German Dub"],
     )
     monkeypatch.setattr(
         tn,
         "get_availability",
-        lambda session, slug, season, episode, language: Rec(),
+        lambda session, slug, season, episode, language, site="aniworld.to": Rec(),
     )
     monkeypatch.setattr(
         tn,
         "build_release_name",
-        lambda series_title, season, episode, height, vcodec, language: "Title",
+        lambda series_title, season, episode, height, vcodec, language, site="aniworld.to": "Title",
     )
     monkeypatch.setattr(
         tn,
         "build_magnet",
-        lambda title, slug, season, episode, language, provider: "magnet:?xt=urn:btih:test&dn=Title&aw_slug=slug&aw_s=1&aw_e=1&aw_lang=German+Dub",
+        lambda title, slug, season, episode, language, provider, site="aniworld.to": "magnet:?xt=urn:btih:test&dn=Title&aw_slug=slug&aw_s=1&aw_e=1&aw_lang=German+Dub&aw_site=aniworld.to",
     )
 
     resp = client.get(

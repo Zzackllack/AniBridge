@@ -1,20 +1,11 @@
 from __future__ import annotations
-import sys
-import os
+
 from typing import Optional, Literal, Generator, Any, List
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from loguru import logger
 
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
-logger.remove()
-logger.add(
-    sys.stdout,
-    level=LOG_LEVEL,
-    colorize=True,
-    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
-    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-)
+# Defer logger configuration to application startup
 
 from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JSON
 from sqlalchemy.orm import registry as sa_registry
@@ -65,6 +56,9 @@ class Job(ModelBase, table=True):
     eta: Optional[int] = None
     message: Optional[str] = None
     result_path: Optional[str] = None
+    source_site: Optional[str] = Field(
+        default="aniworld.to", index=True
+    )  # Track originating site
 
     created_at: datetime = Field(default_factory=utcnow, index=True)
     updated_at: datetime = Field(default_factory=utcnow, index=True)
@@ -73,17 +67,21 @@ class Job(ModelBase, table=True):
 # ---------------- Semi-Cache: Episode Availability
 class EpisodeAvailability(ModelBase, table=True):
     """
-    Semi-Cache: pro (slug, season, episode, language) speichern wir:
+    Semi-Cache: pro (slug, season, episode, language, site) speichern wir:
       - height/vcodec (aus Preflight-Probe)
       - available (bool): Sprache wirklich verfügbar?
       - provider (optional): welcher Provider hat funktioniert
       - checked_at: wann zuletzt geprüft
+      - site: which catalogue site this episode is from (aniworld.to or s.to)
     """
 
     slug: str = Field(primary_key=True)
     season: int = Field(primary_key=True)
     episode: int = Field(primary_key=True)
     language: str = Field(primary_key=True)
+    site: str = Field(
+        default="aniworld.to", primary_key=True
+    )  # Add site to primary key
     available: bool = True
     height: Optional[int] = None
     vcodec: Optional[str] = None
@@ -116,6 +114,7 @@ class ClientTask(ModelBase, table=True):
     season: int
     episode: int
     language: str
+    site: Optional[str] = Field(default="aniworld.to", index=True)  # Track source site
     job_id: Optional[str] = Field(default=None, index=True)
     save_path: Optional[str] = None
     category: Optional[str] = None
@@ -138,9 +137,86 @@ engine = create_engine(
 logger.debug("SQLModel engine created.")
 
 
+def _migrate_episode_availability_table() -> None:
+    """
+    Ensure the episodeavailability table includes the site column in its primary key.
+    Performs an in-place SQLite migration when running against an existing database
+    created before multi-site support was introduced.
+    """
+    try:
+        with engine.begin() as conn:
+            table_present = conn.exec_driver_sql(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='episodeavailability'"
+            ).fetchone()
+            if not table_present:
+                logger.debug(
+                    "episodeavailability table not found; no migration necessary."
+                )
+                return
+
+            columns = conn.exec_driver_sql(
+                "PRAGMA table_info('episodeavailability')"
+            ).fetchall()
+            if any(col[1] == "site" for col in columns):
+                logger.debug(
+                    "episodeavailability table already contains 'site' column."
+                )
+                return
+
+            logger.info("Migrating episodeavailability table to include site column.")
+            conn.exec_driver_sql(
+                """
+                CREATE TABLE episodeavailability_new (
+                    slug TEXT NOT NULL,
+                    season INTEGER NOT NULL,
+                    episode INTEGER NOT NULL,
+                    language TEXT NOT NULL,
+                    site TEXT NOT NULL DEFAULT 'aniworld.to',
+                    available BOOLEAN NOT NULL,
+                    height INTEGER,
+                    vcodec TEXT,
+                    provider TEXT,
+                    checked_at DATETIME NOT NULL,
+                    extra JSON,
+                    PRIMARY KEY (slug, season, episode, language, site)
+                )
+                """
+            )
+            conn.exec_driver_sql(
+                """
+                INSERT INTO episodeavailability_new (
+                    slug, season, episode, language, site,
+                    available, height, vcodec, provider, checked_at, extra
+                )
+                SELECT
+                    slug, season, episode, language,
+                    'aniworld.to' AS site,
+                    available, height, vcodec, provider, checked_at, extra
+                FROM episodeavailability
+                """
+            )
+            conn.exec_driver_sql("DROP TABLE episodeavailability")
+            conn.exec_driver_sql(
+                "ALTER TABLE episodeavailability_new RENAME TO episodeavailability"
+            )
+            conn.exec_driver_sql(
+                "CREATE INDEX ix_episodeavailability_checked_at ON episodeavailability(checked_at)"
+            )
+            logger.success("episodeavailability table migrated to include site column.")
+    except Exception as exc:
+        logger.error(f"Failed to migrate episodeavailability table: {exc}")
+        raise
+
+
 def create_db_and_tables() -> None:
+    """
+    Ensure the application's SQLite database file and ORM tables exist, running any required schema migration first.
+
+    Performs any necessary episode availability migration and creates tables defined on the module's private metadata, creating the database file if it does not already exist.
+    """
     logger.debug("Creating DB and tables if not exist.")
     try:
+        _migrate_episode_availability_table()
         # Use this module's private metadata
         ModelBase.metadata.create_all(engine)
         logger.success("Database and tables created or already exist.")
@@ -172,10 +248,22 @@ def dispose_engine() -> None:
 
 
 # --- Jobs CRUD
-def create_job(session: Session) -> Job:
+def create_job(session: Session, *, source_site: Optional[str] = None) -> Job:
+    """
+    Create and persist a new Job record in the database.
+
+    Parameters:
+        source_site (Optional[str]): Optional source site identifier to associate with the job; if omitted the model's default is used.
+
+    Returns:
+        Job: The created Job instance refreshed from the database (includes generated id and timestamps).
+    """
     logger.debug("Creating new job entry in DB.")
     try:
-        job = Job()
+        job_kwargs: dict[str, Any] = {}
+        if source_site:
+            job_kwargs["source_site"] = source_site
+        job = Job(**job_kwargs)
         session.add(job)
         session.commit()
         session.refresh(job)
@@ -247,9 +335,31 @@ def upsert_availability(
     vcodec: Optional[str],
     provider: Optional[str],
     extra: Optional[dict] = None,
+    site: str = "aniworld.to",
 ) -> EpisodeAvailability:
-    logger.debug(f"Upserting availability for {slug} S{season}E{episode} {language}")
-    rec = session.get(EpisodeAvailability, (slug, season, episode, language))
+    """
+    Create or update the cached availability record for a specific episode/language on a site and persist the result.
+
+    Parameters:
+        session (Session): Database session used to read and persist the record.
+        slug (str): Series identifier.
+        season (int): Season number.
+        episode (int): Episode number.
+        language (str): Language code for the availability entry.
+        available (bool): Whether the episode is available.
+        height (Optional[int]): Video height in pixels, or `None` if unknown.
+        vcodec (Optional[str]): Video codec identifier, or `None` if unknown.
+        provider (Optional[str]): Provider name/source, or `None` if unknown.
+        extra (Optional[dict]): Optional auxiliary metadata for the record.
+        site (str): Site identifier to scope the availability entry.
+
+    Returns:
+        EpisodeAvailability: The persisted availability record reflecting the created or updated state.
+    """
+    logger.debug(
+        f"Upserting availability for {slug} S{season}E{episode} {language} on {site}"
+    )
+    rec = session.get(EpisodeAvailability, (slug, season, episode, language, site))
     if rec is None:
         logger.info("No existing availability record found, creating new.")
         rec = EpisodeAvailability(
@@ -257,6 +367,7 @@ def upsert_availability(
             season=season,
             episode=episode,
             language=language,
+            site=site,
             available=available,
             height=height,
             vcodec=vcodec,
@@ -278,7 +389,7 @@ def upsert_availability(
         session.commit()
         session.refresh(rec)
         logger.success(
-            f"Upserted availability for {slug} S{season}E{episode} {language}"
+            f"Upserted availability for {slug} S{season}E{episode} {language} on {site}"
         )
     except Exception as e:
         logger.error(f"Failed to upsert availability: {e}")
@@ -287,10 +398,27 @@ def upsert_availability(
 
 
 def get_availability(
-    session: Session, *, slug: str, season: int, episode: int, language: str
+    session: Session,
+    *,
+    slug: str,
+    season: int,
+    episode: int,
+    language: str,
+    site: str = "aniworld.to",
 ) -> Optional[EpisodeAvailability]:
-    logger.debug(f"Fetching availability for {slug} S{season}E{episode} {language}")
-    rec = session.get(EpisodeAvailability, (slug, season, episode, language))
+    """
+    Retrieve the cached availability record for a specific episode identified by slug, season, episode, language, and site.
+
+    Parameters:
+        site (str): Site identifier to query for (default "aniworld.to").
+
+    Returns:
+        EpisodeAvailability | None: `EpisodeAvailability` if a matching record exists, `None` otherwise.
+    """
+    logger.debug(
+        f"Fetching availability for {slug} S{season}E{episode} {language} on {site}"
+    )
+    rec = session.get(EpisodeAvailability, (slug, season, episode, language, site))
     if rec:
         logger.debug("Availability record found.")
     else:
@@ -299,14 +427,29 @@ def get_availability(
 
 
 def list_available_languages_cached(
-    session: Session, *, slug: str, season: int, episode: int
+    session: Session, *, slug: str, season: int, episode: int, site: str = "aniworld.to"
 ) -> List[str]:
-    logger.debug(f"Listing available cached languages for {slug} S{season}E{episode}")
+    """
+    List languages with fresh cached availability for a specific episode on a site.
+
+    Parameters:
+        slug (str): Episode/series identifier used to look up availability.
+        season (int): Season number of the episode.
+        episode (int): Episode number within the season.
+        site (str): Site identifier to scope the availability records (defaults to "aniworld.to").
+
+    Returns:
+        List[str]: Languages that have a cached availability record considered fresh.
+    """
+    logger.debug(
+        f"Listing available cached languages for {slug} S{season}E{episode} on {site}"
+    )
     rows = session.exec(
         select(EpisodeAvailability).where(
             (EpisodeAvailability.slug == slug)
             & (EpisodeAvailability.season == season)
             & (EpisodeAvailability.episode == episode)
+            & (EpisodeAvailability.site == site)
             & (EpisodeAvailability.available == True)
         )
     ).all()
@@ -340,8 +483,19 @@ def upsert_client_task(
     category: Optional[str],
     job_id: Optional[str],
     state: str = "queued",
+    site: str = "aniworld.to",
 ) -> ClientTask:
-    logger.debug(f"Upserting client task for hash {hash}")
+    """
+    Create or update a ClientTask record for the given torrent/file hash.
+
+    Parameters:
+        hash (str): Unique identifier for the client task (primary key).
+        site (str): Site identifier to store on the record; defaults to "aniworld.to".
+
+    Returns:
+        ClientTask: The inserted or updated ClientTask instance refreshed from the database.
+    """
+    logger.debug(f"Upserting client task for hash {hash} on site {site}")
     rec = session.get(ClientTask, hash)
     if rec is None:
         logger.info("No existing client task found, creating new.")
@@ -352,6 +506,7 @@ def upsert_client_task(
             season=season,
             episode=episode,
             language=language,
+            site=site,
             save_path=save_path,
             category=category,
             job_id=job_id,
@@ -365,6 +520,7 @@ def upsert_client_task(
         rec.season = season
         rec.episode = episode
         rec.language = language
+        rec.site = site
         rec.save_path = save_path
         rec.category = category
         rec.job_id = job_id
@@ -373,7 +529,7 @@ def upsert_client_task(
     try:
         session.commit()
         session.refresh(rec)
-        logger.success(f"Upserted client task for hash {hash}")
+        logger.success(f"Upserted client task for hash {hash} on site {site}")
     except Exception as e:
         logger.error(f"Failed to upsert client task: {e}")
         raise
