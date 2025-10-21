@@ -172,12 +172,15 @@ def build_release_name(
     # Use site-specific release group if available
     try:
         from app.config import CATALOG_SITE_CONFIGS  # local import to avoid cycles
-
-        release_group = CATALOG_SITE_CONFIGS.get(site, {}).get(
-            "release_group", release_group
-        )
-    except Exception:
+    except ImportError:
         pass
+    else:
+        try:
+            release_group = CATALOG_SITE_CONFIGS.get(site, {}).get(
+                "release_group", release_group
+            )
+        except Exception as e:
+            logger.debug(f"Error accessing CATALOG_SITE_CONFIGS for site {site}: {e}")
 
     series_part = _series_component(series_title)
     se_part = (
