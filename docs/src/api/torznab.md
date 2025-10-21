@@ -31,7 +31,7 @@ GET /torznab/api?t=search&q={query}
 ```
 
 - When `q` is empty and `TORZNAB_RETURN_TEST_RESULT=true`, a synthetic test item is returned for connectivity checks.
-- For a query, AniBridge resolves the slug against AniWorld titles and emits preview items for S01E01 across probable languages.
+- For a query, AniBridge resolves the slug across all enabled catalogues (AniWorld + Serienstream/s.to by default) and emits preview items for S01E01 across probable languages per site.
 
 ## tvsearch
 
@@ -49,8 +49,8 @@ Emits items only for actually available languages/providers (using cached probe 
 AniBridge crafts magnet URIs with embedded fields:
 
 ```text
-magnet:?xt=urn:btih:{hash}&dn={release}&aw_slug={slug}&aw_s={S}&aw_e={E}&aw_lang={Language}&aw_provider={Provider}
+magnet:?xt=urn:btih:{hash}&dn={release}&aw_slug={slug}&aw_s={S}&aw_e={E}&aw_lang={Language}&aw_provider={Provider}&aw_site={aniworld.to}
 ```
 
-Those are parsed by the qBittorrent shim when Sonarr posts to `/api/v2/torrents/add`.
+For Serienstream releases the prefix switches to `sto_` (e.g., `sto_slug`, `sto_site=s.to`). The qBittorrent shim parses these parameters when Sonarr posts to `/api/v2/torrents/add`.
 
