@@ -84,13 +84,13 @@ def _normalize_tokens(s: str) -> List[str]:
 def _slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, str]]:
     """
     Resolve a free-text query to the best-matching site and canonical slug.
-
+    
     Parameters:
-        q (str): The free-text query to resolve (e.g., a title).
-        site (Optional[str]): If provided, restrict resolution to the specified site identifier.
-
+        q (str): The free-text title or query to resolve.
+        site (Optional[str]): Optional site identifier to restrict resolution to a specific site.
+    
     Returns:
-        Optional[Tuple[str, str]]: A tuple (site, slug) with the site identifier and resolved slug when a match is found, `None` if no match exists.
+        Optional[Tuple[str, str]]: `(site, slug)` with the site identifier and resolved canonical slug when a match is found, `None` otherwise.
     """
     logger.debug(f"Resolving slug from query: '{q}', site filter: {site}")
     from app.utils.title_resolver import slug_from_query  # type: ignore

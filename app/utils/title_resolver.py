@@ -27,14 +27,14 @@ HREF_RE = HREF_PATTERNS["aniworld.to"]
 
 def _extract_slug(href: str, site: str = "aniworld.to") -> Optional[str]:
     """
-    Extract a slug from a link href using the site-specific extraction pattern.
-
+    Extract a site's slug from an anchor href.
+    
     Parameters:
-        href (str): The href string to search for a slug.
-        site (str): Site identifier used to select the pattern (for example "aniworld.to" or "s.to").
-
+        href: The href string to search for a slug.
+        site: Identifier selecting the site-specific extraction pattern (e.g., "aniworld.to", "s.to").
+    
     Returns:
-        slug (Optional[str]): The first capture group from the site's href regex if matched, otherwise `None`.
+        `slug` if the site's href pattern matches and captures a group, `None` otherwise.
     """
     logger.debug(f"Extracting slug from href: {href} for site: {site}")
     pattern = HREF_PATTERNS.get(site, HREF_PATTERNS["aniworld.to"])
@@ -88,15 +88,17 @@ _cached_at: Dict[str, float | None] = {}  # site -> timestamp
 
 def _should_refresh(site: str, now: float, refresh_hours: float) -> bool:
     """
-    Decide whether the cached index for a given site needs to be refreshed.
-
+    Determine whether the cached index for the given site needs refreshing.
+    
+    Checks if the site's in-memory index is missing, the cached timestamp is missing, or the elapsed time since the last refresh exceeds refresh_hours. A refresh is disabled when refresh_hours <= 0.
+    
     Parameters:
-        site (str): Site identifier (e.g., "aniworld.to") whose cache is being evaluated.
-        now (float): Current time as a UNIX timestamp in seconds.
-        refresh_hours (float): Time-to-live in hours for the cache; a value <= 0 disables periodic refresh.
-
+        site (str): Site identifier whose cache is evaluated.
+        now (float): Current UNIX timestamp in seconds.
+        refresh_hours (float): Time-to-live in hours for the cache; <= 0 disables automatic refresh.
+    
     Returns:
-        bool: `true` if the cache should be refreshed (missing index, missing timestamp, or TTL exceeded), `false` otherwise.
+        bool: `True` if the cache should be refreshed, `False` otherwise.
     """
     logger.debug(
         f"Checking if cache should refresh for site={site}. now={now}, _cached_at={_cached_at.get(site)}, refresh_hours={refresh_hours}"
@@ -168,19 +170,19 @@ def _fetch_index_from_url(
     url: str, site: str = "aniworld.to"
 ) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
     """
-    Fetches HTML from the given URL and parses it into slug-to-title and slug-to-alternatives mappings for the specified site.
-
+    Fetch and parse an index HTML from a URL into slug-to-title and slug-to-alternatives mappings for a specific site.
+    
     Parameters:
         url (str): The HTTP(S) URL to fetch the index HTML from.
         site (str): Site identifier used for site-specific parsing rules (e.g., "aniworld.to").
-
+    
     Returns:
-        Tuple[Dict[str, str], Dict[str, List[str]]]: A tuple of two dictionaries:
+        Tuple[Dict[str, str], Dict[str, List[str]]]: A tuple containing:
             - index: mapping of slug -> display title.
-            - alternatives: mapping of slug -> list of alternative titles (the main title is included as the first element when available).
-
+            - alternatives: mapping of slug -> list of alternative titles (main title appears first when present).
+    
     Raises:
-        Exception: If the HTTP request fails or parsing the fetched content raises an error.
+        requests.exceptions.RequestException: On network or HTTP errors while fetching the URL.
     """
     logger.info(f"Fetching index from URL: {url} for site: {site}")
     try:
@@ -346,13 +348,13 @@ def resolve_series_title(
 
 def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[str]]:
     """
-    Return the map of alternative titles for each slug for the given site, refreshing caches if necessary.
-
+    Get the mapping of slugs to alternative titles for the specified site, refreshing cached data if the site's TTL has expired.
+    
     Parameters:
         site (str): Site identifier to load alternatives for (e.g., "aniworld.to" or "s.to").
-
+    
     Returns:
-        Dict[str, List[str]]: Mapping from slug to a list of alternative display titles (the first element is the primary/display title). If no alternatives are available, returns an empty dict.
+        Dict[str, List[str]]: Mapping from slug to a list of alternative display titles, with the primary/display title as the first element. Returns an empty dict if no alternatives are available.
     """
     global _cached_alts
     now = time.time()
@@ -368,24 +370,27 @@ def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[st
 
 def _normalize_tokens(s: str) -> Set[str]:
     """
-    Extract unique lowercase alphanumeric tokens from a string.
-
+    Extract unique lowercase tokens by splitting the input on non-alphanumeric characters.
+    
     Parameters:
-        s (str): Input text to tokenize.
-
+        s (str): Input text to tokenize; non-alphanumeric characters are treated as separators.
+    
     Returns:
-        Set[str]: A set of unique tokens produced by splitting the input on non-alphanumeric characters and lowercasing the result.
+        Set[str]: Unique lowercase tokens extracted from the input.
     """
     return set("".join(ch.lower() if ch.isalnum() else " " for ch in s).split())
 
 
 def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, str]]:
     """
-    Resolve a slug by matching the query against both the main display titles
-    and any alternative titles parsed from the index HTML.
-
-    Returns a tuple of (site, slug) if found, or None if no match.
-    If site is provided, only searches that site. Otherwise searches all enabled sites.
+    Find the best-matching site and slug for a free-text query by comparing token overlap with titles and alternative titles.
+    
+    Parameters:
+        q (str): Free-text query used to match against series titles.
+        site (Optional[str]): If provided, restricts the search to this site; otherwise searches all configured sites.
+    
+    Returns:
+        Optional[Tuple[str, str]]: `(site, slug)` of the best match, `None` if the query is empty or no match is found.
     """
     if not q:
         return None

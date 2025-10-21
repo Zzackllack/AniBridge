@@ -28,8 +28,13 @@ from .utils import _build_item, _caps_xml, _require_apikey, _rss_root
 
 def _default_languages_for_site(site: str) -> List[str]:
     """
-    Return the default language preference ordering for a catalogue site.
-    Falls back to AniWorld defaults when a site-specific mapping is not found.
+    Get the default language preference ordering for a catalogue site.
+    
+    Parameters:
+        site (str): Catalogue site key to look up in CATALOG_SITE_CONFIGS.
+    
+    Returns:
+        List[str]: Language names in preference order. If the site has no valid mapping, returns the configured aniworld.to defaults (fallbacking to ["German Dub", "German Sub", "English Sub"] if that configuration is absent).
     """
     cfg = CATALOG_SITE_CONFIGS.get(site)
     if cfg:

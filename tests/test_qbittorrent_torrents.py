@@ -33,6 +33,11 @@ def test_torrent_lifecycle(client):
 
 
 def test_torrents_add_aw_and_sto_prefixes(client):
+    """
+    Test adding two torrents built with aw- and sto- prefixed magnets and verifies both are present.
+    
+    Builds two magnet links (one using default site, one with site "s.to"), posts them to /api/v2/torrents/add with category "anime", asserts both add requests return HTTP 200, and asserts that /api/v2/torrents/info reports exactly two items.
+    """
     from app.utils.magnet import build_magnet
 
     # Add torrent with aw prefix
