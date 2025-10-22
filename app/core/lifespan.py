@@ -29,7 +29,6 @@ from app.core.scheduler import init_executor, shutdown_executor
 from app.db import (
     engine,
     dispose_engine,
-    create_db_and_tables,
     cleanup_dangling_jobs,
 )
 
@@ -107,12 +106,22 @@ async def lifespan(app: FastAPI):
         logger.warning(f"log_full_system_report failed: {e}")
 
     notify_on_startup()
-    logger.info("Application startup: creating DB and thread pool executor.")
-    create_db_and_tables()
+    logger.info("Application startup: running database migrations and initializing services.")
+    
+    # Run Alembic migrations to ensure database schema is up-to-date
+    try:
+        from app.db.migrations import run_migrations
+        run_migrations()
+    except Exception as e:
+        logger.error(f"Failed to run database migrations: {e}")
+        raise
+    
+    # Clean up any dangling jobs from previous runs
     with Session(engine) as s:
         cleaned = cleanup_dangling_jobs(s)
         if cleaned:
             logger.warning(f"Reset {cleaned} dangling jobs to 'failed'")
+    
     init_executor()
 
     # Start background workers
