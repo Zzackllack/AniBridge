@@ -37,7 +37,10 @@ def client(tmp_path, monkeypatch):
     modules = [
         "app.config",
         "app.db",
+        "app.db.base",
+        "app.db.session",
         "app.db.models",
+        "app.db.migrations",
         "app.api.torznab",
         "app.api.torznab.api",
         "app.api.torznab.utils",
@@ -55,11 +58,12 @@ def client(tmp_path, monkeypatch):
             del sys.modules[m]
 
     from app.main import app
-    from app.db import create_db_and_tables
+    # Run migrations to set up the database schema
+    from app.db.migrations import run_migrations
     # Patch scheduler calls where they are used (torrents module)
     import app.api.qbittorrent.torrents as qb_torrents
 
-    create_db_and_tables()
+    run_migrations()
 
     monkeypatch.setattr(qb_torrents, "schedule_download", lambda req: "job-1")
     monkeypatch.setattr(qb_torrents, "cancel_job", lambda job_id: None)
