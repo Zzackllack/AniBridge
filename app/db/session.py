@@ -32,21 +32,21 @@ logger.debug("SQLModel engine created.")
 
 def get_session() -> Generator[Session, None, None]:
     """Dependency for FastAPI endpoints to get a database session.
-    
+
     This function creates a new database session, yields it for use in the
     endpoint, and ensures it's properly closed after the request completes.
-    
+
     Usage:
         ```python
         from fastapi import Depends
         from app.db.session import get_session
-        
+
         @app.get("/items")
         def get_items(session: Session = Depends(get_session)):
             items = session.exec(select(Item)).all()
             return items
         ```
-    
+
     Yields:
         Session: A SQLModel session for database operations.
     """
@@ -62,7 +62,7 @@ def get_session() -> Generator[Session, None, None]:
 
 def dispose_engine() -> None:
     """Dispose the global SQLAlchemy engine to close any pooled connections.
-    
+
     This helps tests and short-lived runs avoid ResourceWarning: unclosed database.
     Should be called during application shutdown.
     """

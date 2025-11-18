@@ -106,22 +106,25 @@ async def lifespan(app: FastAPI):
         logger.warning(f"log_full_system_report failed: {e}")
 
     notify_on_startup()
-    logger.info("Application startup: running database migrations and initializing services.")
-    
+    logger.info(
+        "Application startup: running database migrations and initializing services."
+    )
+
     # Run Alembic migrations to ensure database schema is up-to-date
     try:
         from app.db.migrations import run_migrations
+
         run_migrations()
     except Exception as e:
         logger.error(f"Failed to run database migrations: {e}")
         raise
-    
+
     # Clean up any dangling jobs from previous runs
     with Session(engine) as s:
         cleaned = cleanup_dangling_jobs(s)
         if cleaned:
             logger.warning(f"Reset {cleaned} dangling jobs to 'failed'")
-    
+
     init_executor()
 
     # Start background workers

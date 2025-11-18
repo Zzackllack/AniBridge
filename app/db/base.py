@@ -18,21 +18,22 @@ _registry = sa_registry()
 
 class ModelBase(SQLModel, registry=_registry):  # type: ignore[call-arg]
     """Base class for all database table models.
-    
+
     All models should inherit from this class to ensure consistent
     metadata and registry usage. This is critical for Alembic's
     autogenerate feature to work correctly.
-    
+
     Example:
         ```python
         from app.db.base import ModelBase
         from sqlmodel import Field
-        
+
         class MyModel(ModelBase, table=True):
             id: int = Field(primary_key=True)
             name: str
         ```
     """
+
     pass
 
 

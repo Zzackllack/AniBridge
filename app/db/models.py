@@ -42,10 +42,10 @@ def utcnow() -> datetime:
 
 def as_aware_utc(dt: Optional[datetime]) -> datetime:
     """Convert a datetime to timezone-aware UTC.
-    
+
     Args:
         dt: Datetime to convert (can be None, naive, or aware)
-        
+
     Returns:
         Timezone-aware UTC datetime
     """
@@ -146,7 +146,7 @@ class ClientTask(ModelBase, table=True):
 
 # NOTE: The old _migrate_episode_availability_table() and create_db_and_tables()
 # functions have been removed. Database schema is now managed by Alembic migrations.
-# 
+#
 # To initialize the database:
 #   1. Run: alembic upgrade head
 #

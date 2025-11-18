@@ -19,11 +19,16 @@ from .models import *  # re-export full surface for backwards compatibility
 
 __all__ = [
     "ModelBase",
-    "engine", 
-    "get_session", 
+    "engine",
+    "get_session",
     "dispose_engine",
     "DATABASE_URL",
     "run_migrations",
     "get_current_revision",
     "check_migrations_status",
-] + [name for name in dir() if not name.startswith("_") and name not in ["base", "session", "models", "migrations"]]
+] + [
+    name
+    for name in dir()
+    if not name.startswith("_")
+    and name not in ["base", "session", "models", "migrations"]
+]
