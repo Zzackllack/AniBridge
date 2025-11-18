@@ -4,6 +4,7 @@ aniworld
 yt-dlp
 sqlmodel
 SQLAlchemy
+alembic
 loguru
 tqdm
 python-multipart

@@ -1,28 +1,54 @@
+"""Database models for AniBridge.
+
+This module defines the SQLModel table models used throughout the application.
+All models inherit from ModelBase (defined in app.db.base) to ensure consistent
+metadata and registry usage, which is critical for Alembic migrations.
+
+Models:
+    - Job: Tracks download job status and progress
+    - EpisodeAvailability: Caches episode availability information
+    - ClientTask: Maps qBittorrent-style torrent hashes to internal jobs
+
+To add a new model:
+    1. Import ModelBase from app.db.base
+    2. Define your model class inheriting from ModelBase with table=True
+    3. Add appropriate fields with SQLModel Field() annotations
+    4. Generate a new migration: alembic revision --autogenerate -m "Add MyModel"
+    5. Review and apply: alembic upgrade head
+"""
+
 from __future__ import annotations
 
-from typing import Optional, Literal, Generator, Any, List
+from typing import Optional, Literal, Any, List
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from loguru import logger
 
-# Defer logger configuration to application startup
+from sqlmodel import Field, Session, select, Column, JSON
 
-from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JSON
-from sqlalchemy.orm import registry as sa_registry
-from sqlalchemy.pool import NullPool
-
-from app.config import AVAILABILITY_TTL_HOURS, DATA_DIR
+from app.config import AVAILABILITY_TTL_HOURS
+from app.db.base import ModelBase
+from app.db.session import engine
 
 JobStatus = Literal["queued", "downloading", "completed", "failed", "cancelled"]
 
 
 # ---- Datetime Helpers
 def utcnow() -> datetime:
+    """Return current UTC datetime with timezone info."""
     logger.debug("utcnow() called.")
     return datetime.now(timezone.utc)
 
 
 def as_aware_utc(dt: Optional[datetime]) -> datetime:
+    """Convert a datetime to timezone-aware UTC.
+    
+    Args:
+        dt: Datetime to convert (can be None, naive, or aware)
+        
+    Returns:
+        Timezone-aware UTC datetime
+    """
     logger.debug(f"as_aware_utc() called with dt={dt}")
     if dt is None:
         logger.info("Datetime is None, returning utcnow().")
@@ -34,16 +60,7 @@ def as_aware_utc(dt: Optional[datetime]) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-# ---------------- Jobs
-# Use a private registry/base to avoid SQLModel's global default registry
-# being reused across test re-imports (which causes SAWarnings about
-# duplicate class names). Each import of this module creates a fresh
-# registry and metadata.
-_registry = sa_registry()
-
-
-class ModelBase(SQLModel, registry=_registry):  # type: ignore[call-arg]
-    pass
+# ---------------- Table Models
 
 
 class Job(ModelBase, table=True):
@@ -125,129 +142,22 @@ class ClientTask(ModelBase, table=True):
     )  # queued/downloading/paused/completed/error
 
 
-# ---------------- Engine and Session utilities
-DATABASE_URL = f"sqlite:///{(DATA_DIR / 'anibridge_jobs.db').as_posix()}"
-logger.debug(f"DATABASE_URL: {DATABASE_URL}")
+# ---------------- Database Initialization (now handled by Alembic)
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=NullPool,  # ensure connections are closed when sessions end
-)
-logger.debug("SQLModel engine created.")
-
-
-def _migrate_episode_availability_table() -> None:
-    """
-    Ensure the episodeavailability table includes the site column in its primary key.
-    Performs an in-place SQLite migration when running against an existing database
-    created before multi-site support was introduced.
-    """
-    try:
-        with engine.begin() as conn:
-            table_present = conn.exec_driver_sql(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='episodeavailability'"
-            ).fetchone()
-            if not table_present:
-                logger.debug(
-                    "episodeavailability table not found; no migration necessary."
-                )
-                return
-
-            columns = conn.exec_driver_sql(
-                "PRAGMA table_info('episodeavailability')"
-            ).fetchall()
-            if any(col[1] == "site" for col in columns):
-                logger.debug(
-                    "episodeavailability table already contains 'site' column."
-                )
-                return
-
-            logger.info("Migrating episodeavailability table to include site column.")
-            conn.exec_driver_sql(
-                """
-                CREATE TABLE episodeavailability_new (
-                    slug TEXT NOT NULL,
-                    season INTEGER NOT NULL,
-                    episode INTEGER NOT NULL,
-                    language TEXT NOT NULL,
-                    site TEXT NOT NULL DEFAULT 'aniworld.to',
-                    available BOOLEAN NOT NULL,
-                    height INTEGER,
-                    vcodec TEXT,
-                    provider TEXT,
-                    checked_at DATETIME NOT NULL,
-                    extra JSON,
-                    PRIMARY KEY (slug, season, episode, language, site)
-                )
-                """
-            )
-            conn.exec_driver_sql(
-                """
-                INSERT INTO episodeavailability_new (
-                    slug, season, episode, language, site,
-                    available, height, vcodec, provider, checked_at, extra
-                )
-                SELECT
-                    slug, season, episode, language,
-                    'aniworld.to' AS site,
-                    available, height, vcodec, provider, checked_at, extra
-                FROM episodeavailability
-                """
-            )
-            conn.exec_driver_sql("DROP TABLE episodeavailability")
-            conn.exec_driver_sql(
-                "ALTER TABLE episodeavailability_new RENAME TO episodeavailability"
-            )
-            conn.exec_driver_sql(
-                "CREATE INDEX ix_episodeavailability_checked_at ON episodeavailability(checked_at)"
-            )
-            logger.success("episodeavailability table migrated to include site column.")
-    except Exception as exc:
-        logger.error(f"Failed to migrate episodeavailability table: {exc}")
-        raise
+# NOTE: The old _migrate_episode_availability_table() and create_db_and_tables()
+# functions have been removed. Database schema is now managed by Alembic migrations.
+# 
+# To initialize the database:
+#   1. Run: alembic upgrade head
+#
+# To create a new migration after model changes:
+#   1. Edit models in this file
+#   2. Run: alembic revision --autogenerate -m "Description of changes"
+#   3. Review the generated migration in alembic/versions/
+#   4. Apply: alembic upgrade head
 
 
-def create_db_and_tables() -> None:
-    """
-    Ensure the application's SQLite database file and ORM tables exist, running any required schema migration first.
-
-    Performs any necessary episode availability migration and creates tables defined on the module's private metadata, creating the database file if it does not already exist.
-    """
-    logger.debug("Creating DB and tables if not exist.")
-    try:
-        _migrate_episode_availability_table()
-        # Use this module's private metadata
-        ModelBase.metadata.create_all(engine)
-        logger.success("Database and tables created or already exist.")
-    except Exception as e:
-        logger.error(f"Error creating DB and tables: {e}")
-
-
-def get_session() -> Generator[Session, None, None]:
-    logger.debug("Creating new DB session.")
-    try:
-        with Session(engine) as session:
-            logger.debug("DB session created.")
-            yield session
-    except Exception as e:
-        logger.error(f"Error creating DB session: {e}")
-        raise
-
-
-def dispose_engine() -> None:
-    """Dispose the global SQLAlchemy engine to close any pooled connections.
-
-    This helps tests and short-lived runs avoid ResourceWarning: unclosed database.
-    """
-    try:
-        engine.dispose()
-        logger.debug("SQLAlchemy engine disposed.")
-    except Exception as e:
-        logger.warning(f"Engine dispose error: {e}")
-
-
-# --- Jobs CRUD
+# ---------------- CRUD Helper Functions
 def create_job(session: Session, *, source_site: Optional[str] = None) -> Job:
     """
     Create and persist a new Job record in the database.
