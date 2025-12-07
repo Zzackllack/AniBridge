@@ -33,3 +33,4 @@ uvloop
 websockets
 PyYAML
 httpx
+alembic
