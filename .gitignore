@@ -535,19 +535,7 @@ changelog.md
 # ───── Spec-Kit (specify) ─────
 
 # Ignore ephemeral state
-.specify/.cache/
-.specify/tmp/
-.specify/logs/
-.specify/runs/
-
-# Keep authored artifacts
-!.specify/spec.md
-!.specify/plan.md
-!.specify/tasks.md
-!.specify/constitution.md
-!.specify/templates/**
-!.specify/scripts/**
-!.specify/specs/**
+.specify/
 
 # ───── Codex overlay ─────
 
