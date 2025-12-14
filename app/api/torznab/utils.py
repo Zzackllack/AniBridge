@@ -175,6 +175,7 @@ def _build_item(
     pubdate: Optional[datetime],
     cat_id: int,
     guid_str: str,
+    length_bytes: int | None = None,
 ) -> None:
     logger.debug(
         f"Building RSS item: title='{title}', guid='{guid_str}', magnet='{magnet}'"
@@ -194,7 +195,11 @@ def _build_item(
     enc.set("url", magnet)
     # Helps differentiate magnets vs .torrent files for some consumers
     enc.set("type", "application/x-bittorrent;x-scheme-handler/magnet")
-    est_size = _estimate_size_from_title_bytes(title)
+    est_size = (
+        int(length_bytes)
+        if length_bytes is not None
+        else _estimate_size_from_title_bytes(title)
+    )
     enc.set("length", str(est_size))
 
     # torznab attrs
