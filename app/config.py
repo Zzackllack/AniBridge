@@ -420,9 +420,7 @@ logger.debug(
 # turns those variants into .strm files instead of downloading media.
 STRM_FILES_MODE = os.getenv("STRM_FILES_MODE", "no").strip().lower()
 if STRM_FILES_MODE not in ("no", "both", "only"):
-    logger.warning(
-        f"Invalid STRM_FILES_MODE={STRM_FILES_MODE!r}; defaulting to 'no'."
-    )
+    logger.warning(f"Invalid STRM_FILES_MODE={STRM_FILES_MODE!r}; defaulting to 'no'.")
     STRM_FILES_MODE = "no"
 logger.debug(f"STRM_FILES_MODE={STRM_FILES_MODE}")
 
