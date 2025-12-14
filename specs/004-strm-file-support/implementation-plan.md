@@ -8,7 +8,7 @@ Env var: `STRM_FILES_MODE` (`no|both|only`, default `no`)
 |---|---|---|
 | `no` | unchanged (download items only) | unchanged (`yt-dlp` download jobs) |
 | `both` | download item + STRM item per release | STRM item schedules `.strm` job |
-| `only` | STRM items only | STRM items schedules `.strm` job |
+| `only` | STRM items only | STRM items schedule `.strm` job |
 
 ## How STRM variants are transported
 
