@@ -153,7 +153,6 @@ def torznab_api(
                     pubdate=now,
                     cat_id=TORZNAB_CAT_ANIME,
                     guid_str=f"{guid_base}:strm",
-                    length_bytes=1024,
                 )
         elif q_str:
             # Preview search: S01E01 for requested series
@@ -266,7 +265,6 @@ def torznab_api(
                                 pubdate=now,
                                 cat_id=TORZNAB_CAT_ANIME,
                                 guid_str=f"{guid_base}:strm",
-                                length_bytes=1024,
                             )
                     except Exception as e:
                         logger.error(
@@ -464,7 +462,6 @@ def torznab_api(
                     pubdate=now,
                     cat_id=TORZNAB_CAT_ANIME,
                     guid_str=f"{guid_base}:strm",
-                    length_bytes=1024,
                 )
         except Exception as e:
             logger.error(f"Error building RSS item for release '{release_title}': {e}")

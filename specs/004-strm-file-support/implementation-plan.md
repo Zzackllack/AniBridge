@@ -17,7 +17,7 @@ Torznab items continue to use magnet enclosures, but STRM variants add:
 - `{prefix}_mode=strm` in magnet query params
 - a different `xt=urn:btih:{hash}` so the “torrent hash” differs
 - title suffix ` [STRM]` for human/UI disambiguation
-- a small `enclosure length` (set to `1024`) so “size” is tiny
+- a normal-looking `enclosure length` (same heuristic sizing as non-STRM) so Sonarr/Prowlarr size filters don’t reject the release
 
 ## STRM job behavior
 
@@ -76,4 +76,3 @@ Steps:
 - Decide how STRM interacts with:
   - Sonarr import rules (do we need a different file extension, or a post-import hook?)
   - URL expiry/refresh (regenerate `.strm` on demand?)
-
