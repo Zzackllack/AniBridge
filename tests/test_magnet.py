@@ -18,6 +18,20 @@ def test_build_and_parse_magnet_roundtrip():
     assert parsed["xt"].startswith("urn:btih:")
     assert parsed.get("aw_provider") == "prov"
 
+    uri_strm = build_magnet(
+        title="Title [STRM]",
+        slug="slug",
+        season=1,
+        episode=2,
+        language="German Dub",
+        provider="prov",
+        mode="strm",
+    )
+    parsed_strm = parse_magnet(uri_strm)
+    assert parsed_strm.get("aw_mode") == "strm"
+    assert parsed_strm["xt"].startswith("urn:btih:")
+    assert parsed_strm["xt"] != parsed["xt"]
+
 
 def test_parse_magnet_errors():
     from app.utils.magnet import parse_magnet

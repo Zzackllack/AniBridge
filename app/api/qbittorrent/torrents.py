@@ -73,6 +73,7 @@ def torrents_add(
         site = payload.get(
             f"{prefix}_site", "aniworld.to" if prefix == "aw" else "s.to"
         )
+        mode = (payload.get(f"{prefix}_mode") or "").strip().lower()
         name = payload.get("dn", f"{slug}.S{season:02d}E{episode:02d}.{language}")
         xt = payload["xt"]
     except (KeyError, ValueError) as exc:
@@ -96,6 +97,10 @@ def torrents_add(
         "language": language,
         "site": site,
     }
+    if mode:
+        req["mode"] = mode
+        # STRM creation benefits from having the final desired basename.
+        req["title_hint"] = name
     job_id = schedule_download(req)
     logger.debug(f"Scheduled job_id: {job_id}")
 

@@ -7,13 +7,20 @@ from sqlmodel import Session
 import errno
 
 from app.config import MAX_CONCURRENCY, DOWNLOAD_DIR
+from app.utils.strm import allocate_unique_strm_path, build_strm_content
 from app.utils.terminal import (
     ProgressReporter,
     ProgressSnapshot,
     is_interactive_terminal,
 )
 from app.db import engine, create_job, update_job
-from app.core.downloader import download_episode, Provider, Language
+from app.core.downloader import (
+    download_episode,
+    Provider,
+    Language,
+    build_episode,
+    get_direct_url_with_fallback,
+)
 from app.utils.logger import config as configure_logger
 
 configure_logger()
@@ -182,6 +189,88 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
             RUNNING.pop(job_id, None)
 
 
+def _run_strm(job_id: str, req: dict, stop_event: threading.Event) -> None:
+    """
+    Create a `.strm` file pointing to a resolved remote media URL.
+
+    The URL is resolved via the AniWorld library using the same provider fallback
+    strategy as downloads, but instead of downloading bytes, we write a small
+    `.strm` file to `DOWNLOAD_DIR`.
+    """
+    try:
+        with Session(engine) as s:
+            site = req.get("site", "aniworld.to")
+            update_job(s, job_id, status="downloading", message=None, source_site=site)
+
+        if stop_event.is_set():
+            raise Exception("Cancelled")
+
+        site = str(req.get("site") or "aniworld.to")
+        ep = build_episode(
+            slug=req.get("slug"),
+            season=req.get("season"),
+            episode=req.get("episode"),
+            site=site,
+        )
+        direct_url, provider_used = get_direct_url_with_fallback(
+            ep, preferred=req.get("provider"), language=str(req.get("language") or "")
+        )
+
+        if stop_event.is_set():
+            raise Exception("Cancelled")
+
+        title_hint = str(req.get("title_hint") or "").strip()
+        if title_hint:
+            base_name = title_hint
+        else:
+            slug = str(req.get("slug") or "Episode")
+            try:
+                s_i = int(req.get("season"))
+                e_i = int(req.get("episode"))
+                base_name = f"{slug}.S{s_i:02d}E{e_i:02d}"
+            except Exception:
+                base_name = slug
+        out_path = allocate_unique_strm_path(DOWNLOAD_DIR, base_name)
+        content = build_strm_content(direct_url)
+        tmp_path = out_path.with_suffix(".strm.tmp")
+        tmp_path.write_text(content, encoding="utf-8", newline="\n")
+        tmp_path.replace(out_path)
+
+        with Session(engine) as s:
+            update_job(
+                s,
+                job_id,
+                status="completed",
+                progress=100.0,
+                downloaded_bytes=len(content.encode("utf-8")),
+                total_bytes=len(content.encode("utf-8")),
+                result_path=str(out_path),
+                message=f"STRM created (provider={provider_used})",
+            )
+    except OSError as e:
+        with Session(engine) as s:
+            if e.errno in (errno.EACCES, errno.EROFS):
+                update_job(
+                    s,
+                    job_id,
+                    status="failed",
+                    message=f"Download dir not writable: {e}",
+                )
+            else:
+                update_job(s, job_id, status="failed", message=str(e))
+    except Exception as e:
+        msg = str(e)
+        status = "failed"
+        if "Cancel" in msg or "cancel" in msg:
+            status = "cancelled"
+            msg = "Cancelled by user"
+        with Session(engine) as s:
+            update_job(s, job_id, status=status, message=msg)
+    finally:
+        with RUNNING_LOCK:
+            RUNNING.pop(job_id, None)
+
+
 def schedule_download(req: dict) -> str:
     """
     Schedule a background download job and return its job identifier.
@@ -211,7 +300,9 @@ def schedule_download(req: dict) -> str:
         job = create_job(s, source_site=req.get("site") or "aniworld.to")
 
     stop_event = threading.Event()
-    fut = EXECUTOR.submit(_run_download, job.id, req, stop_event)
+    mode = str(req.get("mode") or "").strip().lower()
+    runner = _run_strm if mode == "strm" else _run_download
+    fut = EXECUTOR.submit(runner, job.id, req, stop_event)
     with RUNNING_LOCK:
         RUNNING[job.id] = (fut, stop_event)
     return job.id
