@@ -27,6 +27,10 @@ Comprehensive list of env vars read in `app/config.py`.
 - `TORZNAB_TEST_EPISODE` (default: `1`)
 - `TORZNAB_TEST_LANGUAGE` (default: `German Dub`)
 
+## STRM Files
+
+- `STRM_FILES_MODE` (`no|both|only`, default: `no`) — controls whether Torznab emits STRM variants and whether AniBridge creates `.strm` files instead of downloading media.
+
 ## Providers & Languages
 
 - `PROVIDER_ORDER` (CSV; priority-ordered)

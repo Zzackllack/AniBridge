@@ -415,6 +415,15 @@ logger.debug(
     f"DELETE_FILES_ON_TORRENT_DELETE={DELETE_FILES_ON_TORRENT_DELETE}, DOWNLOADS_TTL_HOURS={DOWNLOADS_TTL_HOURS}, CLEANUP_SCAN_INTERVAL_MIN={CLEANUP_SCAN_INTERVAL_MIN}"
 )
 
+# --- STRM support ---
+# Controls whether Torznab emits STRM variants and whether the qBittorrent shim
+# turns those variants into .strm files instead of downloading media.
+STRM_FILES_MODE = os.getenv("STRM_FILES_MODE", "no").strip().lower()
+if STRM_FILES_MODE not in ("no", "both", "only"):
+    logger.warning(f"Invalid STRM_FILES_MODE={STRM_FILES_MODE!r}; defaulting to 'no'.")
+    STRM_FILES_MODE = "no"
+logger.debug(f"STRM_FILES_MODE={STRM_FILES_MODE}")
+
 # --- Progress rendering ---
 PROGRESS_FORCE_BAR = _as_bool(os.getenv("PROGRESS_FORCE_BAR", None), False)
 PROGRESS_STEP_PERCENT = max(1, int(os.getenv("PROGRESS_STEP_PERCENT", "5")))

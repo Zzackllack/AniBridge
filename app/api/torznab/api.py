@@ -11,6 +11,7 @@ from sqlmodel import Session
 
 from app.config import (
     CATALOG_SITE_CONFIGS,
+    STRM_FILES_MODE,
     TORZNAB_CAT_ANIME,
     TORZNAB_RETURN_TEST_RESULT,
     TORZNAB_TEST_EPISODE,
@@ -109,30 +110,50 @@ def torznab_api(
         rss, channel = _rss_root()
         q_str = (q or "").strip()
         logger.debug(f"Search query string: '{q_str}'")
+        strm_suffix = " [STRM]"
 
         if not q_str and TORZNAB_RETURN_TEST_RESULT:
             logger.debug("Returning synthetic test result for empty query.")
             # synthetic test result
             release_title = TORZNAB_TEST_TITLE
-            magnet = tn.build_magnet(
-                title=release_title,
-                slug=TORZNAB_TEST_SLUG,
-                season=TORZNAB_TEST_SEASON,
-                episode=TORZNAB_TEST_EPISODE,
-                language=TORZNAB_TEST_LANGUAGE,
-                provider=None,
-            )
-            guid = f"aw:{TORZNAB_TEST_SLUG}:s{TORZNAB_TEST_SEASON}e{TORZNAB_TEST_EPISODE}:{TORZNAB_TEST_LANGUAGE}"
+            guid_base = f"aw:{TORZNAB_TEST_SLUG}:s{TORZNAB_TEST_SEASON}e{TORZNAB_TEST_EPISODE}:{TORZNAB_TEST_LANGUAGE}"
             now = datetime.now(timezone.utc)
 
-            _build_item(
-                channel=channel,
-                title=release_title,
-                magnet=magnet,
-                pubdate=now,
-                cat_id=TORZNAB_CAT_ANIME,
-                guid_str=guid,
-            )
+            if STRM_FILES_MODE in ("no", "both"):
+                magnet = tn.build_magnet(
+                    title=release_title,
+                    slug=TORZNAB_TEST_SLUG,
+                    season=TORZNAB_TEST_SEASON,
+                    episode=TORZNAB_TEST_EPISODE,
+                    language=TORZNAB_TEST_LANGUAGE,
+                    provider=None,
+                )
+                _build_item(
+                    channel=channel,
+                    title=release_title,
+                    magnet=magnet,
+                    pubdate=now,
+                    cat_id=TORZNAB_CAT_ANIME,
+                    guid_str=guid_base,
+                )
+            if STRM_FILES_MODE in ("only", "both"):
+                magnet_strm = tn.build_magnet(
+                    title=release_title + strm_suffix,
+                    slug=TORZNAB_TEST_SLUG,
+                    season=TORZNAB_TEST_SEASON,
+                    episode=TORZNAB_TEST_EPISODE,
+                    language=TORZNAB_TEST_LANGUAGE,
+                    provider=None,
+                    mode="strm",
+                )
+                _build_item(
+                    channel=channel,
+                    title=release_title + strm_suffix,
+                    magnet=magnet_strm,
+                    pubdate=now,
+                    cat_id=TORZNAB_CAT_ANIME,
+                    guid_str=f"{guid_base}:strm",
+                )
         elif q_str:
             # Preview search: S01E01 for requested series
             result = tn._slug_from_query(q_str)
@@ -215,16 +236,36 @@ def torznab_api(
 
                     # Use site-appropriate prefix for GUID
                     prefix = _site_prefix(site_found)
-                    guid = f"{prefix}:{slug}:s{season_i}e{ep_i}:{lang}"
+                    guid_base = f"{prefix}:{slug}:s{season_i}e{ep_i}:{lang}"
                     try:
-                        _build_item(
-                            channel=channel,
-                            title=release_title,
-                            magnet=magnet,
-                            pubdate=now,
-                            cat_id=TORZNAB_CAT_ANIME,
-                            guid_str=guid,
-                        )
+                        if STRM_FILES_MODE in ("no", "both"):
+                            _build_item(
+                                channel=channel,
+                                title=release_title,
+                                magnet=magnet,
+                                pubdate=now,
+                                cat_id=TORZNAB_CAT_ANIME,
+                                guid_str=guid_base,
+                            )
+                        if STRM_FILES_MODE in ("only", "both"):
+                            magnet_strm = tn.build_magnet(
+                                title=release_title + strm_suffix,
+                                slug=slug,
+                                season=season_i,
+                                episode=ep_i,
+                                language=lang,
+                                provider=prov,
+                                site=site_found,
+                                mode="strm",
+                            )
+                            _build_item(
+                                channel=channel,
+                                title=release_title + strm_suffix,
+                                magnet=magnet_strm,
+                                pubdate=now,
+                                cat_id=TORZNAB_CAT_ANIME,
+                                guid_str=f"{guid_base}:strm",
+                            )
                     except Exception as e:
                         logger.error(
                             f"Error building RSS item for release '{release_title}': {e}"
@@ -288,6 +329,7 @@ def torznab_api(
     rss, channel = _rss_root()
     count = 0
     now = datetime.now(timezone.utc)
+    strm_suffix = " [STRM]"
 
     for lang in candidate_langs:
         logger.debug(f"Checking availability for language '{lang}'")
@@ -390,17 +432,37 @@ def torznab_api(
 
         # Use site-appropriate prefix for GUID
         prefix = _site_prefix(site_found)
-        guid = f"{prefix}:{slug}:s{season_i}e{ep_i}:{lang}"
+        guid_base = f"{prefix}:{slug}:s{season_i}e{ep_i}:{lang}"
 
         try:
-            _build_item(
-                channel=channel,
-                title=release_title,
-                magnet=magnet,
-                pubdate=now,
-                cat_id=TORZNAB_CAT_ANIME,
-                guid_str=guid,
-            )
+            if STRM_FILES_MODE in ("no", "both"):
+                _build_item(
+                    channel=channel,
+                    title=release_title,
+                    magnet=magnet,
+                    pubdate=now,
+                    cat_id=TORZNAB_CAT_ANIME,
+                    guid_str=guid_base,
+                )
+            if STRM_FILES_MODE in ("only", "both"):
+                magnet_strm = tn.build_magnet(
+                    title=release_title + strm_suffix,
+                    slug=slug,
+                    season=season_i,
+                    episode=ep_i,
+                    language=lang,
+                    provider=prov_used,
+                    site=site_found,
+                    mode="strm",
+                )
+                _build_item(
+                    channel=channel,
+                    title=release_title + strm_suffix,
+                    magnet=magnet_strm,
+                    pubdate=now,
+                    cat_id=TORZNAB_CAT_ANIME,
+                    guid_str=f"{guid_base}:strm",
+                )
         except Exception as e:
             logger.error(f"Error building RSS item for release '{release_title}': {e}")
             continue
