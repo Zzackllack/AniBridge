@@ -11,6 +11,15 @@ def build_strm_content(url: str) -> str:
 
     A `.strm` file is plain text with a single line containing a path/URL.
     For AniBridge we write one HTTP(S) URL per file (UTF-8, newline-terminated).
+
+    Parameters:
+        url (str): Direct HTTP(S) URL to embed in the `.strm` file.
+
+    Returns:
+        str: Single-line STRM content ending with a newline.
+
+    Raises:
+        ValueError: If the URL is empty or not an HTTP(S) URL.
     """
     u = (url or "").strip()
     if not u:
@@ -27,6 +36,12 @@ def sanitize_strm_basename(name: str) -> str:
 
     Keeps the result reasonably readable for media servers while preventing
     directory traversal and illegal filename characters.
+
+    Parameters:
+        name (str): Raw title or display name.
+
+    Returns:
+        str: Sanitized basename without the `.strm` extension.
     """
     base = (name or "").strip()
     if not base:
@@ -52,6 +67,13 @@ def sanitize_strm_basename(name: str) -> str:
 def allocate_unique_strm_path(dest_dir: Path, base_name: str) -> Path:
     """
     Allocate a unique `.strm` path under `dest_dir` by appending a numeric suffix.
+
+    Parameters:
+        dest_dir (Path): Directory to create the `.strm` file in.
+        base_name (str): Raw display name used to build the filename.
+
+    Returns:
+        Path: A non-existing `.strm` path under `dest_dir`.
     """
     dest_dir.mkdir(parents=True, exist_ok=True)
     base = sanitize_strm_basename(base_name)

@@ -1,4 +1,21 @@
-# STRM File Support — Implementation Plan / Notes
+---
+post_title: "STRM File Support — Implementation Plan / Notes"
+author1: "Zzackllack"
+post_slug: "strm-file-support-implementation-plan"
+microsoft_alias: "tbd"
+featured_image: ""
+categories:
+  - "specs"
+tags:
+  - "strm"
+  - "anibridge"
+  - "implementation-plan"
+ai_note: "Drafted with AI assistance."
+summary: "Implementation plan and notes for STRM file support."
+post_date: "2025-10-18"
+---
+
+## STRM File Support — Implementation Plan / Notes
 
 ## Feature toggle / behavior matrix
 
@@ -7,7 +24,7 @@ Env var: `STRM_FILES_MODE` (`no|both|only`, default `no`)
 | Mode | Torznab results | qBittorrent shim action |
 |---|---|---|
 | `no` | unchanged (download items only) | unchanged (`yt-dlp` download jobs) |
-| `both` | download item + STRM item per release | STRM item schedules `.strm` job |
+| `both` | download item + STRM item per release | STRM items schedule `.strm` job |
 | `only` | STRM items only | STRM items schedule `.strm` job |
 
 ## How STRM variants are transported
@@ -16,7 +33,7 @@ Torznab items continue to use magnet enclosures, but STRM variants add:
 
 - `{prefix}_mode=strm` in magnet query params
 - a different `xt=urn:btih:{hash}` so the “torrent hash” differs
-- title suffix ` [STRM]` for human/UI disambiguation
+- title suffix `[STRM]` for human/UI disambiguation
 - a normal-looking `enclosure length` (same heuristic sizing as non-STRM) so Sonarr/Prowlarr size filters don’t reject the release
 
 ## STRM job behavior
@@ -45,7 +62,7 @@ Steps:
   - Make infohash depend on mode when provided (keeps legacy magnets stable).
 - `app/api/torznab/api.py`
   - Emit STRM variants based on `STRM_FILES_MODE`.
-  - Add ` [STRM]` suffix and `mode="strm"` magnets.
+  - Add `[STRM]` suffix and `mode="strm"` magnets.
 - `app/api/torznab/utils.py`
   - Allow overriding enclosure length/size (STRM uses small size).
 - `app/api/qbittorrent/torrents.py`

@@ -193,9 +193,19 @@ def _run_strm(job_id: str, req: dict, stop_event: threading.Event) -> None:
     """
     Create a `.strm` file pointing to a resolved remote media URL.
 
-    The URL is resolved via the AniWorld library using the same provider fallback
-    strategy as downloads, but instead of downloading bytes, we write a small
-    `.strm` file to `DOWNLOAD_DIR`.
+    Resolves a direct URL via the AniWorld library using the same provider fallback
+    strategy as downloads, then writes a small `.strm` file to `DOWNLOAD_DIR` and
+    updates the job status accordingly.
+
+    Parameters:
+        job_id (str): Identifier of the job being run.
+        req (dict): STRM request with keys used by the resolver. Recognized keys:
+            - 'slug', 'season', 'episode' (episode identifiers)
+            - 'language' (optional)
+            - 'provider' (optional)
+            - 'title_hint' (optional, used for filename)
+            - 'site' (optional, defaults to "aniworld.to")
+        stop_event (threading.Event): Event that, when set, requests cancellation.
     """
     try:
         with Session(engine) as s:
@@ -232,8 +242,10 @@ def _run_strm(job_id: str, req: dict, stop_event: threading.Event) -> None:
                 base_name = slug
         out_path = allocate_unique_strm_path(DOWNLOAD_DIR, base_name)
         content = build_strm_content(direct_url)
+        content_bytes = content.encode("utf-8")
         tmp_path = out_path.with_suffix(".strm.tmp")
-        tmp_path.write_text(content, encoding="utf-8", newline="\n")
+        # Write bytes to avoid platform newline translation.
+        tmp_path.write_bytes(content_bytes)
         tmp_path.replace(out_path)
 
         with Session(engine) as s:
@@ -242,8 +254,8 @@ def _run_strm(job_id: str, req: dict, stop_event: threading.Event) -> None:
                 job_id,
                 status="completed",
                 progress=100.0,
-                downloaded_bytes=len(content.encode("utf-8")),
-                total_bytes=len(content.encode("utf-8")),
+                downloaded_bytes=len(content_bytes),
+                total_bytes=len(content_bytes),
                 result_path=str(out_path),
                 message=f"STRM created (provider={provider_used})",
             )

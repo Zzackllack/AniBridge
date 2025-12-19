@@ -53,6 +53,17 @@ def _hash_id_with_mode(
 
     This preserves the legacy hash format when `mode` is not provided, ensuring
     backward compatibility for existing magnets.
+
+    Parameters:
+        slug (str): Content identifier.
+        season (int): Season number.
+        episode (int): Episode number.
+        language (str): Language label.
+        mode (str | None): Optional variant mode included in the hash when provided.
+
+    Returns:
+        str: Hexadecimal SHA-1 digest of "{slug}|{season}|{episode}|{language}" or
+        "{slug}|{season}|{episode}|{language}|{mode}" when mode is present.
     """
     if not mode:
         return _hash_id(slug, season, episode, language)
