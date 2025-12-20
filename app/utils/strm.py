@@ -8,15 +8,15 @@ from urllib.parse import urlparse
 def build_strm_content(url: str) -> str:
     """
     Create .strm file content containing a single HTTP(S) URL followed by a newline.
-    
+
     The input URL is validated to be non-empty and to use the http or https scheme.
-    
+
     Parameters:
         url (str): Direct HTTP(S) URL to embed in the .strm content.
-    
+
     Returns:
         str: The validated URL ending with a single newline.
-    
+
     Raises:
         ValueError: If the URL is empty or its scheme is not http or https.
     """
@@ -32,12 +32,12 @@ def build_strm_content(url: str) -> str:
 def sanitize_strm_basename(name: str) -> str:
     """
     Produce a filesystem-safe basename from a user-facing release name.
-    
+
     Performs human-readable normalization suitable for media servers: empty input becomes "Episode", the standalone word "sample" (case-insensitive) is replaced with "clip", path separators and characters illegal in filenames are replaced with underscores, runs of whitespace/underscores are collapsed to single spaces, and leading dots or reserved names (".", "..") are removed or replaced with "Episode".
-    
+
     Parameters:
         name (str): Raw title or display name.
-    
+
     Returns:
         str: Sanitized basename without the `.strm` extension.
     """

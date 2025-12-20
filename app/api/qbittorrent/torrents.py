@@ -39,17 +39,17 @@ def torrents_add(
 ):
     """
     Process the first magnet URL from Sonarr, schedule its download, and record a ClientTask.
-    
+
     Parameters:
         urls (str): One or more magnet URLs separated by newlines; only the first line is processed.
         savepath (Optional[str]): Explicit save directory for the torrent; if omitted the configured download directory is used and a public save path will be preferred when stored.
         category (Optional[str]): Optional category to record with the task.
         paused (Optional[bool]): If true, the created task is marked as queued instead of downloading.
         tags (Optional[str]): Optional tags provided by the caller (accepted but not interpreted).
-    
+
     Returns:
         PlainTextResponse: A plain-text response with the body "Ok." on success.
-    
+
     Raises:
         HTTPException: Raised with status 400 when `urls` is empty/missing or magnet parameters are malformed.
     """

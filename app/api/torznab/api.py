@@ -64,7 +64,7 @@ def torznab_api(
 ) -> Response:
     """
     Handle Torznab API requests and produce the appropriate XML or RSS response.
-    
+
     Parameters:
         request (Request): Incoming FastAPI request.
         t (str): Mode selector: "caps", "search", or "tvsearch".
@@ -76,7 +76,7 @@ def torznab_api(
         offset (int): Result offset for paging.
         limit (int): Maximum number of RSS items to include.
         session (Session): Database session (injected; omitted from consumer-facing docs).
-    
+
     Returns:
         Response: FastAPI Response containing XML:
             - application/xml; charset=utf-8 for "caps"
