@@ -52,5 +52,16 @@ AniBridge crafts magnet URIs with embedded fields:
 magnet:?xt=urn:btih:{hash}&dn={release}&aw_slug={slug}&aw_s={S}&aw_e={E}&aw_lang={Language}&aw_provider={Provider}&aw_site={aniworld.to}
 ```
 
+Optional variant field (used for STRM support):
+
+```text
+...&aw_mode=strm
+```
+
 For Serienstream releases the prefix switches to `sto_` (e.g., `sto_slug`, `sto_site=s.to`). The qBittorrent shim parses these parameters when Sonarr posts to `/api/v2/torrents/add`.
 
+## STRM Variants
+
+When `STRM_FILES_MODE` is enabled (`both` or `only`), AniBridge emits additional Torznab items with a ` [STRM]` suffix. Selecting such an item causes AniBridge to create a `.strm` file (plain text, one URL line) instead of downloading the media file.
+
+STRM variants intentionally report a normal-looking size (the same heuristic sizing as non-STRM items) so they are not rejected by Arr size filters.

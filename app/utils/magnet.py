@@ -45,6 +45,38 @@ def _hash_id(slug: str, season: int, episode: int, language: str) -> str:
     return h
 
 
+def _hash_id_with_mode(
+    slug: str, season: int, episode: int, language: str, mode: str | None
+) -> str:
+    """
+    Compute a deterministic SHA-1 identifier for the specified content and variant mode.
+
+    This preserves the legacy hash format when `mode` is not provided, ensuring
+    backward compatibility for existing magnets.
+
+    Parameters:
+        slug (str): Content identifier.
+        season (int): Season number.
+        episode (int): Episode number.
+        language (str): Language label.
+        mode (str | None): Optional variant mode included in the hash when provided.
+
+    Returns:
+        str: Hexadecimal SHA-1 digest of "{slug}|{season}|{episode}|{language}" or
+        "{slug}|{season}|{episode}|{language}|{mode}" when mode is present.
+    """
+    if not mode:
+        return _hash_id(slug, season, episode, language)
+    logger.debug(
+        f"Hashing ID with slug={slug}, season={season}, episode={episode}, language={language}, mode={mode}"
+    )
+    h = hashlib.sha1(
+        f"{slug}|{season}|{episode}|{language}|{mode}".encode("utf-8")
+    ).hexdigest()
+    logger.info(f"Generated hash (mode={mode}): {h}")
+    return h
+
+
 def build_magnet(
     *,
     title: str,
@@ -54,6 +86,7 @@ def build_magnet(
     language: str,
     provider: str | None = None,
     site: str = "aniworld.to",
+    mode: str | None = None,
 ) -> str:
     """
     Constructs a site-aware magnet URI containing metadata required by the Shim.
@@ -66,6 +99,7 @@ def build_magnet(
         language (str): Language code included as the site-prefixed `lang` parameter.
         provider (str | None): Optional provider identifier included as the site-prefixed `provider` parameter when provided.
         site (str): Source site; selects the parameter prefix — `"aw"` when `"aniworld.to"`, `"sto"` otherwise.
+        mode (str | None): Optional variant mode used to disambiguate releases (e.g., `"strm"`). When set, both the infohash and an additional site-prefixed `mode` parameter are included.
 
     Returns:
         magnet_uri (str): A magnet URI that includes `xt`, `dn`, and site-prefixed metadata (slug, s, e, lang, site, and optionally provider).
@@ -73,7 +107,8 @@ def build_magnet(
     logger.debug(
         f"Building magnet for title='{title}', slug='{slug}', season={season}, episode={episode}, language='{language}', provider='{provider}', site='{site}'"
     )
-    xt = f"urn:btih:{_hash_id(slug, season, episode, language)}"
+    mode_norm = mode.strip().lower() if mode else None
+    xt = f"urn:btih:{_hash_id_with_mode(slug, season, episode, language, mode_norm)}"
     # Build query params, but ensure 'xt=urn:btih:...' keeps ':' unescaped.
     # Some consumers (Prowlarr/qBittorrent) are strict and expect a literal
     # 'urn:btih:' instead of the percent-encoded variant.
@@ -90,6 +125,8 @@ def build_magnet(
         (f"{prefix}_lang", language),
         (f"{prefix}_site", site),  # Add site metadata
     ]
+    if mode_norm:
+        params.append((f"{prefix}_mode", mode_norm))
     if provider:
         params.append((f"{prefix}_provider", provider))
         logger.debug(f"Added provider to magnet: {provider}")
