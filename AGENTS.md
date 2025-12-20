@@ -959,36 +959,37 @@ For every initiative, confirm adherence:
 28. `DELETE_FILES_ON_TORRENT_DELETE` — Remove files when torrent deleted (default `true`).
 29. `DOWNLOADS_TTL_HOURS` — TTL cleanup threshold (default `0`, disabled).
 30. `CLEANUP_SCAN_INTERVAL_MIN` — Cleanup loop interval minutes (default `30`).
-31. `PROGRESS_FORCE_BAR` — Force progress bar rendering (default `false`).
-32. `PROGRESS_STEP_PERCENT` — Progress logging step percentage (default `5`).
-33. `ANIBRIDGE_UPDATE_CHECK` — Enable GitHub release polling (default `true`).
-34. `ANIBRIDGE_GITHUB_TOKEN` — Token used for rate-limited GitHub API calls.
-35. `ANIBRIDGE_GITHUB_OWNER` — GitHub owner (default `zzackllack`).
-36. `ANIBRIDGE_GITHUB_REPO` — Repo name (default `AniBridge`).
-37. `ANIBRIDGE_GHCR_IMAGE` — GHCR image slug (default `zzackllack/anibridge`).
-38. `PROXY_ENABLED` — Master toggle for proxy usage (`false`).
-39. `PROXY_URL` — Full proxy URL with optional credentials.
-40. `PROXY_HOST` — Host when building proxy URL from parts.
-41. `PROXY_PORT` — Port for constructed proxy.
-42. `PROXY_SCHEME` — Proxy scheme (default `socks5`).
-43. `PROXY_USERNAME` — Proxy auth username.
-44. `PROXY_PASSWORD` — Proxy auth password.
-45. `HTTP_PROXY_URL` — Protocol-specific override.
-46. `HTTPS_PROXY_URL` — Protocol-specific override.
-47. `ALL_PROXY_URL` — Generic override for all protocols.
-48. `NO_PROXY` — Domains bypassing proxy.
-49. `PROXY_FORCE_REMOTE_DNS` — Force remote DNS for SOCKS proxies (default `false` in config? actual default `True` due to config logic; note compose default `false` to respect operator choice).
-50. `PROXY_DISABLE_CERT_VERIFY` — Disable TLS verification for proxies (default `false`).
-51. `PROXY_APPLY_ENV` — Apply proxies to process env (default `true`).
-52. `PROXY_IP_CHECK_INTERVAL_MIN` — Interval minutes for IP checks (default `30`).
-53. `PROXY_SCOPE` — Scope of proxy usage (`all`, `requests`, `ytdlp`).
-54. `PUBLIC_IP_CHECK_ENABLED` — Run IP monitor even when proxy disabled (default `false`).
-55. `PUBLIC_IP_CHECK_INTERVAL_MIN` — Override for IP check interval (defaults to proxy interval).
-56. `HTTP_PROXY_URL`, `HTTPS_PROXY_URL`, `ALL_PROXY_URL` interplay documented in config docstrings.
-57. `PYTHONUNBUFFERED` — Set to `1` in Docker to keep logs flush.
-58. `ANIBRIDGE_DOCS_BASE_URL` — (If introduced in docs; check config before use.)
-59. `QBIT_PUBLIC_SAVE_PATH` — Mapped path for completed downloads.
-60. `SONARR_*`, `PROWLARR_*` — Not direct env vars but relevant when integrating (documented in docs/integrations).
+31. `STRM_FILES_MODE` — Controls whether Torznab emits STRM variants and whether the qBittorrent shim writes `.strm` files instead of downloading media (`no`, `both`, `only`, default `no`).
+32. `PROGRESS_FORCE_BAR` — Force progress bar rendering (default `false`).
+33. `PROGRESS_STEP_PERCENT` — Progress logging step percentage (default `5`).
+34. `ANIBRIDGE_UPDATE_CHECK` — Enable GitHub release polling (default `true`).
+35. `ANIBRIDGE_GITHUB_TOKEN` — Token used for rate-limited GitHub API calls.
+36. `ANIBRIDGE_GITHUB_OWNER` — GitHub owner (default `zzackllack`).
+37. `ANIBRIDGE_GITHUB_REPO` — Repo name (default `AniBridge`).
+38. `ANIBRIDGE_GHCR_IMAGE` — GHCR image slug (default `zzackllack/anibridge`).
+39. `PROXY_ENABLED` — Master toggle for proxy usage (`false`).
+40. `PROXY_URL` — Full proxy URL with optional credentials.
+41. `PROXY_HOST` — Host when building proxy URL from parts.
+42. `PROXY_PORT` — Port for constructed proxy.
+43. `PROXY_SCHEME` — Proxy scheme (default `socks5`).
+44. `PROXY_USERNAME` — Proxy auth username.
+45. `PROXY_PASSWORD` — Proxy auth password.
+46. `HTTP_PROXY_URL` — Protocol-specific override.
+47. `HTTPS_PROXY_URL` — Protocol-specific override.
+48. `ALL_PROXY_URL` — Generic override for all protocols.
+49. `NO_PROXY` — Domains bypassing proxy.
+50. `PROXY_FORCE_REMOTE_DNS` — Force remote DNS for SOCKS proxies (default `false` in config? actual default `True` due to config logic; note compose default `false` to respect operator choice).
+51. `PROXY_DISABLE_CERT_VERIFY` — Disable TLS verification for proxies (default `false`).
+52. `PROXY_APPLY_ENV` — Apply proxies to process env (default `true`).
+53. `PROXY_IP_CHECK_INTERVAL_MIN` — Interval minutes for IP checks (default `30`).
+54. `PROXY_SCOPE` — Scope of proxy usage (`all`, `requests`, `ytdlp`).
+55. `PUBLIC_IP_CHECK_ENABLED` — Run IP monitor even when proxy disabled (default `false`).
+56. `PUBLIC_IP_CHECK_INTERVAL_MIN` — Override for IP check interval (defaults to proxy interval).
+57. `HTTP_PROXY_URL`, `HTTPS_PROXY_URL`, `ALL_PROXY_URL` interplay documented in config docstrings.
+58. `PYTHONUNBUFFERED` — Set to `1` in Docker to keep logs flush.
+59. `ANIBRIDGE_DOCS_BASE_URL` — (If introduced in docs; check config before use.)
+60. `QBIT_PUBLIC_SAVE_PATH` — Mapped path for completed downloads.
+61. `SONARR_*`, `PROWLARR_*` — Not direct env vars but relevant when integrating (documented in docs/integrations).
 
 *(Extend this list when new environment variables introduced. Ensure documentation lines remain updated.)*
 
