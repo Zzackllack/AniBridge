@@ -9,8 +9,15 @@ from sqlmodel import Session
 from app.db.models import Job
 
 
-def _setup_scheduler(tmp_path: Path, monkeypatch: Any) -> ModuleType:
-    """Configure environment and database for scheduler tests."""
+def _setup_scheduler(tmp_path, monkeypatch):
+    """
+    Prepare a test scheduler environment and return the scheduler module.
+    
+    Sets environment variables ANIBRIDGE_UPDATE_CHECK, DATA_DIR, and DOWNLOAD_DIR for the test run, removes cached app modules related to configuration, database, and scheduler from sys.modules to ensure a fresh import, and initializes the test database tables. Finally imports and returns the app.core.scheduler module.
+    
+    Returns:
+        module: The imported `app.core.scheduler` module.
+    """
     monkeypatch.setenv("ANIBRIDGE_UPDATE_CHECK", "0")
     data_dir = tmp_path / "data"
     download_dir = tmp_path / "downloads"
@@ -34,16 +41,29 @@ def _setup_scheduler(tmp_path: Path, monkeypatch: Any) -> ModuleType:
     return scheduler
 
 
-def _create_job() -> str:
-    """Create a job in the database and return its ID."""
+def _create_job():
+    """
+    Create a new job in the test database for the source site "aniworld.to" and return its identifier.
+    
+    Returns:
+        The created job's id.
+    """
     from app.db import create_job, engine
 
     with Session(engine) as session:
         return create_job(session, source_site="aniworld.to").id
 
 
-def _get_job(job_id: str) -> Optional[Job]:
-    """Fetch a job by ID from the test database."""
+def _get_job(job_id: str):
+    """
+    Retrieve a job record from the database by its identifier.
+    
+    Parameters:
+        job_id (str): Identifier of the job to retrieve.
+    
+    Returns:
+        The job record matching `job_id`, or `None` if no such job exists.
+    """
     from app.db import get_job, engine
 
     with Session(engine) as session:

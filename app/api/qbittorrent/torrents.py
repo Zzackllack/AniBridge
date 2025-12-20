@@ -38,22 +38,20 @@ def torrents_add(
     tags: Optional[str] = Form(default=None),
 ):
     """
-    Accept a Sonarr POST of magnet URL(s), schedule the download for the first magnet, and record a ClientTask.
-
-    Parses the first magnet line from `urls`, extracts metadata (slug, season, episode, language, site, name, and torrent hash), schedules a download job, and upserts a ClientTask with the job and save path. If `savepath` is not provided, the configured download directory is used; if a public save path is configured it is stored as the task's save path.
+    Process the first magnet URL from Sonarr, schedule its download, and record a ClientTask.
 
     Parameters:
         urls (str): One or more magnet URLs separated by newlines; only the first line is processed.
-        savepath (Optional[str]): Optional explicit save directory for the torrent. If omitted, the configured DOWNLOAD_DIR is used; a configured QBIT_PUBLIC_SAVE_PATH will be preferred when stored.
+        savepath (Optional[str]): Explicit save directory for the torrent; if omitted the configured download directory is used and a public save path will be preferred when stored.
         category (Optional[str]): Optional category to record with the task.
         paused (Optional[bool]): If true, the created task is marked as queued instead of downloading.
-        tags (Optional[str]): Optional tags provided by the caller (accepted but not otherwise interpreted here).
+        tags (Optional[str]): Optional tags provided by the caller (accepted but not interpreted).
 
     Returns:
         PlainTextResponse: A plain-text response with the body "Ok." on success.
 
     Raises:
-        HTTPException: Raised with status 400 when `urls` is empty or missing.
+        HTTPException: Raised with status 400 when `urls` is empty/missing or magnet parameters are malformed.
     """
     logger.info(f"Received request to add torrent(s): {urls}")
     if not urls:
