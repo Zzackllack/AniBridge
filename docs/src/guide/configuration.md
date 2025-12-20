@@ -25,6 +25,15 @@ AniBridge is configured via environment variables (works well with Docker). Sens
 - Connectivity test result: `TORZNAB_RETURN_TEST_RESULT` (`true|false`)
 - Test release fields: `TORZNAB_TEST_TITLE`, `TORZNAB_TEST_SLUG`, `TORZNAB_TEST_SEASON`, `TORZNAB_TEST_EPISODE`, `TORZNAB_TEST_LANGUAGE`
 
+## STRM Files
+
+- `STRM_FILES_MODE` (`no|both|only`, default: `no`)
+  - `no`: behave like today (download via yt-dlp).
+  - `both`: emit both variants for each Torznab item (download + STRM).
+  - `only`: emit only STRM variants.
+
+In STRM mode, AniBridge schedules creation of a `.strm` file (plain text, one HTTP(S) URL line) instead of downloading media bytes.
+
 ## Provider & Language
 
 - `PROVIDER_ORDER`: comma-separated providers by priority (e.g., `VOE,Filemoon,Streamtape,...`)

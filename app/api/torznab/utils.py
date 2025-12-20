@@ -175,7 +175,22 @@ def _build_item(
     pubdate: Optional[datetime],
     cat_id: int,
     guid_str: str,
+    length_bytes: int | None = None,
 ) -> None:
+    """
+    Append a complete Torznab-compatible RSS <item> to the provided channel element.
+
+    Creates an <item> with title, GUID (not a permalink), optional pubDate, category, and an <enclosure> for the given magnet URL. The enclosure length is set to the provided `length_bytes` when given; otherwise an estimated size is used. Adds Torznab attribute elements for `magneturl`, `size`, and `infohash` (when the BTIH can be extracted), and adds configured seeders, peers, and leechers attributes.
+
+    Parameters:
+        channel (xml.etree.ElementTree.Element): The RSS <channel> element to append the new <item> to.
+        title (str): The display title for the item.
+        magnet (str): The magnet URI to use as the enclosure URL.
+        pubdate (Optional[datetime.datetime]): Publication date; when provided a RFC-822 formatted <pubDate> element is added.
+        cat_id (int): Numeric category identifier to place in the <category> element.
+        guid_str (str): Opaque GUID string to include inside the <guid> element (marked as not a permalink).
+        length_bytes (Optional[int]): If provided, used as the enclosure length in bytes; otherwise a heuristic estimate is used.
+    """
     logger.debug(
         f"Building RSS item: title='{title}', guid='{guid_str}', magnet='{magnet}'"
     )
@@ -194,7 +209,11 @@ def _build_item(
     enc.set("url", magnet)
     # Helps differentiate magnets vs .torrent files for some consumers
     enc.set("type", "application/x-bittorrent;x-scheme-handler/magnet")
-    est_size = _estimate_size_from_title_bytes(title)
+    est_size = (
+        int(length_bytes)
+        if length_bytes is not None
+        else _estimate_size_from_title_bytes(title)
+    )
     enc.set("length", str(est_size))
 
     # torznab attrs
