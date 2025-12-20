@@ -2,9 +2,11 @@ import errno
 import threading
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, Optional
 
 from sqlmodel import Session
+
+from app.db.models import Job
 
 
 def _setup_scheduler(tmp_path: Path, monkeypatch: Any) -> ModuleType:
@@ -32,14 +34,16 @@ def _setup_scheduler(tmp_path: Path, monkeypatch: Any) -> ModuleType:
     return scheduler
 
 
-def _create_job():
+def _create_job() -> str:
+    """Create a job in the database and return its ID."""
     from app.db import create_job, engine
 
     with Session(engine) as session:
         return create_job(session, source_site="aniworld.to").id
 
 
-def _get_job(job_id: str):
+def _get_job(job_id: str) -> Optional[Job]:
+    """Fetch a job by ID from the test database."""
     from app.db import get_job, engine
 
     with Session(engine) as session:
@@ -79,6 +83,7 @@ def test_run_strm_creates_file_and_updates_job(tmp_path, monkeypatch):
 
 
 def test_run_strm_marks_failed_on_invalid_url(tmp_path, monkeypatch):
+    """Test that _run_strm fails when given a non-HTTP(S) URL."""
     scheduler = _setup_scheduler(tmp_path, monkeypatch)
     monkeypatch.setattr(scheduler, "build_episode", lambda **kwargs: object())
     monkeypatch.setattr(
