@@ -1,14 +1,19 @@
 import errno
 import threading
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 from sqlmodel import Session
 
 
-def _setup_scheduler(tmp_path, monkeypatch):
+def _setup_scheduler(tmp_path: Path, monkeypatch: Any) -> ModuleType:
+    """Configure environment and database for scheduler tests."""
     monkeypatch.setenv("ANIBRIDGE_UPDATE_CHECK", "0")
     data_dir = tmp_path / "data"
     download_dir = tmp_path / "downloads"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    download_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("DATA_DIR", str(data_dir))
     monkeypatch.setenv("DOWNLOAD_DIR", str(download_dir))
 

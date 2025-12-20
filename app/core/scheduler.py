@@ -16,8 +16,6 @@ from app.utils.terminal import (
 from app.db import engine, create_job, update_job
 from app.core.downloader import (
     download_episode,
-    Provider,
-    Language,
     build_episode,
     get_direct_url_with_fallback,
 )
