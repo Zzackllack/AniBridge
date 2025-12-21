@@ -5,7 +5,7 @@ This document is auto-maintained by contributors. Update responsibly.
 
 # AniBridge Agent Operations Manual
 
-> **Purpose:** Equip AI and human contributors with exhaustive, operational knowledge of the AniBridge repository, tooling, infrastructure, and workflows. This edition supersedes any prior AGENTS.md snapshots.
+> **Purpose:** Equip AI with exhaustive, operational knowledge of the AniBridge repository, tooling, infrastructure, and workflows.
 
 ---
 
@@ -13,9 +13,8 @@ This document is auto-maintained by contributors. Update responsibly.
 
 - **Repository:** `https://github.com/Zzackllack/AniBridge`
 - **Primary Maintainer:** `@Zzackllack`
-- **Last Full Refresh:** 2025-09-21
-- **Documentation Version:** `2025.09-agents-v1`
-- **Change Drivers:** Constitution v1.0.0, VitePress documentation site, Cloudflare Workers deployment pipeline, expanded module boundaries
+- **Last Full Refresh:** 2025-12-21
+- **Documentation Version:** `2025.12-agents-v2`
 
 ---
 
@@ -45,22 +44,19 @@ This document is auto-maintained by contributors. Update responsibly.
 22. [Scripts & Tooling](#22-scripts--tooling)
 23. [Build, Release & Distribution](#23-build-release--distribution)
 24. [CI/CD Workflows](#24-cicd-workflows)
-25. [Automation Framework (.specify)](#25-automation-framework-specify)
-26. [Constitution Alignment Checklist](#26-constitution-alignment-checklist)
-27. [Onboarding Playbooks](#27-onboarding-playbooks)
-28. [Multi-Agent Collaboration Patterns](#28-multi-agent-collaboration-patterns)
-29. [Troubleshooting Playbooks](#29-troubleshooting-playbooks)
-30. [Security & Compliance Notes](#30-security--compliance-notes)
-31. [Legal Considerations](#31-legal-considerations)
-32. [Glossary](#32-glossary)
-33. [External Resources](#33-external-resources)
-34. [Appendix A: Environment Variable Catalog](#appendix-a-environment-variable-catalog)
-35. [Appendix B: File Reference Index](#appendix-b-file-reference-index)
-36. [Appendix C: Test Suite Overview](#appendix-c-test-suite-overview)
-37. [Appendix D: Release Playbook](#appendix-d-release-playbook)
-38. [Appendix E: Documentation Editing Guide](#appendix-e-documentation-editing-guide)
-39. [Appendix F: Agent Execution FAQ](#appendix-f-agent-execution-faq)
-40. [Change Log](#change-log)
+25. [Constitution Alignment Checklist](#25-constitution-alignment-checklist)
+26. [Onboarding Playbooks](#26-onboarding-playbooks)
+27. [Multi-Agent Collaboration Patterns](#27-multi-agent-collaboration-patterns)
+28. [Security & Compliance Notes](#28-security--compliance-notes)
+29. [Legal Considerations](#29-legal-considerations)
+30. [Glossary](#30-glossary)
+31. [External Resources](#31-external-resources)
+32. [Appendix A: Environment Variable Catalog](#appendix-a-environment-variable-catalog)
+33. [Appendix B: File Reference Index](#appendix-b-file-reference-index)
+34. [Appendix C: Test Suite Overview](#appendix-c-test-suite-overview)
+35. [Appendix D: Release Playbook](#appendix-d-release-playbook)
+36. [Appendix E: Documentation Editing Guide](#appendix-e-documentation-editing-guide)
+37. [Change Log](#change-log)
 
 ---
 
@@ -98,18 +94,18 @@ This document is auto-maintained by contributors. Update responsibly.
 
 | Layer | Technology | Purpose | Key Files |
 | --- | --- | --- | --- |
-| API Framework | FastAPI | HTTP routing, dependency binding, request handling | `app/main.py`, `app/api/*`
-| ASGI Server | Uvicorn (standard extras) | Production server, websockets support, HTTP/2 optional | Docker CMD `python -m app.main`, local CLI `run_server`
-| ORM/DB | SQLModel + SQLAlchemy | SQLite persistence for jobs, availability cache, qBittorrent shim state | `app/db/models.py`
-| Background Jobs | ThreadPoolExecutor | Download orchestration, TTL cleanup threads, public IP monitoring | `app/core/scheduler.py`, `app/core/lifespan.py`
-| Downloader | yt-dlp, AniWorld lib | Episode retrieval, provider fallback, progress events | `app/core/downloader.py`, `app/utils/probe_quality.py`
-| Logging | Loguru | Structured console logging, file mirroring, level control | `app/utils/logger.py`, `app/infrastructure/terminal_logger.py`
-| Configuration | dotenv + environment variables | Centralized config resolution, proxy handling, path management | `app/config.py`
-| Docs Site | VitePress (Vue 3, Vite 7) | Static documentation, interactive components | `docs/*`, `docs/.vitepress/config.mts`
-| Docs Hosting | Cloudflare Workers + Wrangler | CDN-backed static hosting for docs/dist | `wrangler.toml`, `src/worker.ts`
-| Packaging | setuptools + build + PyInstaller | Python package distribution, single binary builds | `pyproject.toml`, `Makefile`, `.github/workflows/release-on-tag.yml`
-| Containerization | Docker, docker-compose | Production image, local orchestration | `Dockerfile`, `docker-compose.yaml`
-| Automation | GitHub Actions, `.specify` framework | CI/CD pipelines, agent workflows | `.github/workflows/*`, `.specify/templates/*`
+| API Framework | FastAPI | HTTP routing, dependency binding, request handling | `app/main.py`, `app/api/*` |
+| ASGI Server | Uvicorn (standard extras) | Production server, websockets support, HTTP/2 optional | Docker CMD `python -m app.main`, local CLI `run_server` |
+| ORM/DB | SQLModel + SQLAlchemy | SQLite persistence for jobs, availability cache, qBittorrent shim state | `app/db/models.py` |
+| Background Jobs | ThreadPoolExecutor | Download orchestration, TTL cleanup threads, public IP monitoring | `app/core/scheduler.py`, `app/core/lifespan.py` |
+| Downloader | yt-dlp, AniWorld lib | Episode retrieval, provider fallback, progress events | `app/core/downloader.py`, `app/utils/probe_quality.py` |
+| Logging | Loguru | Structured console logging, file mirroring, level control | `app/utils/logger.py`, `app/infrastructure/terminal_logger.py` |
+| Configuration | dotenv + environment variables | Centralized config resolution, proxy handling, path management | `app/config.py` |
+| Docs Site | VitePress (Vue 3, Vite 7) | Static documentation, interactive components | `docs/*`, `docs/.vitepress/config.mts` |
+| Docs Hosting | Cloudflare Workers + Wrangler | CDN-backed static hosting for docs/dist | `wrangler.toml`, `src/worker.ts` |
+| Packaging | setuptools + build + PyInstaller | Python package distribution, single binary builds | `pyproject.toml`, `Makefile`, `.github/workflows/release-on-tag.yml` |
+| Containerization | Docker, docker-compose | Production image, local orchestration | `Dockerfile`, `docker-compose.yaml` |
+| Automation | GitHub Actions | CI/CD pipelines, agent workflows | `.github/workflows/*` |
 
 ---
 
@@ -188,7 +184,6 @@ This document is auto-maintained by contributors. Update responsibly.
 ### Hidden / Meta Directories
 
 - `.github/` — GitHub configuration (actions, issue templates, prompt instructions).
-- `.specify/` — Agent automation templates, constitution, scripts.
 - `.gitignore` — Git ignore rules (not shown above but present).
 
 ### `.github` Subdirectories
@@ -199,15 +194,6 @@ This document is auto-maintained by contributors. Update responsibly.
 - `img/` — Repository images (logo used by README).
 - `prompts/` — Example prompts.
 - `ISSUE_TEMPLATE/` — Issue templates for GitHub.
-
-### `.specify` Contents
-
-- `memory/constitution.md` — Constitution v1.0.0 (Sync Impact Report included).
-- `templates/plan-template.md` — Implementation plan template aligned with constitution.
-- `templates/spec-template.md` — Feature specification template.
-- `templates/tasks-template.md` — Task generation template with AniBridge-specific guidance.
-- `templates/agent-file-template.md` — Base instructions for agent overlays.
-- `scripts/` — Utility scripts for `.specify` workflows.
 
 ### `app/` High-Level Layout (Detailed breakdown in Section 6)
 
@@ -542,12 +528,11 @@ When running via Docker Compose, environment variables are pre-wired with defaul
 ## 17. Local Development Setup
 
 1. **Python Environment:**
-   - Optional: `pyenv install 3.12.x`, `pyenv virtualenv 3.12.x anibridge`.
-   - Alternatively: `python3 -m venv .venv`.
-   - Activate environment, upgrade pip.
+   - Use uv. `uv run ...` `uv venv` `uv add ...` etc.
+   - Activate the virtual environment with source `./.venv/bin/activate` (Linux/macOS) or `.\.venv\Scripts\activate` (Windows).
 2. **Dependencies:**
-   - Runtime: `pip install -r requirements.runtime.txt`.
-   - Development: `pip install -r requirements-dev.txt` (includes pytest, black, pyinstaller, httpx).
+   - Runtime: `uv pip install -r requirements.runtime.txt`.
+   - Development: `uv pip install -r requirements-dev.txt` (includes pytest, black, pyinstaller, httpx).
 3. **Environment Variables:**
    - Copy `.env.example` if available (if not, create `.env` referencing Appendix A defaults).
 4. **Database:**
@@ -555,7 +540,7 @@ When running via Docker Compose, environment variables are pre-wired with defaul
 5. **Running the App:**
    - `python -m app.main` or `uvicorn app.main:app --reload` (set `ANIBRIDGE_RELOAD=true`).
 6. **Docs Development:**
-   - Install Node 20+ (recommend nvm).
+   - Install Node 20+.
    - `pnpm --prefix docs install`.
    - `pnpm --prefix docs run dev` to launch VitePress at `http://localhost:5173`.
 7. **Cloudflare Worker Testing:**
@@ -563,8 +548,6 @@ When running via Docker Compose, environment variables are pre-wired with defaul
    - `wrangler dev` uses `wrangler.toml` to serve built docs (requires prior `pnpm --prefix docs run build`).
 8. **Linting:**
    - `black app` (aligns with CI `format-and-run.yml`).
-9. **Pre-commit (Optional):**
-   - While no `.pre-commit-config.yaml` is provided, consider configuring locally for black/pytest.
 
 ---
 
@@ -724,29 +707,7 @@ When running via Docker Compose, environment variables are pre-wired with defaul
 
 ---
 
-## 25. Automation Framework (.specify)
-
-- **Constitution (`.specify/memory/constitution.md`):**
-  - Version 2.0.0, ratified 2025-09-21.
-  - Principles: Code Quality Stewardship, Test-Centric Reliability, User Experience Consistency, Performance & Resilience Discipline.
-  - Additional sections: Operational Constraints, Workflow & Review Gates, Governance.
-  - Sync Impact Report appended as HTML comment summarizing version changes.
-
-- **Templates:**
-  - `plan-template.md` — Guides `/plan` command with constitution check gate, repository structure reference, and progress tracking.
-  - `spec-template.md` — Feature specification guidelines focusing on user value, contract impacts, user experience alignment, performance guardrails, and compliance.
-  - `tasks-template.md` — Defines TDD-first task generation with AniBridge-specific path conventions, performance/resilience hardening, and compliance tasks.
-  - `agent-file-template.md` — Baseline instructions for agent overlays (Codex, Copilot, etc.).
-
-- **Scripts:** `.specify/scripts` contains automation helpers (inspect before use).
-
-- **Usage Notes:**
-  - Always update templates when constitution changes.
-  - Ensure constitution check sections in plan/spec/tasks align with latest principles.
-
----
-
-## 26. Constitution Alignment Checklist
+## 25. Constitution Alignment Checklist
 
 For every initiative, confirm adherence:
 
@@ -759,7 +720,7 @@ For every initiative, confirm adherence:
 
 ---
 
-## 27. Onboarding Playbooks
+## 26. Onboarding Playbooks
 
 ### Human/Agent Quick Start
 
@@ -782,7 +743,7 @@ For every initiative, confirm adherence:
 
 ---
 
-## 28. Multi-Agent Collaboration Patterns
+## 27. Multi-Agent Collaboration Patterns
 
 - **Spec/Plan/Tasks Pipeline:**
   - Agent A: Generate feature spec using `.specify/templates/spec-template.md`.
@@ -805,66 +766,7 @@ For every initiative, confirm adherence:
 
 ---
 
-## 29. Troubleshooting Playbooks
-
-### Download Failures
-
-- Check logs in `data/terminal-YYYY-MM-DD.log`.
-- Verify proxy settings effective (`PROXY_ENABLED`, `PROXY_URL`).
-- Confirm AniWorld reachable from host (outbound connectivity).
-- Ensure `DOWNLOAD_DIR` writable.
-- Validate provider order includes functioning hosts.
-
-### Torznab Empty Results
-
-- Confirm `ANIWORLD_ALPHABET_URL` reachable and exposures preloaded.
-- Check `EpisodeAvailability` TTL — maybe stale data; consider clearing DB entry.
-- Verify slug mapping via `app/utils/title_resolver.py` logs.
-
-### qBittorrent Client Not Syncing
-
-- Confirm `/api/v2/auth/login` returns `SID` cookie.
-- Use Sonarr logs to inspect error; ensure `INDEXER_API_KEY` configured if required.
-- Check `ClientTask` entries in SQLite for stuck states and cleanup if necessary.
-
-### Health Endpoint Failing
-
-- Inspect `/health` JSON to identify failing component.
-- DB: ensure `data/` volume persisted and writable.
-- Scheduler: verify `MAX_CONCURRENCY` not set to 0.
-
-### Proxy Issues
-
-- Log output from `apply_global_proxy_env` for active proxies.
-- Ensure `PROXY_FORCE_REMOTE_DNS` set appropriately; some providers require remote DNS.
-- Validate credentials in `PROXY_USERNAME/PASSWORD`.
-
-### Docs Build Errors
-
-- Delete `docs/node_modules`, reinstall dependencies.
-- Ensure Node 20+ installed.
-- Clear VitePress cache by removing `docs/.vitepress/cache`.
-
-### Cloudflare Deployment Fails
-
-- Check Wrangler authentication (`wrangler whoami`).
-- Confirm build command in `wrangler.toml` finishes without errors.
-- Validate `docs/.vitepress/dist` generated before publish.
-
-### PyInstaller Build Issues
-
-- Ensure `hooks/hook-fake_useragent.py` included to bundle fake-useragent data.
-- Run `pyinstaller --additional-hooks-dir hooks --onefile app/main.py` locally for debugging.
-
-### Tests Failing Locally but Passing CI
-
-- Remove `.pyc` and cached data (`find . -name '__pycache__' -delete`).
-- Ensure `PYTHONPATH` not polluted by other projects.
-- Recreate virtual environment if dependency mismatch.
-
----
-
-## 30. Security & Compliance Notes
+## 28. Security & Compliance Notes
 
 - **Credential Handling:**
   - No secrets committed; rely on environment variables and `.env` files excluded from git.
@@ -883,7 +785,7 @@ For every initiative, confirm adherence:
 
 ---
 
-## 31. Legal Considerations
+## 29. Legal Considerations
 
 - `LEGAL.md` warns about jurisdictional risks; users responsible for compliance with local laws and streaming providers' terms.
 - Documentation replicates caution (docs/legal.md) and emphasises VPN/proxy recommendations.
@@ -891,7 +793,7 @@ For every initiative, confirm adherence:
 
 ---
 
-## 32. Glossary
+## 30. Glossary
 
 - **AniWorld:** Source site for anime content.
 - **Torznab:** API specification for search/indexers used by *arr ecosystem.
@@ -906,7 +808,7 @@ For every initiative, confirm adherence:
 
 ---
 
-## 33. External Resources
+## 31. External Resources
 
 - **Project:**
   - GitHub Repository: https://github.com/Zzackllack/AniBridge
@@ -923,11 +825,16 @@ For every initiative, confirm adherence:
   - VitePress: https://vitepress.dev/
   - GitHub Actions: https://docs.github.com/en/actions
 
+- **Context7:**
+  - Description: Up-to-date Docs for LLMs and AI code editors
+  - Type: MCP-Server
+  - Use anytime you need to look up documentation or code references
+
 ---
 
 ## Appendix A: Environment Variable Catalog
 
-> Source references: `app/config.py`, `docker-compose.yaml`, docs configuration pages. Defaults reflect runtime behavior when variable unset.
+> Source references: `app/config.py`, `docker-compose.yaml`, `.env.example`, docs configuration pages. Defaults reflect runtime behavior when variable unset.
 
 1. `LOG_LEVEL` — Controls Loguru logging level (default `INFO`).
 2. `DATA_DIR` — Root data directory (default `./data`).
@@ -997,7 +904,7 @@ For every initiative, confirm adherence:
 
 ## Appendix B: File Reference Index
 
-> Comprehensive yet concise index. Include new files as they appear.
+> Include new files as they appear.
 
 - `app/api/torznab/api.py` — Torznab request handlers (search, caps, tvsearch).
 - `app/api/torznab/utils.py` — Query parsing, XML formatting.
@@ -1128,28 +1035,6 @@ Run `pytest -q` for quick validation or `pytest --cov=app --cov-report=term-miss
 
 ---
 
-## Appendix F: Agent Execution FAQ
-
-- **Q:** Where should agents log newly introduced decisions?
-  - **A:** In PR descriptions, update docs, and if structural change, extend AGENTS.md accordingly.
-
-- **Q:** How to regenerate `.specify` plan/spec/tasks templates after constitution change?
-  - **A:** Manually update templates referencing new principles; run `scripts/setup-codex-overlay.sh` for overlays.
-
-- **Q:** What if Cloudflare deployment fails due to authentication?
-  - **A:** Re-run `wrangler login`, ensure credentials stored. Document issues under docs/developer logging if persistent.
-
-- **Q:** How to add new providers?
-  - **A:** Update `PROVIDER_ORDER` default, adjust download logic, add tests, document in docs/integrations.
-
-- **Q:** Where to place new integration docs?
-  - **A:** `docs/src/integrations/<tool>.md`; update VitePress sidebar.
-
-- **Q:** How to handle environment-specific overrides during tests?
-  - **A:** Use pytest fixtures with `monkeypatch` (see `tests/conftest.py`).
-
----
-
 ## Change Log
 
 - **2025-09-21:**
@@ -1157,5 +1042,18 @@ Run `pytest -q` for quick validation or `pytest --cov=app --cov-report=term-miss
   - Documented constitution v1.0.0 alignment, updated templates references.
   - Added Cloudflare Workers deployment details, VitePress workflow, CI/CD breakdown.
   - Expanded environment variable catalog and file index.
+
+- **2025-12-21**:
+  - Added guidance for using uv in this project.
+  - Markdown formatting improvements throughout.
+  - Phrasing enhancements.
+  - Added .env.example reference in Appendix A.
+  - Added Context7 reference in External Resources.
+  - Deleted unnecessary content.
+    - Removed .specify guidlines - not used anymore.
+    - Removed *"Appendix F: Agent Execution FAQ"*.
+    - Removed *"29. Troubleshooting Playbooks"*.
+    - Removed *"25. Automation Framework (.specify)"*.
+    - Removed *"9. Pre-commit (Optional):"* in *"17. Local Development Setup"*.
 
 <!-- END OF AGENTS.md -->
