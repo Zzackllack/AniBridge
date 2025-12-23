@@ -9,15 +9,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import textwrap
-import urllib.error
-import urllib.request
+import traceback
 from pathlib import Path
 from typing import Any, Dict, List
 
+from google import genai
+
 DEFAULT_MODEL = "gemini-2.5-flash"
 MAX_COMMITS_DEFAULT = 200
+DEFAULT_LOG_LEVEL = "INFO"
 
 
 def sanitize(text: str, limit: int = 600) -> str:
@@ -78,50 +81,48 @@ def build_prompt(repo_url: str, current_tag: str, previous_tag: str | None, comm
     return textwrap.dedent(instructions).strip()
 
 
-def call_gemini(api_key: str, model: str, prompt: str, timeout: int = 60) -> str:
+def call_gemini(api_key: str, model: str, prompt: str, logger: logging.Logger) -> str:
     """Send request to Gemini API and return the generated text."""
-    base_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {
-                        "text": prompt
-                    }
-                ]
-            }
-        ]
-    }
+    logger.info("Initializing Gemini client.")
+    try:
+        client = genai.Client(api_key=api_key)
+    except Exception as exc:
+        logger.error("Failed to initialize Gemini client: %s", exc)
+        logger.debug("Gemini client init traceback:\n%s", traceback.format_exc())
+        raise
 
-    data = json.dumps(payload).encode("utf-8")
-    request = urllib.request.Request(
-        url=f"{base_url}?key={api_key}",
-        data=data,
-        headers={"Content-Type": "application/json"},
-        method="POST",
+    logger.info("Sending prompt to Gemini model '%s' (prompt chars=%s).", model, len(prompt))
+    try:
+        response = client.models.generate_content(model=model, contents=prompt)
+    except Exception as exc:
+        logger.error("Gemini API request failed: %s", exc)
+        logger.debug("Gemini request traceback:\n%s", traceback.format_exc())
+        raise
+
+    generated_text = (response.text or "").strip()
+    if not generated_text:
+        logger.error("Gemini API returned empty release notes.")
+        logger.debug("Gemini response object: %r", response)
+        raise ValueError("Gemini API returned empty release notes.")
+
+    logger.info("Gemini API returned release notes (chars=%s).", len(generated_text))
+    return generated_text
+
+
+def configure_logging(log_level: str) -> logging.Logger:
+    logger = logging.getLogger("anibridge.release_notes")
+    logger.setLevel(log_level)
+
+    handler = logging.StreamHandler()
+    handler.setLevel(log_level)
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
     )
 
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            response_body = response.read()
-    except urllib.error.URLError as exc:  # pragma: no cover - network failure handling
-        raise SystemExit(f"Gemini API request failed: {exc}") from exc
-
-    response_json = json.loads(response_body.decode("utf-8"))
-    candidates = response_json.get("candidates") or []
-    if not candidates:
-        raise SystemExit(f"Gemini API returned no candidates: {response_json}")
-
-    generated_text = ""
-    for part in candidates[0].get("content", {}).get("parts") or []:
-        if "text" in part:
-            generated_text += part["text"]
-
-    generated_text = generated_text.strip()
-    if not generated_text:
-        raise SystemExit("Gemini API returned empty release notes.")
-
-    return generated_text
+    logger.handlers.clear()
+    logger.addHandler(handler)
+    logger.propagate = False
+    return logger
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -131,38 +132,93 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo-url", default=None, help="Repository URL for commit links")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model identifier to use")
     parser.add_argument("--max-commits", type=int, default=MAX_COMMITS_DEFAULT, help="Maximum commits from context to include")
+    parser.add_argument("--log-level", default=DEFAULT_LOG_LEVEL, help="Logging level (e.g. DEBUG, INFO, WARNING)")
     args = parser.parse_args(argv)
+
+    logger = configure_logging(args.log_level.upper())
+    logger.info("Starting release notes generation.")
 
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        raise SystemExit("GEMINI_API_KEY environment variable is required.")
+        logger.error("GEMINI_API_KEY environment variable is required.")
+        return 1
 
     context_path = Path(args.context_json)
     if not context_path.is_file():
-        raise SystemExit(f"Context file not found: {context_path}")
+        logger.error("Context file not found: %s", context_path)
+        cwd = Path.cwd()
+        fallback = cwd / "commit_context.json"
+        if fallback.is_file():
+            logger.error("Found %s in %s. Did you mean --context-json %s?", fallback.name, cwd, fallback)
+        else:
+            logger.error("No commit_context.json found in %s.", cwd)
+        return 1
 
-    context = json.loads(context_path.read_text(encoding="utf-8"))
+    try:
+        context = json.loads(context_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        logger.error("Failed to parse context JSON: %s", exc)
+        logger.debug("Context JSON parse traceback:\n%s", traceback.format_exc())
+        return 1
+    except OSError as exc:
+        logger.error("Failed to read context file: %s", exc)
+        logger.debug("Context read traceback:\n%s", traceback.format_exc())
+        return 1
+
     current_tag = context.get("current_tag")
     previous_tag = context.get("previous_tag")
     commits = context.get("commits", [])
 
-    repo_url = args.repo_url or f"https://github.com/{os.environ.get('GITHUB_REPOSITORY', '')}".rstrip("/")
+    repo_url = args.repo_url or f"https://github.com/{os.environ.get('GITHUB_REPOSITORY', '')}"
+    repo_url = repo_url.rstrip("/")
+    if not repo_url or repo_url == "https://github.com":
+        logger.warning("Repository URL is empty; commit URLs may be incomplete.")
     model = args.model
 
+    if not current_tag:
+        logger.warning("Current tag missing from context; release notes may be less accurate.")
+    if not commits:
+        logger.warning("No commits found in context; release notes will be minimal.")
+
+    logger.info(
+        "Context loaded (current_tag=%s, previous_tag=%s, commits=%s).",
+        current_tag,
+        previous_tag,
+        len(commits),
+    )
+
     prompt = build_prompt(repo_url, current_tag, previous_tag, commits[: args.max_commits])
-    generated_text = call_gemini(api_key, model, prompt)
+    logger.debug("Prompt preview (first 400 chars): %s", prompt[:400])
+
+    try:
+        generated_text = call_gemini(api_key, model, prompt, logger)
+    except Exception:
+        logger.error("Release note generation failed.")
+        return 1
 
     output_path = Path(args.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(generated_text + "\n", encoding="utf-8")
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(generated_text + "\n", encoding="utf-8")
+    except OSError as exc:
+        logger.error("Failed to write release notes to %s: %s", output_path, exc)
+        logger.debug("Release notes write traceback:\n%s", traceback.format_exc())
+        return 1
+
+    logger.info("Release notes written to %s.", output_path)
 
     summary_path_value = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path_value:
-        Path(summary_path_value).write_text(
-            "# Release Notes Preview\n\n" + generated_text + "\n",
-            encoding="utf-8",
-        )
+        try:
+            Path(summary_path_value).write_text(
+                "# Release Notes Preview\n\n" + generated_text + "\n",
+                encoding="utf-8",
+            )
+            logger.info("Step summary written to %s.", summary_path_value)
+        except OSError as exc:
+            logger.warning("Failed to write step summary to %s: %s", summary_path_value, exc)
 
+    logger.info("Release notes generation completed.")
     return 0
 
 
