@@ -33,7 +33,18 @@ def sanitize(text: str, limit: int = 600) -> str:
     return text[: limit - 3].rstrip() + "..."
 
 
-def build_prompt(repo_url: str, current_tag: str, previous_tag: str | None, commits: List[Dict[str, Any]]) -> str:
+def available_models(api_key: str) -> None:
+    client = genai.Client(api_key=api_key)
+    for m in client.models.list():
+        print(getattr(m, "name", m))
+
+
+def build_prompt(
+    repo_url: str,
+    current_tag: str,
+    previous_tag: str | None,
+    commits: List[Dict[str, Any]],
+) -> str:
     """Compose the prompt for Gemini including normalized commit data."""
     normalized: List[Dict[str, Any]] = []
     for entry in commits:
@@ -91,7 +102,9 @@ def call_gemini(api_key: str, model: str, prompt: str, logger: logging.Logger) -
         logger.debug("Gemini client init traceback:\n%s", traceback.format_exc())
         raise
 
-    logger.info("Sending prompt to Gemini model '%s' (prompt chars=%s).", model, len(prompt))
+    logger.info(
+        "Sending prompt to Gemini model '%s' (prompt chars=%s).", model, len(prompt)
+    )
     try:
         response = client.models.generate_content(model=model, contents=prompt)
     except Exception as exc:
@@ -127,12 +140,33 @@ def configure_logging(log_level: str) -> logging.Logger:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--context-json", required=True, help="Path to commit_context.json produced earlier")
-    parser.add_argument("--output", required=True, help="File path for the generated release notes markdown")
-    parser.add_argument("--repo-url", default=None, help="Repository URL for commit links")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model identifier to use")
-    parser.add_argument("--max-commits", type=int, default=MAX_COMMITS_DEFAULT, help="Maximum commits from context to include")
-    parser.add_argument("--log-level", default=DEFAULT_LOG_LEVEL, help="Logging level (e.g. DEBUG, INFO, WARNING)")
+    parser.add_argument(
+        "--context-json",
+        required=True,
+        help="Path to commit_context.json produced earlier",
+    )
+    parser.add_argument(
+        "--output",
+        required=True,
+        help="File path for the generated release notes markdown",
+    )
+    parser.add_argument(
+        "--repo-url", default=None, help="Repository URL for commit links"
+    )
+    parser.add_argument(
+        "--model", default=DEFAULT_MODEL, help="Gemini model identifier to use"
+    )
+    parser.add_argument(
+        "--max-commits",
+        type=int,
+        default=MAX_COMMITS_DEFAULT,
+        help="Maximum commits from context to include",
+    )
+    parser.add_argument(
+        "--log-level",
+        default=DEFAULT_LOG_LEVEL,
+        help="Logging level (e.g. DEBUG, INFO, WARNING)",
+    )
     args = parser.parse_args(argv)
 
     logger = configure_logging(args.log_level.upper())
@@ -149,7 +183,12 @@ def main(argv: list[str] | None = None) -> int:
         cwd = Path.cwd()
         fallback = cwd / "commit_context.json"
         if fallback.is_file():
-            logger.error("Found %s in %s. Did you mean --context-json %s?", fallback.name, cwd, fallback)
+            logger.error(
+                "Found %s in %s. Did you mean --context-json %s?",
+                fallback.name,
+                cwd,
+                fallback,
+            )
         else:
             logger.error("No commit_context.json found in %s.", cwd)
         return 1
@@ -169,14 +208,18 @@ def main(argv: list[str] | None = None) -> int:
     previous_tag = context.get("previous_tag")
     commits = context.get("commits", [])
 
-    repo_url = args.repo_url or f"https://github.com/{os.environ.get('GITHUB_REPOSITORY', '')}"
+    repo_url = (
+        args.repo_url or f"https://github.com/{os.environ.get('GITHUB_REPOSITORY', '')}"
+    )
     repo_url = repo_url.rstrip("/")
     if not repo_url or repo_url == "https://github.com":
         logger.warning("Repository URL is empty; commit URLs may be incomplete.")
     model = args.model
 
     if not current_tag:
-        logger.warning("Current tag missing from context; release notes may be less accurate.")
+        logger.warning(
+            "Current tag missing from context; release notes may be less accurate."
+        )
     if not commits:
         logger.warning("No commits found in context; release notes will be minimal.")
 
@@ -187,7 +230,13 @@ def main(argv: list[str] | None = None) -> int:
         len(commits),
     )
 
-    prompt = build_prompt(repo_url, current_tag, previous_tag, commits[: args.max_commits])
+    logger.debug("Using Gemini model: %s", model)
+    logger.debug("Available models:")
+    available_models(api_key)
+
+    prompt = build_prompt(
+        repo_url, current_tag, previous_tag, commits[: args.max_commits]
+    )
     logger.debug("Prompt preview (first 400 chars): %s", prompt[:400])
 
     try:
@@ -216,7 +265,9 @@ def main(argv: list[str] | None = None) -> int:
             )
             logger.info("Step summary written to %s.", summary_path_value)
         except OSError as exc:
-            logger.warning("Failed to write step summary to %s: %s", summary_path_value, exc)
+            logger.warning(
+                "Failed to write step summary to %s: %s", summary_path_value, exc
+            )
 
     logger.info("Release notes generation completed.")
     return 0
