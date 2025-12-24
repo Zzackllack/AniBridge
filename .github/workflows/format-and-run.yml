@@ -39,7 +39,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git add app
-          git commit -m "Format Python code with Black" || echo "No changes to commit"
+          git commit -m "style: Format Python code with Black" || echo "No changes to commit"
           # Only push if there are changes and GITHUB_HEAD_REF is set (i.e., on PRs)
           if [ -n "$GITHUB_HEAD_REF" ]; then
             git push origin HEAD:$GITHUB_HEAD_REF

@@ -37,6 +37,10 @@ pytest
 - Keep imports tidy and avoid unused code.
 - Update documentation and comments when behavior changes.
 
+## Commit Messages
+
+We follow the Conventional Commits specification: https://www.conventionalcommits.org/en/v1.0.0/#specification
+
 ## Pull Request Process
 
 1. Fork the repository and create a new branch.
