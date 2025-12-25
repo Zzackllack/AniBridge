@@ -23,6 +23,8 @@ Run the application locally with:
 python -m app.main
 ```
 
+Test changes to github workflows using a tool like [act](https://github.com/nektos/act).
+
 ## Testing
 
 Before submitting a pull request ensure that all tests pass:
