@@ -108,7 +108,9 @@ class ClientTask(ModelBase, table=True):
     Abbildung eines „Torrents“ (Magnet) auf unseren internen Job.
     """
 
-    hash: str = Field(primary_key=True, index=True)  # entspricht btih (aus magnet xt)
+    hash: str = Field(
+        primary_key=True, index=True
+    )  # corresponds to BTIH (from magnet 'xt' parameter)
     name: str
     slug: str
     season: int
