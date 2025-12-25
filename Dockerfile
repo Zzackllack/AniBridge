@@ -26,6 +26,7 @@ RUN addgroup --system appgroup && adduser --system --group appuser
 
 COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY app/ ./app/
+COPY VERSION ./
 COPY requirements.runtime.txt ./
 
 # Prepare writable data directory for runtime mounts (ownership finalized at runtime)
