@@ -128,7 +128,9 @@ def build_episode(
 
     # aniworld>=3.6.4 stopped auto-populating basic details when instantiated
     # via slug/season/episode. When link stays None the provider scrape later
-    # fails. Force-run the helper if available.
+    # fails. Force-run the helper if available. - 19 Oct 2025
+    # This btw got fixed on 21 Oct 2025 with the release of aniworld 3.7.1.
+    # But keeping this if anyone still uses 3.6.4 - 3.7.0. - 26 Dec 2025
     if getattr(ep, "link", None) is None:
         logger.warning(
             "Episode link is None after init; attempting to auto-fill basic details. Are you using aniworld>=3.6.4?"
