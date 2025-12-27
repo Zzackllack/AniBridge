@@ -1,0 +1,196 @@
+import threading
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+from loguru import logger
+
+from app.config import PROVIDER_ORDER, PROXY_ENABLED, PROXY_SCOPE
+from app.infrastructure.network import disabled_proxy_env
+from app.utils.naming import rename_to_release
+from .errors import DownloadError
+from .episode import build_episode
+from .language import normalize_language
+from .provider_resolution import get_direct_url_with_fallback
+from .types import Provider, ProgressCb
+from .ytdlp import _ydl_download
+
+
+def download_episode(
+    *,
+    link: Optional[str] = None,
+    slug: Optional[str] = None,
+    season: Optional[int] = None,
+    episode: Optional[int] = None,
+    provider: Optional[Provider] = "VOE",
+    language: str = "German Dub",
+    dest_dir: Path,
+    title_hint: Optional[str] = None,
+    cookiefile: Optional[Path] = None,
+    progress_cb: Optional[ProgressCb] = None,
+    stop_event: Optional[threading.Event] = None,
+    site: str = "aniworld.to",
+) -> Path:
+    """
+    Download an episode to the specified directory, resolving a direct stream URL with provider fallback and proxy-aware retry logic.
+
+    This function builds an Episode from the provided identifiers, attempts to resolve a direct download URL (optionally preferring a provider), downloads the media via yt-dlp with progress callbacks and cancellation support, and renames the downloaded file into the repository's release naming schema. If extraction or download fails, controlled fallback attempts are performed (no-proxy re-resolution and alternate providers) before failing.
+
+    Parameters:
+        link (Optional[str]): Direct episode page URL; if provided, used instead of slug/season/episode.
+        slug (Optional[str]): Series identifier used to construct an Episode when `link` is not given.
+        season (Optional[int]): Season number to construct an Episode when `link` is not given.
+        episode (Optional[int]): Episode number to construct an Episode when `link` is not given.
+        provider (Optional[Provider]): Preferred provider name to try first when resolving a direct URL.
+        language (str): Desired language label (will be normalized); used when resolving available streams.
+        dest_dir (Path): Destination directory where the temporary download will be written.
+        title_hint (Optional[str]): Hint for the temporary output filename; if omitted and slug/season/episode are given, a default is generated.
+        cookiefile (Optional[Path]): Path to a cookies file passed to yt-dlp, if required by the provider/site.
+        progress_cb (Optional[ProgressCb]): Optional callback that receives yt-dlp progress dictionaries.
+        stop_event (Optional[threading.Event]): Optional event that, when set, requests download cancellation.
+        site (str): Site identifier to use when constructing the Episode (defaults to "aniworld.to").
+
+    Returns:
+        Path: Final path to the renamed release file.
+
+    Raises:
+        DownloadError: When URL resolution or download ultimately fails after all fallback attempts.
+    """
+    language = normalize_language(language)
+    logger.info(
+        "Starting download_episode: link=%s, slug=%s, season=%s, episode=%s, provider=%s, language=%s, dest_dir=%s, site=%s",
+        link,
+        slug,
+        season,
+        episode,
+        provider,
+        language,
+        dest_dir,
+        site,
+    )
+    ep = build_episode(link=link, slug=slug, season=season, episode=episode, site=site)
+
+    force_no_proxy = False
+    try:
+        direct, chosen = get_direct_url_with_fallback(
+            ep, preferred=provider, language=language
+        )
+        logger.info("Chosen provider: %s, direct URL: %s", chosen, direct)
+    except DownloadError as exc:
+        if PROXY_ENABLED and PROXY_SCOPE in ("all", "ytdlp"):
+            logger.warning(
+                "Direct link not found under proxy (%s). Attempting direct fallback without proxy.",
+                exc,
+            )
+            with disabled_proxy_env():
+                ep2 = build_episode(
+                    link=link, slug=slug, season=season, episode=episode, site=site
+                )
+                direct, chosen = get_direct_url_with_fallback(
+                    ep2, preferred=provider, language=language
+                )
+                logger.info(
+                    "Fallback (no proxy) chose provider: %s, direct URL: %s",
+                    chosen,
+                    direct,
+                )
+                force_no_proxy = True
+        else:
+            raise
+
+    base_hint = title_hint
+    if not base_hint and slug and season and episode:
+        base_hint = f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
+        logger.debug("Generated base_hint for filename: %s", base_hint)
+
+    temp_path: Optional[Path] = None
+    info: Optional[Dict[str, Any]] = None
+
+    try:
+        temp_path, info = _ydl_download(
+            direct,
+            dest_dir,
+            title_hint=base_hint,
+            cookiefile=cookiefile,
+            progress_cb=progress_cb,
+            stop_event=stop_event,
+            force_no_proxy=force_no_proxy,
+        )
+    except Exception as exc:
+        msg = str(exc)
+        logger.warning("Primary download failed: %s", msg)
+
+        tried_alt = False
+        if PROXY_ENABLED and not force_no_proxy and PROXY_SCOPE in ("all", "ytdlp"):
+            try:
+                with disabled_proxy_env():
+                    ep2 = build_episode(
+                        link=link, slug=slug, season=season, episode=episode, site=site
+                    )
+                    direct2, chosen2 = get_direct_url_with_fallback(
+                        ep2, preferred=provider, language=language
+                    )
+                    logger.info(
+                        "Retrying download without proxy using provider %s", chosen2
+                    )
+                    temp_path, info = _ydl_download(
+                        direct2,
+                        dest_dir,
+                        title_hint=base_hint,
+                        cookiefile=cookiefile,
+                        progress_cb=progress_cb,
+                        stop_event=stop_event,
+                        force_no_proxy=True,
+                    )
+                    tried_alt = True
+            except Exception as exc2:
+                logger.error("No-proxy fallback download failed: %s", exc2)
+
+        if not tried_alt:
+            providers_left = [
+                provider_name
+                for provider_name in PROVIDER_ORDER
+                if provider_name != (provider or "")
+            ]
+            for provider_name in providers_left:
+                try:
+                    direct3, chosen3 = get_direct_url_with_fallback(
+                        ep, preferred=provider_name, language=language
+                    )
+                    logger.info("Retrying download via alternate provider %s", chosen3)
+                    temp_path, info = _ydl_download(
+                        direct3,
+                        dest_dir,
+                        title_hint=base_hint,
+                        cookiefile=cookiefile,
+                        progress_cb=progress_cb,
+                        stop_event=stop_event,
+                        force_no_proxy=force_no_proxy,
+                    )
+                    tried_alt = True
+                    break
+                except Exception as exc3:
+                    logger.warning(
+                        "Alternate provider %s failed to download: %s",
+                        provider_name,
+                        exc3,
+                    )
+
+        if not tried_alt:
+            raise
+
+    if temp_path is None or info is None:
+        logger.error("Download completed without producing a temp file or info dict.")
+        raise DownloadError("Download failed: no temp file or metadata produced.")
+
+    logger.info("Download complete, renaming to release schema.")
+    final_path = rename_to_release(
+        path=temp_path,
+        info=info,
+        slug=slug,
+        season=season,
+        episode=episode,
+        language=language,
+        site=site,
+    )
+    logger.success("Final file path: %s", final_path)
+    return final_path
