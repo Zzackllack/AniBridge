@@ -4,7 +4,8 @@ from loguru import logger
 
 
 def sanitize_filename(name: str) -> str:
-    logger.debug("Sanitizing filename: %s", name)
+    """Sanitize a filename (name: str) and return the safe filesystem name."""
+    logger.debug("Sanitizing filename: {}", name)
     sanitized = re.sub(r"[\\/:*?\"<>|]+", "_", name).strip()
-    logger.debug("Sanitized filename: %s", sanitized)
+    logger.debug("Sanitized filename: {}", sanitized)
     return sanitized

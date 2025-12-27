@@ -102,10 +102,10 @@ def _ydl_download(
             return Path(filename), cast(Dict[str, Any], info)
     except YTDLPDownloadError as exc:
         logger.error("yt-dlp download failed: %s", exc)
-        raise DownloadError(str(exc))
+        raise DownloadError(str(exc)) from exc
     except TimeoutError as exc:
         logger.error("yt-dlp timeout: %s", exc)
         raise DownloadError("Timeout") from exc
-    except Exception as exc:  # noqa: BLE001 — unexpected failures
+    except Exception as exc:
         logger.error("yt-dlp unexpected error: %s", exc)
         raise DownloadError("Unexpected error") from exc
