@@ -24,9 +24,10 @@ _LANG_ALIASES = {
 
 
 def normalize_language(lang: str | None) -> str:
+    """Normalize a language label (lang: Optional[str]) and return its canonical form."""
     if not lang:
         return "German Dub"
     cleaned = re.sub(r"[^a-z]", "", lang.lower())
     normalized = _LANG_ALIASES.get(cleaned, lang)
-    logger.debug("Normalized language '%s' -> '%s'", lang, normalized)
+    logger.debug("Normalized language '{}' -> '{}'", lang, normalized)
     return normalized
