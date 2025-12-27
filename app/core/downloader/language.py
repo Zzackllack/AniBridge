@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 from loguru import logger
 
@@ -23,14 +24,14 @@ _LANG_ALIASES = {
 }
 
 
-def normalize_language(lang: str | None) -> str:
+def normalize_language(lang: Optional[str]) -> str:
     """
     Normalize a language identifier to a canonical label.
 
     If `lang` is falsy (None or empty) this returns "German Dub". For non-empty input, common shorthand and variant forms are mapped to canonical labels (e.g., "German Dub", "German Sub", "English Sub", "English Dub"); if no mapping exists the original `lang` value is returned.
 
     Parameters:
-        lang (str | None): Language identifier to normalize. May be None or an empty string.
+        lang (Optional[str]): Language identifier to normalize. May be None or an empty string.
 
     Returns:
         str: The canonical language label for known variants, or the original `lang` value when no canonical mapping is found.

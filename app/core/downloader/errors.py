@@ -2,7 +2,7 @@ from typing import List
 
 
 class DownloadError(Exception):
-    pass
+    """Base exception for downloader failures and retry exhaustion."""
 
 
 class LanguageUnavailableError(DownloadError):

@@ -146,35 +146,34 @@ def download_episode(
                 logger.error("No-proxy fallback download failed: %s", exc2)
 
         if not tried_alt:
-            try:
-                providers_left = [p for p in PROVIDER_ORDER if p != (provider or "")]
-                for provider_name in providers_left:
-                    try:
-                        direct3, chosen3 = get_direct_url_with_fallback(
-                            ep, preferred=provider_name, language=language
-                        )
-                        logger.info(
-                            "Retrying download via alternate provider %s", chosen3
-                        )
-                        temp_path, info = _ydl_download(
-                            direct3,
-                            dest_dir,
-                            title_hint=base_hint,
-                            cookiefile=cookiefile,
-                            progress_cb=progress_cb,
-                            stop_event=stop_event,
-                            force_no_proxy=force_no_proxy,
-                        )
-                        tried_alt = True
-                        break
-                    except Exception as exc3:
-                        logger.warning(
-                            "Alternate provider %s failed to download: %s",
-                            provider_name,
-                            exc3,
-                        )
-            except Exception as exc4:
-                logger.debug("Alternate-provider resolution failed: %s", exc4)
+            providers_left = [
+                provider_name
+                for provider_name in PROVIDER_ORDER
+                if provider_name != (provider or "")
+            ]
+            for provider_name in providers_left:
+                try:
+                    direct3, chosen3 = get_direct_url_with_fallback(
+                        ep, preferred=provider_name, language=language
+                    )
+                    logger.info("Retrying download via alternate provider %s", chosen3)
+                    temp_path, info = _ydl_download(
+                        direct3,
+                        dest_dir,
+                        title_hint=base_hint,
+                        cookiefile=cookiefile,
+                        progress_cb=progress_cb,
+                        stop_event=stop_event,
+                        force_no_proxy=force_no_proxy,
+                    )
+                    tried_alt = True
+                    break
+                except Exception as exc3:
+                    logger.warning(
+                        "Alternate provider %s failed to download: %s",
+                        provider_name,
+                        exc3,
+                    )
 
         if not tried_alt:
             raise

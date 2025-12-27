@@ -4,7 +4,6 @@ from loguru import logger
 
 
 def sanitize_filename(name: str) -> str:
-    """Sanitize a filename (name: str) and return the safe filesystem name."""
     """
     Sanitize a filename by replacing filesystem-reserved characters with underscores and trimming whitespace.
 

@@ -29,7 +29,7 @@ def _parse_available_languages_from_error(msg: str) -> List[str]:
     if not match:
         return []
     raw = match.group(1)
-    parts = [p.strip(" '\"\t") for p in raw.split(",") if p.strip()]
+    parts = [part.strip(" '\"\t") for part in raw.split(",") if part.strip()]
     seen = set()
     out: List[str] = []
     for part in parts:
