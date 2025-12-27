@@ -1,0 +1,82 @@
+from typing import Optional
+
+from loguru import logger
+
+from aniworld.models import Episode  # type: ignore
+
+
+def build_episode(
+    *,
+    link: Optional[str] = None,
+    slug: Optional[str] = None,
+    season: Optional[int] = None,
+    episode: Optional[int] = None,
+    site: str = "aniworld.to",
+) -> Episode:
+    """
+    Construct an Episode from either a direct link or a slug/season/episode triple for the specified site.
+
+    Parameters:
+        link (Optional[str]): Direct episode URL; used when provided and takes precedence over slug/season/episode.
+        slug (Optional[str]): Series identifier used with `season` and `episode` when `link` is not provided.
+        season (Optional[int]): Season number paired with `slug` and `episode`.
+        episode (Optional[int]): Episode number paired with `slug` and `season`.
+        site (str): Host site identifier to attach to the created Episode (default: "aniworld.to").
+
+    Returns:
+        Episode: The constructed Episode using the provided inputs.
+
+    Raises:
+        ValueError: If neither `link` nor the combination of `slug`, `season`, and `episode` are supplied.
+    """
+    logger.info(
+        "Building episode: link=%s, slug=%s, season=%s, episode=%s, site=%s",
+        link,
+        slug,
+        season,
+        episode,
+        site,
+    )
+    ep: Optional[Episode] = None
+    if link:
+        logger.debug("Using direct link for episode.")
+        ep = Episode(link=link, site=site)
+    elif slug and season and episode:
+        logger.debug("Using slug/season/episode for episode.")
+        ep = Episode(slug=slug, season=season, episode=episode, site=site)
+    else:
+        logger.error(
+            "Invalid episode parameters: must provide either link or (slug, season, episode)."
+        )
+        raise ValueError("Provide either link OR (slug, season, episode).")
+
+    # aniworld>=3.6.4 stopped auto-populating basic details when instantiated
+    # via slug/season/episode. When link stays None the provider scrape later
+    # fails. Force-run the helper if available. - 19 Oct 2025
+    # This btw got fixed on 21 Oct 2025 with the release of aniworld 3.7.1.
+    # But keeping this if anyone still uses 3.6.4 - 3.7.0. - 26 Dec 2025
+    if getattr(ep, "link", None) is None:
+        logger.warning(
+            "Episode link is None after init; attempting to auto-fill basic details. Are you using aniworld>=3.6.4?"
+        )
+        auto_basic = getattr(ep, "_auto_fill_basic_details", None)
+        if callable(auto_basic):
+            logger.warning(
+                "Running _auto_fill_basic_details() to populate episode basics."
+            )
+            # Guard against the flag short-circuiting the helper.
+            if getattr(ep, "_basic_details_filled", False):
+                setattr(ep, "_basic_details_filled", False)
+                logger.warning("Reset _basic_details_filled flag to False.")
+            try:
+                auto_basic()
+                logger.warning("Successfully populated episode basics.")
+            except Exception as err:  # pragma: no cover - defensive
+                logger.warning(
+                    "Failed to populate episode basics (slug=%s, season=%s, episode=%s): %s",
+                    getattr(ep, "slug", slug),
+                    getattr(ep, "season", season),
+                    getattr(ep, "episode", episode),
+                    err,
+                )
+    return ep
