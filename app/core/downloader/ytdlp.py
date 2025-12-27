@@ -24,7 +24,7 @@ def _ydl_download(
 ) -> Tuple[Path, Dict[str, Any]]:
     """
     Download a media resource with yt-dlp into the given directory and return the downloaded file path and metadata.
-    
+
     Parameters:
         direct_url (str): Direct media URL or playlist identifier to pass to yt-dlp.
         dest_dir (Path): Destination directory where the download and temporary files will be stored; created if missing.
@@ -33,10 +33,10 @@ def _ydl_download(
         progress_cb (Optional[callable]): Callback invoked with yt-dlp progress dictionaries as they arrive.
         stop_event (Optional[threading.Event]): If set during download, the operation is cancelled and a DownloadError("Cancelled") is raised.
         force_no_proxy (bool): When true, disable any configured proxy for this yt-dlp invocation.
-    
+
     Returns:
         Tuple[Path, Dict[str, Any]]: The final downloaded file path and the yt-dlp info dictionary.
-    
+
     Raises:
         DownloadError: On cancellation, timeout, yt-dlp failures, or other unexpected download errors.
     """
@@ -80,13 +80,13 @@ def _ydl_download(
     def _compound_hook(progress: dict) -> None:
         """
         Handle a single yt-dlp progress update: enforce cancellation and forward the progress to the provided callback.
-        
+
         Parameters:
             progress (dict): Progress information dictionary produced by yt-dlp.
-        
+
         Raises:
             DownloadError: If a stop event has been set indicating the download should be cancelled.
-        
+
         Notes:
             If the progress callback raises an exception, it will be caught and suppressed.
         """
