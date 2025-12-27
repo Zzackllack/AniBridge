@@ -61,7 +61,9 @@ def build_episode(
         )
         auto_basic = getattr(ep, "_auto_fill_basic_details", None)
         if callable(auto_basic):
-            logger.warning("Running _auto_fill_basic_details() to populate episode basics.")
+            logger.warning(
+                "Running _auto_fill_basic_details() to populate episode basics."
+            )
             # Guard against the flag short-circuiting the helper.
             if getattr(ep, "_basic_details_filled", False):
                 setattr(ep, "_basic_details_filled", False)
