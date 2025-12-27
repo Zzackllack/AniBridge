@@ -23,21 +23,22 @@ def _ydl_download(
     force_no_proxy: bool = False,
 ) -> Tuple[Path, Dict[str, Any]]:
     """
-    Download a media resource via yt-dlp and return the downloaded file path and metadata.
-
-    Uses yt-dlp to download the resource at `direct_url` into `dest_dir`, applying an optional filename hint, cookiefile, proxy configuration, progress callbacks, and cancellation via `stop_event`.
-
+    Download a media resource with yt-dlp into the given directory and return the downloaded file path and metadata.
+    
     Parameters:
         direct_url (str): Direct media URL or playlist identifier to pass to yt-dlp.
-        dest_dir (Path): Directory where the download and temporary files will be stored; created if missing.
-        title_hint (Optional[str]): Hint for the output filename; sanitized and used in the output template if provided.
+        dest_dir (Path): Destination directory where the download and temporary files will be stored; created if missing.
+        title_hint (Optional[str]): Hint for the output filename; sanitized and used as the output template when provided.
         cookiefile (Optional[Path]): Path to a cookies file to supply to yt-dlp for authenticated requests.
         progress_cb (Optional[callable]): Callback invoked with yt-dlp progress dictionaries as they arrive.
-        stop_event (Optional[threading.Event]): If set during download, the operation will be cancelled and raise DownloadError("Cancelled").
+        stop_event (Optional[threading.Event]): If set during download, the operation is cancelled and a DownloadError("Cancelled") is raised.
         force_no_proxy (bool): When true, disable any configured proxy for this yt-dlp invocation.
-
+    
     Returns:
-        Tuple[Path, Dict[str, Any]]: A tuple containing the final downloaded file path and the yt-dlp info dictionary.
+        Tuple[Path, Dict[str, Any]]: The final downloaded file path and the yt-dlp info dictionary.
+    
+    Raises:
+        DownloadError: On cancellation, timeout, yt-dlp failures, or other unexpected download errors.
     """
     logger.info(
         "Starting yt-dlp download: url=%s, dest_dir=%s, title_hint=%s",
@@ -77,6 +78,18 @@ def _ydl_download(
         logger.debug("yt-dlp proxy configuration failed: %s", exc)
 
     def _compound_hook(progress: dict) -> None:
+        """
+        Handle a single yt-dlp progress update: enforce cancellation and forward the progress to the provided callback.
+        
+        Parameters:
+            progress (dict): Progress information dictionary produced by yt-dlp.
+        
+        Raises:
+            DownloadError: If a stop event has been set indicating the download should be cancelled.
+        
+        Notes:
+            If the progress callback raises an exception, it will be caught and suppressed.
+        """
         if stop_event is not None and stop_event.is_set():
             logger.warning("Download cancelled by stop_event.")
             raise DownloadError("Cancelled")
