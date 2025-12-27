@@ -68,7 +68,9 @@ def _try_get_direct(ep: Episode, provider_name: str, language: str) -> Optional[
         msg = str(exc)
         if "No provider found for language" in msg:
             available = _parse_available_languages_from_error(msg)
-            logger.error("Language '%s' unavailable. Available: %s", language, available)
+            logger.error(
+                "Language '%s' unavailable. Available: %s", language, available
+            )
             raise LanguageUnavailableError(language, available) from exc
         logger.warning("Exception from provider '%s': %s", provider_name, msg)
     return None
