@@ -14,9 +14,16 @@ _AVAIL_RE = re.compile(r"Available languages:\s*\[([^\]]*)\]", re.IGNORECASE)
 
 def _parse_available_languages_from_error(msg: str) -> List[str]:
     """
-    Die Lib loggt u.a.:
-      'No provider found for language ... Available languages: ['English Sub', 'German Sub']'
-    Das hier extrahiert die Liste robust.
+    Extracts a list of available language names from a provider error message.
+
+    Searches the message for a bracketed, comma-separated list of languages (for example:
+    "Available languages: ['English Sub', 'German Sub']"). Returns the language names in their original order with duplicates removed. If no language list is found, returns an empty list.
+
+    Parameters:
+        msg (str): Error message text to parse.
+
+    Returns:
+        List[str]: Ordered list of extracted language names, or an empty list if none found.
     """
     match = _AVAIL_RE.search(msg or "")
     if not match:
@@ -33,6 +40,20 @@ def _parse_available_languages_from_error(msg: str) -> List[str]:
 
 
 def _try_get_direct(ep: Episode, provider_name: str, language: str) -> Optional[str]:
+    """
+    Attempt to obtain a direct download URL from a specific provider for a given language.
+
+    Parameters:
+        ep (Episode): Episode to query for a direct link.
+        provider_name (str): Provider identifier to query.
+        language (str): Desired language (will be normalized before the request).
+
+    Returns:
+        Optional[str]: Direct download URL if found, `None` otherwise.
+
+    Raises:
+        LanguageUnavailableError: If the provider reports the requested language is not offered; the exception contains the list of available languages.
+    """
     language = normalize_language(language)
     logger.info("Trying provider '%s' for language '%s'", provider_name, language)
     try:
@@ -56,6 +77,22 @@ def _try_get_direct(ep: Episode, provider_name: str, language: str) -> Optional[
 
 
 def _auto_fill_languages(ep: Episode) -> Optional[object]:
+    """
+    Retrieve or populate the episode's available languages.
+
+    If the episode already exposes language information via `language_name`, `languages`, or
+    `available_languages`, that value is returned. Otherwise, attempts the episode's
+    auto-fill methods in order: `auto_fill_details`, `_auto_fill_basic_details`,
+    `auto_fill_basic_details` to populate language data, ignoring errors from those calls,
+    and then returns whatever language information is available afterwards.
+
+    Parameters:
+        ep (Episode): The episode object to inspect or auto-fill.
+
+    Returns:
+        The episode's language value (e.g., a string, list, or other representation) if present,
+        or `None` when no language information could be determined.
+    """
     _langs = (
         getattr(ep, "language_name", None)
         or getattr(ep, "languages", None)
@@ -87,6 +124,18 @@ def _auto_fill_languages(ep: Episode) -> Optional[object]:
 
 
 def _validate_language_available(ep: Episode, language: str) -> None:
+    """
+    Ensure the requested language is listed among the episode's available languages.
+
+    If the episode exposes no language information, the check is skipped. If the episode provides one or more available languages and the requested language is not among them, a LanguageUnavailableError is raised containing the requested language and the available languages.
+
+    Parameters:
+        ep (Episode): Episode whose available languages will be checked.
+        language (str): Language to validate (code or name as used by episode/providers).
+
+    Raises:
+        LanguageUnavailableError: If the episode reports available languages and the requested language is not present; includes the requested language and the list of available languages.
+    """
     langs = _auto_fill_languages(ep)
     if langs is None:
         return
