@@ -38,14 +38,18 @@ def _try_get_direct(ep: Episode, provider_name: str, language: str) -> Optional[
     try:
         url = ep.get_direct_link(provider_name, language)  # Lib-API
         if url:
-            logger.success("Found direct URL from provider '%s': %s", provider_name, url)
+            logger.success(
+                "Found direct URL from provider '%s': %s", provider_name, url
+            )
             return url
         logger.warning("Provider '%s' returned no URL.", provider_name)
     except Exception as exc:
         msg = str(exc)
         if "No provider found for language" in msg:
             available = _parse_available_languages_from_error(msg)
-            logger.error("Language '%s' unavailable. Available: %s", language, available)
+            logger.error(
+                "Language '%s' unavailable. Available: %s", language, available
+            )
             raise LanguageUnavailableError(language, available)
         logger.warning("Exception from provider '%s': %s", provider_name, msg)
     return None
@@ -123,7 +127,9 @@ def get_direct_url_with_fallback(
     """
     language = normalize_language(language)
     logger.info(
-        "Getting direct URL with fallback. Preferred: %s, Language: %s", preferred, language
+        "Getting direct URL with fallback. Preferred: %s, Language: %s",
+        preferred,
+        language,
     )
 
     _validate_language_available(ep, language)
@@ -154,7 +160,9 @@ def get_direct_url_with_fallback(
             logger.success("Using fallback provider '%s'", provider)
             return url, provider
 
-    logger.error("No direct link found. Tried providers: %s", ", ".join(tried) or "none")
+    logger.error(
+        "No direct link found. Tried providers: %s", ", ".join(tried) or "none"
+    )
     raise DownloadError(
         f"No direct link found. Tried providers: {', '.join(tried) or 'none'}"
     )

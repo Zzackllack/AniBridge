@@ -47,7 +47,9 @@ def _ydl_download(
     )
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    outtmpl = str(dest_dir / (sanitize_filename(title_hint or "%(title)s") + ".%(ext)s"))
+    outtmpl = str(
+        dest_dir / (sanitize_filename(title_hint or "%(title)s") + ".%(ext)s")
+    )
     logger.debug("yt-dlp output template: %s", outtmpl)
     ydl_opts: Dict[str, Any] = {
         "outtmpl": outtmpl,
