@@ -1,0 +1,24 @@
+# CODEOWNERS
+# Order matters: the last matching rule wins.
+# Paths are repo-rooted (no leading dot); use ** for recursive globs.
+# GitHub only reads CODEOWNERS from the repo root, .github/, or docs/.
+# Use @org/team when you have teams; otherwise, use individual usernames.
+
+* @Zzackllack
+
+# Documentation
+/docs/ @Zzackllack
+
+# GitHub workflows and automation
+/.github/workflows/ @Zzackllack
+
+# Docker and deployment
+/docker/ @Zzackllack
+/docker-compose*.yaml @Zzackllack
+
+# Application code and tests
+/app/ @Zzackllack
+/tests/ @Zzackllack
+
+# Cloudflare Worker
+/src/ @Zzackllack

@@ -43,6 +43,17 @@ pytest
 
 We follow the Conventional Commits specification: https://www.conventionalcommits.org/en/v1.0.0/#specification
 
+## Codeowners
+
+The codeowners for this repository are listed in the [CODEOWNERS](/.github/CODEOWNERS) file. Please update it as necessary when making changes to the codebase.
+
+Conventions and tips you should follow when editing the CODEOWNERS file:
+
+- The last matching rule wins, so put broad rules first and narrow overrides later.
+- Paths are repository-rooted and support `*` and `**` globs.
+- Only `CODEOWNERS`, `.github/CODEOWNERS`, or `docs/CODEOWNERS` are recognized by GitHub.
+- Use @org/team for teams.
+
 ## Pull Request Process
 
 1. Fork the repository and create a new branch.
