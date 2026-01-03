@@ -18,14 +18,33 @@ jobs:
           days-before-issue-stale: 90 # around 3 months of inactivity
           days-before-pr-stale: 90 # around 3 months of inactivity
 
-          days-before-issue-close: 1095 # around 3 years before closing
-          days-before-pr-close: 1095 # around 3 years before closing
+          days-before-issue-close: 1005 # around 3 years before closing (90 - 1095 days)
+          days-before-pr-close: 1005 # around 3 years before closing (90 - 1095 days)
 
           stale-issue-label: stale
           stale-pr-label: stale
 
-          stale-issue-message: ""
-          stale-pr-message: ""
+          stale-issue-message: |
+            👋 This issue was automatically marked as **stale** because there hasn’t been any activity for ~90 days.
+
+            If this is still relevant, please:
+            - confirm it still happens on the latest version
+            - leave a comment even if it’s just “still happening” to keep it from being closed.
+
+          stale-pr-message: |
+            👋 This PR was automatically marked as **stale** due to ~90 days of inactivity.
+
+            If you’re still working on it, please push an update or leave a comment (even “still working on it”) so it doesn’t get lost.
+
+          close-issue-message: |
+            Closing due to prolonged inactivity.
+
+            If you can reproduce this on the latest AniBridge with updated details/logs, please open a new issue.
+
+          close-pr-message: |
+            Closing due to prolonged inactivity.
+
+            If you’d like to continue this work, feel free to reopen or open a new PR with the latest changes.
 
           exempt-issue-labels: "pinned,security,do-not-stale"
           exempt-pr-labels: "pinned,security,do-not-stale"
