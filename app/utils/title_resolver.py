@@ -132,6 +132,10 @@ def _should_refresh(
     if not has_index_sources:
         logger.info(f"Search-only site detected for {site}; skipping refresh.")
         return False
+    cached_index = _cached_indices.get(site)
+    if isinstance(cached_index, dict) and not cached_index:
+        logger.info(f"Cached index empty for {site}. Refresh needed.")
+        return True
     if site not in _cached_indices or _cached_indices[site] is None:
         logger.info(f"No cached index found for {site}. Refresh needed.")
         return True
@@ -218,6 +222,16 @@ def _fetch_index_from_url(
         resp = http_get(url, timeout=20)
         resp.raise_for_status()
         logger.success(f"Successfully fetched index from URL for site: {site}.")
+        return _parse_index_and_alts(resp.text, site)
+    except requests.exceptions.SSLError as e:
+        logger.warning(
+            f"TLS verification failed for {site} index; retrying with verify=False: {e}"
+        )
+        resp = http_get(url, timeout=20, verify=False)
+        resp.raise_for_status()
+        logger.success(
+            f"Successfully fetched index from URL for site {site} with verify=False."
+        )
         return _parse_index_and_alts(resp.text, site)
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to fetch index from URL for {site}: {e}")
