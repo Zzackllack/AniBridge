@@ -21,6 +21,7 @@ AniBridge is configured via environment variables (works well with Docker). Sens
 - `INDEXER_NAME` (default: `AniBridge Torznab`)
 - `INDEXER_API_KEY` (optional; if set, `apikey` is required)
 - `TORZNAB_CAT_ANIME` (default: `5070`)
+- `TORZNAB_CAT_MOVIE` (default: `2000`)
 - Fake peers for connectivity: `TORZNAB_FAKE_SEEDERS` / `TORZNAB_FAKE_LEECHERS`
 - Connectivity test result: `TORZNAB_RETURN_TEST_RESULT` (`true|false`)
 - Test release fields: `TORZNAB_TEST_TITLE`, `TORZNAB_TEST_SLUG`, `TORZNAB_TEST_SEASON`, `TORZNAB_TEST_EPISODE`, `TORZNAB_TEST_LANGUAGE`

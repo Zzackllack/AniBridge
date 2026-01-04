@@ -18,6 +18,7 @@ Comprehensive list of env vars read in `app/config.py`.
 - `INDEXER_NAME` (default: `AniBridge Torznab`)
 - `INDEXER_API_KEY` (optional; requires `apikey`)
 - `TORZNAB_CAT_ANIME` (default: `5070`)
+- `TORZNAB_CAT_MOVIE` (default: `2000`)
 - `TORZNAB_FAKE_SEEDERS` (default: `999`)
 - `TORZNAB_FAKE_LEECHERS` (default: `787`)
 - `TORZNAB_RETURN_TEST_RESULT` (`true|false`)

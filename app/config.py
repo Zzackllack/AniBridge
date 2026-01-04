@@ -397,6 +397,7 @@ INDEXER_NAME = os.getenv("INDEXER_NAME", "AniBridge Torznab")
 INDEXER_API_KEY = os.getenv("INDEXER_API_KEY", "").strip()
 # Kategorien-IDs (Torznab/Newznab) – 5070 = TV/Anime (de-facto-Standard)
 TORZNAB_CAT_ANIME = int(os.getenv("TORZNAB_CAT_ANIME", "5070"))
+TORZNAB_CAT_MOVIE = int(os.getenv("TORZNAB_CAT_MOVIE", "2000"))
 
 # Availability TTL (Stunden) für Semi-Cache (Qualität & Sprache je Episode)
 AVAILABILITY_TTL_HOURS = float(os.getenv("AVAILABILITY_TTL_HOURS", "24"))
