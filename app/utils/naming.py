@@ -25,6 +25,7 @@ LANG_TAG_MAP = {
     "German Sub": "GER.SUB",
     "English Sub": "ENG.SUB",
     "English Dub": "ENG",
+    "Deutsch": "GER",
 }
 
 

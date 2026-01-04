@@ -19,6 +19,7 @@ from app.config import CATALOG_SITES_LIST, CATALOG_SITE_CONFIGS
 HREF_PATTERNS: Dict[str, re.Pattern[str]] = {
     "aniworld.to": re.compile(r"/anime/stream/([^/?#]+)"),
     "s.to": re.compile(r"/serie/stream/([^/?#]+)"),
+    "megakino": re.compile(r"/serials/\d+-([^./?#]+)"),
 }
 
 # Legacy pattern for backward compatibility
@@ -39,6 +40,9 @@ def _extract_slug(href: str, site: str = "aniworld.to") -> Optional[str]:
 
     Returns:
         `slug` if the site's href pattern matches and captures a group, `None` otherwise.
+
+    Notes:
+        Megakino URLs follow `/serials/<id>-<slug>.html`, which differs from AniWorld/S.to paths.
     """
     global _extracted_any, _no_slug_warned
     pattern = HREF_PATTERNS.get(site, HREF_PATTERNS["aniworld.to"])
@@ -100,7 +104,15 @@ _cached_alts: Dict[str, Dict[str, List[str]] | None] = {}  # site -> (slug -> [t
 _cached_at: Dict[str, float | None] = {}  # site -> timestamp
 
 
-def _should_refresh(site: str, now: float, refresh_hours: float) -> bool:
+def _has_index_sources(site_cfg: Optional[dict]) -> bool:
+    if not site_cfg:
+        return True
+    return bool(site_cfg.get("alphabet_url") or site_cfg.get("alphabet_html"))
+
+
+def _should_refresh(
+    site: str, now: float, refresh_hours: float, *, has_index_sources: bool = True
+) -> bool:
     """
     Determine whether the cached index for the given site needs refreshing.
 
@@ -117,6 +129,9 @@ def _should_refresh(site: str, now: float, refresh_hours: float) -> bool:
     logger.debug(
         f"Checking if cache should refresh for site={site}. now={now}, _cached_at={_cached_at.get(site)}, refresh_hours={refresh_hours}"
     )
+    if not has_index_sources:
+        logger.info(f"Search-only site detected for {site}; skipping refresh.")
+        return False
     if site not in _cached_indices or _cached_indices[site] is None:
         logger.info(f"No cached index found for {site}. Refresh needed.")
         return True
@@ -271,9 +286,19 @@ def load_or_refresh_index(site: str = "aniworld.to") -> Dict[str, str]:
     else:
         html_file = None
     refresh_hours = float(site_cfg.get("titles_refresh_hours", 24.0))
+    has_index_sources = _has_index_sources(site_cfg)
+
+    if not has_index_sources:
+        logger.info(
+            f"No alphabet sources configured for {site}; running in search-only mode."
+        )
+        _cached_indices[site] = {}
+        _cached_alts[site] = {}
+        _cached_at[site] = now
+        return {}
 
     # Check refresh condition
-    if not _should_refresh(site, now, refresh_hours):
+    if not _should_refresh(site, now, refresh_hours, has_index_sources=has_index_sources):
         logger.info(f"Returning cached index for {site}.")
         return _cached_indices.get(site) or {}
 
@@ -376,7 +401,8 @@ def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[st
         "aniworld.to", {}
     )
     refresh_hours = float(site_cfg.get("titles_refresh_hours", 24.0))
-    if _should_refresh(site, now, refresh_hours):
+    has_index_sources = _has_index_sources(site_cfg)
+    if _should_refresh(site, now, refresh_hours, has_index_sources=has_index_sources):
         # Trigger a refresh through the main loader
         load_or_refresh_index(site)
     return _cached_alts.get(site) or {}
@@ -419,6 +445,13 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
 
     for search_site in sites_to_search:
         index = load_or_refresh_index(search_site)  # slug -> display title
+        if not index and _has_index_sources(CATALOG_SITE_CONFIGS.get(search_site)):
+            continue
+        if not index:
+            direct = _slug_from_search_only_query(q, search_site)
+            if direct:
+                return (search_site, direct)
+            continue
         alts = load_or_refresh_alternatives(search_site)  # slug -> [titles]
 
         for slug, main_title in index.items():
@@ -444,3 +477,25 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
     if best_slug and best_site:
         return (best_site, best_slug)
     return None
+
+
+_MEGAKINO_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+def _slug_from_search_only_query(q: str, site: str) -> Optional[str]:
+    """
+    Validate direct slug usage for search-only sites without alphabet indices.
+
+    Megakino does not provide an alphabet index; callers must supply a slug or a URL
+    containing one.
+    """
+    raw = (q or "").strip()
+    if not raw:
+        return None
+    candidate = _extract_slug(raw, site) or raw
+    candidate = candidate.strip().lower()
+    if site == "megakino":
+        if _MEGAKINO_SLUG_RE.match(candidate):
+            return candidate
+        return None
+    return candidate if candidate else None

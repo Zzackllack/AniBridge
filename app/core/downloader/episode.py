@@ -1,8 +1,11 @@
 from typing import Optional
+from urllib.parse import urlparse
 
 from loguru import logger
 
 from aniworld.models import Episode  # type: ignore
+
+from app.config import CATALOG_SITE_CONFIGS
 
 
 def build_episode(
@@ -38,12 +41,22 @@ def build_episode(
         site,
     )
     ep: Optional[Episode] = None
+    site_domain = site
+    site_cfg = CATALOG_SITE_CONFIGS.get(site)
+    if site_cfg:
+        base_url = site_cfg.get("base_url")
+        if isinstance(base_url, str) and base_url:
+            parsed = urlparse(base_url)
+            if parsed.netloc:
+                site_domain = parsed.netloc
+            else:
+                site_domain = base_url.strip().strip("/")
     if link:
         logger.debug("Using direct link for episode.")
-        ep = Episode(link=link, site=site)
+        ep = Episode(link=link, site=site_domain)
     elif slug and season and episode:
         logger.debug("Using slug/season/episode for episode.")
-        ep = Episode(slug=slug, season=season, episode=episode, site=site)
+        ep = Episode(slug=slug, season=season, episode=episode, site=site_domain)
     else:
         logger.error(
             "Invalid episode parameters: must provide either link or (slug, season, episode)."

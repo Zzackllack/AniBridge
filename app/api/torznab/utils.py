@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from loguru import logger
 
 from app.config import (
+    CATALOG_SITES_LIST,
     INDEXER_API_KEY,
     INDEXER_NAME,
     TORZNAB_CAT_ANIME,
@@ -48,6 +49,7 @@ def _caps_xml() -> str:
 
     server = ET.SubElement(caps, "server")
     server.set("version", "1.0")
+    server.set("supportedSites", ",".join(CATALOG_SITES_LIST))
 
     limits = ET.SubElement(caps, "limits")
     limits.set("max", "100")
