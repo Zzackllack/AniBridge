@@ -108,6 +108,11 @@ def torznab_api(
         q_str = (q or "").strip()
         logger.debug(f"Search query string: '{q_str}'")
         strm_suffix = " [STRM]"
+        cat_id = TORZNAB_CAT_ANIME
+        if cat:
+            cat_list = [c.strip() for c in str(cat).split(",") if c.strip()]
+            if str(TORZNAB_CAT_MOVIE) in cat_list:
+                cat_id = TORZNAB_CAT_MOVIE
 
         if not q_str and TORZNAB_RETURN_TEST_RESULT:
             logger.debug("Returning synthetic test result for empty query.")
@@ -130,7 +135,7 @@ def torznab_api(
                     title=release_title,
                     magnet=magnet,
                     pubdate=now,
-                    cat_id=TORZNAB_CAT_ANIME,
+                    cat_id=cat_id,
                     guid_str=guid_base,
                 )
             if STRM_FILES_MODE in ("only", "both"):
@@ -148,7 +153,7 @@ def torznab_api(
                     title=release_title + strm_suffix,
                     magnet=magnet_strm,
                     pubdate=now,
-                    cat_id=TORZNAB_CAT_ANIME,
+                    cat_id=cat_id,
                     guid_str=f"{guid_base}:strm",
                 )
         elif q_str:
@@ -241,7 +246,7 @@ def torznab_api(
                                 title=release_title,
                                 magnet=magnet,
                                 pubdate=now,
-                                cat_id=TORZNAB_CAT_ANIME,
+                                cat_id=cat_id,
                                 guid_str=guid_base,
                             )
                         if STRM_FILES_MODE in ("only", "both"):
@@ -260,7 +265,7 @@ def torznab_api(
                                 title=release_title + strm_suffix,
                                 magnet=magnet_strm,
                                 pubdate=now,
-                                cat_id=TORZNAB_CAT_ANIME,
+                                cat_id=cat_id,
                                 guid_str=f"{guid_base}:strm",
                             )
                     except Exception as e:

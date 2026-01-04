@@ -21,6 +21,7 @@ from app.config import (
 
 SUPPORTED_PARAMS = "q,season,ep"
 SUPPORTED_MOVIE_PARAMS = "q"
+SUPPORTED_SEARCH_PARAMS = "q"
 
 
 def _require_apikey(apikey: Optional[str]) -> None:
@@ -58,6 +59,10 @@ def _caps_xml() -> str:
     limits.set("default", "50")
 
     searching = ET.SubElement(caps, "searching")
+    # I am not sure if adding those is the cause of why Prowlarr search now works - but ig it does..
+    search = ET.SubElement(searching, "search")
+    search.set("available", "yes")
+    search.set("supportedParams", SUPPORTED_SEARCH_PARAMS)
     tvsearch = ET.SubElement(searching, "tv-search")
     tvsearch.set("available", "yes")
     tvsearch.set("supportedParams", SUPPORTED_PARAMS)
