@@ -323,7 +323,7 @@ def torznab_api(
                     channel,
                     TORZNAB_CAT_MOVIE,
                     site="megakino",
-                    limit=None,
+                    limit=limit,
                     strm_suffix=strm_suffix,
                 )
                 if count == 0:
@@ -332,7 +332,7 @@ def torznab_api(
                         q_str,
                         channel,
                         cat_id,
-                        limit=None,
+                        limit=limit,
                         strm_suffix=strm_suffix,
                     )
             else:
@@ -341,7 +341,7 @@ def torznab_api(
                     q_str,
                     channel,
                     cat_id,
-                    limit=None,
+                    limit=limit,
                     strm_suffix=strm_suffix,
                 )
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
