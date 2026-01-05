@@ -38,6 +38,12 @@ def _safe_component(s: str) -> str:
 
 
 def _series_component(display_title: str) -> str:
+    """
+    Create a filesystem-safe series component from a display title.
+    
+    Returns:
+        component (str): Sanitized string suitable for use as the series part of a release filename.
+    """
     logger.debug(f"Building series component from display_title: {display_title}")
     return _safe_component(display_title)
 
@@ -45,8 +51,9 @@ def _series_component(display_title: str) -> str:
 def _sanitize_release_name(name: str) -> str:
     """
     Sanitize a release name for filesystem safety while preserving dots and hyphens.
-
-    Replaces reserved filesystem characters with underscores and trims whitespace.
+    
+    Returns:
+        sanitized (str): The input name with reserved filesystem characters replaced by underscores and surrounding whitespace trimmed.
     """
     logger.debug("Sanitizing release name: {}", name)
     sanitized = re.sub(r"[\\/:*?\"<>|]+", "_", name).strip()
@@ -55,6 +62,15 @@ def _sanitize_release_name(name: str) -> str:
 
 
 def _map_codec_name(vcodec: Optional[str]) -> str:
+    """
+    Map a codec identifier string to a canonical codec tag.
+    
+    Parameters:
+        vcodec (Optional[str]): Codec name or identifier from media metadata; may be None or empty.
+    
+    Returns:
+        str: One of "H265", "AV1", "VP9", or "H264". Returns "H264" when `vcodec` is None/empty or no known codec match is found.
+    """
     logger.debug(f"Mapping codec name: {vcodec}")
     if not vcodec:
         return "H264"
