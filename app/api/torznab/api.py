@@ -179,8 +179,6 @@ def torznab_api(
                     display_title = f"{display_title} {movie_year}"
                 # Movies omit SxxEyy in the release title, but we keep S01E01
                 # placeholders in the magnet metadata for backward compatibility.
-                # Movies omit SxxEyy in the release title, but we keep S01E01
-                # placeholders in the magnet metadata for backward compatibility.
                 season_i, ep_i = 1, 1
                 cached_langs = tn.list_available_languages_cached(
                     session, slug=slug, season=season_i, episode=ep_i, site=site_found
