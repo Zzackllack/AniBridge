@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 import re
+import time
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup  # type: ignore
@@ -71,14 +72,14 @@ class MegakinoClient:
         """
         Search the sitemap index for entries matching the provided query and return the top matches.
 
-        Searches the cached sitemap index for slugs whose derived titles match the query and returns up to `limit` results ordered by relevance. If the query yields no meaningful tokens an empty list is returned. The method ensures at least one result is returned when `limit` is less than 1 by treating the effective limit as `max(1, limit)`.
+        Searches the cached sitemap index for slugs whose derived titles match the query and returns up to `limit` results ordered by relevance. If the query yields no meaningful tokens an empty list is returned.
 
         Parameters:
             query (str): The user query to match against sitemap slugs.
             limit (int): Maximum number of results to return.
 
         Returns:
-            List[MegakinoSearchResult]: A list of matching search results ordered by descending score; empty if the query produced no tokens.
+            List[MegakinoSearchResult]: A list of matching search results ordered by descending score; empty if the query produced no tokens or `limit` is 0.
         """
         entries = self.load_index()
         q_tokens = _normalize_tokens(query)
@@ -103,7 +104,9 @@ class MegakinoClient:
             )
         results.sort(key=lambda item: item.score, reverse=True)
         logger.debug("Megakino search results: {}", [r.slug for r in results[:limit]])
-        return results[: max(1, limit)]
+        if limit <= 0:
+            return []
+        return results[:limit]
 
     def resolve_url(self, slug: str) -> Optional[str]:
         """
@@ -196,8 +199,6 @@ def time_now() -> float:
     Returns:
         epoch_seconds (float): Seconds since the Unix epoch.
     """
-    import time
-
     return time.time()
 
 
@@ -216,7 +217,7 @@ def _normalize_url(url: str) -> str:
     if url.startswith("http://") or url.startswith("https://"):
         return url
     base = get_megakino_base_url().rstrip("/")
-    normalized = f"{base}/{url.lstrip('/') }".rstrip("/")
+    normalized = f"{base}/{url.lstrip('/')}".rstrip("/")
     logger.debug("Megakino normalized URL '{}' -> '{}'", url, normalized)
     return normalized
 

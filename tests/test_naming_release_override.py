@@ -4,6 +4,7 @@ from app.utils.naming import rename_to_release
 
 
 def test_rename_to_release_uses_override(tmp_path: Path) -> None:
+    """Ensure release_name_override is used verbatim for renaming."""
     src = tmp_path / "tempfile.mp4"
     src.write_bytes(b"test")
 

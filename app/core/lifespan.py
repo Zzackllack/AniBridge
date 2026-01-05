@@ -136,8 +136,6 @@ async def lifespan(app: FastAPI):
     megakino_stop = threading.Event()
     cleanup_thread: Optional[threading.Thread] = None
     ip_thread: Optional[threading.Thread] = None
-    megakino_thread: Optional[threading.Thread] = None
-
     if "megakino" in CATALOG_SITE_CONFIGS:
         try:
             resolve_megakino_base_url()
@@ -153,7 +151,7 @@ async def lifespan(app: FastAPI):
         logger.debug(f"start_ip_check_thread failed: {e}")
     if "megakino" in CATALOG_SITE_CONFIGS:
         try:
-            megakino_thread = start_megakino_domain_check_thread(megakino_stop)
+            start_megakino_domain_check_thread(megakino_stop)
         except Exception as e:
             logger.debug(f"start_megakino_domain_check_thread failed: {e}")
 
@@ -164,17 +162,17 @@ async def lifespan(app: FastAPI):
         shutdown_executor()
         try:
             dispose_engine()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("dispose_engine failed: {}", e)
         try:
             cleanup_stop.set()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("cleanup_stop.set failed: {}", e)
         try:
             ip_stop.set()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("ip_stop.set failed: {}", e)
         try:
             megakino_stop.set()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("megakino_stop.set failed: {}", e)

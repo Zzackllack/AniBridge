@@ -2,6 +2,8 @@ import sys
 
 
 class _StubClient:
+    """Stub Megakino client that provides a fixed index for resolver tests."""
+
     def __init__(self, entries):
         """
         Initialize the stub client with a pre-populated index.
@@ -48,6 +50,7 @@ def _reload_modules():
 
 
 def test_slug_from_query_megakino_direct_slug(monkeypatch):
+    """Ensure direct megakino slugs resolve without lookup."""
     monkeypatch.setenv("CATALOG_SITES", "megakino")
     monkeypatch.setenv("MEGAKINO_BASE_URL", "https://megakino.lol")
     _reload_modules()
@@ -67,6 +70,7 @@ def test_slug_from_query_megakino_direct_slug(monkeypatch):
 
 
 def test_slug_from_query_megakino_url(monkeypatch):
+    """Ensure megakino URLs resolve to slugs."""
     monkeypatch.setenv("CATALOG_SITES", "megakino")
     monkeypatch.setenv("MEGAKINO_BASE_URL", "https://megakino.lol")
     _reload_modules()
@@ -81,6 +85,7 @@ def test_slug_from_query_megakino_url(monkeypatch):
 
 
 def test_slug_from_query_megakino_rejects_plain_title(monkeypatch):
+    """Ensure plain titles do not resolve when sitemap search is empty."""
     monkeypatch.setenv("CATALOG_SITES", "megakino")
     monkeypatch.setenv("MEGAKINO_BASE_URL", "https://megakino.lol")
     _reload_modules()

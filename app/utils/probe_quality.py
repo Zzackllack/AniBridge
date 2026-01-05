@@ -100,7 +100,11 @@ def probe_episode_quality(
                 slug=slug, preferred_provider=preferred_provider
             )
         except Exception as exc:
-            logger.warning(f"Megakino direct URL resolution failed: {exc}")
+            logger.warning(
+                "Megakino direct URL resolution failed ({}): {}",
+                type(exc).__name__,
+                exc,
+            )
             return (False, None, None, None, None)
         logger.debug(
             "Megakino direct URL resolved: provider={} url={}",
@@ -137,7 +141,12 @@ def probe_episode_quality(
             )
             return (True, h, vc, chosen, info)
         except Exception as e:
-            logger.warning(f"Provider '{prov}' failed: {e}")
+            logger.warning(
+                "Provider '{}' failed ({}): {}",
+                prov,
+                type(e).__name__,
+                e,
+            )
             continue
     logger.error("No provider succeeded for this episode/language.")
     return (False, None, None, None, None)

@@ -173,8 +173,11 @@ def _apply_megakino_base_url(base_url: str, source: str) -> None:
             from app.providers.megakino.client import reset_default_client
 
             reset_default_client()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning(
+                "Failed to reset default Megakino client after base URL update: {}",
+                exc,
+            )
     except Exception as exc:
         logger.warning("Failed to apply megakino base URL to config: {}", exc)
 

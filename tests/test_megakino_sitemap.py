@@ -23,6 +23,7 @@ SAMPLE_XML = """
 
 
 def test_parse_sitemap_xml_extracts_entries():
+    """Ensure sitemap parsing extracts film and serial slugs."""
     entries = parse_sitemap_xml(SAMPLE_XML)
     assert len(entries) == 2
     slugs = {entry.slug for entry in entries}
@@ -34,10 +35,12 @@ def test_parse_sitemap_xml_extracts_entries():
 
 
 def test_slug_to_title_humanizes():
+    """Ensure slug-to-title conversion humanizes hyphenated slugs."""
     assert slug_to_title("avengers-endgame") == "Avengers Endgame"
 
 
 def test_megakino_client_search_matches_tokens():
+    """Ensure token matching returns the best Megakino sitemap result."""
     client = MegakinoClient(sitemap_url="http://example.com", refresh_hours=0.0)
     client._index = MegakinoIndex(
         entries={

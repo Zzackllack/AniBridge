@@ -177,6 +177,10 @@ def torznab_api(
                 movie_year = get_movie_year(q_str)
                 if movie_year:
                     display_title = f"{display_title} {movie_year}"
+                # Movies omit SxxEyy in the release title, but we keep S01E01
+                # placeholders in the magnet metadata for backward compatibility.
+                # Movies omit SxxEyy in the release title, but we keep S01E01
+                # placeholders in the magnet metadata for backward compatibility.
                 season_i, ep_i = 1, 1
                 cached_langs = tn.list_available_languages_cached(
                     session, slug=slug, season=season_i, episode=ep_i, site=site_found
@@ -187,7 +191,6 @@ def torznab_api(
                     cached_langs if cached_langs else default_langs
                 )
                 now = datetime.now(timezone.utc)
-                count = 0
                 for lang in candidate_langs:
                     try:
                         available, h, vc, prov, _info = tn.probe_episode_quality(

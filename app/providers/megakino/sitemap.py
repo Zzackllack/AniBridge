@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Iterable, List, Optional, Tuple
 import time
-import xml.etree.ElementTree as ET
+
+import requests
+from defusedxml import ElementTree as ET
 
 from loguru import logger
 
@@ -225,7 +227,11 @@ def load_sitemap_index(
         Dict[str, MegakinoIndexEntry]: Mapping from slug to MegakinoIndexEntry; empty if nothing usable was parsed.
     """
     xml_text = _fetch_sitemap(sitemap_url, timeout=timeout)
-    top_level = parse_sitemap_xml(xml_text)
+    try:
+        top_level = parse_sitemap_xml(xml_text)
+    except ET.ParseError as exc:
+        logger.warning("Megakino sitemap parse failed: {}", exc)
+        return {}
     if not top_level:
         logger.warning("Megakino sitemap returned no usable entries.")
         return {}
@@ -238,7 +244,7 @@ def load_sitemap_index(
                 xml_child = _fetch_sitemap(entry.url, timeout=timeout)
                 for item in parse_sitemap_xml(xml_child):
                     merged[item.slug] = item
-            except Exception as exc:
+            except (requests.RequestException, ET.ParseError) as exc:
                 logger.warning("Megakino child sitemap fetch failed: {}", exc)
         logger.info("Megakino sitemap index loaded: {} entries", len(merged))
         return merged
