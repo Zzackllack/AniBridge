@@ -294,8 +294,14 @@ STO_ALPHABET_URL = os.getenv(
     "STO_ALPHABET_URL", f"{STO_BASE_URL}/serien-alphabet"
 ).strip()
 
-# Megakino (series/movies, search-only catalog)
+# Megakino (series/movies)
 MEGAKINO_BASE_URL = os.getenv("MEGAKINO_BASE_URL", "https://megakino.lol").strip()
+MEGAKINO_SITEMAP_URL = os.getenv(
+    "MEGAKINO_SITEMAP_URL", f"{MEGAKINO_BASE_URL}/sitemap.xml"
+).strip()
+MEGAKINO_TITLES_REFRESH_HOURS = float(
+    os.getenv("MEGAKINO_TITLES_REFRESH_HOURS", "12")
+)
 MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN = int(
     os.getenv("MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN", "100")
 )
@@ -307,6 +313,8 @@ logger.debug(
     f"STO_ALPHABET_HTML={STO_ALPHABET_HTML}, STO_ALPHABET_URL={STO_ALPHABET_URL}"
 )
 logger.debug(f"MEGAKINO_BASE_URL={MEGAKINO_BASE_URL}")
+logger.debug(f"MEGAKINO_SITEMAP_URL={MEGAKINO_SITEMAP_URL}")
+logger.debug(f"MEGAKINO_TITLES_REFRESH_HOURS={MEGAKINO_TITLES_REFRESH_HOURS}")
 logger.debug(
     f"MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN={MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN}"
 )
@@ -355,7 +363,7 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "base_url": MEGAKINO_BASE_URL,
         "alphabet_html": None,
         "alphabet_url": None,
-        "titles_refresh_hours": 0.0,
+        "titles_refresh_hours": MEGAKINO_TITLES_REFRESH_HOURS,
         "default_languages": ["Deutsch", "German Dub"],
         "release_group": "megakino",
     },

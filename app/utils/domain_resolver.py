@@ -129,9 +129,16 @@ def _apply_megakino_base_url(base_url: str, source: str) -> None:
         from app import config
 
         config.MEGAKINO_BASE_URL = base_url
+        config.MEGAKINO_SITEMAP_URL = f"{base_url.rstrip('/')}/sitemap.xml"
         if "megakino" in config.CATALOG_SITE_CONFIGS:
             config.CATALOG_SITE_CONFIGS["megakino"]["base_url"] = base_url
         logger.info("Megakino base URL set to {} (source={})", base_url, source)
+        try:
+            from app.providers.megakino.client import reset_default_client
+
+            reset_default_client()
+        except Exception:
+            pass
     except Exception as exc:
         logger.warning("Failed to apply megakino base URL to config: {}", exc)
 

@@ -109,10 +109,14 @@ def torznab_api(
         logger.debug(f"Search query string: '{q_str}'")
         strm_suffix = " [STRM]"
         cat_id = TORZNAB_CAT_ANIME
+        movie_preferred = False
         if cat:
             cat_list = [c.strip() for c in str(cat).split(",") if c.strip()]
             if str(TORZNAB_CAT_MOVIE) in cat_list:
                 cat_id = TORZNAB_CAT_MOVIE
+                movie_preferred = True
+        if movie_preferred:
+            logger.debug("Movie category detected; preferring megakino resolution.")
 
         if not q_str and TORZNAB_RETURN_TEST_RESULT:
             logger.debug("Returning synthetic test result for empty query.")
@@ -158,7 +162,15 @@ def torznab_api(
                 )
         elif q_str:
             # Preview search: S01E01 for requested series
-            result = tn._slug_from_query(q_str)
+            result = (
+                tn._slug_from_query(q_str, site="megakino")
+                if movie_preferred
+                else None
+            )
+            if movie_preferred and not result:
+                logger.debug("Megakino resolution returned no match for '{}'", q_str)
+            if not result:
+                result = tn._slug_from_query(q_str)
             if result:
                 site_found, slug = result
                 display_title = tn.resolve_series_title(slug, site_found) or q_str
