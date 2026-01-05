@@ -3,17 +3,45 @@ import sys
 
 class _StubClient:
     def __init__(self, entries):
+        """
+        Initialize the stub client with a pre-populated index.
+        
+        Parameters:
+            entries (dict): Mapping of slug (str) to entry data used by the client's index methods.
+        """
         self._entries = entries
 
     def load_index(self):
+        """
+        Return the stored index entries for this stub client.
+        
+        Returns:
+            dict: The entries provided to the client during initialization.
+        """
         return self._entries
 
     def search(self, query, limit=1):
+        """
+        Perform a search against the client's index using the provided query.
+        
+        Parameters:
+            query (str): The search query string.
+            limit (int): Maximum number of results to return.
+        
+        Returns:
+            list: Matching entries from the index; this stub implementation always returns an empty list.
+        """
         return []
 
 
 
 def _reload_modules():
+    """
+    Remove cached imports of app.config and app.utils.title_resolver from sys.modules.
+    
+    Deletes the entries for those module names from the import cache so subsequent imports
+    will load fresh copies (useful in tests that modify environment or module-level state).
+    """
     for m in ["app.config", "app.utils.title_resolver"]:
         if m in sys.modules:
             del sys.modules[m]
