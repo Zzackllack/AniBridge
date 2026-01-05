@@ -75,7 +75,11 @@ def _extract_slug(url: str) -> Optional[Tuple[str, str]]:
         return None
 
     try:
-        tail = lowered.split("/films/", 1)[1] if kind == "film" else lowered.split("/serials/", 1)[1]
+        tail = (
+            lowered.split("/films/", 1)[1]
+            if kind == "film"
+            else lowered.split("/serials/", 1)[1]
+        )
     except IndexError:
         return None
 
@@ -111,7 +115,9 @@ def parse_sitemap_xml(xml_text: str) -> List[MegakinoIndexEntry]:
                     slug=loc,
                     url=loc,
                     kind="sitemap",
-                    lastmod=_parse_lastmod(lastmod_node.text if lastmod_node is not None else None),
+                    lastmod=_parse_lastmod(
+                        lastmod_node.text if lastmod_node is not None else None
+                    ),
                 )
             )
         return entries

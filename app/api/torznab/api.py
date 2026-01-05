@@ -164,9 +164,7 @@ def torznab_api(
         elif q_str:
             # Preview search: S01E01 for requested series
             result = (
-                tn._slug_from_query(q_str, site="megakino")
-                if movie_preferred
-                else None
+                tn._slug_from_query(q_str, site="megakino") if movie_preferred else None
             )
             if movie_preferred and not result:
                 logger.debug("Megakino resolution returned no match for '{}'", q_str)

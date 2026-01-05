@@ -49,9 +49,7 @@ def _build_base_url(value: str) -> str:
     return raw
 
 
-def check_megakino_domain_validity(
-    base_url: str, timeout: float | int = 15
-) -> bool:
+def check_megakino_domain_validity(base_url: str, timeout: float | int = 15) -> bool:
     """
     Probe a megakino base URL for reachability using the token endpoint.
 

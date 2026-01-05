@@ -338,7 +338,9 @@ def load_or_refresh_index(site: str = "aniworld.to") -> Dict[str, str]:
         return {}
 
     # Check refresh condition
-    if not _should_refresh(site, now, refresh_hours, has_index_sources=has_index_sources):
+    if not _should_refresh(
+        site, now, refresh_hours, has_index_sources=has_index_sources
+    ):
         logger.info(f"Returning cached index for {site}.")
         return _cached_indices.get(site) or {}
 
