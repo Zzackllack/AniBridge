@@ -329,11 +329,12 @@ def torznab_api(
                     strm_suffix=strm_suffix,
                 )
                 if count == 0:
+                    # Fallback to anime category when Megakino returns no matches.
                     _handle_preview_search(
                         session,
                         q_str,
                         channel,
-                        cat_id,
+                        TORZNAB_CAT_ANIME,
                         limit=limit,
                         strm_suffix=strm_suffix,
                     )
