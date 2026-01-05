@@ -75,9 +75,16 @@ def download_episode(
             slug=slug, preferred_provider=provider
         )
         logger.debug("Megakino download direct URL: provider={} url={}", chosen, direct)
+        entry = client.load_index().get(slug)
+        is_movie = bool(entry and entry.kind == "films")
+        if is_movie:
+            logger.debug("Megakino slug '{}' classified as movie.", slug)
         base_hint = title_hint
-        if not base_hint and slug and season and episode:
-            base_hint = f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
+        if not base_hint:
+            if is_movie:
+                base_hint = f"{slug}-{language}-{chosen}"
+            elif slug and season and episode:
+                base_hint = f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
         temp_path, info = _ydl_download(
             direct,
             dest_dir,
@@ -86,14 +93,18 @@ def download_episode(
             progress_cb=progress_cb,
             stop_event=stop_event,
         )
+        release_override = None
+        if title_hint:
+            release_override = title_hint.replace(" [STRM]", "").strip()
         final_path = rename_to_release(
             path=temp_path,
             info=info,
             slug=slug,
-            season=season,
-            episode=episode,
+            season=None if is_movie else season,
+            episode=None if is_movie else episode,
             language=language,
             site=site,
+            release_name_override=release_override,
         )
         logger.success("Final file path: %s", final_path)
         return final_path

@@ -42,6 +42,18 @@ def _series_component(display_title: str) -> str:
     return _safe_component(display_title)
 
 
+def _sanitize_release_name(name: str) -> str:
+    """
+    Sanitize a release name for filesystem safety while preserving dots and hyphens.
+
+    Replaces reserved filesystem characters with underscores and trims whitespace.
+    """
+    logger.debug("Sanitizing release name: {}", name)
+    sanitized = re.sub(r"[\\/:*?\"<>|]+", "_", name).strip()
+    logger.debug("Sanitized release name: {}", sanitized)
+    return sanitized
+
+
 def _map_codec_name(vcodec: Optional[str]) -> str:
     logger.debug(f"Mapping codec name: {vcodec}")
     if not vcodec:
@@ -223,6 +235,7 @@ def rename_to_release(
     episode: Optional[int],
     language: str,
     site: str = "aniworld.to",
+    release_name_override: Optional[str] = None,
 ) -> Path:
     """
     Generate a release-style filename for a media file and rename the file on disk.
@@ -237,6 +250,8 @@ def rename_to_release(
         episode (Optional[int]): Episode number for the release name (used when provided).
         language (str): Language label to include in the release name.
         site (str): Site identifier that may alter release-group selection and title resolution.
+        release_name_override (Optional[str]): If provided, use this exact release name (sanitized)
+            instead of building a new one from metadata.
 
     Returns:
         Path: The resulting path after renaming (may be unchanged if no rename was needed).
@@ -245,6 +260,26 @@ def rename_to_release(
         Renames the file on disk to the generated release-style filename.
     """
     logger.info(f"Renaming file to release schema: {path} (site: {site})")
+    override = (release_name_override or "").strip()
+    if override:
+        release = _sanitize_release_name(override)
+        suffix = path.suffix.lower()
+        if release.lower().endswith(suffix):
+            new_path = path.with_name(release)
+        else:
+            new_path = path.with_name(f"{release}{suffix}")
+        if new_path.exists() and new_path != path:
+            i = 2
+            base = new_path.stem
+            while new_path.exists():
+                new_path = path.with_name(f"{base}.{i}{suffix}")
+                i += 1
+        if new_path != path:
+            logger.info(f"Renaming {path} to {new_path}")
+            path.rename(new_path)
+        else:
+            logger.info(f"No rename needed for {path}")
+        return new_path
     # 1) Serien-Titel bestimmen
     display_title = None
     if slug:

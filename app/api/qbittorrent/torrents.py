@@ -95,10 +95,10 @@ def torrents_add(
         "language": language,
         "site": site,
     }
+    if name:
+        req["title_hint"] = name
     if mode:
         req["mode"] = mode
-        # STRM creation benefits from having the final desired basename.
-        req["title_hint"] = name
     job_id = schedule_download(req)
     logger.debug(f"Scheduled job_id: {job_id}")
 
