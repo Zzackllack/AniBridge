@@ -27,12 +27,12 @@ SUPPORTED_SEARCH_PARAMS = "q"
 def _require_apikey(apikey: Optional[str]) -> None:
     """
     Validate the provided API key against the configured INDEXER_API_KEY and raise on mismatch.
-    
+
     If an INDEXER_API_KEY is configured, this function checks that `apikey` is present and equals that value; if not, it logs a warning and raises an HTTPException with status 401 and detail "invalid apikey". If no INDEXER_API_KEY is configured, the function performs no validation.
-    
+
     Parameters:
         apikey (Optional[str]): The API key supplied by the caller; may be None.
-    
+
     Raises:
         HTTPException: Raised with status code 401 and detail "invalid apikey" when a configured API key is missing or does not match.
     """
@@ -60,13 +60,13 @@ def _rss_root() -> Tuple[ET.Element, ET.Element]:
 def _caps_xml() -> str:
     """
     Builds the Torznab "caps" (capabilities) XML document describing server info, limits, available search types, and categories.
-    
+
     The returned XML contains a top-level <caps> element with:
     - a <server> child (version and supportedSites),
     - a <limits> child (max and default result counts),
     - a <searching> child with <search>, <tv-search>, and <movie-search> elements (each with available and supportedParams),
     - a <categories> child containing "TV/Anime" and "Movies" category entries.
-    
+
     Returns:
         str: The serialized XML document as a UTF-8 string.
     """

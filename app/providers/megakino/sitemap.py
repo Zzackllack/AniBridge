@@ -32,10 +32,10 @@ class MegakinoIndex:
 def _strip_namespace(tag: str) -> str:
     """
     Remove an XML namespace prefix from an element tag, if present.
-    
+
     Parameters:
         tag (str): XML element tag, possibly in the form "{namespace}localname".
-    
+
     Returns:
         str: The local tag name with any leading "{...}" namespace removed.
     """
@@ -47,15 +47,15 @@ def _strip_namespace(tag: str) -> str:
 def _parse_lastmod(text: Optional[str]) -> Optional[datetime]:
     """
     Parse a sitemap `lastmod` text value into a datetime.
-    
+
     Accepts None or empty strings and returns None. Recognizes and parses these formats:
     - YYYY-MM-DD
     - YYYY-MM-DDTHH:MM:SSZ or with numeric timezone offset (`%Y-%m-%dT%H:%M:%S%z`)
     - YYYY-MM-DDTHH:MM:SS (no timezone)
-    
+
     Parameters:
         text (Optional[str]): The raw `lastmod` text from a sitemap.
-    
+
     Returns:
         Optional[datetime]: A datetime parsed from `text` if a supported format matches, `None` otherwise.
     """
@@ -75,7 +75,7 @@ def _parse_lastmod(text: Optional[str]) -> Optional[datetime]:
 def _iter_sitemap_urls(root: ET.Element) -> Iterable[Tuple[str, Optional[str]]]:
     """
     Iterate URL entries in a sitemap XML root.
-    
+
     Yields tuples of (loc, lastmod) where `loc` is the trimmed URL string from each `<loc>` element and `lastmod` is the trimmed text from the `<lastmod>` element or an empty string if absent.
     """
     for url_node in root.findall(".//{*}url"):
@@ -89,9 +89,9 @@ def _iter_sitemap_urls(root: ET.Element) -> Iterable[Tuple[str, Optional[str]]]:
 def _extract_slug(url: str) -> Optional[Tuple[str, str]]:
     """
     Extract the resource slug and kind from a Megakino content URL.
-    
+
     Parses the URL path for "/films/" or "/serials/" and returns the slug extracted from the path tail together with the content kind.
-    
+
     Returns:
         Tuple[str, str]: `(slug, kind)` where `kind` is `"film"` or `"serial"`, or `None` if the URL does not contain a recognized path or a valid slug.
     """
@@ -130,16 +130,16 @@ def _extract_slug(url: str) -> Optional[Tuple[str, str]]:
 def parse_sitemap_xml(xml_text: str) -> List[MegakinoIndexEntry]:
     """
     Parse a Megakino sitemap XML string into MegakinoIndexEntry items.
-    
+
     Handles both sitemap index documents and regular sitemap URL lists. For a
     sitemapindex, produces entries with kind "sitemap" where the slug is the
     child sitemap URL. For a regular sitemap, extracts film or serial slugs
     from item URLs and produces entries with kind "film" or "serial". Entries
     missing a valid <loc> or with an unrecognized URL pattern are skipped.
-    
+
     Parameters:
         xml_text (str): XML text of the sitemap document.
-    
+
     Returns:
         List[MegakinoIndexEntry]: Parsed index entries. Each entry's `lastmod`
         is parsed into a `datetime` when present, otherwise `None`.
@@ -185,14 +185,14 @@ def parse_sitemap_xml(xml_text: str) -> List[MegakinoIndexEntry]:
 def _fetch_sitemap(url: str, timeout: float = 20.0) -> str:
     """
     Fetches a sitemap XML document from the given URL.
-    
+
     Parameters:
         url (str): The sitemap URL to fetch.
         timeout (float): Maximum time in seconds to wait for the request (default 20.0).
-    
+
     Returns:
         str: The response body as text.
-    
+
     Raises:
         HTTPError: If the HTTP response status indicates a failure.
     """
@@ -214,13 +214,13 @@ def load_sitemap_index(
 ) -> Dict[str, MegakinoIndexEntry]:
     """
     Load a Megakino sitemap or sitemap index and return a mapping of slug to entry.
-    
+
     If the provided URL is a sitemap index, each referenced sitemap will be fetched and merged; entries from later sitemaps overwrite earlier ones. If no usable entries are found, an empty mapping is returned. Failures fetching individual child sitemaps are ignored and do not stop processing.
-    
+
     Parameters:
         sitemap_url (str): URL of the sitemap or sitemap index to load.
         timeout (float): HTTP request timeout in seconds (default 20.0).
-    
+
     Returns:
         Dict[str, MegakinoIndexEntry]: Mapping from slug to MegakinoIndexEntry; empty if nothing usable was parsed.
     """
@@ -251,11 +251,11 @@ def load_sitemap_index(
 def needs_refresh(index: Optional[MegakinoIndex], refresh_hours: float) -> bool:
     """
     Determine whether a Megakino sitemap index should be refreshed based on a time-to-live value.
-    
+
     Parameters:
         index (Optional[MegakinoIndex]): Previously fetched index or `None` if no index is available.
         refresh_hours (float): Time-to-live in hours. A value less than or equal to 0 disables refreshing.
-    
+
     Returns:
         `true` if the index needs refresh, `false` otherwise.
     """

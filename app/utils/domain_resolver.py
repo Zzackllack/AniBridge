@@ -30,10 +30,10 @@ _resolved_megakino_source: Optional[str] = None
 def _normalize_domain(value: str) -> str:
     """
     Normalize an input URL or host string into a lowercase domain without surrounding slashes.
-    
+
     Parameters:
         value (str): A URL or domain-like string that may include a scheme, path, or surrounding whitespace.
-    
+
     Returns:
         str: The cleaned domain (host) in lowercase with no leading or trailing slashes, or an empty string if the input is empty or contains no domain.
     """
@@ -50,12 +50,12 @@ def _normalize_domain(value: str) -> str:
 def _build_base_url(value: str) -> str:
     """
     Constructs a normalized base URL from an input string.
-    
+
     If the input contains a network location, returns a URL with a scheme and netloc (defaults scheme to `https` when missing). If the input is empty, returns an empty string. If the input cannot be parsed into a netloc, returns the stripped original input.
-    
+
     Parameters:
         value (str): A domain or URL string to normalize.
-    
+
     Returns:
         str: A base URL like `https://example.com`, the stripped original input if no netloc is found, or an empty string for empty input.
     """
@@ -72,13 +72,13 @@ def _build_base_url(value: str) -> str:
 def check_megakino_domain_validity(base_url: str, timeout: float | int = 15) -> bool:
     """
     Check whether a Megakino base URL is reachable by probing its token endpoint.
-    
+
     Probes the base URL's token endpoint (MEGAKINO_TOKEN_PATH) with a GET request to determine availability.
-    
+
     Parameters:
         base_url (str): Base URL to probe; an empty value causes the function to return `False`.
         timeout (float | int): Request timeout in seconds.
-    
+
     Returns:
         bool: `true` if the probe returned an HTTP status code less than 400, `false` otherwise.
     """
@@ -107,12 +107,12 @@ def check_megakino_domain_validity(base_url: str, timeout: float | int = 15) -> 
 def fetch_megakino_domain(timeout: float | int = 15) -> Optional[str]:
     """
     Resolve the active Megakino domain by following redirects from configured candidate domains.
-    
+
     Parameters:
-    	timeout (float | int): Request timeout in seconds for HTTP probes.
-    
+        timeout (float | int): Request timeout in seconds for HTTP probes.
+
     Returns:
-    	resolved_domain (str | None): The resolved domain without a URL scheme (for example, "example.com"), or `None` if no candidate could be validated.
+        resolved_domain (str | None): The resolved domain without a URL scheme (for example, "example.com"), or `None` if no candidate could be validated.
     """
     logger.info("Resolving megakino domain via redirect checks.")
     seen: set[str] = set()
@@ -150,9 +150,9 @@ def fetch_megakino_domain(timeout: float | int = 15) -> Optional[str]:
 def _apply_megakino_base_url(base_url: str, source: str) -> None:
     """
     Apply and persist the resolved Megakino base URL to module state and application configuration.
-    
+
     Sets the module-level resolved URL and source, updates app.config values (MEGAKINO_BASE_URL and MEGAKINO_SITEMAP_URL) and the "megakino" entry in CATALOG_SITE_CONFIGS when present, and attempts to reset the default Megakino client. Failures while applying configuration are logged and suppressed; client-reset errors are ignored.
-    
+
     Parameters:
         base_url (str): The base URL to apply (e.g., "https://example.com").
         source (str): Identifier of how the URL was determined (for example, "resolved", "env", or "default").
@@ -182,9 +182,9 @@ def _apply_megakino_base_url(base_url: str, source: str) -> None:
 def resolve_megakino_base_url() -> str:
     """
     Resolve and store the Megakino base URL by attempting redirect-based discovery, then an environment override, then a default.
-    
+
     The chosen base URL is applied to module state and the application configuration.
-    
+
     Returns:
         base_url (str): The applied Megakino base URL.
     """
@@ -207,9 +207,9 @@ def resolve_megakino_base_url() -> str:
 def get_megakino_base_url() -> str:
     """
     Retrieve the currently resolved Megakino base URL.
-    
+
     If a cached resolved base URL exists, it is returned. Otherwise the function reads MEGAKINO_BASE_URL from app.config; if that access fails, it falls back to a base URL built from the default Megakino domain.
-    
+
     Returns:
         The Megakino base URL: the cached resolved URL if set, `config.MEGAKINO_BASE_URL` if available, or a URL constructed from the default domain.
     """
@@ -228,10 +228,10 @@ def start_megakino_domain_check_thread(
 ) -> Optional["threading.Thread"]:
     """
     Start a background daemon thread that periodically verifies the Megakino domain and triggers a re-resolution if the check fails.
-    
+
     Parameters:
         stop_event (threading.Event): Event used to stop the monitoring loop; when set, the thread will exit.
-    
+
     Returns:
         threading.Thread | None: The started daemon thread if monitoring was enabled, `None` if monitoring is disabled (config unavailable or interval set to 0). The check interval is read from app.config.MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN in minutes.
     """
@@ -251,7 +251,7 @@ def start_megakino_domain_check_thread(
     def _loop() -> None:
         """
         Background loop that periodically verifies the configured Megakino base URL and triggers re-resolution on failure.
-        
+
         This function logs startup, then repeatedly waits for the configured interval (in minutes) until `stop_event` is set. On each iteration it retrieves the current Megakino base URL, checks its validity, and calls `resolve_megakino_base_url()` if the check fails.
         """
         logger.info("Starting megakino domain monitor: interval={} min", interval)

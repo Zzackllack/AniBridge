@@ -24,7 +24,7 @@ class ImdbSuggestion:
 def extract_year_from_query(query: str) -> Optional[int]:
     """
     Extract the last 4-digit year (1900–2099) found as a whole word in the query.
-    
+
     Returns:
         The year as an int if a valid 4-digit year is found, otherwise None.
     """
@@ -42,10 +42,10 @@ def extract_year_from_query(query: str) -> Optional[int]:
 def _normalize_tokens(text: str) -> set[str]:
     """
     Normalize text into a set of lowercase alphanumeric word tokens, excluding tokens that consist only of digits.
-    
+
     Parameters:
         text (str): Input string to tokenize and normalize.
-    
+
     Returns:
         set[str]: Unique tokens composed of lowercase letters and digits extracted from the input, with punctuation replaced by spaces and purely numeric tokens removed.
     """
@@ -57,11 +57,11 @@ def _normalize_tokens(text: str) -> set[str]:
 def parse_imdb_suggestions(payload: dict, query: str) -> Optional[ImdbSuggestion]:
     """
     Select the best-matching IMDb suggestion from a suggestion payload for a given query.
-    
+
     Parameters:
         payload (dict): IMDb suggestion JSON object expected to contain a "d" key with a list of suggestion entries.
         query (str): The user search query to match against suggestion titles.
-    
+
     Returns:
         ImdbSuggestion or None: An ImdbSuggestion with the chosen title and optional year when a best match is found, `None` if the payload is malformed or no suitable suggestion exists.
     """
@@ -92,7 +92,7 @@ def parse_imdb_suggestions(payload: dict, query: str) -> Optional[ImdbSuggestion
 def lookup_year_from_imdb(query: str) -> Optional[int]:
     """
     Derive a movie release year by querying IMDb's public suggestion endpoint for the given query.
-    
+
     Returns:
         int: The matched year if found, `None` otherwise.
     """
@@ -118,7 +118,7 @@ def lookup_year_from_imdb(query: str) -> Optional[int]:
 def get_movie_year(query: str) -> Optional[int]:
     """
     Resolve a movie year from a user query by extracting an explicit year or falling back to an IMDb suggestion lookup.
-    
+
     Returns:
         movie_year (Optional[int]): The movie year as an integer if found, `None` otherwise.
     """

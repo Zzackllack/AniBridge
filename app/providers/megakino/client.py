@@ -41,7 +41,7 @@ class MegakinoClient:
     ) -> None:
         """
         Initialize the MegakinoClient with the sitemap source and cache refresh interval.
-        
+
         Parameters:
             sitemap_url (str): URL of the sitemap index used to build and refresh the internal slug-to-entry index.
             refresh_hours (float): Hours to treat the cached sitemap index as fresh before reloading. The index is not loaded during construction; call `load_index()` to populate the cache.
@@ -53,9 +53,9 @@ class MegakinoClient:
     def load_index(self) -> Dict[str, MegakinoIndexEntry]:
         """
         Return the sitemap index mapping slugs to their MegakinoIndexEntry, refreshing the cached index when it is stale.
-        
+
         The client will refresh its cached sitemap index according to its configured refresh interval before returning results.
-        
+
         Returns:
             Dict[str, MegakinoIndexEntry]: Mapping from slug to index entry. Returns an empty dict if no index is available.
         """
@@ -70,13 +70,13 @@ class MegakinoClient:
     def search(self, query: str, limit: int = 5) -> List[MegakinoSearchResult]:
         """
         Search the sitemap index for entries matching the provided query and return the top matches.
-        
+
         Searches the cached sitemap index for slugs whose derived titles match the query and returns up to `limit` results ordered by relevance. If the query yields no meaningful tokens an empty list is returned. The method ensures at least one result is returned when `limit` is less than 1 by treating the effective limit as `max(1, limit)`.
-        
+
         Parameters:
             query (str): The user query to match against sitemap slugs.
             limit (int): Maximum number of results to return.
-        
+
         Returns:
             List[MegakinoSearchResult]: A list of matching search results ordered by descending score; empty if the query produced no tokens.
         """
@@ -108,10 +108,10 @@ class MegakinoClient:
     def resolve_url(self, slug: str) -> Optional[str]:
         """
         Resolve a megakino slug to its canonical page URL.
-        
+
         Parameters:
             slug (str): Megakino slug identifier to resolve.
-        
+
         Returns:
             Optional[str]: The canonical URL for the slug, or `None` if the slug is not found.
         """
@@ -126,14 +126,14 @@ class MegakinoClient:
     ) -> Tuple[str, str]:
         """
         Resolve a direct media URL and its provider name for a given Megakino slug.
-        
+
         Parameters:
             slug (str): Megakino page slug to resolve.
             preferred_provider (Optional[str]): Optional provider identifier to prefer when multiple providers are available.
-        
+
         Returns:
             tuple: (`url`, `provider_name`) where `url` is the direct media URL (or an iframe URL fallback) and `provider_name` is the inferred provider label (for example, `"EMBED"`).
-        
+
         Raises:
             ValueError: If the slug does not map to a Megakino page, if no provider iframes are found, or if no provider yields a resolvable URL.
         """
@@ -177,11 +177,11 @@ def resolve_direct_url(
 ) -> Tuple[str, str]:
     """
     Resolve a slug to a direct media URL using the default shared MegakinoClient.
-    
+
     Parameters:
         slug (str): Megakino slug identifying the media page.
         preferred_provider (Optional[str]): Optional provider name to prefer when multiple providers are available.
-    
+
     Returns:
         Tuple[str, str]: A tuple containing the resolved direct media URL and the provider label used (e.g., `"EMBED"` when falling back to an embed URL).
     """
@@ -192,7 +192,7 @@ def resolve_direct_url(
 def time_now() -> float:
     """
     Get the current time as seconds since the Unix epoch.
-    
+
     Returns:
         epoch_seconds (float): Seconds since the Unix epoch.
     """
@@ -204,10 +204,10 @@ def time_now() -> float:
 def _normalize_url(url: str) -> str:
     """
     Normalize a Megakino URL to an absolute URL using the configured Megakino base.
-    
+
     Parameters:
         url (str): A URL which may be absolute or relative (may be empty).
-    
+
     Returns:
         str: The absolute URL when `url` is relative or already absolute; an empty string if `url` is empty.
     """
@@ -224,9 +224,9 @@ def _normalize_url(url: str) -> str:
 def slug_to_title(slug: str) -> str:
     """
     Convert a slug into a human-readable title by replacing hyphens with spaces and capitalizing words.
-    
+
     Returns:
-    	A title (str) where hyphens are replaced by spaces and each word is capitalized.
+        A title (str) where hyphens are replaced by spaces and each word is capitalized.
     """
     parts = slug.replace("-", " ").split()
     return " ".join(p.capitalize() for p in parts)
@@ -235,10 +235,10 @@ def slug_to_title(slug: str) -> str:
 def _normalize_tokens(text: str) -> List[str]:
     """
     Normalize input text into lowercase alphanumeric word tokens, excluding tokens that are purely numeric.
-    
+
     Parameters:
         text (str): Input string to tokenize.
-    
+
     Returns:
         List[str]: A list of lowercase tokens containing letters or alphanumeric mixes; tokens composed only of digits are omitted.
     """
@@ -250,7 +250,7 @@ def _normalize_tokens(text: str) -> List[str]:
 def _score_tokens(query_tokens: List[str], title_tokens: List[str]) -> int:
     """
     Compute the number of shared tokens between a query and a title.
-    
+
     Returns:
         int: Number of tokens present in both lists; returns 0 if either input list is empty.
     """
@@ -263,12 +263,12 @@ def _score_tokens(query_tokens: List[str], title_tokens: List[str]) -> int:
 def _extract_provider_links(html: str) -> List[str]:
     """
     Extract iframe provider URLs from the given HTML.
-    
+
     Parameters:
         html (str): HTML content to parse.
-    
+
     Returns:
-        List[str]: Provider URLs extracted from iframe `data-src` or `src` attributes, in document order. 
+        List[str]: Provider URLs extracted from iframe `data-src` or `src` attributes, in document order.
     """
     soup = BeautifulSoup(html, "html.parser")
     links: List[str] = []
@@ -282,10 +282,10 @@ def _extract_provider_links(html: str) -> List[str]:
 def _megakino_get_direct_link(link: str) -> Optional[str]:
     """
     Probe a Megakino provider page and construct a gxplayer direct media URL when the page exposes the required identifiers.
-    
+
     Parameters:
         link (str): URL of the provider page to fetch and inspect.
-    
+
     Returns:
         str: Constructed gxplayer m3u8 URL when `uid`, `md5`, and `id` are present in the page, `None` otherwise.
     """
@@ -309,10 +309,10 @@ def _megakino_get_direct_link(link: str) -> Optional[str]:
 def _provider_name_from_url(url: str) -> str:
     """
     Infer the canonical provider name from a provider or embed URL.
-    
+
     Parameters:
         url (str): The provider or iframe URL to inspect.
-    
+
     Returns:
         provider_name (str): One of the known provider identifiers (e.g., "VOE", "Doodstream", "Filemoon", "Streamtape", "Vidmoly", "SpeedFiles", "LoadX", "Luluvdo", "Vidoza"); returns "EMBED" if no known provider is detected.
     """
@@ -341,12 +341,12 @@ def _provider_name_from_url(url: str) -> str:
 def _extract_provider_direct(url: str) -> Optional[str]:
     """
     Determine and return a direct media URL for a provider iframe URL by selecting and invoking a provider-specific extractor.
-    
+
     The function inspects the host part of `url` to choose a provider extractor (e.g., Voe, Doodstream, Filemoon, Streamtape, Vidmoly, Speedfiles, Loadx, Luluvdo, Vidoza). If a matching extractor is available it is imported and called; if the host contains "gxplayer" a legacy GXPlayer extraction is attempted. Any extraction error is caught and results in `None`.
-    
+
     Parameters:
         url (str): The provider iframe URL to resolve.
-    
+
     Returns:
         str | None: The direct media URL produced by the provider extractor, or `None` if no extractor matches or extraction fails.
     """

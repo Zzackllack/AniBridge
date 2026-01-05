@@ -66,9 +66,9 @@ def torznab_api(
 ) -> Response:
     """
     Handle Torznab API requests and return the corresponding XML or RSS feed.
-    
+
     Processes four modes selected by `t`: "caps" (returns Torznab capability XML), "search" (generic preview/search across series or movies), "movie" / "movie-search" (movie-focused search and preview), and "tvsearch" (episode search). For search modes it builds RSS items per available language and respects STRM_FILES_MODE, category hints, paging via `offset`/`limit`, and cached availability probes.
-    
+
     Parameters:
         t (str): Mode selector; one of "caps", "search", "tvsearch", "movie", or "movie-search".
         apikey (Optional[str]): API key supplied by the client; validated by the endpoint.
@@ -79,7 +79,7 @@ def torznab_api(
         offset (int): Result offset for paging (unused for caps).
         limit (int): Maximum number of RSS items to include.
         session (Session): Database session (injected; omitted from consumer-facing docs).
-    
+
     Returns:
         Response: FastAPI Response containing:
             - Torznab capabilities XML for `t == "caps"` (media type application/xml; charset=utf-8).

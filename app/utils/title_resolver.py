@@ -34,14 +34,14 @@ _no_slug_warned: bool = False
 def _extract_slug(href: str, site: str = "aniworld.to") -> Optional[str]:
     """
     Extract the slug from an anchor href for a given site.
-    
+
     Parameters:
         href (str): The href string to search for a slug.
         site (str): Site identifier selecting the site-specific extraction pattern (e.g., "aniworld.to", "s.to", "megakino").
-    
+
     Returns:
         slug (str) or None: The captured slug if the href matches the site's URL pattern, None otherwise.
-    
+
     Notes:
         Megakino URLs commonly use paths like /serials/<id>-<slug>.html or /films/<id>-<slug>.html.
     """
@@ -108,10 +108,10 @@ _cached_at: Dict[str, float | None] = {}  # site -> timestamp
 def _has_index_sources(site_cfg: Optional[dict]) -> bool:
     """
     Determine whether a site configuration provides alphabet index sources.
-    
+
     Parameters:
         site_cfg (Optional[dict]): Site configuration mapping; may be None.
-    
+
     Returns:
         `True` if `site_cfg` is None or contains a non-empty `alphabet_url` or `alphabet_html` entry, `False` otherwise.
     """
@@ -123,10 +123,10 @@ def _has_index_sources(site_cfg: Optional[dict]) -> bool:
 def _get_site_cfg(site: str) -> Optional[dict]:
     """
     Retrieve the configuration dictionary for a given site identifier, returning a Megakino default config when requested and no catalog entry exists.
-    
+
     Parameters:
         site (str): Site identifier (e.g., "aniworld.to", "s.to", "megakino").
-    
+
     Returns:
         dict or None: The site configuration from CATALOG_SITE_CONFIGS if present.
             For the special case "megakino" and no catalog entry, returns a default config with keys:
@@ -243,16 +243,16 @@ def _fetch_index_from_url(
 ) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
     """
     Fetch an index HTML from a URL and parse it into slug-to-title and slug-to-alternatives mappings for the given site.
-    
+
     Parameters:
         url (str): HTTP(S) URL to fetch the index HTML from.
         site (str): Site identifier used for site-specific parsing rules.
-    
+
     Returns:
-        Tuple[Dict[str, str], Dict[str, List[str]]]: 
+        Tuple[Dict[str, str], Dict[str, List[str]]]:
             - index: mapping of slug -> display title.
             - alternatives: mapping of slug -> list of alternative titles (main title appears first when present).
-    
+
     Raises:
         requests.exceptions.RequestException: On network, TLS, or HTTP errors while fetching the URL.
     """
@@ -453,7 +453,7 @@ def resolve_series_title(
 def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[str]]:
     """
     Return a mapping of slugs to alternative display titles for the given site, refreshing the cached data if the site's TTL has expired.
-    
+
     Each mapping value is a list of alternative titles where the primary/display title is the first element. If no alternatives are available, an empty dict is returned.
     Returns:
         Dict[str, List[str]]: Mapping from slug to list of alternative titles (primary title first).
@@ -546,15 +546,15 @@ _MEGAKINO_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 def _slug_from_search_only_query(q: str, site: str) -> Optional[str]:
     """
     Derive a normalized slug from a free-text query for sites that lack an alphabet index.
-    
+
     For sites like Megakino, this will validate the query as a slug format or attempt a site search to resolve a slug; for other search-only sites it returns the cleaned candidate slug.
-    
+
     Parameters:
-    	q (str): Free-text query or URL that may contain a slug.
-    	site (str): Site identifier (e.g., "megakino") used to select site-specific validation.
-    
+        q (str): Free-text query or URL that may contain a slug.
+        site (str): Site identifier (e.g., "megakino") used to select site-specific validation.
+
     Returns:
-    	str or None: The resolved slug in lowercase if one can be determined, otherwise `None`.
+        str or None: The resolved slug in lowercase if one can be determined, otherwise `None`.
     """
     raw = (q or "").strip()
     if not raw:
@@ -578,12 +578,12 @@ def _slug_from_search_only_query(q: str, site: str) -> Optional[str]:
 def _search_megakino_slug(query: str) -> Optional[str]:
     """
     Find the first Megakino slug that matches a free-text search query.
-    
+
     Parameters:
-    	query (str): Free-text search phrase to send to the Megakino search API.
-    
+        query (str): Free-text search phrase to send to the Megakino search API.
+
     Returns:
-    	str or None: The first matching slug if a result is found, `None` otherwise.
+        str or None: The first matching slug if a result is found, `None` otherwise.
     """
     client = get_default_client()
     results = client.search(query, limit=1)
