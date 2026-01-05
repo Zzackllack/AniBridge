@@ -16,7 +16,7 @@ AniBridge is a FastAPI-based bridge that exposes:
 - Background scheduler with job tracking, cancellation, and progress
 - Simple health endpoint for orchestration
 
-It targets AniWorld for anime and Serienstream/s.to for general series, orchestrating provider selection, language selection, quality probing, and smart file naming across both catalogues.
+It targets AniWorld for anime, Serienstream/s.to for general series, and megakino for additional series/movies, orchestrating provider selection, language selection, quality probing, and smart file naming across catalogues.
 
 [[toc]]
 

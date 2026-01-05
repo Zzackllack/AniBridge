@@ -1,8 +1,11 @@
 from typing import Optional
+from urllib.parse import urlparse
 
 from loguru import logger
 
 from aniworld.models import Episode  # type: ignore
+
+from app.config import CATALOG_SITE_CONFIGS
 
 
 def build_episode(
@@ -14,17 +17,19 @@ def build_episode(
     site: str = "aniworld.to",
 ) -> Episode:
     """
-    Construct an Episode from either a direct link or a slug/season/episode triple for the specified site.
+    Create an Episode from either a direct URL or a slug/season/episode triple for the specified site.
+
+    If `link` is provided it takes precedence. The `site` argument is resolved against CATALOG_SITE_CONFIGS; if a configured `base_url` is present its network location (or trimmed base_url) is used as the Episode.site. If the created Episode has no `link`, attempt to run an internal `_auto_fill_basic_details()` helper (if present) to populate basic fields for compatibility with older aniworld versions.
 
     Parameters:
-        link (Optional[str]): Direct episode URL; used when provided and takes precedence over slug/season/episode.
+        link (Optional[str]): Direct episode URL; used when provided.
         slug (Optional[str]): Series identifier used with `season` and `episode` when `link` is not provided.
         season (Optional[int]): Season number paired with `slug` and `episode`.
         episode (Optional[int]): Episode number paired with `slug` and `season`.
-        site (str): Host site identifier to attach to the created Episode (default: "aniworld.to").
+        site (str): Host site identifier that will be resolved via CATALOG_SITE_CONFIGS to determine the Episode.site (default "aniworld.to").
 
     Returns:
-        Episode: The constructed Episode using the provided inputs.
+        Episode: The constructed Episode instance.
 
     Raises:
         ValueError: If neither `link` nor the combination of `slug`, `season`, and `episode` are supplied.
@@ -38,12 +43,22 @@ def build_episode(
         site,
     )
     ep: Optional[Episode] = None
+    site_domain = site
+    site_cfg = CATALOG_SITE_CONFIGS.get(site)
+    if site_cfg:
+        base_url = site_cfg.get("base_url")
+        if isinstance(base_url, str) and base_url:
+            parsed = urlparse(base_url)
+            if parsed.netloc:
+                site_domain = parsed.netloc
+            else:
+                site_domain = base_url.strip().strip("/")
     if link:
         logger.debug("Using direct link for episode.")
-        ep = Episode(link=link, site=site)
+        ep = Episode(link=link, site=site_domain)
     elif slug and season and episode:
         logger.debug("Using slug/season/episode for episode.")
-        ep = Episode(slug=slug, season=season, episode=episode, site=site)
+        ep = Episode(slug=slug, season=season, episode=episode, site=site_domain)
     else:
         logger.error(
             "Invalid episode parameters: must provide either link or (slug, season, episode)."

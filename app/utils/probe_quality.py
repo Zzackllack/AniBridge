@@ -10,6 +10,7 @@ from app.utils.naming import quality_from_info
 from app.config import PROVIDER_ORDER, CATALOG_SITE_CONFIGS
 from app.utils.logger import config as configure_logger
 from app.infrastructure.network import yt_dlp_proxy
+from app.providers.megakino.client import get_default_client
 
 configure_logger()
 
@@ -92,6 +93,28 @@ def probe_episode_quality(
         f"Probing episode quality for slug={slug}, season={season}, episode={episode}, language={language}, "
         f"preferred_provider={preferred_provider}, timeout={timeout}, site={site}"
     )
+    if "megakino" in site:
+        try:
+            client = get_default_client()
+            direct, provider_used = client.resolve_direct_url(
+                slug=slug, preferred_provider=preferred_provider
+            )
+        except Exception as exc:
+            logger.warning(
+                "Megakino direct URL resolution failed ({}): {}",
+                type(exc).__name__,
+                exc,
+            )
+            return (False, None, None, None, None)
+        logger.debug(
+            "Megakino direct URL resolved: provider={} url={}",
+            provider_used,
+            direct,
+        )
+        h, vc, info = probe_episode_quality_once(direct, timeout=timeout)
+        available = True
+        return (available, h, vc, provider_used, info)
+
     if site not in CATALOG_SITE_CONFIGS:
         logger.warning(f"Unknown site '{site}', defaulting to aniworld.to")
         site = "aniworld.to"
@@ -118,7 +141,12 @@ def probe_episode_quality(
             )
             return (True, h, vc, chosen, info)
         except Exception as e:
-            logger.warning(f"Provider '{prov}' failed: {e}")
+            logger.warning(
+                "Provider '{}' failed ({}): {}",
+                prov,
+                type(e).__name__,
+                e,
+            )
             continue
     logger.error("No provider succeeded for this episode/language.")
     return (False, None, None, None, None)
