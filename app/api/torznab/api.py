@@ -284,7 +284,7 @@ def torznab_api(
                                 cat_id=cat_id,
                                 guid_str=f"{guid_base}:strm",
                             )
-                    except Exception as e:
+                    except (ValueError, RuntimeError, KeyError) as e:
                         logger.error(
                             f"Error building RSS item for release '{release_title}': {e}"
                         )
@@ -300,8 +300,6 @@ def torznab_api(
         rss, channel = _rss_root()
         q_str = (q or "").strip()
         strm_suffix = " [STRM]"
-        movie_year = get_movie_year(q_str)
-
         if not q_str and TORZNAB_RETURN_TEST_RESULT:
             logger.debug("Returning synthetic test result for empty movie query.")
             release_title = TORZNAB_TEST_TITLE
@@ -344,7 +342,8 @@ def torznab_api(
                     guid_str=f"{guid_base}:strm",
                 )
         elif q_str:
-            result = tn._slug_from_query(q_str)
+            movie_year = get_movie_year(q_str)
+            result = tn._slug_from_query(q_str, site="megakino")
             if result:
                 site_found, slug = result
                 display_title = tn.resolve_series_title(slug, site_found) or q_str
@@ -398,6 +397,8 @@ def torznab_api(
                         )
                     if not available:
                         continue
+                    # Movies omit SxxEyy in the release title, but we keep S01E01
+                    # placeholders in the magnet metadata for backward compatibility.
                     release_title = tn.build_release_name(
                         series_title=display_title,
                         season=None,
@@ -453,7 +454,7 @@ def torznab_api(
                                 cat_id=TORZNAB_CAT_MOVIE,
                                 guid_str=f"{guid_base}:strm",
                             )
-                    except Exception as e:
+                    except (ValueError, RuntimeError, KeyError) as e:
                         logger.error(
                             f"Error building RSS item for release '{release_title}': {e}"
                         )
@@ -653,7 +654,7 @@ def torznab_api(
                     cat_id=TORZNAB_CAT_ANIME,
                     guid_str=f"{guid_base}:strm",
                 )
-        except Exception as e:
+        except (ValueError, RuntimeError, KeyError) as e:
             logger.error(f"Error building RSS item for release '{release_title}': {e}")
             continue
 
