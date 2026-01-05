@@ -9,18 +9,33 @@ from fastapi import HTTPException
 from loguru import logger
 
 from app.config import (
+    CATALOG_SITES_LIST,
     INDEXER_API_KEY,
     INDEXER_NAME,
     TORZNAB_CAT_ANIME,
+    TORZNAB_CAT_MOVIE,
     TORZNAB_FAKE_LEECHERS,
     TORZNAB_FAKE_SEEDERS,
 )
 
 
 SUPPORTED_PARAMS = "q,season,ep"
+SUPPORTED_MOVIE_PARAMS = "q"
+SUPPORTED_SEARCH_PARAMS = "q"
 
 
 def _require_apikey(apikey: Optional[str]) -> None:
+    """
+    Validate the provided API key against the configured INDEXER_API_KEY and raise on mismatch.
+
+    If an INDEXER_API_KEY is configured, this function checks that `apikey` is present and equals that value; if not, it logs a warning and raises an HTTPException with status 401 and detail "invalid apikey". If no INDEXER_API_KEY is configured, the function performs no validation.
+
+    Parameters:
+        apikey (Optional[str]): The API key supplied by the caller; may be None.
+
+    Raises:
+        HTTPException: Raised with status code 401 and detail "invalid apikey" when a configured API key is missing or does not match.
+    """
     if INDEXER_API_KEY:
         if not apikey or apikey != INDEXER_API_KEY:
             logger.warning(f"API key missing or invalid: received '{apikey}'")
@@ -43,25 +58,48 @@ def _rss_root() -> Tuple[ET.Element, ET.Element]:
 
 
 def _caps_xml() -> str:
+    """
+    Builds the Torznab "caps" (capabilities) XML document describing server info, limits, available search types, and categories.
+
+    The returned XML contains a top-level <caps> element with:
+    - a <server> child (version and supportedSites),
+    - a <limits> child (max and default result counts),
+    - a <searching> child with <search>, <tv-search>, and <movie-search> elements (each with available and supportedParams),
+    - a <categories> child containing "TV/Anime" and "Movies" category entries.
+
+    Returns:
+        str: The serialized XML document as a UTF-8 string.
+    """
     logger.debug("Generating caps XML.")
     caps = ET.Element("caps")
 
     server = ET.SubElement(caps, "server")
     server.set("version", "1.0")
+    server.set("supportedSites", ",".join(CATALOG_SITES_LIST))
 
     limits = ET.SubElement(caps, "limits")
     limits.set("max", "100")
     limits.set("default", "50")
 
     searching = ET.SubElement(caps, "searching")
+    # I am not sure if adding those is the cause of why Prowlarr search now works - but ig it does..
+    search = ET.SubElement(searching, "search")
+    search.set("available", "yes")
+    search.set("supportedParams", SUPPORTED_SEARCH_PARAMS)
     tvsearch = ET.SubElement(searching, "tv-search")
     tvsearch.set("available", "yes")
     tvsearch.set("supportedParams", SUPPORTED_PARAMS)
+    moviesearch = ET.SubElement(searching, "movie-search")
+    moviesearch.set("available", "yes")
+    moviesearch.set("supportedParams", SUPPORTED_MOVIE_PARAMS)
 
     cats = ET.SubElement(caps, "categories")
     cat = ET.SubElement(cats, "category")
     cat.set("id", str(TORZNAB_CAT_ANIME))
     cat.set("name", "TV/Anime")
+    movie_cat = ET.SubElement(cats, "category")
+    movie_cat.set("id", str(TORZNAB_CAT_MOVIE))
+    movie_cat.set("name", "Movies")
 
     return ET.tostring(caps, encoding="utf-8", xml_declaration=True).decode("utf-8")
 
