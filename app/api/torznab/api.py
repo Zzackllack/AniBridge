@@ -23,6 +23,7 @@ from app.config import (
 )
 from app.db import get_session
 from app.utils.magnet import _site_prefix
+from app.utils.movie_year import get_movie_year
 
 from . import router
 from .utils import _build_item, _caps_xml, _require_apikey, _rss_root
@@ -174,6 +175,9 @@ def torznab_api(
             if result:
                 site_found, slug = result
                 display_title = tn.resolve_series_title(slug, site_found) or q_str
+                movie_year = get_movie_year(q_str)
+                if movie_year:
+                    display_title = f"{display_title} {movie_year}"
                 season_i, ep_i = 1, 1
                 cached_langs = tn.list_available_languages_cached(
                     session, slug=slug, season=season_i, episode=ep_i, site=site_found
@@ -225,8 +229,8 @@ def torznab_api(
                         continue
                     release_title = tn.build_release_name(
                         series_title=display_title,
-                        season=season_i,
-                        episode=ep_i,
+                        season=None,
+                        episode=None,
                         height=h,
                         vcodec=vc,
                         language=lang,
@@ -296,6 +300,7 @@ def torznab_api(
         rss, channel = _rss_root()
         q_str = (q or "").strip()
         strm_suffix = " [STRM]"
+        movie_year = get_movie_year(q_str)
 
         if not q_str and TORZNAB_RETURN_TEST_RESULT:
             logger.debug("Returning synthetic test result for empty movie query.")
@@ -343,6 +348,8 @@ def torznab_api(
             if result:
                 site_found, slug = result
                 display_title = tn.resolve_series_title(slug, site_found) or q_str
+                if movie_year:
+                    display_title = f"{display_title} {movie_year}"
                 season_i, ep_i = 1, 1
                 cached_langs = tn.list_available_languages_cached(
                     session, slug=slug, season=season_i, episode=ep_i, site=site_found
@@ -393,8 +400,8 @@ def torznab_api(
                         continue
                     release_title = tn.build_release_name(
                         series_title=display_title,
-                        season=season_i,
-                        episode=ep_i,
+                        season=None,
+                        episode=None,
                         height=h,
                         vcodec=vc,
                         language=lang,
