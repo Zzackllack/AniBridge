@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 import re
+from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup  # type: ignore
 from loguru import logger
@@ -10,7 +11,12 @@ from loguru import logger
 from app.utils.http_client import get as http_get
 from app.utils.domain_resolver import get_megakino_base_url
 from app.config import MEGAKINO_SITEMAP_URL, MEGAKINO_TITLES_REFRESH_HOURS
-from .sitemap import MegakinoIndex, MegakinoIndexEntry, load_sitemap_index, needs_refresh
+from .sitemap import (
+    MegakinoIndex,
+    MegakinoIndexEntry,
+    load_sitemap_index,
+    needs_refresh,
+)
 
 
 @dataclass
@@ -54,9 +60,7 @@ class MegakinoClient:
         if not q_tokens:
             logger.debug("Megakino search skipped: empty token set for '{}'", query)
             return []
-        logger.debug(
-            "Megakino search tokens: {} (entries={})", q_tokens, len(entries)
-        )
+        logger.debug("Megakino search tokens: {} (entries={})", q_tokens, len(entries))
         results: List[MegakinoSearchResult] = []
         for entry in entries.values():
             title = slug_to_title(entry.slug)
@@ -73,9 +77,7 @@ class MegakinoClient:
                 )
             )
         results.sort(key=lambda item: item.score, reverse=True)
-        logger.debug(
-            "Megakino search results: {}", [r.slug for r in results[:limit]]
-        )
+        logger.debug("Megakino search results: {}", [r.slug for r in results[:limit]])
         return results[: max(1, limit)]
 
     def resolve_url(self, slug: str) -> Optional[str]:
@@ -86,7 +88,9 @@ class MegakinoClient:
             return entry.url
         return None
 
-    def resolve_direct_url(self, slug: str, preferred_provider: Optional[str] = None) -> Tuple[str, str]:
+    def resolve_direct_url(
+        self, slug: str, preferred_provider: Optional[str] = None
+    ) -> Tuple[str, str]:
         """Resolve a direct media URL from a megakino slug."""
         page_url = self.resolve_url(slug)
         if not page_url:
@@ -108,15 +112,27 @@ class MegakinoClient:
             )
 
         for url in ordered:
-            direct = _megakino_get_direct_link(url)
+            direct = _extract_provider_direct(url)
             if direct:
                 logger.debug("Megakino direct link resolved via '{}'", url)
-                return direct, "MEGAKINO"
-            if url:
-                logger.debug("Megakino fallback to iframe URL '{}'", url)
-                return _normalize_url(url), "EMBED"
+                return direct, _provider_name_from_url(url)
+            logger.debug("Megakino extractor did not return direct URL for '{}'", url)
+
+        # Fallback to first iframe URL for yt-dlp to try if supported.
+        if providers:
+            fallback = _normalize_url(providers[0])
+            logger.debug("Megakino fallback to iframe URL '{}'", fallback)
+            return fallback, "EMBED"
 
         raise ValueError("No direct megakino provider URL resolved")
+
+
+def resolve_direct_url(
+    slug: str, preferred_provider: Optional[str] = None
+) -> Tuple[str, str]:
+    """Resolve a direct media URL using the default client."""
+    client = get_default_client()
+    return client.resolve_direct_url(slug, preferred_provider=preferred_provider)
 
 
 def time_now() -> float:
@@ -181,9 +197,97 @@ def _megakino_get_direct_link(link: str) -> Optional[str]:
     uid = uid_match.group(1)
     md5 = md5_match.group(1)
     video_id = id_match.group(1)
-    return (
-        f"https://watch.gxplayer.xyz/m3u8/{uid}/{md5}/master.txt?s=1&id={video_id}&cache=1"
-    )
+    return f"https://watch.gxplayer.xyz/m3u8/{uid}/{md5}/master.txt?s=1&id={video_id}&cache=1"
+
+
+def _provider_name_from_url(url: str) -> str:
+    host = urlparse(url).netloc.lower()
+    if "voe" in host:
+        return "VOE"
+    if "dood" in host or "d0000d" in host:
+        return "Doodstream"
+    if "filemoon" in host:
+        return "Filemoon"
+    if "streamtape" in host or "streamta.pe" in host:
+        return "Streamtape"
+    if "vidmoly" in host:
+        return "Vidmoly"
+    if "speedfiles" in host:
+        return "SpeedFiles"
+    if "loadx" in host:
+        return "LoadX"
+    if "luluvdo" in host:
+        return "Luluvdo"
+    if "vidoza" in host:
+        return "Vidoza"
+    return "EMBED"
+
+
+def _extract_provider_direct(url: str) -> Optional[str]:
+    host = urlparse(url).netloc.lower()
+    try:
+        if "voe" in host:
+            from aniworld.extractors.provider.voe import (  # type: ignore
+                get_direct_link_from_voe,
+            )
+
+            return get_direct_link_from_voe(url)
+        if "dood" in host or "d0000d" in host:
+            from aniworld.extractors.provider.doodstream import (  # type: ignore
+                get_direct_link_from_doodstream,
+            )
+
+            return get_direct_link_from_doodstream(url)
+        if "filemoon" in host:
+            from aniworld.extractors.provider.filemoon import (  # type: ignore
+                get_direct_link_from_filemoon,
+            )
+
+            return get_direct_link_from_filemoon(url)
+        if "streamtape" in host or "streamta.pe" in host:
+            from aniworld.extractors.provider.streamtape import (  # type: ignore
+                get_direct_link_from_streamtape,
+            )
+
+            return get_direct_link_from_streamtape(url)
+        if "vidmoly" in host:
+            from aniworld.extractors.provider.vidmoly import (  # type: ignore
+                get_direct_link_from_vidmoly,
+            )
+
+            return get_direct_link_from_vidmoly(url)
+        if "speedfiles" in host:
+            from aniworld.extractors.provider.speedfiles import (  # type: ignore
+                get_direct_link_from_speedfiles,
+            )
+
+            return get_direct_link_from_speedfiles(url)
+        if "loadx" in host:
+            from aniworld.extractors.provider.loadx import (  # type: ignore
+                get_direct_link_from_loadx,
+            )
+
+            return get_direct_link_from_loadx(url)
+        if "luluvdo" in host:
+            from aniworld.extractors.provider.luluvdo import (  # type: ignore
+                get_direct_link_from_luluvdo,
+            )
+
+            return get_direct_link_from_luluvdo(url)
+        if "vidoza" in host:
+            from aniworld.extractors.provider.vidoza import (  # type: ignore
+                get_direct_link_from_vidoza,
+            )
+
+            return get_direct_link_from_vidoza(url)
+    except Exception as exc:
+        logger.warning("Megakino provider extraction failed for {}: {}", url, exc)
+        return None
+    # Try the legacy gxplayer extractor for direct links if present.
+    if "gxplayer" in host:
+        direct = _megakino_get_direct_link(url)
+        return direct
+    return None
 
 
 _DEFAULT_CLIENT: Optional[MegakinoClient] = None
