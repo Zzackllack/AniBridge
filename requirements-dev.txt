@@ -15,6 +15,7 @@ bs4
 certifi
 charset_normalizer
 click
+defusedxml
 editorconfig
 fake_useragent
 h11

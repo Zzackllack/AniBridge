@@ -46,3 +46,10 @@ outline: deep
 
 - Adjust `ANIWORLD_TITLES_REFRESH_HOURS`
 - Provide a snapshot via `ANIWORLD_ALPHABET_HTML` if network restricted
+
+## Megakino domain resolution fails
+
+- Check logs for "megakino domain" entries at startup.
+- Override with `MEGAKINO_BASE_URL` if automatic resolution fails.
+- Set `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN=0` to disable background checks during troubleshooting.
+- Remember megakino is search-only; queries must provide a slug or a megakino URL containing one.
