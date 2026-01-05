@@ -9,15 +9,19 @@ from fastapi import HTTPException
 from loguru import logger
 
 from app.config import (
+    CATALOG_SITES_LIST,
     INDEXER_API_KEY,
     INDEXER_NAME,
     TORZNAB_CAT_ANIME,
+    TORZNAB_CAT_MOVIE,
     TORZNAB_FAKE_LEECHERS,
     TORZNAB_FAKE_SEEDERS,
 )
 
 
 SUPPORTED_PARAMS = "q,season,ep"
+SUPPORTED_MOVIE_PARAMS = "q"
+SUPPORTED_SEARCH_PARAMS = "q"
 
 
 def _require_apikey(apikey: Optional[str]) -> None:
@@ -48,20 +52,31 @@ def _caps_xml() -> str:
 
     server = ET.SubElement(caps, "server")
     server.set("version", "1.0")
+    server.set("supportedSites", ",".join(CATALOG_SITES_LIST))
 
     limits = ET.SubElement(caps, "limits")
     limits.set("max", "100")
     limits.set("default", "50")
 
     searching = ET.SubElement(caps, "searching")
+    # I am not sure if adding those is the cause of why Prowlarr search now works - but ig it does..
+    search = ET.SubElement(searching, "search")
+    search.set("available", "yes")
+    search.set("supportedParams", SUPPORTED_SEARCH_PARAMS)
     tvsearch = ET.SubElement(searching, "tv-search")
     tvsearch.set("available", "yes")
     tvsearch.set("supportedParams", SUPPORTED_PARAMS)
+    moviesearch = ET.SubElement(searching, "movie-search")
+    moviesearch.set("available", "yes")
+    moviesearch.set("supportedParams", SUPPORTED_MOVIE_PARAMS)
 
     cats = ET.SubElement(caps, "categories")
     cat = ET.SubElement(cats, "category")
     cat.set("id", str(TORZNAB_CAT_ANIME))
     cat.set("name", "TV/Anime")
+    movie_cat = ET.SubElement(cats, "category")
+    movie_cat.set("id", str(TORZNAB_CAT_MOVIE))
+    movie_cat.set("name", "Movies")
 
     return ET.tostring(caps, encoding="utf-8", xml_declaration=True).decode("utf-8")
 

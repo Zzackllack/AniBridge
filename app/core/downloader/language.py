@@ -5,6 +5,7 @@ from loguru import logger
 
 _LANG_ALIASES = {
     "german": "German Dub",
+    "deutsch": "German Dub",
     "ger": "German Dub",
     "gerdub": "German Dub",
     "dub": "German Dub",

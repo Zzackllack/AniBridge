@@ -13,6 +13,7 @@ from app.config import (
     CATALOG_SITE_CONFIGS,
     STRM_FILES_MODE,
     TORZNAB_CAT_ANIME,
+    TORZNAB_CAT_MOVIE,
     TORZNAB_RETURN_TEST_RESULT,
     TORZNAB_TEST_EPISODE,
     TORZNAB_TEST_LANGUAGE,
@@ -22,6 +23,7 @@ from app.config import (
 )
 from app.db import get_session
 from app.utils.magnet import _site_prefix
+from app.utils.movie_year import get_movie_year
 
 from . import router
 from .utils import _build_item, _caps_xml, _require_apikey, _rss_root
@@ -52,7 +54,7 @@ def _default_languages_for_site(site: str) -> List[str]:
 @router.get("/api", response_class=FastAPIResponse)
 def torznab_api(
     request: Request,
-    t: str = Query(..., description="caps|tvsearch|search"),
+    t: str = Query(..., description="caps|tvsearch|search|movie"),
     apikey: Optional[str] = Query(default=None),
     q: Optional[str] = Query(default=None),
     season: Optional[int] = Query(default=None),
@@ -107,6 +109,15 @@ def torznab_api(
         q_str = (q or "").strip()
         logger.debug(f"Search query string: '{q_str}'")
         strm_suffix = " [STRM]"
+        cat_id = TORZNAB_CAT_ANIME
+        movie_preferred = False
+        if cat:
+            cat_list = [c.strip() for c in str(cat).split(",") if c.strip()]
+            if str(TORZNAB_CAT_MOVIE) in cat_list:
+                cat_id = TORZNAB_CAT_MOVIE
+                movie_preferred = True
+        if movie_preferred:
+            logger.debug("Movie category detected; preferring megakino resolution.")
 
         if not q_str and TORZNAB_RETURN_TEST_RESULT:
             logger.debug("Returning synthetic test result for empty query.")
@@ -129,7 +140,7 @@ def torznab_api(
                     title=release_title,
                     magnet=magnet,
                     pubdate=now,
-                    cat_id=TORZNAB_CAT_ANIME,
+                    cat_id=cat_id,
                     guid_str=guid_base,
                 )
             if STRM_FILES_MODE in ("only", "both"):
@@ -147,15 +158,24 @@ def torznab_api(
                     title=release_title + strm_suffix,
                     magnet=magnet_strm,
                     pubdate=now,
-                    cat_id=TORZNAB_CAT_ANIME,
+                    cat_id=cat_id,
                     guid_str=f"{guid_base}:strm",
                 )
         elif q_str:
             # Preview search: S01E01 for requested series
-            result = tn._slug_from_query(q_str)
+            result = (
+                tn._slug_from_query(q_str, site="megakino") if movie_preferred else None
+            )
+            if movie_preferred and not result:
+                logger.debug("Megakino resolution returned no match for '{}'", q_str)
+            if not result:
+                result = tn._slug_from_query(q_str)
             if result:
                 site_found, slug = result
                 display_title = tn.resolve_series_title(slug, site_found) or q_str
+                movie_year = get_movie_year(q_str)
+                if movie_year:
+                    display_title = f"{display_title} {movie_year}"
                 season_i, ep_i = 1, 1
                 cached_langs = tn.list_available_languages_cached(
                     session, slug=slug, season=season_i, episode=ep_i, site=site_found
@@ -207,8 +227,8 @@ def torznab_api(
                         continue
                     release_title = tn.build_release_name(
                         series_title=display_title,
-                        season=season_i,
-                        episode=ep_i,
+                        season=None,
+                        episode=None,
                         height=h,
                         vcodec=vc,
                         language=lang,
@@ -240,7 +260,7 @@ def torznab_api(
                                 title=release_title,
                                 magnet=magnet,
                                 pubdate=now,
-                                cat_id=TORZNAB_CAT_ANIME,
+                                cat_id=cat_id,
                                 guid_str=guid_base,
                             )
                         if STRM_FILES_MODE in ("only", "both"):
@@ -259,7 +279,7 @@ def torznab_api(
                                 title=release_title + strm_suffix,
                                 magnet=magnet_strm,
                                 pubdate=now,
-                                cat_id=TORZNAB_CAT_ANIME,
+                                cat_id=cat_id,
                                 guid_str=f"{guid_base}:strm",
                             )
                     except Exception as e:
@@ -267,6 +287,178 @@ def torznab_api(
                             f"Error building RSS item for release '{release_title}': {e}"
                         )
                         continue
+        xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
+        return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
+
+    # --- MOVIE SEARCH ---
+    if t in ("movie", "movie-search"):
+        import app.api.torznab as tn
+
+        logger.debug("Handling 'movie' request.")
+        rss, channel = _rss_root()
+        q_str = (q or "").strip()
+        strm_suffix = " [STRM]"
+        movie_year = get_movie_year(q_str)
+
+        if not q_str and TORZNAB_RETURN_TEST_RESULT:
+            logger.debug("Returning synthetic test result for empty movie query.")
+            release_title = TORZNAB_TEST_TITLE
+            guid_base = f"aw:{TORZNAB_TEST_SLUG}:s{TORZNAB_TEST_SEASON}e{TORZNAB_TEST_EPISODE}:{TORZNAB_TEST_LANGUAGE}"
+            now = datetime.now(timezone.utc)
+
+            if STRM_FILES_MODE in ("no", "both"):
+                magnet = tn.build_magnet(
+                    title=release_title,
+                    slug=TORZNAB_TEST_SLUG,
+                    season=TORZNAB_TEST_SEASON,
+                    episode=TORZNAB_TEST_EPISODE,
+                    language=TORZNAB_TEST_LANGUAGE,
+                    provider=None,
+                )
+                _build_item(
+                    channel=channel,
+                    title=release_title,
+                    magnet=magnet,
+                    pubdate=now,
+                    cat_id=TORZNAB_CAT_MOVIE,
+                    guid_str=guid_base,
+                )
+            if STRM_FILES_MODE in ("only", "both"):
+                magnet_strm = tn.build_magnet(
+                    title=release_title + strm_suffix,
+                    slug=TORZNAB_TEST_SLUG,
+                    season=TORZNAB_TEST_SEASON,
+                    episode=TORZNAB_TEST_EPISODE,
+                    language=TORZNAB_TEST_LANGUAGE,
+                    provider=None,
+                    mode="strm",
+                )
+                _build_item(
+                    channel=channel,
+                    title=release_title + strm_suffix,
+                    magnet=magnet_strm,
+                    pubdate=now,
+                    cat_id=TORZNAB_CAT_MOVIE,
+                    guid_str=f"{guid_base}:strm",
+                )
+        elif q_str:
+            result = tn._slug_from_query(q_str)
+            if result:
+                site_found, slug = result
+                display_title = tn.resolve_series_title(slug, site_found) or q_str
+                if movie_year:
+                    display_title = f"{display_title} {movie_year}"
+                season_i, ep_i = 1, 1
+                cached_langs = tn.list_available_languages_cached(
+                    session, slug=slug, season=season_i, episode=ep_i, site=site_found
+                )
+                default_langs = _default_languages_for_site(site_found)
+                candidate_langs: List[str] = (
+                    cached_langs if cached_langs else default_langs
+                )
+                now = datetime.now(timezone.utc)
+                count = 0
+                for lang in candidate_langs:
+                    try:
+                        available, h, vc, prov, _info = tn.probe_episode_quality(
+                            slug=slug,
+                            season=season_i,
+                            episode=ep_i,
+                            language=lang,
+                            site=site_found,
+                        )
+                    except (ValueError, RuntimeError) as e:
+                        logger.error(
+                            "Error probing movie quality for slug={}, S{}E{}, lang={}, site={}: {}".format(
+                                slug, season_i, ep_i, lang, site_found, e
+                            )
+                        )
+                        continue
+                    try:
+                        tn.upsert_availability(
+                            session,
+                            slug=slug,
+                            season=season_i,
+                            episode=ep_i,
+                            language=lang,
+                            available=available,
+                            height=h,
+                            vcodec=vc,
+                            provider=prov,
+                            extra=None,
+                            site=site_found,
+                        )
+                    except (ValueError, RuntimeError) as e:
+                        logger.error(
+                            "Error upserting movie availability for slug={}, S{}E{}, lang={}, site={}: {}".format(
+                                slug, season_i, ep_i, lang, site_found, e
+                            )
+                        )
+                    if not available:
+                        continue
+                    release_title = tn.build_release_name(
+                        series_title=display_title,
+                        season=None,
+                        episode=None,
+                        height=h,
+                        vcodec=vc,
+                        language=lang,
+                        site=site_found,
+                    )
+                    try:
+                        magnet = tn.build_magnet(
+                            title=release_title,
+                            slug=slug,
+                            season=season_i,
+                            episode=ep_i,
+                            language=lang,
+                            provider=prov,
+                            site=site_found,
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Error building magnet for release '{release_title}': {e}"
+                        )
+                        continue
+                    prefix = _site_prefix(site_found)
+                    guid_base = f"{prefix}:{slug}:s{season_i}e{ep_i}:{lang}"
+                    try:
+                        if STRM_FILES_MODE in ("no", "both"):
+                            _build_item(
+                                channel=channel,
+                                title=release_title,
+                                magnet=magnet,
+                                pubdate=now,
+                                cat_id=TORZNAB_CAT_MOVIE,
+                                guid_str=guid_base,
+                            )
+                        if STRM_FILES_MODE in ("only", "both"):
+                            magnet_strm = tn.build_magnet(
+                                title=release_title + strm_suffix,
+                                slug=slug,
+                                season=season_i,
+                                episode=ep_i,
+                                language=lang,
+                                provider=prov,
+                                site=site_found,
+                                mode="strm",
+                            )
+                            _build_item(
+                                channel=channel,
+                                title=release_title + strm_suffix,
+                                magnet=magnet_strm,
+                                pubdate=now,
+                                cat_id=TORZNAB_CAT_MOVIE,
+                                guid_str=f"{guid_base}:strm",
+                            )
+                    except Exception as e:
+                        logger.error(
+                            f"Error building RSS item for release '{release_title}': {e}"
+                        )
+                        continue
+                    count += 1
+                    if count >= max(1, int(limit)):
+                        break
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
         return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
 

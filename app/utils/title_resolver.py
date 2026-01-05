@@ -13,12 +13,14 @@ import re
 from app.utils.http_client import get as http_get  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 
-from app.config import CATALOG_SITES_LIST, CATALOG_SITE_CONFIGS
+from app.config import CATALOG_SITES_LIST, CATALOG_SITE_CONFIGS, MEGAKINO_BASE_URL
+from app.providers.megakino.client import get_default_client, slug_to_title
 
 # Site-specific regex patterns for slug extraction
 HREF_PATTERNS: Dict[str, re.Pattern[str]] = {
     "aniworld.to": re.compile(r"/anime/stream/([^/?#]+)"),
     "s.to": re.compile(r"/serie/stream/([^/?#]+)"),
+    "megakino": re.compile(r"/(?:serials|films)/\d+-([^./?#]+)"),
 }
 
 # Legacy pattern for backward compatibility
@@ -39,6 +41,10 @@ def _extract_slug(href: str, site: str = "aniworld.to") -> Optional[str]:
 
     Returns:
         `slug` if the site's href pattern matches and captures a group, `None` otherwise.
+
+    Notes:
+        Megakino URLs follow `/serials/<id>-<slug>.html` or `/films/<id>-<slug>.html`,
+        which differ from AniWorld/S.to paths.
     """
     global _extracted_any, _no_slug_warned
     pattern = HREF_PATTERNS.get(site, HREF_PATTERNS["aniworld.to"])
@@ -100,7 +106,29 @@ _cached_alts: Dict[str, Dict[str, List[str]] | None] = {}  # site -> (slug -> [t
 _cached_at: Dict[str, float | None] = {}  # site -> timestamp
 
 
-def _should_refresh(site: str, now: float, refresh_hours: float) -> bool:
+def _has_index_sources(site_cfg: Optional[dict]) -> bool:
+    if not site_cfg:
+        return True
+    return bool(site_cfg.get("alphabet_url") or site_cfg.get("alphabet_html"))
+
+
+def _get_site_cfg(site: str) -> Optional[dict]:
+    site_cfg = CATALOG_SITE_CONFIGS.get(site)
+    if site_cfg:
+        return site_cfg
+    if site == "megakino":
+        return {
+            "base_url": MEGAKINO_BASE_URL,
+            "alphabet_html": None,
+            "alphabet_url": None,
+            "titles_refresh_hours": 0.0,
+        }
+    return None
+
+
+def _should_refresh(
+    site: str, now: float, refresh_hours: float, *, has_index_sources: bool = True
+) -> bool:
     """
     Determine whether the cached index for the given site needs refreshing.
 
@@ -117,6 +145,13 @@ def _should_refresh(site: str, now: float, refresh_hours: float) -> bool:
     logger.debug(
         f"Checking if cache should refresh for site={site}. now={now}, _cached_at={_cached_at.get(site)}, refresh_hours={refresh_hours}"
     )
+    if not has_index_sources:
+        logger.info(f"Search-only site detected for {site}; skipping refresh.")
+        return False
+    cached_index = _cached_indices.get(site)
+    if isinstance(cached_index, dict) and not cached_index:
+        logger.info(f"Cached index empty for {site}. Refresh needed.")
+        return True
     if site not in _cached_indices or _cached_indices[site] is None:
         logger.info(f"No cached index found for {site}. Refresh needed.")
         return True
@@ -204,6 +239,16 @@ def _fetch_index_from_url(
         resp.raise_for_status()
         logger.success(f"Successfully fetched index from URL for site: {site}.")
         return _parse_index_and_alts(resp.text, site)
+    except requests.exceptions.SSLError as e:
+        logger.warning(
+            f"TLS verification failed for {site} index; retrying with verify=False: {e}"
+        )
+        resp = http_get(url, timeout=20, verify=False)
+        resp.raise_for_status()
+        logger.success(
+            f"Successfully fetched index from URL for site {site} with verify=False."
+        )
+        return _parse_index_and_alts(resp.text, site)
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to fetch index from URL for {site}: {e}")
         raise
@@ -255,7 +300,17 @@ def load_or_refresh_index(site: str = "aniworld.to") -> Dict[str, str]:
 
     logger.debug(f"Starting load_or_refresh_index for site: {site}.")
 
-    site_cfg = CATALOG_SITE_CONFIGS.get(site)
+    if site == "megakino":
+        client = get_default_client()
+        entries = client.load_index()
+        index = {slug: slug_to_title(slug) for slug in entries}
+        _cached_indices[site] = index
+        _cached_alts[site] = {}
+        _cached_at[site] = now
+        logger.info("Megakino sitemap index loaded: {} entries", len(index))
+        return index
+
+    site_cfg = _get_site_cfg(site)
     if not site_cfg:
         logger.warning(
             f"Unknown site '{site}' requested. Falling back to aniworld.to configuration."
@@ -271,9 +326,21 @@ def load_or_refresh_index(site: str = "aniworld.to") -> Dict[str, str]:
     else:
         html_file = None
     refresh_hours = float(site_cfg.get("titles_refresh_hours", 24.0))
+    has_index_sources = _has_index_sources(site_cfg)
+
+    if not has_index_sources:
+        logger.info(
+            f"No alphabet sources configured for {site}; running in search-only mode."
+        )
+        _cached_indices[site] = {}
+        _cached_alts[site] = {}
+        _cached_at[site] = now
+        return {}
 
     # Check refresh condition
-    if not _should_refresh(site, now, refresh_hours):
+    if not _should_refresh(
+        site, now, refresh_hours, has_index_sources=has_index_sources
+    ):
         logger.info(f"Returning cached index for {site}.")
         return _cached_indices.get(site) or {}
 
@@ -372,11 +439,10 @@ def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[st
     """
     global _cached_alts
     now = time.time()
-    site_cfg = CATALOG_SITE_CONFIGS.get(site) or CATALOG_SITE_CONFIGS.get(
-        "aniworld.to", {}
-    )
+    site_cfg = _get_site_cfg(site) or CATALOG_SITE_CONFIGS.get("aniworld.to", {})
     refresh_hours = float(site_cfg.get("titles_refresh_hours", 24.0))
-    if _should_refresh(site, now, refresh_hours):
+    has_index_sources = _has_index_sources(site_cfg)
+    if _should_refresh(site, now, refresh_hours, has_index_sources=has_index_sources):
         # Trigger a refresh through the main loader
         load_or_refresh_index(site)
     return _cached_alts.get(site) or {}
@@ -419,6 +485,13 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
 
     for search_site in sites_to_search:
         index = load_or_refresh_index(search_site)  # slug -> display title
+        if not index and _has_index_sources(_get_site_cfg(search_site)):
+            continue
+        if not index:
+            direct = _slug_from_search_only_query(q, search_site)
+            if direct:
+                return (search_site, direct)
+            continue
         alts = load_or_refresh_alternatives(search_site)  # slug -> [titles]
 
         for slug, main_title in index.items():
@@ -443,4 +516,44 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
 
     if best_slug and best_site:
         return (best_site, best_slug)
+    return None
+
+
+_MEGAKINO_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+def _slug_from_search_only_query(q: str, site: str) -> Optional[str]:
+    """
+    Validate direct slug usage for search-only sites without alphabet indices.
+
+    Megakino does not provide an alphabet index; callers must supply a slug or a URL
+    containing one.
+    """
+    raw = (q or "").strip()
+    if not raw:
+        return None
+    candidate = _extract_slug(raw, site) or raw
+    candidate = candidate.strip().lower()
+    if site == "megakino":
+        logger.debug("Megakino search-only query: '{}'", raw)
+        if _MEGAKINO_SLUG_RE.match(candidate):
+            logger.debug("Megakino query treated as slug: '{}'", candidate)
+            return candidate
+        searched = _search_megakino_slug(raw)
+        if searched:
+            logger.debug("Megakino search returned slug: '{}'", searched)
+        else:
+            logger.debug("Megakino search returned no slug for '{}'", raw)
+        return searched
+    return candidate if candidate else None
+
+
+def _search_megakino_slug(query: str) -> Optional[str]:
+    """
+    Perform a megakino search request and return the first matching slug.
+    """
+    client = get_default_client()
+    results = client.search(query, limit=1)
+    if results:
+        return results[0].slug
     return None

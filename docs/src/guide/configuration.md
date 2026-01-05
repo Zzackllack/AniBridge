@@ -21,6 +21,7 @@ AniBridge is configured via environment variables (works well with Docker). Sens
 - `INDEXER_NAME` (default: `AniBridge Torznab`)
 - `INDEXER_API_KEY` (optional; if set, `apikey` is required)
 - `TORZNAB_CAT_ANIME` (default: `5070`)
+- `TORZNAB_CAT_MOVIE` (default: `2000`)
 - Fake peers for connectivity: `TORZNAB_FAKE_SEEDERS` / `TORZNAB_FAKE_LEECHERS`
 - Connectivity test result: `TORZNAB_RETURN_TEST_RESULT` (`true|false`)
 - Test release fields: `TORZNAB_TEST_TITLE`, `TORZNAB_TEST_SLUG`, `TORZNAB_TEST_SEASON`, `TORZNAB_TEST_EPISODE`, `TORZNAB_TEST_LANGUAGE`
@@ -41,7 +42,7 @@ In STRM mode, AniBridge schedules creation of a `.strm` file (plain text, one HT
 
 ## Catalogue Sites & Title Indices
 
-- `CATALOG_SITES`: enabled catalogues (default `aniworld.to,s.to`). Order controls search priority.
+- `CATALOG_SITES`: enabled catalogues (default `aniworld.to,s.to,megakino`). Order controls search priority.
 - `ANIWORLD_BASE_URL`: AniWorld base URL (default `https://aniworld.to`).
 - `ANIWORLD_ALPHABET_URL`: AniWorld alphabet page (default `https://aniworld.to/animes-alphabet`).
 - `ANIWORLD_ALPHABET_HTML`: local AniWorld snapshot path (default `./data/aniworld-alphabeth.html`).
@@ -50,6 +51,12 @@ In STRM mode, AniBridge schedules creation of a `.strm` file (plain text, one HT
 - `STO_ALPHABET_URL`: Serienstream alphabet page (default `https://s.to/serien-alphabet`).
 - `STO_ALPHABET_HTML`: local Serienstream snapshot path (default `./data/sto-alphabeth.html`).
 - `STO_TITLES_REFRESH_HOURS`: Serienstream index refresh cadence (default `24`).
+- `MEGAKINO_BASE_URL`: megakino base URL (auto-resolved at startup; override if needed).
+- `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN`: minutes between background domain checks (default `100`, 0 disables).
+
+Megakino base URLs are auto-resolved by following redirects from known megakino domains at startup.
+Megakino operates in search-only mode (no alphabet index). Queries must use a slug or a URL that contains one (e.g. `/serials/<id>-<slug>.html`).
+Megakino defaults to `Deutsch`/`German Dub` language labels; adjust `PROVIDER_ORDER` or query language if needed.
 
 ## Naming
 
@@ -82,11 +89,12 @@ See the dedicated [Networking & Proxies](/guide/networking) guide for examples a
 ## Example `.env`
 
 ```ini
-CATALOG_SITES=aniworld.to,s.to
+CATALOG_SITES=aniworld.to,s.to,megakino
 DOWNLOAD_DIR=./data/downloads/anime
 DATA_DIR=./data
 ANIWORLD_BASE_URL=https://aniworld.to
 STO_BASE_URL=https://s.to
+MEGAKINO_BASE_URL=https://megakino.lol
 INDEXER_NAME="AniBridge Torznab"
 TORZNAB_RETURN_TEST_RESULT=true
 PROVIDER_ORDER=VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza

@@ -17,12 +17,17 @@ from app.infrastructure.network import (
 )
 from app.infrastructure.system_info import log_full_system_report
 from app.utils.update_notifier import notify_on_startup
+from app.utils.domain_resolver import (
+    resolve_megakino_base_url,
+    start_megakino_domain_check_thread,
+)
 
 from app.config import (
     DOWNLOAD_DIR,
     DATA_DIR,
     DOWNLOADS_TTL_HOURS,
     CLEANUP_SCAN_INTERVAL_MIN,
+    CATALOG_SITE_CONFIGS,
 )
 
 from app.core.scheduler import init_executor, shutdown_executor
@@ -118,9 +123,16 @@ async def lifespan(app: FastAPI):
     # Start background workers
     cleanup_stop = threading.Event()
     ip_stop = threading.Event()
+    megakino_stop = threading.Event()
     cleanup_thread: Optional[threading.Thread] = None
     ip_thread: Optional[threading.Thread] = None
+    megakino_thread: Optional[threading.Thread] = None
 
+    if "megakino" in CATALOG_SITE_CONFIGS:
+        try:
+            resolve_megakino_base_url()
+        except Exception as e:
+            logger.warning(f"megakino domain resolution failed: {e}")
     try:
         cleanup_thread = _start_ttl_cleanup_thread(cleanup_stop)
     except Exception as e:
@@ -129,6 +141,11 @@ async def lifespan(app: FastAPI):
         ip_thread = start_ip_check_thread(ip_stop)
     except Exception as e:
         logger.debug(f"start_ip_check_thread failed: {e}")
+    if "megakino" in CATALOG_SITE_CONFIGS:
+        try:
+            megakino_thread = start_megakino_domain_check_thread(megakino_stop)
+        except Exception as e:
+            logger.debug(f"start_megakino_domain_check_thread failed: {e}")
 
     try:
         yield
@@ -145,5 +162,9 @@ async def lifespan(app: FastAPI):
             pass
         try:
             ip_stop.set()
+        except Exception:
+            pass
+        try:
+            megakino_stop.set()
         except Exception:
             pass
