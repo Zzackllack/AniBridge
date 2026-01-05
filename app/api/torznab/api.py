@@ -78,7 +78,9 @@ def _handle_preview_search(
         return 0
 
     movie_year = get_movie_year(q_str)
-    result = tn._slug_from_query(q_str, site=site) if site else tn._slug_from_query(q_str)
+    result = (
+        tn._slug_from_query(q_str, site=site) if site else tn._slug_from_query(q_str)
+    )
     if not result:
         if site:
             logger.debug("No slug found for query '{}' using site '{}'", q_str, site)
