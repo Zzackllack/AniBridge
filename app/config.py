@@ -268,8 +268,8 @@ if QBIT_PUBLIC_SAVE_PATH:
         pass
 
 # ---- Multi-Site Catalogue Configuration ----
-# Comma-separated list of enabled catalogues (aniworld.to, s.to)
-CATALOG_SITES = os.getenv("CATALOG_SITES", "aniworld.to,s.to").strip()
+# Comma-separated list of enabled catalogues (aniworld.to, s.to, megakino)
+CATALOG_SITES = os.getenv("CATALOG_SITES", "aniworld.to,s.to,megakino").strip()
 CATALOG_SITES_LIST = list(
     dict.fromkeys(s.strip() for s in CATALOG_SITES.split(",") if s.strip())
 )
@@ -294,12 +294,26 @@ STO_ALPHABET_URL = os.getenv(
     "STO_ALPHABET_URL", f"{STO_BASE_URL}/serien-alphabet"
 ).strip()
 
+# Megakino (series/movies)
+MEGAKINO_BASE_URL = os.getenv("MEGAKINO_BASE_URL", "https://megakino.lol").strip()
+MEGAKINO_SITEMAP_URL = os.getenv(
+    "MEGAKINO_SITEMAP_URL", f"{MEGAKINO_BASE_URL}/sitemap.xml"
+).strip()
+MEGAKINO_TITLES_REFRESH_HOURS = float(os.getenv("MEGAKINO_TITLES_REFRESH_HOURS", "12"))
+MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN = int(
+    os.getenv("MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN", "100")
+)
+
 logger.debug(
     f"ANIWORLD_ALPHABET_HTML={ANIWORLD_ALPHABET_HTML}, ANIWORLD_ALPHABET_URL={ANIWORLD_ALPHABET_URL}"
 )
 logger.debug(
     f"STO_ALPHABET_HTML={STO_ALPHABET_HTML}, STO_ALPHABET_URL={STO_ALPHABET_URL}"
 )
+logger.debug(f"MEGAKINO_BASE_URL={MEGAKINO_BASE_URL}")
+logger.debug(f"MEGAKINO_SITEMAP_URL={MEGAKINO_SITEMAP_URL}")
+logger.debug(f"MEGAKINO_TITLES_REFRESH_HOURS={MEGAKINO_TITLES_REFRESH_HOURS}")
+logger.debug(f"MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN={MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN}")
 
 # TTL (Stunden) für Live-Index; 0 = nie neu laden (nur einmal pro Prozess)
 ANIWORLD_TITLES_REFRESH_HOURS = float(os.getenv("ANIWORLD_TITLES_REFRESH_HOURS", "24"))
@@ -341,6 +355,14 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "default_languages": ["German Dub", "English Dub", "German Sub"],
         "release_group": RELEASE_GROUP_STO,
     },
+    "megakino": {
+        "base_url": MEGAKINO_BASE_URL,
+        "alphabet_html": None,
+        "alphabet_url": None,
+        "titles_refresh_hours": MEGAKINO_TITLES_REFRESH_HOURS,
+        "default_languages": ["Deutsch", "German Dub"],
+        "release_group": "megakino",
+    },
 }
 
 CATALOG_SITE_CONFIGS: dict[str, dict[str, Any]] = {}
@@ -379,6 +401,7 @@ INDEXER_NAME = os.getenv("INDEXER_NAME", "AniBridge Torznab")
 INDEXER_API_KEY = os.getenv("INDEXER_API_KEY", "").strip()
 # Kategorien-IDs (Torznab/Newznab) – 5070 = TV/Anime (de-facto-Standard)
 TORZNAB_CAT_ANIME = int(os.getenv("TORZNAB_CAT_ANIME", "5070"))
+TORZNAB_CAT_MOVIE = int(os.getenv("TORZNAB_CAT_MOVIE", "2000"))
 
 # Availability TTL (Stunden) für Semi-Cache (Qualität & Sprache je Episode)
 AVAILABILITY_TTL_HOURS = float(os.getenv("AVAILABILITY_TTL_HOURS", "24"))

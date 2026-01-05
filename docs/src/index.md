@@ -4,7 +4,7 @@ layout: home
 hero:
   name: AniBridge
   text: FastAPI bridge for anime automation
-  tagline: Torznab index + qBittorrent-compatible API that lets Prowlarr/Sonarr discover and download episodes from AniWorld and Serienstream (s.to).
+  tagline: Torznab index + qBittorrent-compatible API that lets Prowlarr/Sonarr discover and download episodes from AniWorld, Serienstream (s.to), and megakino.
   image:
     src: /logo.png
     alt: AniBridge logo

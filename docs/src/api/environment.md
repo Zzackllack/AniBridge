@@ -18,6 +18,7 @@ Comprehensive list of env vars read in `app/config.py`.
 - `INDEXER_NAME` (default: `AniBridge Torznab`)
 - `INDEXER_API_KEY` (optional; requires `apikey`)
 - `TORZNAB_CAT_ANIME` (default: `5070`)
+- `TORZNAB_CAT_MOVIE` (default: `2000`)
 - `TORZNAB_FAKE_SEEDERS` (default: `999`)
 - `TORZNAB_FAKE_LEECHERS` (default: `787`)
 - `TORZNAB_RETURN_TEST_RESULT` (`true|false`)
@@ -34,11 +35,11 @@ Comprehensive list of env vars read in `app/config.py`.
 ## Providers & Languages
 
 - `PROVIDER_ORDER` (CSV; priority-ordered)
-- Supported languages: `German Dub`, `German Sub`, `English Sub`, `English Dub`
+- Supported languages: `German Dub`, `German Sub`, `English Sub`, `English Dub`, `Deutsch` (megakino)
 
 ## Title Resolution
 
-- `CATALOG_SITES` (default: `aniworld.to,s.to`)
+- `CATALOG_SITES` (default: `aniworld.to,s.to,megakino`)
 - `ANIWORLD_BASE_URL` (default: `https://aniworld.to`)
 - `ANIWORLD_ALPHABET_URL` (default: `https://aniworld.to/animes-alphabet`)
 - `ANIWORLD_ALPHABET_HTML` (local fallback file)
@@ -47,6 +48,8 @@ Comprehensive list of env vars read in `app/config.py`.
 - `STO_ALPHABET_URL` (default: `https://s.to/serien-alphabet`)
 - `STO_ALPHABET_HTML` (local fallback file)
 - `STO_TITLES_REFRESH_HOURS` (TTL, default: `24`)
+- `MEGAKINO_BASE_URL` (default: `https://megakino.lol`, auto-resolved at startup)
+- `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN` (minutes; default: `100`, 0 disables background checks)
 
 ## Naming
 

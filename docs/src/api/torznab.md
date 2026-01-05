@@ -31,7 +31,7 @@ GET /torznab/api?t=search&q={query}
 ```
 
 - When `q` is empty and `TORZNAB_RETURN_TEST_RESULT=true`, a synthetic test item is returned for connectivity checks.
-- For a query, AniBridge resolves the slug across all enabled catalogues (AniWorld + Serienstream/s.to by default) and emits preview items for S01E01 across probable languages per site.
+- For a query, AniBridge resolves the slug across all enabled catalogues (AniWorld + Serienstream/s.to + megakino by default) and emits preview items for S01E01 across probable languages per site. Megakino is search-only, so queries must provide a slug or a megakino URL containing one.
 
 ## tvsearch
 
@@ -58,7 +58,7 @@ Optional variant field (used for STRM support):
 ...&aw_mode=strm
 ```
 
-For Serienstream releases the prefix switches to `sto_` (e.g., `sto_slug`, `sto_site=s.to`). The qBittorrent shim parses these parameters when Sonarr posts to `/api/v2/torrents/add`.
+For Serienstream releases the prefix switches to `sto_` (e.g., `sto_slug`, `sto_site=s.to`). Megakino releases still use the `aw_` prefix but include `aw_site=megakino` for routing. The qBittorrent shim parses these parameters when Sonarr posts to `/api/v2/torrents/add`.
 
 ## STRM Variants
 
