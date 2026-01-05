@@ -65,26 +65,27 @@ def torznab_api(
     session: Session = Depends(get_session),
 ) -> Response:
     """
-    Handle Torznab API requests and produce the appropriate XML or RSS response.
+    Handle Torznab API requests and return the corresponding XML or RSS feed.
+
+    Processes four modes selected by `t`: "caps" (returns Torznab capability XML), "search" (generic preview/search across series or movies), "movie" / "movie-search" (movie-focused search and preview), and "tvsearch" (episode search). For search modes it builds RSS items per available language and respects STRM_FILES_MODE, category hints, paging via `offset`/`limit`, and cached availability probes.
 
     Parameters:
-        request (Request): Incoming FastAPI request.
-        t (str): Mode selector: "caps", "search", or "tvsearch".
-        apikey (Optional[str]): API key required for access; validated by the endpoint.
-        q (Optional[str]): Query string identifying a series or search terms.
+        t (str): Mode selector; one of "caps", "search", "tvsearch", "movie", or "movie-search".
+        apikey (Optional[str]): API key supplied by the client; validated by the endpoint.
+        q (Optional[str]): Query string for slug/title resolution or preview searches.
         season (Optional[int]): Season number for TV searches; required for "tvsearch".
-        ep (Optional[int]): Episode number for TV searches; defaults to 1 when omitted for preview searches.
-        cat (Optional[str]): Optional category filter passed through the request.
-        offset (int): Result offset for paging.
+        ep (Optional[int]): Episode number for TV searches; defaults to 1 for preview behavior.
+        cat (Optional[str]): Optional category filter (comma-separated); used to prefer movie handling when movie category is present.
+        offset (int): Result offset for paging (unused for caps).
         limit (int): Maximum number of RSS items to include.
         session (Session): Database session (injected; omitted from consumer-facing docs).
 
     Returns:
-        Response: FastAPI Response containing XML:
-            - application/xml; charset=utf-8 for "caps"
-            - application/rss+xml; charset=utf-8 for "search" and "tvsearch"
-            - Raises HTTP 400 for an unknown `t` value.
-            - Returns an empty RSS feed when required parameters are missing or when slug resolution yields no result.
+        Response: FastAPI Response containing:
+            - Torznab capabilities XML for `t == "caps"` (media type application/xml; charset=utf-8).
+            - RSS XML for search/tvsearch/movie modes (media type application/rss+xml; charset=utf-8).
+            - An empty RSS feed when required parameters are missing or slug resolution fails.
+            - HTTP 400 when `t` has an unsupported value.
     """
     logger.info(
         "Torznab request: t={}, q={}, season={}, ep={}, cat={}, offset={}, limit={}, apikey={}".format(
