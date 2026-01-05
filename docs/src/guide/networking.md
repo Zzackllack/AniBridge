@@ -12,6 +12,7 @@ AniBridge can route all outbound HTTP/HTTPS requests and downloads through an HT
 
 This applies to:
 - Title index fetches (AniWorld and Serienstream alphabet pages)
+- Megakino domain resolution and health checks
 - Update checks (GitHub / GHCR)
 - Provider page access via the `aniworld` library
 - Downloads and probes performed by `yt-dlp`

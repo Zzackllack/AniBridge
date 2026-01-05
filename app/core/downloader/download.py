@@ -7,6 +7,7 @@ from loguru import logger
 from app.config import PROVIDER_ORDER, PROXY_ENABLED, PROXY_SCOPE
 from app.infrastructure.network import disabled_proxy_env
 from app.utils.naming import rename_to_release
+from app.providers.megakino.client import get_default_client
 from .errors import DownloadError
 from .episode import build_episode
 from .language import normalize_language
@@ -67,6 +68,46 @@ def download_episode(
         dest_dir,
         site,
     )
+    if "megakino" in site and slug:
+        logger.debug("Megakino download flow: slug='{}'", slug)
+        client = get_default_client()
+        direct, chosen = client.resolve_direct_url(
+            slug=slug, preferred_provider=provider
+        )
+        logger.debug("Megakino download direct URL: provider={} url={}", chosen, direct)
+        entry = client.load_index().get(slug)
+        is_movie = bool(entry and entry.kind == "films")
+        if is_movie:
+            logger.debug("Megakino slug '{}' classified as movie.", slug)
+        base_hint = title_hint
+        if not base_hint:
+            if is_movie:
+                base_hint = f"{slug}-{language}-{chosen}"
+            elif slug and season and episode:
+                base_hint = f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
+        temp_path, info = _ydl_download(
+            direct,
+            dest_dir,
+            title_hint=base_hint,
+            cookiefile=cookiefile,
+            progress_cb=progress_cb,
+            stop_event=stop_event,
+        )
+        release_override = None
+        if title_hint:
+            release_override = title_hint.replace(" [STRM]", "").strip()
+        final_path = rename_to_release(
+            path=temp_path,
+            info=info,
+            slug=slug,
+            season=None if is_movie else season,
+            episode=None if is_movie else episode,
+            language=language,
+            site=site,
+            release_name_override=release_override,
+        )
+        logger.success("Final file path: %s", final_path)
+        return final_path
     ep = build_episode(link=link, slug=slug, season=season, episode=episode, site=site)
 
     force_no_proxy = False
