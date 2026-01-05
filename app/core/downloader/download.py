@@ -1,4 +1,5 @@
 import threading
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -7,6 +8,7 @@ from loguru import logger
 from app.config import PROVIDER_ORDER, PROXY_ENABLED, PROXY_SCOPE
 from app.infrastructure.network import disabled_proxy_env
 from app.utils.naming import rename_to_release
+from app.providers.megakino.client import get_default_client
 from .errors import DownloadError
 from .episode import build_episode
 from .language import normalize_language
@@ -67,6 +69,102 @@ def download_episode(
         dest_dir,
         site,
     )
+    if "megakino" in site and slug:
+        logger.debug("Megakino download flow: slug='{}'", slug)
+        client = get_default_client()
+        entry = client.load_index().get(slug)
+        is_movie = bool(entry and entry.kind == "film")
+        if is_movie:
+            logger.debug("Megakino slug '{}' classified as movie.", slug)
+        release_override = None
+        if title_hint:
+            release_override = title_hint.replace(" [STRM]", "").strip()
+        provider_candidates = []
+        if provider:
+            provider_candidates.append(provider)
+        for prov_name in PROVIDER_ORDER:
+            if prov_name not in provider_candidates:
+                provider_candidates.append(prov_name)
+        if not provider_candidates:
+            provider_candidates = [None]
+
+        tried_direct: set[str] = set()
+        last_error: Optional[Exception] = None
+
+        def _attempt_download(
+            *,
+            preferred_provider: Optional[str],
+            force_no_proxy: bool,
+        ) -> Optional[Path]:
+            context = disabled_proxy_env() if force_no_proxy else nullcontext()
+            with context:
+                direct, chosen = client.resolve_direct_url(
+                    slug=slug, preferred_provider=preferred_provider
+                )
+                if direct in tried_direct:
+                    logger.debug(
+                        "Megakino direct URL already tried; skipping: {}", direct
+                    )
+                    return None
+                tried_direct.add(direct)
+                logger.debug(
+                    "Megakino download direct URL: provider={} url={}", chosen, direct
+                )
+                base_hint = title_hint
+                if not base_hint:
+                    if is_movie:
+                        base_hint = f"{slug}-{language}-{chosen}"
+                    elif slug and season and episode:
+                        base_hint = (
+                            f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
+                        )
+                temp_path, info = _ydl_download(
+                    direct,
+                    dest_dir,
+                    title_hint=base_hint,
+                    cookiefile=cookiefile,
+                    progress_cb=progress_cb,
+                    stop_event=stop_event,
+                    force_no_proxy=force_no_proxy,
+                )
+                final_path = rename_to_release(
+                    path=temp_path,
+                    info=info,
+                    slug=slug,
+                    season=None if is_movie else season,
+                    episode=None if is_movie else episode,
+                    language=language,
+                    site=site,
+                    release_name_override=release_override,
+                )
+                logger.success("Final file path: %s", final_path)
+                return final_path
+
+        proxy_attempts = [False]
+        if PROXY_ENABLED and PROXY_SCOPE in ("all", "ytdlp"):
+            proxy_attempts.append(True)
+
+        for force_no_proxy in proxy_attempts:
+            for preferred_provider in provider_candidates:
+                try:
+                    result = _attempt_download(
+                        preferred_provider=preferred_provider,
+                        force_no_proxy=force_no_proxy,
+                    )
+                    if result is not None:
+                        return result
+                except Exception as exc:
+                    last_error = exc
+                    logger.warning(
+                        "Megakino download attempt failed (provider={}, no_proxy={}): {}",
+                        preferred_provider,
+                        force_no_proxy,
+                        exc,
+                    )
+
+        raise DownloadError(
+            f"Megakino download failed after retries: {last_error}"
+        ) from last_error
     ep = build_episode(link=link, slug=slug, season=season, episode=episode, site=site)
 
     force_no_proxy = False

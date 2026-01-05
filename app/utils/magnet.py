@@ -15,12 +15,12 @@ def _site_prefix(site: str) -> str:
     Determine the parameter prefix associated with a site.
 
     Parameters:
-        site (str): Hostname of the site (e.g., "aniworld.to" or "s.to").
+        site (str): Hostname of the site (e.g., "aniworld.to", "s.to", or "megakino").
 
     Returns:
-        str: "aw" for "aniworld.to", "sto" for "s.to", and "aw" for any other site (default). Logs a warning when defaulting.
+        str: "aw" for "aniworld.to"/"megakino", "sto" for "s.to", and "aw" for any other site (default). Logs a warning when defaulting.
     """
-    if site == "aniworld.to":
+    if site in ("aniworld.to", "megakino"):
         return "aw"
     if site == "s.to":
         return "sto"

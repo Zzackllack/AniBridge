@@ -25,6 +25,7 @@ LANG_TAG_MAP = {
     "German Sub": "GER.SUB",
     "English Sub": "ENG.SUB",
     "English Dub": "ENG",
+    "Deutsch": "GER",
 }
 
 
@@ -37,11 +38,39 @@ def _safe_component(s: str) -> str:
 
 
 def _series_component(display_title: str) -> str:
+    """
+    Create a filesystem-safe series component from a display title.
+
+    Returns:
+        component (str): Sanitized string suitable for use as the series part of a release filename.
+    """
     logger.debug(f"Building series component from display_title: {display_title}")
     return _safe_component(display_title)
 
 
+def _sanitize_release_name(name: str) -> str:
+    """
+    Sanitize a release name for filesystem safety while preserving dots and hyphens.
+
+    Returns:
+        sanitized (str): The input name with reserved filesystem characters replaced by underscores and surrounding whitespace trimmed.
+    """
+    logger.debug("Sanitizing release name: {}", name)
+    sanitized = re.sub(r"[\\/:*?\"<>|]+", "_", name).strip()
+    logger.debug("Sanitized release name: {}", sanitized)
+    return sanitized
+
+
 def _map_codec_name(vcodec: Optional[str]) -> str:
+    """
+    Map a codec identifier string to a canonical codec tag.
+
+    Parameters:
+        vcodec (Optional[str]): Codec name or identifier from media metadata; may be None or empty.
+
+    Returns:
+        str: One of "H265", "AV1", "VP9", or "H264". Returns "H264" when `vcodec` is None/empty or no known codec match is found.
+    """
     logger.debug(f"Mapping codec name: {vcodec}")
     if not vcodec:
         return "H264"
@@ -222,6 +251,7 @@ def rename_to_release(
     episode: Optional[int],
     language: str,
     site: str = "aniworld.to",
+    release_name_override: Optional[str] = None,
 ) -> Path:
     """
     Generate a release-style filename for a media file and rename the file on disk.
@@ -236,6 +266,8 @@ def rename_to_release(
         episode (Optional[int]): Episode number for the release name (used when provided).
         language (str): Language label to include in the release name.
         site (str): Site identifier that may alter release-group selection and title resolution.
+        release_name_override (Optional[str]): If provided, use this exact release name (sanitized)
+            instead of building a new one from metadata.
 
     Returns:
         Path: The resulting path after renaming (may be unchanged if no rename was needed).
@@ -244,6 +276,26 @@ def rename_to_release(
         Renames the file on disk to the generated release-style filename.
     """
     logger.info(f"Renaming file to release schema: {path} (site: {site})")
+    override = (release_name_override or "").strip()
+    if override:
+        release = _sanitize_release_name(override)
+        suffix = path.suffix.lower()
+        if release.lower().endswith(suffix):
+            new_path = path.with_name(release)
+        else:
+            new_path = path.with_name(f"{release}{suffix}")
+        if new_path.exists() and new_path != path:
+            i = 2
+            base = new_path.stem
+            while new_path.exists():
+                new_path = path.with_name(f"{base}.{i}{suffix}")
+                i += 1
+        if new_path != path:
+            logger.info(f"Renaming {path} to {new_path}")
+            path.rename(new_path)
+        else:
+            logger.info(f"No rename needed for {path}")
+        return new_path
     # 1) Serien-Titel bestimmen
     display_title = None
     if slug:
