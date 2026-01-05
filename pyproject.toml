@@ -26,6 +26,7 @@ dependencies = [
     "certifi>=2025.8.3",
     "charset-normalizer>=3.4.3",
     "click>=8.2.1",
+    "defusedxml>=0.7.1",
     "editorconfig>=0.17.1",
     "fake-useragent>=2.2.0",
     "fastapi>=0.116.1",
@@ -73,4 +74,3 @@ Tracker = "https://github.com/Zzackllack/AniBridge/issues"
 
 [tool.setuptools.packages.find]
 where = ["app"]
-
