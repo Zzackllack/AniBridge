@@ -423,9 +423,9 @@ _DEFAULT_CLIENT: Optional[MegakinoClient] = None
 def get_default_client() -> MegakinoClient:
     """
     Get the shared MegakinoClient singleton configured from environment.
-    
+
     Creates and caches a MegakinoClient on first call using the resolved Megakino base URL (sitemap set to `{base_url}/sitemap.xml`) and configured refresh interval.
-    
+
     Returns:
         MegakinoClient: the shared client instance.
     """

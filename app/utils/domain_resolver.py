@@ -55,10 +55,10 @@ def _normalize_domain(value: str) -> str:
 def _build_base_url(value: str) -> str:
     """
     Create a normalized base URL from an input domain or URL.
-    
+
     Parameters:
         value (str): A domain or URL string to normalize.
-    
+
     Returns:
         str: "scheme://netloc" (scheme defaults to "https" when missing) if a network location is present; the stripped original input if no netloc is found; or an empty string for empty input.
     """
@@ -75,10 +75,10 @@ def _build_base_url(value: str) -> str:
 def _is_sitemap_payload(text: str) -> bool:
     """
     Determine whether a string is a valid sitemap XML payload.
-    
+
     Parameters:
         text (str): Candidate sitemap content (raw response text).
-    
+
     Returns:
         bool: `True` if the text is valid sitemap XML whose root element is `urlset` or `sitemapindex`, `False` otherwise.
     """
@@ -106,10 +106,10 @@ _HOST_RE = re.compile(
 def _looks_like_html(text: str) -> bool:
     """
     Detect whether the given text resembles an HTML document.
-    
+
     Parameters:
         text (str): Text to inspect.
-    
+
     Returns:
         True if the text starts with `<!doctype` or `<html` (ignoring leading whitespace and case), or contains a `<script` tag; `False` otherwise.
     """
@@ -129,11 +129,11 @@ def _probe_megakino_sitemap(
 ) -> Optional[str]:
     """
     Probe a Megakino base URL by fetching its /sitemap.xml and return the resolved domain when the sitemap is valid.
-    
+
     Parameters:
         base_url (str): Base URL or host to probe (e.g. "https://example.com" or "example.com").
         timeout (float | int): Request timeout in seconds.
-    
+
     Returns:
         str: The normalized domain extracted from the final response URL when a valid sitemap payload is returned.
         None: If the probe fails, the response is not a valid sitemap, or the base_url is empty.
@@ -166,11 +166,11 @@ def _probe_megakino_sitemap(
 def check_megakino_domain_validity(base_url: str, timeout: float | int = 15) -> bool:
     """
     Determine whether the given Megakino base URL serves a valid sitemap and does not redirect to a different domain.
-    
+
     Parameters:
         base_url (str): Base URL or host to verify; empty values are treated as invalid.
         timeout (float | int): HTTP request timeout in seconds.
-    
+
     Returns:
         bool: `True` if a sitemap payload was retrieved and the final domain matches `base_url`, `False` otherwise.
     """
@@ -191,12 +191,12 @@ def check_megakino_domain_validity(base_url: str, timeout: float | int = 15) -> 
 def _parse_mirror_domains(text: str) -> list[str]:
     """
     Parse the contents of a mirrors file and return a list of candidate domain names.
-    
+
     Lines that are empty or start with '#' are ignored. Lines containing '<' or '>' are skipped. Each remaining line is interpreted either as a full URL (http/https) or as a host; URLs are normalized to their domain form and hosts are lowercased. Valid, non-empty domains are returned in the order they appear.
-    
+
     Parameters:
         text (str): Raw text content of a mirrors file (multiple lines).
-    
+
     Returns:
         list[str]: Ordered list of parsed domain names (lowercased, normalized).
     """
@@ -221,12 +221,12 @@ def _parse_mirror_domains(text: str) -> list[str]:
 def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
     """
     Attempt to retrieve Megakino mirror domains from candidate mirrors files.
-    
+
     Fetches each candidate's /mirrors.txt and returns the first non-empty list of parsed domains. HTML responses, HTTP errors, and malformed mirror files are ignored; an empty list is returned if no valid mirrors are found.
-    
+
     Parameters:
         timeout (float | int): Request timeout in seconds.
-    
+
     Returns:
         list[str]: A list of mirror domains parsed from the first valid mirrors file, or an empty list if none were found.
     """
@@ -270,10 +270,10 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
 def fetch_megakino_domain(timeout: float | int = 15) -> Optional[str]:
     """
     Resolve the active Megakino domain by probing candidate and mirror hosts' sitemap.xml files.
-    
+
     Parameters:
         timeout (float | int): Request timeout in seconds used for HTTP probes.
-    
+
     Returns:
         The resolved domain without a URL scheme (for example, "example.com"), or `None` if no candidate could be validated.
     """
