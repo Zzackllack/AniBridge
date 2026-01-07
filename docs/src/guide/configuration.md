@@ -54,7 +54,7 @@ In STRM mode, AniBridge schedules creation of a `.strm` file (plain text, one HT
 - `MEGAKINO_BASE_URL`: megakino base URL (auto-resolved at startup; override if needed).
 - `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN`: minutes between background domain checks (default `100`, 0 disables).
 
-Megakino base URLs are auto-resolved by following redirects from known megakino domains at startup.
+Megakino base URLs are auto-resolved by loading `mirrors.txt` from known megakino domains and validating the sitemap until a working site is found.
 Megakino operates in search-only mode (no alphabet index). Queries must use a slug or a URL that contains one (e.g. `/serials/<id>-<slug>.html`).
 Megakino defaults to `Deutsch`/`German Dub` language labels; adjust `PROVIDER_ORDER` or query language if needed.
 
@@ -94,7 +94,7 @@ DOWNLOAD_DIR=./data/downloads/anime
 DATA_DIR=./data
 ANIWORLD_BASE_URL=https://aniworld.to
 STO_BASE_URL=https://s.to
-MEGAKINO_BASE_URL=https://megakino.lol
+MEGAKINO_BASE_URL=https://megakino1.to
 INDEXER_NAME="AniBridge Torznab"
 TORZNAB_RETURN_TEST_RESULT=true
 PROVIDER_ORDER=VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza
