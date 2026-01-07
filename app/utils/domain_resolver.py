@@ -7,6 +7,7 @@ import re
 import threading
 
 from loguru import logger
+from requests.exceptions import RequestException
 
 from app.utils.http_client import get as http_get
 from app.utils.logger import config as configure_logger
@@ -161,7 +162,7 @@ def _probe_megakino_sitemap(
             logger.warning("Megakino sitemap probe returned non-XML for {}", probe_url)
             return None
         return _normalize_domain(resp.url) or _normalize_domain(base_url)
-    except Exception as exc:
+    except RequestException as exc:
         logger.warning("Megakino domain probe failed for {}: {}", probe_url, exc)
         return None
 
@@ -265,7 +266,7 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
                 )
                 return domains
             logger.debug("Megakino mirrors file empty at {}", mirrors_url)
-        except Exception as exc:
+        except RequestException as exc:
             logger.debug("Megakino mirrors fetch failed for {}: {}", mirrors_url, exc)
     return []
 
