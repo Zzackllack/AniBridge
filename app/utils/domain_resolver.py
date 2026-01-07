@@ -100,7 +100,11 @@ def _looks_like_html(text: str) -> bool:
     if not text:
         return False
     sample = text.lstrip().lower()
-    return sample.startswith("<!doctype") or sample.startswith("<html") or "<script" in sample
+    return (
+        sample.startswith("<!doctype")
+        or sample.startswith("<html")
+        or "<script" in sample
+    )
 
 
 def _probe_megakino_sitemap(
