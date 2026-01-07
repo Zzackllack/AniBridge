@@ -49,7 +49,7 @@ outline: deep
 
 ## Megakino domain resolution fails
 
-- Check logs for "megakino domain" entries at startup.
+- Check logs for "megakino domain" or "mirrors" entries at startup.
 - Override with `MEGAKINO_BASE_URL` if automatic resolution fails.
 - Set `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN=0` to disable background checks during troubleshooting.
 - Remember megakino is search-only; queries must provide a slug or a megakino URL containing one.

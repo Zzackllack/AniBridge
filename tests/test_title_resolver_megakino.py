@@ -52,7 +52,7 @@ def _reload_modules():
 def test_slug_from_query_megakino_direct_slug(monkeypatch):
     """Ensure direct megakino slugs resolve without lookup."""
     monkeypatch.setenv("CATALOG_SITES", "megakino")
-    monkeypatch.setenv("MEGAKINO_BASE_URL", "https://megakino.lol")
+    monkeypatch.setenv("MEGAKINO_BASE_URL", "https://megakino1.to")
     _reload_modules()
 
     from app.utils import title_resolver
@@ -72,12 +72,12 @@ def test_slug_from_query_megakino_direct_slug(monkeypatch):
 def test_slug_from_query_megakino_url(monkeypatch):
     """Ensure megakino URLs resolve to slugs."""
     monkeypatch.setenv("CATALOG_SITES", "megakino")
-    monkeypatch.setenv("MEGAKINO_BASE_URL", "https://megakino.lol")
+    monkeypatch.setenv("MEGAKINO_BASE_URL", "https://megakino1.to")
     _reload_modules()
 
     from app.utils import title_resolver
 
-    url = "https://megakino.lol/serials/5877-stranger-things-5-stafffel.html"
+    url = "https://megakino1.to/serials/5877-stranger-things-5-stafffel.html"
     assert title_resolver.slug_from_query(url, site="megakino") == (
         "megakino",
         "stranger-things-5-stafffel",
@@ -87,7 +87,7 @@ def test_slug_from_query_megakino_url(monkeypatch):
 def test_slug_from_query_megakino_rejects_plain_title(monkeypatch):
     """Ensure plain titles do not resolve when sitemap search is empty."""
     monkeypatch.setenv("CATALOG_SITES", "megakino")
-    monkeypatch.setenv("MEGAKINO_BASE_URL", "https://megakino.lol")
+    monkeypatch.setenv("MEGAKINO_BASE_URL", "https://megakino1.to")
     _reload_modules()
 
     from app.utils import title_resolver
