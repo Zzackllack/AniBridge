@@ -75,6 +75,12 @@ def _build_base_url(value: str) -> str:
 
 
 def _is_sitemap_payload(text: str) -> bool:
+    """
+    Determine whether the provided text looks like a sitemap XML payload.
+
+    Returns `True` for XML documents with a root tag of `urlset` or
+    `sitemapindex`. Malformed XML or non-XML content returns `False`.
+    """
     if not text:
         return False
     lowered = text.lower()
@@ -91,12 +97,21 @@ def _is_sitemap_payload(text: str) -> bool:
     return tag in ("urlset", "sitemapindex")
 
 
+# Validates DNS-style hostnames: total length 1-253 chars, labels separated by
+# dots, each label starting and ending with an alphanumeric character and
+# optionally containing hyphens, and a final label (TLD) of at least 2 chars.
 _HOST_RE = re.compile(
     r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9]{2,}$"
 )
 
 
 def _looks_like_html(text: str) -> bool:
+    """
+    Return True when the payload appears to be HTML rather than plaintext.
+
+    This is a lightweight heuristic used to skip mirror lists that returned
+    HTML (for example, landing pages or JS redirects).
+    """
     if not text:
         return False
     sample = text.lstrip().lower()
@@ -107,6 +122,12 @@ def _probe_megakino_sitemap(
     base_url: str,
     timeout: float | int = 15,
 ) -> Optional[str]:
+    """
+    Fetch the sitemap for a candidate base URL and validate the response.
+
+    Returns the effective domain (after redirects) when a valid sitemap is
+    found, otherwise returns None.
+    """
     if not base_url:
         logger.warning("Megakino domain check skipped (empty base_url).")
         return None
@@ -158,6 +179,12 @@ def check_megakino_domain_validity(base_url: str, timeout: float | int = 15) -> 
 
 
 def _parse_mirror_domains(text: str) -> list[str]:
+    """
+    Parse mirror list text into normalized domain strings.
+
+    Accepts full URLs or bare hostnames, skips comments and HTML fragments, and
+    returns a list of normalized domains without schemes.
+    """
     domains: list[str] = []
     for raw_line in (text or "").splitlines():
         line = raw_line.strip()
@@ -168,7 +195,7 @@ def _parse_mirror_domains(text: str) -> list[str]:
         if line.startswith("http://") or line.startswith("https://"):
             domain = _normalize_domain(line)
         elif _HOST_RE.match(line.lower()):
-            domain = line.lower()
+            domain = _normalize_domain(f"https://{line.lower()}")
         else:
             continue
         if domain:
@@ -177,6 +204,13 @@ def _parse_mirror_domains(text: str) -> list[str]:
 
 
 def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
+    """
+    Attempt to retrieve mirror domains from known Megakino hosts.
+
+    Iterates over configured candidates, fetching `/mirrors.txt` and returning
+    the first non-empty parsed domain list. Returns an empty list if all
+    candidates fail or return invalid content.
+    """
     logger.info("Fetching megakino mirror list.")
     for candidate in MEGAKINO_DOMAIN_CANDIDATES:
         base_url = _build_base_url(candidate)
@@ -227,7 +261,8 @@ def fetch_megakino_domain(timeout: float | int = 15) -> Optional[str]:
     logger.info("Resolving megakino domain via sitemap checks.")
     seen: set[str] = set()
     candidates: list[str] = []
-    mirror_domains = fetch_megakino_mirror_domains(timeout=timeout)
+    mirror_timeout = min(timeout, 8)
+    mirror_domains = fetch_megakino_mirror_domains(timeout=mirror_timeout)
     if mirror_domains:
         candidates.extend(mirror_domains)
     candidates.extend(MEGAKINO_DOMAIN_CANDIDATES)
