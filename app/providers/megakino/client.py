@@ -11,7 +11,7 @@ from loguru import logger
 
 from app.utils.http_client import get as http_get
 from app.utils.domain_resolver import get_megakino_base_url
-from app.config import MEGAKINO_SITEMAP_URL, MEGAKINO_TITLES_REFRESH_HOURS
+from app.config import MEGAKINO_TITLES_REFRESH_HOURS
 from .sitemap import (
     MegakinoIndex,
     MegakinoIndexEntry,
@@ -424,8 +424,9 @@ def get_default_client() -> MegakinoClient:
     """Return a shared megakino client instance configured from env."""
     global _DEFAULT_CLIENT
     if _DEFAULT_CLIENT is None:
+        base_url = get_megakino_base_url().rstrip("/")
         _DEFAULT_CLIENT = MegakinoClient(
-            sitemap_url=MEGAKINO_SITEMAP_URL,
+            sitemap_url=f"{base_url}/sitemap.xml",
             refresh_hours=MEGAKINO_TITLES_REFRESH_HOURS,
         )
     return _DEFAULT_CLIENT
