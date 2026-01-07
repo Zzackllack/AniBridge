@@ -54,15 +54,13 @@ def _normalize_domain(value: str) -> str:
 
 def _build_base_url(value: str) -> str:
     """
-    Constructs a normalized base URL from an input string.
-
-    If the input contains a network location, returns a URL with a scheme and netloc (defaults scheme to `https` when missing). If the input is empty, returns an empty string. If the input cannot be parsed into a netloc, returns the stripped original input.
+    Create a normalized base URL from an input domain or URL.
 
     Parameters:
         value (str): A domain or URL string to normalize.
 
     Returns:
-        str: A base URL like `https://example.com`, the stripped original input if no netloc is found, or an empty string for empty input.
+        str: "scheme://netloc" (scheme defaults to "https" when missing) if a network location is present; the stripped original input if no netloc is found; or an empty string for empty input.
     """
     raw = (value or "").strip()
     if not raw:
@@ -76,10 +74,13 @@ def _build_base_url(value: str) -> str:
 
 def _is_sitemap_payload(text: str) -> bool:
     """
-    Determine whether the provided text looks like a sitemap XML payload.
+    Determine whether a string is a valid sitemap XML payload.
 
-    Returns `True` for XML documents with a root tag of `urlset` or
-    `sitemapindex`. Malformed XML or non-XML content returns `False`.
+    Parameters:
+        text (str): Candidate sitemap content (raw response text).
+
+    Returns:
+        bool: `True` if the text is valid sitemap XML whose root element is `urlset` or `sitemapindex`, `False` otherwise.
     """
     if not text:
         return False
@@ -107,15 +108,22 @@ _HOST_RE = re.compile(
 
 def _looks_like_html(text: str) -> bool:
     """
-    Return True when the payload appears to be HTML rather than plaintext.
+    Detect whether the given text resembles an HTML document.
 
-    This is a lightweight heuristic used to skip mirror lists that returned
-    HTML (for example, landing pages or JS redirects).
+    Parameters:
+        text (str): Text to inspect.
+
+    Returns:
+        True if the text starts with `<!doctype` or `<html` (ignoring leading whitespace and case), or contains a `<script` tag; `False` otherwise.
     """
     if not text:
         return False
     sample = text.lstrip().lower()
-    return sample.startswith("<!doctype") or sample.startswith("<html") or "<script" in sample
+    return (
+        sample.startswith("<!doctype")
+        or sample.startswith("<html")
+        or "<script" in sample
+    )
 
 
 def _probe_megakino_sitemap(
@@ -123,10 +131,15 @@ def _probe_megakino_sitemap(
     timeout: float | int = 15,
 ) -> Optional[str]:
     """
-    Fetch the sitemap for a candidate base URL and validate the response.
+    Probe a Megakino base URL by fetching its /sitemap.xml and return the resolved domain when the sitemap is valid.
 
-    Returns the effective domain (after redirects) when a valid sitemap is
-    found, otherwise returns None.
+    Parameters:
+        base_url (str): Base URL or host to probe (e.g. "https://example.com" or "example.com").
+        timeout (float | int): Request timeout in seconds.
+
+    Returns:
+        str: The normalized domain extracted from the final response URL when a valid sitemap payload is returned.
+        None: If the probe fails, the response is not a valid sitemap, or the base_url is empty.
     """
     if not base_url:
         logger.warning("Megakino domain check skipped (empty base_url).")
@@ -155,14 +168,14 @@ def _probe_megakino_sitemap(
 
 def check_megakino_domain_validity(base_url: str, timeout: float | int = 15) -> bool:
     """
-    Check whether a Megakino base URL is reachable by probing its sitemap.
+    Determine whether the given Megakino base URL serves a valid sitemap and does not redirect to a different domain.
 
     Parameters:
-        base_url (str): Base URL to probe; an empty value causes the function to return `False`.
-        timeout (float | int): Request timeout in seconds.
+        base_url (str): Base URL or host to verify; empty values are treated as invalid.
+        timeout (float | int): HTTP request timeout in seconds.
 
     Returns:
-        bool: `true` if the probe returned a sitemap payload without redirecting to another domain, `false` otherwise.
+        bool: `True` if a sitemap payload was retrieved and the final domain matches `base_url`, `False` otherwise.
     """
     final_domain = _probe_megakino_sitemap(base_url, timeout=timeout)
     if not final_domain:
@@ -180,10 +193,15 @@ def check_megakino_domain_validity(base_url: str, timeout: float | int = 15) -> 
 
 def _parse_mirror_domains(text: str) -> list[str]:
     """
-    Parse mirror list text into normalized domain strings.
+    Parse the contents of a mirrors file and return a list of candidate domain names.
 
-    Accepts full URLs or bare hostnames, skips comments and HTML fragments, and
-    returns a list of normalized domains without schemes.
+    Lines that are empty or start with '#' are ignored. Lines containing '<' or '>' are skipped. Each remaining line is interpreted either as a full URL (http/https) or as a host; URLs are normalized to their domain form and hosts are lowercased. Valid, non-empty domains are returned in the order they appear.
+
+    Parameters:
+        text (str): Raw text content of a mirrors file (multiple lines).
+
+    Returns:
+        list[str]: Ordered list of parsed domain names (lowercased, normalized).
     """
     domains: list[str] = []
     for raw_line in (text or "").splitlines():
@@ -205,11 +223,15 @@ def _parse_mirror_domains(text: str) -> list[str]:
 
 def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
     """
-    Attempt to retrieve mirror domains from known Megakino hosts.
+    Attempt to retrieve Megakino mirror domains from candidate mirrors files.
 
-    Iterates over configured candidates, fetching `/mirrors.txt` and returning
-    the first non-empty parsed domain list. Returns an empty list if all
-    candidates fail or return invalid content.
+    Fetches each candidate's /mirrors.txt and returns the first non-empty list of parsed domains. HTML responses, HTTP errors, and malformed mirror files are ignored; an empty list is returned if no valid mirrors are found.
+
+    Parameters:
+        timeout (float | int): Request timeout in seconds.
+
+    Returns:
+        list[str]: A list of mirror domains parsed from the first valid mirrors file, or an empty list if none were found.
     """
     logger.info("Fetching megakino mirror list.")
     for candidate in MEGAKINO_DOMAIN_CANDIDATES:
@@ -250,13 +272,13 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
 
 def fetch_megakino_domain(timeout: float | int = 15) -> Optional[str]:
     """
-    Resolve the active Megakino domain by checking the sitemap across mirror and candidate domains.
+    Resolve the active Megakino domain by probing candidate and mirror hosts' sitemap.xml files.
 
     Parameters:
-        timeout (float | int): Request timeout in seconds for HTTP probes.
+        timeout (float | int): Request timeout in seconds used for HTTP probes.
 
     Returns:
-        resolved_domain (str | None): The resolved domain without a URL scheme (for example, "example.com"), or `None` if no candidate could be validated.
+        The resolved domain without a URL scheme (for example, "example.com"), or `None` if no candidate could be validated.
     """
     logger.info("Resolving megakino domain via sitemap checks.")
     seen: set[str] = set()
