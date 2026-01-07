@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from urllib.parse import urlparse
 import os
+import re
 import threading
 
 from loguru import logger
@@ -12,15 +13,19 @@ from app.utils.logger import config as configure_logger
 
 configure_logger()
 
-MEGAKINO_DEFAULT_DOMAIN = "megakino.lol"
+MEGAKINO_DEFAULT_DOMAIN = "megakino1.to"
 MEGAKINO_DOMAIN_CANDIDATES = [
+    "megakino1.to",
+    "megakino.live",
     "megakino.lol",
+    "megakino1.fit",
+    "megakino.cloud",
     "megakino.cx",
     "megakino.ms",
     "megakino.video",
     "megakino.to",
 ]
-MEGAKINO_TOKEN_PATH = "/index.php?yg=token"
+MEGAKINO_MIRRORS_PATH = "/mirrors.txt"
 USER_AGENT = "Mozilla/5.0 (AniBridge; +https://github.com/Zzackllack/AniBridge)"
 
 _resolved_megakino_base_url: Optional[str] = None
@@ -69,23 +74,47 @@ def _build_base_url(value: str) -> str:
     return raw
 
 
-def check_megakino_domain_validity(base_url: str, timeout: float | int = 15) -> bool:
-    """
-    Check whether a Megakino base URL is reachable by probing its token endpoint.
+def _is_sitemap_payload(text: str) -> bool:
+    if not text:
+        return False
+    lowered = text.lower()
+    if "<urlset" not in lowered and "<sitemapindex" not in lowered:
+        return False
+    try:
+        from defusedxml import ElementTree as ET
 
-    Probes the base URL's token endpoint (MEGAKINO_TOKEN_PATH) with a GET request to determine availability.
+        root = ET.fromstring(text)
+    except Exception as exc:
+        logger.warning("Megakino sitemap parse failed: {}", exc)
+        return False
+    tag = root.tag.split("}", 1)[1] if "}" in root.tag else root.tag
+    return tag in ("urlset", "sitemapindex")
 
-    Parameters:
-        base_url (str): Base URL to probe; an empty value causes the function to return `False`.
-        timeout (float | int): Request timeout in seconds.
 
-    Returns:
-        bool: `true` if the probe returned an HTTP status code less than 400, `false` otherwise.
-    """
+_HOST_RE = re.compile(
+    r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9]{2,}$"
+)
+
+
+def _looks_like_html(text: str) -> bool:
+    if not text:
+        return False
+    sample = text.lstrip().lower()
+    return (
+        sample.startswith("<!doctype")
+        or sample.startswith("<html")
+        or "<script" in sample
+    )
+
+
+def _probe_megakino_sitemap(
+    base_url: str,
+    timeout: float | int = 15,
+) -> Optional[str]:
     if not base_url:
         logger.warning("Megakino domain check skipped (empty base_url).")
-        return False
-    probe_url = f"{base_url.rstrip('/')}{MEGAKINO_TOKEN_PATH}"
+        return None
+    probe_url = f"{base_url.rstrip('/')}/sitemap.xml"
     try:
         resp = http_get(
             probe_url,
@@ -97,16 +126,101 @@ def check_megakino_domain_validity(base_url: str, timeout: float | int = 15) -> 
             logger.warning(
                 "Megakino domain probe returned {} for {}", resp.status_code, probe_url
             )
-            return False
-        return True
+            return None
+        if not _is_sitemap_payload(resp.text or ""):
+            logger.warning("Megakino sitemap probe returned non-XML for {}", probe_url)
+            return None
+        return _normalize_domain(resp.url) or _normalize_domain(base_url)
     except Exception as exc:
         logger.warning("Megakino domain probe failed for {}: {}", probe_url, exc)
+        return None
+
+
+def check_megakino_domain_validity(base_url: str, timeout: float | int = 15) -> bool:
+    """
+    Check whether a Megakino base URL is reachable by probing its sitemap.
+
+    Parameters:
+        base_url (str): Base URL to probe; an empty value causes the function to return `False`.
+        timeout (float | int): Request timeout in seconds.
+
+    Returns:
+        bool: `true` if the probe returned a sitemap payload without redirecting to another domain, `false` otherwise.
+    """
+    final_domain = _probe_megakino_sitemap(base_url, timeout=timeout)
+    if not final_domain:
         return False
+    base_domain = _normalize_domain(base_url)
+    if base_domain and final_domain != base_domain:
+        logger.warning(
+            "Megakino sitemap redirect detected: {} -> {}",
+            base_domain,
+            final_domain,
+        )
+        return False
+    return True
+
+
+def _parse_mirror_domains(text: str) -> list[str]:
+    domains: list[str] = []
+    for raw_line in (text or "").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "<" in line or ">" in line:
+            continue
+        if line.startswith("http://") or line.startswith("https://"):
+            domain = _normalize_domain(line)
+        elif _HOST_RE.match(line.lower()):
+            domain = line.lower()
+        else:
+            continue
+        if domain:
+            domains.append(domain)
+    return domains
+
+
+def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
+    logger.info("Fetching megakino mirror list.")
+    for candidate in MEGAKINO_DOMAIN_CANDIDATES:
+        base_url = _build_base_url(candidate)
+        if not base_url:
+            continue
+        mirrors_url = f"{base_url.rstrip('/')}{MEGAKINO_MIRRORS_PATH}"
+        try:
+            resp = http_get(
+                mirrors_url,
+                timeout=timeout,
+                allow_redirects=True,
+                headers={"User-Agent": USER_AGENT},
+            )
+            if resp.status_code >= 400:
+                logger.debug(
+                    "Megakino mirrors fetch returned {} for {}",
+                    resp.status_code,
+                    mirrors_url,
+                )
+                continue
+            if _looks_like_html(resp.text or ""):
+                logger.debug("Megakino mirrors file returned HTML at {}", mirrors_url)
+                continue
+            domains = _parse_mirror_domains(resp.text or "")
+            if domains:
+                logger.info(
+                    "Megakino mirrors loaded from {} ({} entries)",
+                    mirrors_url,
+                    len(domains),
+                )
+                return domains
+            logger.debug("Megakino mirrors file empty at {}", mirrors_url)
+        except Exception as exc:
+            logger.debug("Megakino mirrors fetch failed for {}: {}", mirrors_url, exc)
+    return []
 
 
 def fetch_megakino_domain(timeout: float | int = 15) -> Optional[str]:
     """
-    Resolve the active Megakino domain by following redirects from configured candidate domains.
+    Resolve the active Megakino domain by checking the sitemap across mirror and candidate domains.
 
     Parameters:
         timeout (float | int): Request timeout in seconds for HTTP probes.
@@ -114,33 +228,25 @@ def fetch_megakino_domain(timeout: float | int = 15) -> Optional[str]:
     Returns:
         resolved_domain (str | None): The resolved domain without a URL scheme (for example, "example.com"), or `None` if no candidate could be validated.
     """
-    logger.info("Resolving megakino domain via redirect checks.")
+    logger.info("Resolving megakino domain via sitemap checks.")
     seen: set[str] = set()
-    for candidate in MEGAKINO_DOMAIN_CANDIDATES:
+    candidates: list[str] = []
+    mirror_domains = fetch_megakino_mirror_domains(timeout=timeout)
+    if mirror_domains:
+        candidates.extend(mirror_domains)
+    candidates.extend(MEGAKINO_DOMAIN_CANDIDATES)
+    for candidate in candidates:
         domain = _normalize_domain(candidate)
         if not domain or domain in seen:
             continue
         seen.add(domain)
         base_url = _build_base_url(domain)
         try:
-            resp = http_get(
-                base_url,
-                timeout=timeout,
-                allow_redirects=True,
-                headers={"User-Agent": USER_AGENT},
-            )
-            final_domain = _normalize_domain(resp.url)
-            if not final_domain:
-                logger.warning(
-                    "Megakino resolution: empty final domain for {}", base_url
-                )
-                continue
-            logger.info("Megakino resolution: {} -> {}", domain, final_domain)
-            final_base_url = _build_base_url(final_domain)
-            if check_megakino_domain_validity(final_base_url, timeout=timeout):
+            final_domain = _probe_megakino_sitemap(base_url, timeout=timeout)
+            if final_domain:
                 logger.success("Megakino domain resolved: {}", final_domain)
                 return final_domain
-            logger.warning("Megakino candidate failed validation: {}", final_domain)
+            logger.warning("Megakino candidate failed validation: {}", domain)
         except Exception as exc:
             logger.warning("Megakino candidate check failed for {}: {}", base_url, exc)
     logger.warning("Megakino domain resolution failed; no candidate succeeded.")
@@ -151,7 +257,7 @@ def _apply_megakino_base_url(base_url: str, source: str) -> None:
     """
     Apply and persist the resolved Megakino base URL to module state and application configuration.
 
-    Sets the module-level resolved URL and source, updates app.config values (MEGAKINO_BASE_URL and MEGAKINO_SITEMAP_URL) and the "megakino" entry in CATALOG_SITE_CONFIGS when present, and attempts to reset the default Megakino client. Failures while applying configuration are logged and suppressed; client-reset errors are ignored.
+    Sets the module-level resolved URL and source, updates app.config values (MEGAKINO_BASE_URL) and the "megakino" entry in CATALOG_SITE_CONFIGS when present, and attempts to reset the default Megakino client. Failures while applying configuration are logged and suppressed; client-reset errors are ignored.
 
     Parameters:
         base_url (str): The base URL to apply (e.g., "https://example.com").
@@ -165,7 +271,6 @@ def _apply_megakino_base_url(base_url: str, source: str) -> None:
         from app import config
 
         config.MEGAKINO_BASE_URL = base_url
-        config.MEGAKINO_SITEMAP_URL = f"{base_url.rstrip('/')}/sitemap.xml"
         if "megakino" in config.CATALOG_SITE_CONFIGS:
             config.CATALOG_SITE_CONFIGS["megakino"]["base_url"] = base_url
         logger.info("Megakino base URL set to {} (source={})", base_url, source)

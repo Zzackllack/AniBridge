@@ -48,7 +48,7 @@ Comprehensive list of env vars read in `app/config.py`.
 - `STO_ALPHABET_URL` (default: `https://s.to/serien-alphabet`)
 - `STO_ALPHABET_HTML` (local fallback file)
 - `STO_TITLES_REFRESH_HOURS` (TTL, default: `24`)
-- `MEGAKINO_BASE_URL` (default: `https://megakino.lol`, auto-resolved at startup)
+- `MEGAKINO_BASE_URL` (default: `https://megakino1.to`, auto-resolved at startup)
 - `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN` (minutes; default: `100`, 0 disables background checks)
 
 ## Naming

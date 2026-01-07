@@ -11,11 +11,11 @@ from app.providers.megakino.sitemap import (
 SAMPLE_XML = """
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://megakino.lol/serials/5881-i-love-la-1-staffel.html</loc>
+    <loc>https://megakino1.to/serials/5881-i-love-la-1-staffel.html</loc>
     <lastmod>2025-12-17</lastmod>
   </url>
   <url>
-    <loc>https://megakino.lol/films/5920-die-my-love.html</loc>
+    <loc>https://megakino1.to/films/5920-die-my-love.html</loc>
     <lastmod>2025-12-17</lastmod>
   </url>
 </urlset>
@@ -46,13 +46,13 @@ def test_megakino_client_search_matches_tokens():
         entries={
             "avengers-endgame": MegakinoIndexEntry(
                 slug="avengers-endgame",
-                url="https://megakino.lol/films/125-avengers-endgame.html",
+                url="https://megakino1.to/films/125-avengers-endgame.html",
                 kind="film",
                 lastmod=datetime(2025, 12, 17),
             ),
             "percy-jackson-die-serie-2-staffel": MegakinoIndexEntry(
                 slug="percy-jackson-die-serie-2-staffel",
-                url="https://megakino.lol/serials/5919-percy-jackson-die-serie-2-staffel.html",
+                url="https://megakino1.to/serials/5919-percy-jackson-die-serie-2-staffel.html",
                 kind="serial",
                 lastmod=datetime(2025, 12, 17),
             ),
