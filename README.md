@@ -23,10 +23,10 @@ AniBridge is a minimal FastAPI service that bridges anime and series streaming c
 - Better code structure and organization (refactoring, modularization, right now the code is a bit messy with comments in multiple languages, redundant code, etc. 😅)
 - Converting absolute episode numbers to relative ones (e.g., "001" to "S01E01"). If the series type is set to "Anime/Absolute", AniBridge currently will not find any episodes. This is because of the way AniWorld numbers episodes.
 - Documentation, configuration instructions, and examples...
+- Interactive user search via Prowlarr (currently a bit buggy)
 
 ## Planned Features
 
-- Interactive user search via Prowlarr (currently only search via Sonarr/API possible)
 - Full support for RSS Sync
 - Toggleable WebUI
 
