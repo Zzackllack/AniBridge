@@ -71,10 +71,12 @@ jobs:
             type=ref,event=branch
             type=ref,event=tag
             type=sha
-            type=raw,value=latest,enable={{is_default_branch}}
-            # add explicit version tags from VERSION file
-            type=raw,value=${{ env.VERSION }}
-            type=raw,value=v${{ env.VERSION }}
+            type=raw,value=edge,enable={{is_default_branch}}
+            type=raw,value=main,enable={{is_default_branch}}
+            type=raw,value=latest,enable={{is_tag}}
+            # add explicit version tags from VERSION file (only on tag events)
+            type=raw,value=${{ env.VERSION }},enable={{is_tag}}
+            type=raw,value=v${{ env.VERSION }},enable={{is_tag}}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -82,10 +84,7 @@ jobs:
           context: .
           platforms: ${{ env.PLATFORMS }}
           push: true
-          tags: |
-            ${{ steps.meta.outputs.tags }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ env.VERSION }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
