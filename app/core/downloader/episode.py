@@ -35,7 +35,7 @@ def build_episode(
         ValueError: If neither `link` nor the combination of `slug`, `season`, and `episode` are supplied.
     """
     logger.info(
-        "Building episode: link=%s, slug=%s, season=%s, episode=%s, site=%s",
+        "Building episode: link={}, slug={}, season={}, episode={}, site={}",
         link,
         slug,
         season,
@@ -88,7 +88,7 @@ def build_episode(
                 logger.warning("Successfully populated episode basics.")
             except Exception as err:  # pragma: no cover - defensive
                 logger.warning(
-                    "Failed to populate episode basics (slug=%s, season=%s, episode=%s): %s",
+                    "Failed to populate episode basics (slug={}, season={}, episode={}): {}",
                     getattr(ep, "slug", slug),
                     getattr(ep, "season", season),
                     getattr(ep, "episode", episode),

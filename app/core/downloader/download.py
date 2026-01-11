@@ -59,7 +59,7 @@ def download_episode(
     """
     language = normalize_language(language)
     logger.info(
-        "Starting download_episode: link=%s, slug=%s, season=%s, episode=%s, provider=%s, language=%s, dest_dir=%s, site=%s",
+        "Starting download_episode: link={}, slug={}, season={}, episode={}, provider={}, language={}, dest_dir={}, site={}",
         link,
         slug,
         season,
@@ -137,7 +137,7 @@ def download_episode(
                     site=site,
                     release_name_override=release_override,
                 )
-                logger.success("Final file path: %s", final_path)
+                logger.success("Final file path: {}", final_path)
                 return final_path
 
         proxy_attempts = [False]
@@ -172,11 +172,11 @@ def download_episode(
         direct, chosen = get_direct_url_with_fallback(
             ep, preferred=provider, language=language
         )
-        logger.info("Chosen provider: %s, direct URL: %s", chosen, direct)
+        logger.info("Chosen provider: {}, direct URL: {}", chosen, direct)
     except DownloadError as exc:
         if PROXY_ENABLED and PROXY_SCOPE in ("all", "ytdlp"):
             logger.warning(
-                "Direct link not found under proxy (%s). Attempting direct fallback without proxy.",
+                "Direct link not found under proxy ({}). Attempting direct fallback without proxy.",
                 exc,
             )
             with disabled_proxy_env():
@@ -187,7 +187,7 @@ def download_episode(
                     ep2, preferred=provider, language=language
                 )
                 logger.info(
-                    "Fallback (no proxy) chose provider: %s, direct URL: %s",
+                    "Fallback (no proxy) chose provider: {}, direct URL: {}",
                     chosen,
                     direct,
                 )
@@ -198,7 +198,7 @@ def download_episode(
     base_hint = title_hint
     if not base_hint and slug and season and episode:
         base_hint = f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
-        logger.debug("Generated base_hint for filename: %s", base_hint)
+        logger.debug("Generated base_hint for filename: {}", base_hint)
 
     temp_path: Optional[Path] = None
     info: Optional[Dict[str, Any]] = None
@@ -215,7 +215,7 @@ def download_episode(
         )
     except Exception as exc:
         msg = str(exc)
-        logger.warning("Primary download failed: %s", msg)
+        logger.warning("Primary download failed: {}", msg)
 
         tried_alt = False
         if PROXY_ENABLED and not force_no_proxy and PROXY_SCOPE in ("all", "ytdlp"):
@@ -228,7 +228,7 @@ def download_episode(
                         ep2, preferred=provider, language=language
                     )
                     logger.info(
-                        "Retrying download without proxy using provider %s", chosen2
+                        "Retrying download without proxy using provider {}", chosen2
                     )
                     temp_path, info = _ydl_download(
                         direct2,
@@ -241,7 +241,7 @@ def download_episode(
                     )
                     tried_alt = True
             except Exception as exc2:
-                logger.error("No-proxy fallback download failed: %s", exc2)
+                logger.error("No-proxy fallback download failed: {}", exc2)
 
         if not tried_alt:
             providers_left = [
@@ -254,7 +254,7 @@ def download_episode(
                     direct3, chosen3 = get_direct_url_with_fallback(
                         ep, preferred=provider_name, language=language
                     )
-                    logger.info("Retrying download via alternate provider %s", chosen3)
+                    logger.info("Retrying download via alternate provider {}", chosen3)
                     temp_path, info = _ydl_download(
                         direct3,
                         dest_dir,
@@ -268,7 +268,7 @@ def download_episode(
                     break
                 except Exception as exc3:
                     logger.warning(
-                        "Alternate provider %s failed to download: %s",
+                        "Alternate provider {} failed to download: {}",
                         provider_name,
                         exc3,
                     )
@@ -290,5 +290,5 @@ def download_episode(
         language=language,
         site=site,
     )
-    logger.success("Final file path: %s", final_path)
+    logger.success("Final file path: {}", final_path)
     return final_path

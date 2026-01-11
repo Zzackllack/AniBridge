@@ -55,24 +55,24 @@ def _try_get_direct(ep: Episode, provider_name: str, language: str) -> Optional[
         LanguageUnavailableError: If the provider reports the requested language is not offered; the exception contains the list of available languages.
     """
     language = normalize_language(language)
-    logger.info("Trying provider '%s' for language '%s'", provider_name, language)
+    logger.info("Trying provider '{}' for language '{}'", provider_name, language)
     try:
         url = ep.get_direct_link(provider_name, language)  # Lib-API
         if url:
             logger.success(
-                "Found direct URL from provider '%s': %s", provider_name, url
+                "Found direct URL from provider '{}': {}", provider_name, url
             )
             return url
-        logger.warning("Provider '%s' returned no URL.", provider_name)
+        logger.warning("Provider '{}' returned no URL.", provider_name)
     except Exception as exc:
         msg = str(exc)
         if "No provider found for language" in msg:
             available = _parse_available_languages_from_error(msg)
             logger.error(
-                "Language '%s' unavailable. Available: %s", language, available
+                "Language '{}' unavailable. Available: {}", language, available
             )
             raise LanguageUnavailableError(language, available) from exc
-        logger.warning("Exception from provider '%s': %s", provider_name, msg)
+        logger.warning("Exception from provider '{}': {}", provider_name, msg)
     return None
 
 
@@ -112,7 +112,7 @@ def _auto_fill_languages(ep: Episode) -> Optional[object]:
                 break
             except Exception as err:  # pragma: no cover - defensive
                 logger.warning(
-                    "Failed to auto-fill episode details using %s(): %s",
+                    "Failed to auto-fill episode details using {}(): {}",
                     auto_name,
                     err,
                 )
@@ -148,7 +148,7 @@ def _validate_language_available(ep: Episode, language: str) -> None:
             lang_iter = None
     if lang_iter is not None and language not in lang_iter:
         logger.error(
-            "Requested language '%s' not available. Available: %s", language, lang_iter
+            "Requested language '{}' not available. Available: {}", language, lang_iter
         )
         raise LanguageUnavailableError(language, lang_iter)
 
@@ -176,7 +176,7 @@ def get_direct_url_with_fallback(
     """
     language = normalize_language(language)
     logger.info(
-        "Getting direct URL with fallback. Preferred: %s, Language: %s",
+        "Getting direct URL with fallback. Preferred: {}, Language: {}",
         preferred,
         language,
     )
@@ -194,7 +194,7 @@ def get_direct_url_with_fallback(
             except LanguageUnavailableError:
                 raise
             if url:
-                logger.success("Using preferred provider '%s'", pref)
+                logger.success("Using preferred provider '{}'", pref)
                 return url, pref
 
     for provider in PROVIDER_ORDER:
@@ -206,11 +206,11 @@ def get_direct_url_with_fallback(
         except LanguageUnavailableError:
             raise
         if url:
-            logger.success("Using fallback provider '%s'", provider)
+            logger.success("Using fallback provider '{}'", provider)
             return url, provider
 
     logger.error(
-        "No direct link found. Tried providers: %s", ", ".join(tried) or "none"
+        "No direct link found. Tried providers: {}", ", ".join(tried) or "none"
     )
     raise DownloadError(
         f"No direct link found. Tried providers: {', '.join(tried) or 'none'}"

@@ -41,7 +41,7 @@ def _ydl_download(
         DownloadError: On cancellation, timeout, yt-dlp failures, or other unexpected download errors.
     """
     logger.info(
-        "Starting yt-dlp download: url=%s, dest_dir=%s, title_hint=%s",
+        "Starting yt-dlp download: url={}, dest_dir={}, title_hint={}",
         direct_url,
         dest_dir,
         title_hint,
@@ -51,7 +51,7 @@ def _ydl_download(
     outtmpl = str(
         dest_dir / (sanitize_filename(title_hint or "%(title)s") + ".%(ext)s")
     )
-    logger.debug("yt-dlp output template: %s", outtmpl)
+    logger.debug("yt-dlp output template: {}", outtmpl)
     ydl_opts: Dict[str, Any] = {
         "outtmpl": outtmpl,
         "retries": 3,
@@ -71,11 +71,11 @@ def _ydl_download(
             proxy_url = yt_dlp_proxy()
             if proxy_url:
                 ydl_opts["proxy"] = proxy_url
-                logger.info("yt-dlp proxy enabled: %s", proxy_url)
+                logger.info("yt-dlp proxy enabled: {}", proxy_url)
         else:
             logger.info("yt-dlp proxy disabled by fallback policy")
     except Exception as exc:
-        logger.debug("yt-dlp proxy configuration failed: %s", exc)
+        logger.debug("yt-dlp proxy configuration failed: {}", exc)
 
     def _compound_hook(progress: dict) -> None:
         """
@@ -97,12 +97,12 @@ def _ydl_download(
             try:
                 progress_cb(progress)
             except Exception as exc:
-                logger.error("Progress callback exception: %s", exc)
+                logger.error("Progress callback exception: {}", exc)
 
     ydl_opts["progress_hooks"] = [_compound_hook]
 
     if cookiefile:
-        logger.info("Using cookiefile: %s", cookiefile)
+        logger.info("Using cookiefile: {}", cookiefile)
         ydl_opts["cookiefile"] = str(cookiefile)
 
     try:
@@ -113,14 +113,14 @@ def _ydl_download(
                 logger.error("yt-dlp did not return info dict.")
                 raise DownloadError("yt-dlp did not return info dict.")
             filename = ydl.prepare_filename(info)
-            logger.success("Download finished: %s", filename)
+            logger.success("Download finished: {}", filename)
             return Path(filename), cast(Dict[str, Any], info)
     except YTDLPDownloadError as exc:
-        logger.error("yt-dlp download failed: %s", exc)
+        logger.error("yt-dlp download failed: {}", exc)
         raise DownloadError(str(exc)) from exc
     except TimeoutError as exc:
-        logger.error("yt-dlp timeout: %s", exc)
+        logger.error("yt-dlp timeout: {}", exc)
         raise DownloadError("Timeout") from exc
     except Exception as exc:
-        logger.error("yt-dlp unexpected error: %s", exc)
+        logger.error("yt-dlp unexpected error: {}", exc)
         raise DownloadError("Unexpected error") from exc
