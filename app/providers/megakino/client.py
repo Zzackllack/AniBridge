@@ -27,6 +27,7 @@ MEGAKINO_USER_AGENT = (
 _MEGAKINO_TOKEN_LOCK = threading.Lock()
 _MEGAKINO_TOKEN_AT = 0.0
 _MEGAKINO_TOKEN_TTL_SECONDS = 30 * 60
+_DEFAULT_CLIENT_LOCK = threading.Lock()
 _MEGAKINO_PROVIDER_HOSTS = (
     "voe",
     "dood",
@@ -534,11 +535,13 @@ def get_default_client() -> MegakinoClient:
     """
     global _DEFAULT_CLIENT
     if _DEFAULT_CLIENT is None:
-        base_url = get_megakino_base_url().rstrip("/")
-        _DEFAULT_CLIENT = MegakinoClient(
-            sitemap_url=f"{base_url}/sitemap.xml",
-            refresh_hours=MEGAKINO_TITLES_REFRESH_HOURS,
-        )
+        with _DEFAULT_CLIENT_LOCK:
+            if _DEFAULT_CLIENT is None:
+                base_url = get_megakino_base_url().rstrip("/")
+                _DEFAULT_CLIENT = MegakinoClient(
+                    sitemap_url=f"{base_url}/sitemap.xml",
+                    refresh_hours=MEGAKINO_TITLES_REFRESH_HOURS,
+                )
     return _DEFAULT_CLIENT
 
 
