@@ -560,3 +560,5 @@ changelog.md
 .claude/
 .windsurf/
 .gemini/
+
+/specs/context/

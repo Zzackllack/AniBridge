@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
+import threading
 import re
 import time
 from urllib.parse import urlparse
@@ -17,6 +18,28 @@ from .sitemap import (
     MegakinoIndexEntry,
     load_sitemap_index,
     needs_refresh,
+)
+
+MEGAKINO_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+)
+_MEGAKINO_TOKEN_LOCK = threading.Lock()
+_MEGAKINO_TOKEN_AT = 0.0
+_MEGAKINO_TOKEN_TTL_SECONDS = 30 * 60
+_MEGAKINO_PROVIDER_HOSTS = (
+    "voe",
+    "dood",
+    "d0000d",
+    "filemoon",
+    "streamtape",
+    "streamta.pe",
+    "vidmoly",
+    "speedfiles",
+    "loadx",
+    "luluvdo",
+    "vidoza",
+    "gxplayer",
 )
 
 
@@ -144,7 +167,13 @@ class MegakinoClient:
         if not page_url:
             raise ValueError(f"Megakino page not found for slug '{slug}'")
         logger.debug("Megakino page URL resolved: {}", page_url)
-        resp = http_get(page_url, timeout=20)
+        base_url = get_megakino_base_url().rstrip("/")
+        _warm_megakino_session(base_url)
+        resp = http_get(
+            page_url,
+            timeout=20,
+            headers=_megakino_headers(referer=base_url),
+        )
         resp.raise_for_status()
         providers = _extract_provider_links(resp.text)
         if not providers:
@@ -273,11 +302,81 @@ def _extract_provider_links(html: str) -> List[str]:
     """
     soup = BeautifulSoup(html, "html.parser")
     links: List[str] = []
+    seen: set[str] = set()
+
+    def _add_link(url: Optional[str]) -> None:
+        if not url:
+            return
+        if url in seen:
+            return
+        links.append(url)
+        seen.add(url)
+
     for iframe in soup.find_all("iframe"):
         src = iframe.get("data-src") or iframe.get("src")
         if src:
-            links.append(src)
+            _add_link(src)
+
+    if links:
+        provider_links = [
+            link for link in links if _looks_like_provider_url(_normalize_url(link))
+        ]
+        return provider_links or links
+
+    for attr in ("data-src", "data-iframe", "data-embed", "data-player"):
+        for tag in soup.find_all(attrs={attr: True}):
+            candidate = tag.get(attr)
+            if candidate and _looks_like_provider_url(_normalize_url(candidate)):
+                _add_link(candidate)
+
+    if links:
+        return links
+
+    for match in re.findall(r"https?://[^\s'\"<>]+", html):
+        if _looks_like_provider_url(match):
+            _add_link(match)
+
     return links
+
+
+def _looks_like_provider_url(url: str) -> bool:
+    host = urlparse(url).netloc.lower()
+    if not host:
+        return False
+    return any(hint in host for hint in _MEGAKINO_PROVIDER_HOSTS)
+
+
+def _megakino_headers(*, referer: Optional[str] = None) -> Dict[str, str]:
+    headers = {
+        "User-Agent": MEGAKINO_USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+    }
+    if referer:
+        headers["Referer"] = referer
+    return headers
+
+
+def _warm_megakino_session(base_url: str) -> None:
+    global _MEGAKINO_TOKEN_AT
+    now = time_now()
+    if now - _MEGAKINO_TOKEN_AT < _MEGAKINO_TOKEN_TTL_SECONDS:
+        return
+    token_url = f"{base_url.rstrip('/')}/index.php?yg=token"
+    with _MEGAKINO_TOKEN_LOCK:
+        now = time_now()
+        if now - _MEGAKINO_TOKEN_AT < _MEGAKINO_TOKEN_TTL_SECONDS:
+            return
+        try:
+            http_get(
+                token_url,
+                timeout=10,
+                headers=_megakino_headers(referer=base_url),
+            )
+            _MEGAKINO_TOKEN_AT = now
+            logger.debug("Megakino token request ok")
+        except Exception as exc:
+            logger.debug("Megakino token request failed: {}", exc)
 
 
 def _megakino_get_direct_link(link: str) -> Optional[str]:
@@ -292,7 +391,11 @@ def _megakino_get_direct_link(link: str) -> Optional[str]:
     """
     logger.debug("Megakino direct link probe: {}", link)
     try:
-        resp = http_get(link, timeout=20)
+        resp = http_get(
+            link,
+            timeout=20,
+            headers=_megakino_headers(referer=get_megakino_base_url().rstrip("/")),
+        )
     except Exception as exc:
         logger.warning("Megakino provider fetch failed: {}", exc)
         return None
