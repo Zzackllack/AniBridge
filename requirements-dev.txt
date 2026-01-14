@@ -10,6 +10,7 @@ black
 loguru
 python-multipart
 anyio
+alembic
 beautifulsoup4
 bs4
 certifi
