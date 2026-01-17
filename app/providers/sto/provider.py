@@ -9,6 +9,13 @@ _STO_SLUG_PATTERN = re.compile(r"/serie/stream/([^/?#]+)")
 
 
 def _build_provider() -> CatalogProvider:
+    """Build the s.to CatalogProvider with configured index sources.
+
+    _build_provider assembles a CatalogProvider for key "s.to" using the
+    configured base URL, alphabet URL or HTML snapshot, title refresh cadence,
+    default languages, and release group. Imports are local to avoid circular
+    imports and unnecessary startup work when the provider is not used.
+    """
     from app.config import (
         RELEASE_GROUP_STO,
         STO_ALPHABET_HTML,

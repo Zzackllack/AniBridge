@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 
 from app.providers.base import CatalogProvider, ProviderMatch
 from app.providers.megakino import client as megakino_client
@@ -15,7 +16,7 @@ class MegakinoProvider(CatalogProvider):
         index = {slug: megakino_client.slug_to_title(slug) for slug in entries}
         self._cached_index = index
         self._cached_alts = {}
-        self._cached_at = self._cached_at or 0.0
+        self._cached_at = time.time()
         return index
 
     def load_or_refresh_alternatives(self) -> dict[str, list[str]]:
@@ -25,7 +26,9 @@ class MegakinoProvider(CatalogProvider):
     def resolve_title(self, slug: str | None) -> str | None:
         if not slug:
             return None
-        entries = megakino_client.get_default_client().load_index()
+        entries = self._cached_index
+        if entries is None or not entries:
+            entries = self.load_or_refresh_index()
         if slug not in entries:
             return None
         return megakino_client.slug_to_title(slug)

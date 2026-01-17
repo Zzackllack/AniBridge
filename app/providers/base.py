@@ -29,6 +29,7 @@ class CatalogProvider:
     titles_refresh_hours: float
     default_languages: List[str]
     release_group: str
+    allow_insecure_tls: bool = False
     _cached_index: Dict[str, str] | None = field(default=None, init=False)
     _cached_alts: Dict[str, List[str]] | None = field(default=None, init=False)
     _cached_at: float | None = field(default=None, init=False)
@@ -95,6 +96,13 @@ class CatalogProvider:
             resp.raise_for_status()
             return self.parse_index_and_alts(resp.text)
         except requests.exceptions.SSLError as exc:
+            if not self.allow_insecure_tls:
+                logger.error(
+                    "TLS verification failed for {} index: {}",
+                    self.key,
+                    exc,
+                )
+                raise
             logger.warning(
                 "TLS verification failed for {} index; retrying with verify=False: {}",
                 self.key,
