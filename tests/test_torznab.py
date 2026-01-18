@@ -25,8 +25,12 @@ def test_tvsearch_happy_path(client, monkeypatch):
         provider = "prov"
 
     # Return (site, slug) tuple for new multi-site API
-    monkeypatch.setattr(tn, "_slug_from_query", lambda q, site=None: ("aniworld.to", "slug"))
-    monkeypatch.setattr(tn, "resolve_series_title", lambda slug, site="aniworld.to": "Series")
+    monkeypatch.setattr(
+        tn, "_slug_from_query", lambda q, site=None: ("aniworld.to", "slug")
+    )
+    monkeypatch.setattr(
+        tn, "resolve_series_title", lambda slug, site="aniworld.to": "Series"
+    )
     monkeypatch.setattr(
         tn,
         "list_available_languages_cached",
@@ -40,12 +44,25 @@ def test_tvsearch_happy_path(client, monkeypatch):
     monkeypatch.setattr(
         tn,
         "build_release_name",
-        lambda series_title, season, episode, height, vcodec, language, site="aniworld.to": "Title",
+        lambda series_title,
+        season,
+        episode,
+        height,
+        vcodec,
+        language,
+        site="aniworld.to": "Title",
     )
     monkeypatch.setattr(
         tn,
         "build_magnet",
-        lambda title, slug, season, episode, language, provider, site="aniworld.to": "magnet:?xt=urn:btih:test&dn=Title&aw_slug=slug&aw_s=1&aw_e=1&aw_lang=German+Dub&aw_site=aniworld.to",
+        lambda title,
+        slug,
+        season,
+        episode,
+        language,
+        provider,
+        site="aniworld.to",
+        **_kwargs: "magnet:?xt=urn:btih:test&dn=Title&aw_slug=slug&aw_s=1&aw_e=1&aw_lang=German+Dub&aw_site=aniworld.to",
     )
 
     resp = client.get(
