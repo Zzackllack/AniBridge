@@ -548,58 +548,10 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
     if site:
         return _search_sites([site])
 
-    primary_sites = [s for s in CATALOG_SITES_LIST if s != "megakino"]
-    fallback_sites = [s for s in CATALOG_SITES_LIST if s == "megakino"]
-    result = _search_sites(primary_sites)
-    if result:
-        return result
-    if fallback_sites:
-        return _search_sites(fallback_sites)
-    return None
-
-    def _search_sites(sites: List[str]) -> Optional[Tuple[str, str]]:
-        q_tokens = _normalize_tokens(q)
-        best_slug: Optional[str] = None
-        best_site: Optional[str] = None
-        best_score = 0
-
-        for search_site in sites:
-            index = load_or_refresh_index(search_site)  # slug -> display title
-            if not index and _has_index_sources(_get_site_cfg(search_site)):
-                continue
-            if not index:
-                direct = _slug_from_search_only_query(q, search_site)
-                if direct:
-                    return (search_site, direct)
-                continue
-            alts = load_or_refresh_alternatives(search_site)  # slug -> [titles]
-
-            for slug, main_title in index.items():
-                # Start with main title tokens
-                titles_for_slug: List[str] = [main_title]
-                alt_list = alts.get(slug)
-                if alt_list:
-                    titles_for_slug.extend(alt_list)
-
-                # Evaluate best overlap score across all candidate titles
-                local_best = 0
-                for candidate in titles_for_slug:
-                    t_tokens = _normalize_tokens(candidate)
-                    inter = len(q_tokens & t_tokens)
-                    if inter > local_best:
-                        local_best = inter
-
-                if local_best > best_score:
-                    best_score = local_best
-                    best_slug = slug
-                    best_site = search_site
-
-        if best_slug and best_site:
-            return (best_site, best_slug)
-        return None
-
-    if site:
-        return _search_sites([site])
+    if "megakino" in CATALOG_SITES_LIST or "megakino" in _PROVIDER_CACHE:
+        direct = _slug_from_search_only_query(q, "megakino")
+        if direct:
+            return ("megakino", direct)
 
     primary_sites = [s for s in CATALOG_SITES_LIST if s != "megakino"]
     fallback_sites = [s for s in CATALOG_SITES_LIST if s == "megakino"]
@@ -634,6 +586,16 @@ def _slug_from_search_only_query(q: str, site: str) -> Optional[str]:
     candidate = candidate.strip().lower()
     if site == "megakino":
         logger.debug("Megakino search-only query: '{}'", raw)
+        provider = _PROVIDER_CACHE.get("megakino")
+        if provider:
+            try:
+                match = provider.search_slug(raw)
+            except Exception as exc:
+                logger.debug("Megakino provider search failed: {}", exc)
+                match = None
+            if match and match.slug:
+                logger.debug("Megakino provider search returned slug: '{}'", match.slug)
+                return match.slug
         if _MEGAKINO_SLUG_RE.match(candidate):
             logger.debug("Megakino query treated as slug: '{}'", candidate)
             return candidate
