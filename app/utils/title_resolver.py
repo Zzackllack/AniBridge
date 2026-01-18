@@ -334,12 +334,16 @@ def load_or_refresh_index(site: str = "aniworld.to") -> Dict[str, str]:
     if site == "megakino":
         provider = _PROVIDER_CACHE.get("megakino")
         if provider:
-            index = provider.load_or_refresh_index()
-            _cached_indices[site] = index
-            _cached_alts[site] = provider.load_or_refresh_alternatives()
-            _cached_at[site] = now
-            logger.info("Megakino sitemap index loaded: {} entries", len(index))
-            return index
+            try:
+                index = provider.load_or_refresh_index()
+                _cached_indices[site] = index
+                _cached_alts[site] = provider.load_or_refresh_alternatives()
+                _cached_at[site] = now
+                logger.info(f"Megakino sitemap index loaded: {len(index)} entries")
+                return index
+            except Exception as exc:
+                logger.error(f"Megakino index refresh failed: {exc}")
+                return _cached_indices.get(site) or {}
 
     site_cfg = _get_site_cfg(site)
     if not site_cfg:
@@ -548,13 +552,17 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
     if site:
         return _search_sites([site])
 
+    megakino_checked = False
     if "megakino" in CATALOG_SITES_LIST or "megakino" in _PROVIDER_CACHE:
+        megakino_checked = True
         direct = _slug_from_search_only_query(q, "megakino")
         if direct:
             return ("megakino", direct)
 
     primary_sites = [s for s in CATALOG_SITES_LIST if s != "megakino"]
-    fallback_sites = [s for s in CATALOG_SITES_LIST if s == "megakino"]
+    fallback_sites = (
+        [] if megakino_checked else [s for s in CATALOG_SITES_LIST if s == "megakino"]
+    )
     result = _search_sites(primary_sites)
     if result:
         return result
@@ -621,5 +629,9 @@ def _search_megakino_slug(query: str) -> Optional[str]:
     provider = _PROVIDER_CACHE.get("megakino")
     if not provider:
         return None
-    match = provider.search_slug(query)
+    try:
+        match = provider.search_slug(query)
+    except Exception as exc:
+        logger.debug("Megakino provider search failed: {}", exc)
+        return None
     return match.slug if match else None

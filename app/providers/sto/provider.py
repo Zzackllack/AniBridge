@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 from app.providers.base import CatalogProvider
 
@@ -36,5 +37,7 @@ def _build_provider() -> CatalogProvider:
     )
 
 
+@lru_cache(maxsize=1)
 def get_provider() -> CatalogProvider:
+    """Return the cached s.to provider instance."""
     return _build_provider()

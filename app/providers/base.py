@@ -120,7 +120,7 @@ class CatalogProvider:
         if not path.exists():
             logger.warning("Configured HTML file does not exist: {}", path)
             return {}, {}
-        html_text = path.read_text(encoding="utf-8", errors="ignore")
+        html_text = path.read_text(encoding="utf-8", errors="replace")
         return self.parse_index_and_alts(html_text)
 
     def load_or_refresh_index(self) -> Dict[str, str]:

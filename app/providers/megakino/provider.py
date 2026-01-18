@@ -13,12 +13,24 @@ _MEGAKINO_SLUG_PATTERN = re.compile(r"/(?:serials|films)/\d+-([^./?#]+)")
 class MegakinoProvider(CatalogProvider):
     """Catalog provider for Megakino titles and search."""
 
-    _cached_index: dict[str, str] | None = None
-    _cached_alts: dict[str, list[str]] | None = None
-    _cached_at: float | None = None
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._cached_index: dict[str, str] | None = None
+        self._cached_alts: dict[str, list[str]] | None = None
+        self._cached_at: float | None = None
+
+    def _is_cache_stale(self) -> bool:
+        if self._cached_at is None:
+            return True
+        if self.titles_refresh_hours <= 0:
+            return False
+        age = time.time() - self._cached_at
+        return age >= self.titles_refresh_hours * 3600.0
 
     def load_or_refresh_index(self) -> dict[str, str]:
         """Load the Megakino index and refresh cached entries."""
+        if self._cached_index is not None and not self._is_cache_stale():
+            return self._cached_index
         entries = megakino_client.get_default_client().load_index()
         index = {slug: megakino_client.slug_to_title(slug) for slug in entries}
         self._cached_index = index
@@ -34,7 +46,7 @@ class MegakinoProvider(CatalogProvider):
         if not slug:
             return None
         entries = self._cached_index
-        if entries is None or not entries:
+        if entries is None or not entries or self._is_cache_stale():
             entries = self.load_or_refresh_index()
         if slug not in entries:
             return None
