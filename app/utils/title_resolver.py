@@ -14,7 +14,8 @@ from app.utils.http_client import get as http_get  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 
 from app.config import CATALOG_SITES_LIST, CATALOG_SITE_CONFIGS, MEGAKINO_BASE_URL
-from app.providers.megakino.client import get_default_client, slug_to_title
+from app.providers import get_provider
+from app.providers.base import CatalogProvider
 
 # Site-specific regex patterns for slug extraction
 HREF_PATTERNS: Dict[str, re.Pattern[str]] = {
@@ -26,12 +27,16 @@ HREF_PATTERNS: Dict[str, re.Pattern[str]] = {
 # Legacy pattern for backward compatibility
 HREF_RE = HREF_PATTERNS["aniworld.to"]
 
+_PROVIDER_CACHE: Dict[str, CatalogProvider | None] = {
+    "megakino": get_provider("megakino"),
+}
+
 # suppress repetitive logging from _extract_slug by emitting each message only once
 _extracted_any: bool = False
 _no_slug_warned: bool = False
 
 
-def _extract_slug(href: str, site: str = "aniworld.to") -> Optional[str]:
+def _extract_slug(href: object, site: str = "aniworld.to") -> Optional[str]:
     """
     Extract the slug from an anchor href for a given site.
 
@@ -47,7 +52,8 @@ def _extract_slug(href: str, site: str = "aniworld.to") -> Optional[str]:
     """
     global _extracted_any, _no_slug_warned
     pattern = HREF_PATTERNS.get(site, HREF_PATTERNS["aniworld.to"])
-    m = pattern.search(href or "")
+    href_text = str(href) if href is not None else ""
+    m = pattern.search(href_text)
 
     if m:
         if not _extracted_any:
@@ -83,10 +89,11 @@ def build_index_from_html(html_text: str, site: str = "aniworld.to") -> Dict[str
     result: Dict[str, str] = {}
     for a in soup.find_all("a"):
         href = a.get("href") or ""  # type: ignore
-        slug = _extract_slug(href, site)  # type: ignore
+        slug = _extract_slug(str(href or ""), site)
         if not slug:
             logger.debug(f"Skipping anchor with no valid slug: {href}")
             continue
+
         title = (a.get_text() or "").strip()
         if title:
             result[slug] = title
@@ -215,12 +222,13 @@ def _parse_index_and_alts(
 
     for a in soup.find_all("a"):
         href = a.get("href") or ""  # type: ignore
-        slug = _extract_slug(href, site)  # type: ignore
+        slug = _extract_slug(str(href or ""), site)
         if not slug:
             continue
 
         title = (a.get_text() or "").strip()
-        alt_raw = (a.get("data-alternative-title") or "").strip()  # type: ignore
+        alt_value = a.get("data-alternative-title")
+        alt_raw = str(alt_value).strip() if alt_value is not None else ""
         # Split by comma and normalize pieces
         alt_list: List[str] = []
         if alt_raw:
@@ -324,14 +332,18 @@ def load_or_refresh_index(site: str = "aniworld.to") -> Dict[str, str]:
     logger.debug(f"Starting load_or_refresh_index for site: {site}.")
 
     if site == "megakino":
-        client = get_default_client()
-        entries = client.load_index()
-        index = {slug: slug_to_title(slug) for slug in entries}
-        _cached_indices[site] = index
-        _cached_alts[site] = {}
-        _cached_at[site] = now
-        logger.info("Megakino sitemap index loaded: {} entries", len(index))
-        return index
+        provider = _PROVIDER_CACHE.get("megakino")
+        if provider:
+            try:
+                index = provider.load_or_refresh_index()
+                _cached_indices[site] = index
+                _cached_alts[site] = provider.load_or_refresh_alternatives()
+                _cached_at[site] = now
+                logger.info(f"Megakino sitemap index loaded: {len(index)} entries")
+                return index
+            except Exception as exc:
+                logger.error(f"Megakino index refresh failed: {exc}")
+                return _cached_indices.get(site) or {}
 
     site_cfg = _get_site_cfg(site)
     if not site_cfg:
@@ -496,47 +508,66 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
     if not q:
         return None
 
-    q_tokens = _normalize_tokens(q)
-    best_slug: Optional[str] = None
-    best_site: Optional[str] = None
-    best_score = 0
+    def _search_sites(sites: List[str]) -> Optional[Tuple[str, str]]:
+        q_tokens = _normalize_tokens(q)
+        best_slug: Optional[str] = None
+        best_site: Optional[str] = None
+        best_score = 0
 
-    # Determine which sites to search
-    sites_to_search = [site] if site else CATALOG_SITES_LIST
+        for search_site in sites:
+            index = load_or_refresh_index(search_site)  # slug -> display title
+            if not index and _has_index_sources(_get_site_cfg(search_site)):
+                continue
+            if not index:
+                direct = _slug_from_search_only_query(q, search_site)
+                if direct:
+                    return (search_site, direct)
+                continue
+            alts = load_or_refresh_alternatives(search_site)  # slug -> [titles]
 
-    for search_site in sites_to_search:
-        index = load_or_refresh_index(search_site)  # slug -> display title
-        if not index and _has_index_sources(_get_site_cfg(search_site)):
-            continue
-        if not index:
-            direct = _slug_from_search_only_query(q, search_site)
-            if direct:
-                return (search_site, direct)
-            continue
-        alts = load_or_refresh_alternatives(search_site)  # slug -> [titles]
+            for slug, main_title in index.items():
+                # Start with main title tokens
+                titles_for_slug: List[str] = [main_title]
+                alt_list = alts.get(slug)
+                if alt_list:
+                    titles_for_slug.extend(alt_list)
 
-        for slug, main_title in index.items():
-            # Start with main title tokens
-            titles_for_slug: List[str] = [main_title]
-            alt_list = alts.get(slug)
-            if alt_list:
-                titles_for_slug.extend(alt_list)
+                # Evaluate best overlap score across all candidate titles
+                local_best = 0
+                for candidate in titles_for_slug:
+                    t_tokens = _normalize_tokens(candidate)
+                    inter = len(q_tokens & t_tokens)
+                    if inter > local_best:
+                        local_best = inter
 
-            # Evaluate best overlap score across all candidate titles
-            local_best = 0
-            for candidate in titles_for_slug:
-                t_tokens = _normalize_tokens(candidate)
-                inter = len(q_tokens & t_tokens)
-                if inter > local_best:
-                    local_best = inter
+                if local_best > best_score:
+                    best_score = local_best
+                    best_slug = slug
+                    best_site = search_site
 
-            if local_best > best_score:
-                best_score = local_best
-                best_slug = slug
-                best_site = search_site
+        if best_slug and best_site:
+            return (best_site, best_slug)
+        return None
 
-    if best_slug and best_site:
-        return (best_site, best_slug)
+    if site:
+        return _search_sites([site])
+
+    megakino_checked = False
+    if "megakino" in CATALOG_SITES_LIST or "megakino" in _PROVIDER_CACHE:
+        megakino_checked = True
+        direct = _slug_from_search_only_query(q, "megakino")
+        if direct:
+            return ("megakino", direct)
+
+    primary_sites = [s for s in CATALOG_SITES_LIST if s != "megakino"]
+    fallback_sites = (
+        [] if megakino_checked else [s for s in CATALOG_SITES_LIST if s == "megakino"]
+    )
+    result = _search_sites(primary_sites)
+    if result:
+        return result
+    if fallback_sites:
+        return _search_sites(fallback_sites)
     return None
 
 
@@ -563,6 +594,16 @@ def _slug_from_search_only_query(q: str, site: str) -> Optional[str]:
     candidate = candidate.strip().lower()
     if site == "megakino":
         logger.debug("Megakino search-only query: '{}'", raw)
+        provider = _PROVIDER_CACHE.get("megakino")
+        if provider:
+            try:
+                match = provider.search_slug(raw)
+            except Exception as exc:
+                logger.debug("Megakino provider search failed: {}", exc)
+                match = None
+            if match and match.slug:
+                logger.debug("Megakino provider search returned slug: '{}'", match.slug)
+                return match.slug
         if _MEGAKINO_SLUG_RE.match(candidate):
             logger.debug("Megakino query treated as slug: '{}'", candidate)
             return candidate
@@ -585,8 +626,12 @@ def _search_megakino_slug(query: str) -> Optional[str]:
     Returns:
         str or None: The first matching slug if a result is found, `None` otherwise.
     """
-    client = get_default_client()
-    results = client.search(query, limit=1)
-    if results:
-        return results[0].slug
-    return None
+    provider = _PROVIDER_CACHE.get("megakino")
+    if not provider:
+        return None
+    try:
+        match = provider.search_slug(query)
+    except Exception as exc:
+        logger.debug("Megakino provider search failed: {}", exc)
+        return None
+    return match.slug if match else None

@@ -451,5 +451,6 @@ logger.debug(
 )
 
 ANIBRIDGE_RELOAD = _as_bool(os.getenv("ANIBRIDGE_RELOAD", None), False)
+ANIBRIDGE_TEST_MODE = _as_bool(os.getenv("ANIBRIDGE_TEST_MODE", None), False)
 ANIBRIDGE_HOST = os.getenv("ANIBRIDGE_HOST", "0.0.0.0").strip() or "0.0.0.0"
 ANIBRIDGE_PORT = int(os.getenv("ANIBRIDGE_PORT", "8000") or 8000)

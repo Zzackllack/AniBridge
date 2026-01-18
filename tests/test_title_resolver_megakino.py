@@ -1,46 +1,33 @@
 import sys
 
 
-class _StubClient:
-    """Stub Megakino client that provides a fixed index for resolver tests."""
+class _StubProvider:
+    """Stub Megakino provider for resolver tests."""
 
-    def __init__(self, entries):
-        """
-        Initialize the stub client with a pre-populated index.
-        
-        Parameters:
-            entries (dict): Mapping of slug (str) to entry data used by the client's index methods.
-        """
-        self._entries = entries
+    def __init__(self, slug=None):
+        self._slug = slug
+        self.alphabet_url = ""
+        self.alphabet_html = None
 
-    def load_index(self):
-        """
-        Return the stored index entries for this stub client.
-        
-        Returns:
-            dict: The entries provided to the client during initialization.
-        """
-        return self._entries
+    def load_or_refresh_index(self):
+        return {}
 
-    def search(self, query, limit=1):
-        """
-        Perform a search against the client's index using the provided query.
-        
-        Parameters:
-            query (str): The search query string.
-            limit (int): Maximum number of results to return.
-        
-        Returns:
-            list: Matching entries from the index; this stub implementation always returns an empty list.
-        """
-        return []
+    def load_or_refresh_alternatives(self):
+        return {}
 
+    def resolve_title(self, slug):
+        return None
+
+    def search_slug(self, query):
+        if self._slug:
+            return type("_Match", (), {"slug": self._slug, "score": 1})()
+        return None
 
 
 def _reload_modules():
     """
     Remove cached imports of app.config and app.utils.title_resolver from sys.modules.
-    
+
     Deletes the entries for those module names from the import cache so subsequent imports
     will load fresh copies (useful in tests that modify environment or module-level state).
     """
@@ -59,8 +46,8 @@ def test_slug_from_query_megakino_direct_slug(monkeypatch):
 
     monkeypatch.setattr(
         title_resolver,
-        "get_default_client",
-        lambda: _StubClient({"stranger-things-5-stafffel": None}),
+        "_PROVIDER_CACHE",
+        {"megakino": _StubProvider("stranger-things-5-stafffel")},
     )
 
     assert title_resolver.slug_from_query("stranger-things-5-stafffel") == (
@@ -76,6 +63,12 @@ def test_slug_from_query_megakino_url(monkeypatch):
     _reload_modules()
 
     from app.utils import title_resolver
+
+    monkeypatch.setattr(
+        title_resolver,
+        "_PROVIDER_CACHE",
+        {"megakino": _StubProvider()},
+    )
 
     url = "https://megakino1.to/serials/5877-stranger-things-5-stafffel.html"
     assert title_resolver.slug_from_query(url, site="megakino") == (
@@ -94,8 +87,8 @@ def test_slug_from_query_megakino_rejects_plain_title(monkeypatch):
 
     monkeypatch.setattr(
         title_resolver,
-        "get_default_client",
-        lambda: _StubClient({}),
+        "_PROVIDER_CACHE",
+        {"megakino": _StubProvider()},
     )
 
     assert title_resolver.slug_from_query("Stranger Things", site="megakino") is None
