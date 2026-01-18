@@ -123,7 +123,10 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"log_full_system_report failed: {e}")
 
-        notify_on_startup()
+        try:
+            notify_on_startup()
+        except Exception as e:
+            logger.warning(f"notify_on_startup failed: {e}")
     logger.info("Application startup: creating DB and thread pool executor.")
     create_db_and_tables()
     with Session(engine) as s:
