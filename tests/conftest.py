@@ -5,21 +5,14 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-os.environ.setdefault("ANIBRIDGE_TEST_MODE", "1")
-os.environ.setdefault("ANIBRIDGE_UPDATE_CHECK", "0")
-os.environ.setdefault("ANIWORLD_TITLES_REFRESH_HOURS", "0")
-os.environ.setdefault("STO_TITLES_REFRESH_HOURS", "0")
-os.environ.setdefault("ANIWORLD_ALPHABET_URL", "")
-os.environ.setdefault("STO_ALPHABET_URL", "")
-os.environ.setdefault("ANIWORLD_ALPHABET_HTML", "")
-os.environ.setdefault("STO_ALPHABET_HTML", "")
-os.environ.setdefault("PUBLIC_IP_CHECK_ENABLED", "0")
-os.environ.setdefault("PROXY_ENABLED", "0")
-os.environ.setdefault("MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN", "0")
-
 
 @pytest.fixture(autouse=True)
 def _fast_test_env(monkeypatch):
+    """Set up a fast test environment by disabling slow operations.
+
+    This fixture ensures tests run quickly by disabling external checks,
+    network operations, and automatic title index refreshes.
+    """
     monkeypatch.setenv("ANIBRIDGE_TEST_MODE", "1")
     monkeypatch.setenv("ANIBRIDGE_UPDATE_CHECK", "0")
     monkeypatch.setenv("ANIWORLD_TITLES_REFRESH_HOURS", "0")

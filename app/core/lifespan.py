@@ -152,7 +152,7 @@ async def lifespan(app: FastAPI):
         logger.debug(f"cleanup thread start failed: {e}")
     try:
         if not ANIBRIDGE_TEST_MODE:
-            ip_thread = start_ip_check_thread(ip_stop)
+            start_ip_check_thread(ip_stop)
     except Exception as e:
         logger.debug(f"start_ip_check_thread failed: {e}")
     if "megakino" in CATALOG_SITE_CONFIGS and not ANIBRIDGE_TEST_MODE:
