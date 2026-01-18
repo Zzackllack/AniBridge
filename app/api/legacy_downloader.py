@@ -14,7 +14,6 @@ from app.db import get_session, get_job as db_get_job
 
 from app.core.downloader import Provider, Language
 
-
 router = APIRouter()
 
 

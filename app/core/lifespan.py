@@ -28,6 +28,7 @@ from app.config import (
     DOWNLOADS_TTL_HOURS,
     CLEANUP_SCAN_INTERVAL_MIN,
     CATALOG_SITE_CONFIGS,
+    ANIBRIDGE_TEST_MODE,
 )
 
 from app.core.scheduler import init_executor, shutdown_executor
@@ -116,12 +117,16 @@ async def lifespan(app: FastAPI):
         logger.warning(f"log_proxy_config_summary failed: {e}")
 
     # System report and update notifier (best effort)
-    try:
-        log_full_system_report()
-    except Exception as e:
-        logger.warning(f"log_full_system_report failed: {e}")
+    if not ANIBRIDGE_TEST_MODE:
+        try:
+            log_full_system_report()
+        except Exception as e:
+            logger.warning(f"log_full_system_report failed: {e}")
 
-    notify_on_startup()
+        try:
+            notify_on_startup()
+        except Exception as e:
+            logger.warning(f"notify_on_startup failed: {e}")
     logger.info("Application startup: creating DB and thread pool executor.")
     create_db_and_tables()
     with Session(engine) as s:
@@ -136,7 +141,7 @@ async def lifespan(app: FastAPI):
     megakino_stop = threading.Event()
     cleanup_thread: Optional[threading.Thread] = None
     ip_thread: Optional[threading.Thread] = None
-    if "megakino" in CATALOG_SITE_CONFIGS:
+    if "megakino" in CATALOG_SITE_CONFIGS and not ANIBRIDGE_TEST_MODE:
         try:
             resolve_megakino_base_url()
         except Exception as e:
@@ -146,10 +151,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.debug(f"cleanup thread start failed: {e}")
     try:
-        ip_thread = start_ip_check_thread(ip_stop)
+        if not ANIBRIDGE_TEST_MODE:
+            start_ip_check_thread(ip_stop)
     except Exception as e:
         logger.debug(f"start_ip_check_thread failed: {e}")
-    if "megakino" in CATALOG_SITE_CONFIGS:
+    if "megakino" in CATALOG_SITE_CONFIGS and not ANIBRIDGE_TEST_MODE:
         try:
             start_megakino_domain_check_thread(megakino_stop)
         except Exception as e:

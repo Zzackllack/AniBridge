@@ -35,6 +35,9 @@ services:
       - ./data/downloads:/downloads
       - ./data/sonarr/tv:/tv
     restart: unless-stopped
+    depends_on:
+      - anibridge
+      - prowlarr
 
   prowlarr:
     image: linuxserver/prowlarr:latest
@@ -48,6 +51,8 @@ services:
     volumes:
       - ./data/prowlarr/config:/config
     restart: unless-stopped
+    depends_on:
+      - anibridge
 
   radarr:
     image: linuxserver/radarr:latest
@@ -63,6 +68,9 @@ services:
       - ./data/downloads:/downloads
       - ./data/radarr/movies:/movies
     restart: unless-stopped
+    depends_on:
+      - anibridge
+      - prowlarr
 
   jellyfin:
     image: jellyfin/jellyfin
