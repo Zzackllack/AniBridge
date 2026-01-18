@@ -10,6 +10,7 @@ from loguru import logger
 from sqlmodel import Session
 
 from app.config import (
+    ANIBRIDGE_TEST_MODE,
     CATALOG_SITE_CONFIGS,
     STRM_FILES_MODE,
     TORZNAB_CAT_ANIME,
@@ -75,6 +76,9 @@ def _handle_preview_search(
 
     q_str = (q_str or "").strip()
     if not q_str:
+        return 0
+    if ANIBRIDGE_TEST_MODE:
+        logger.debug("Test mode enabled; skipping preview probe for '{}'", q_str)
         return 0
 
     movie_year = get_movie_year(q_str)
