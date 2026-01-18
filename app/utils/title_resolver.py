@@ -552,20 +552,21 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
     if site:
         return _search_sites([site])
 
-    megakino_checked = False
-    if "megakino" in CATALOG_SITES_LIST or "megakino" in _PROVIDER_CACHE:
-        megakino_checked = True
-        direct = _slug_from_search_only_query(q, "megakino")
-        if direct:
-            return ("megakino", direct)
-
     primary_sites = [s for s in CATALOG_SITES_LIST if s != "megakino"]
-    fallback_sites = (
-        [] if megakino_checked else [s for s in CATALOG_SITES_LIST if s == "megakino"]
-    )
     result = _search_sites(primary_sites)
     if result:
         return result
+
+    if "megakino" in CATALOG_SITES_LIST or "megakino" in _PROVIDER_CACHE:
+        raw = (q or "").strip()
+        direct_slug = _extract_slug(raw, "megakino")
+        if direct_slug:
+            return ("megakino", direct_slug)
+        lowered = raw.lower()
+        if _MEGAKINO_SLUG_RE.match(lowered):
+            return ("megakino", lowered)
+
+    fallback_sites = [s for s in CATALOG_SITES_LIST if s == "megakino"]
     if fallback_sites:
         return _search_sites(fallback_sites)
     return None
