@@ -4,8 +4,12 @@ import re
 import time
 from functools import lru_cache
 
+import requests
+from loguru import logger
+
 from app.providers.base import CatalogProvider, ProviderMatch
 from app.providers.megakino import client as megakino_client
+from app.providers.megakino import sitemap as megakino_sitemap
 
 _MEGAKINO_SLUG_PATTERN = re.compile(r"/(?:serials|films)/\d+-([^./?#]+)")
 
@@ -37,7 +41,11 @@ class MegakinoProvider(CatalogProvider):
         """
         if self._cached_index is not None and not self._is_cache_stale():
             return self._cached_index
-        entries = megakino_client.get_default_client().load_index()
+        try:
+            entries = megakino_client.get_default_client().load_index()
+        except (requests.RequestException, OSError, ValueError) as exc:
+            logger.error("Megakino index load failed: {}", exc)
+            return self._cached_index or {}
         index = {slug: megakino_client.slug_to_title(slug) for slug in entries}
         self._cached_index = index
         self._cached_alts = {}
@@ -88,7 +96,11 @@ class MegakinoProvider(CatalogProvider):
         """
         if not query:
             return None
-        results = megakino_client.get_default_client().search(query, limit=1)
+        try:
+            results = megakino_client.get_default_client().search(query, limit=1)
+        except (requests.RequestException, OSError, ValueError) as exc:
+            logger.error("Megakino search failed: {}", exc)
+            return None
         if results:
             top = results[0]
             return ProviderMatch(slug=top.slug, score=top.score)
@@ -113,6 +125,19 @@ def _build_provider() -> CatalogProvider:
         default_languages=["Deutsch", "German Dub"],
         release_group="megakino",
     )
+
+
+def load_sitemap_index(url: str, *, timeout: float = 20.0):
+    """Load the Megakino sitemap index with error handling.
+
+    Returns:
+        Dict[str, MegakinoIndexEntry] | None: Sitemap entries or None on failure.
+    """
+    try:
+        return megakino_sitemap.load_sitemap_index(url, timeout=timeout)
+    except (requests.RequestException, OSError, ValueError) as exc:
+        logger.error("Megakino sitemap fetch failed: {}", exc)
+        return None
 
 
 @lru_cache(maxsize=1)

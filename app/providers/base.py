@@ -246,8 +246,14 @@ class CatalogProvider:
         alts: Dict[str, List[str]] = {}
         try:
             index, alts = self._fetch_index_from_url()
-        except Exception as exc:
+        except requests.exceptions.RequestException as exc:
             logger.error("Error fetching index from live URL for {}: {}", self.key, exc)
+        except Exception as exc:
+            logger.error(
+                "Unexpected error fetching index from live URL for {}: {}",
+                self.key,
+                exc,
+            )
 
         if index:
             self._cached_index = index
@@ -257,9 +263,15 @@ class CatalogProvider:
 
         try:
             index, alts = self._load_index_from_file()
-        except Exception as exc:
+        except OSError as exc:
             logger.error(
                 "Error loading index from local file for {}: {}", self.key, exc
+            )
+        except Exception as exc:
+            logger.error(
+                "Unexpected error loading index from local file for {}: {}",
+                self.key,
+                exc,
             )
 
         if index:

@@ -53,6 +53,7 @@ def register_provider(provider: CatalogProvider) -> None:
     Raises:
         RuntimeError: Always raised to indicate the registry is deprecated.
     """
+    _ = provider
     raise _deprecated_registry_error("register_provider")
 
 
@@ -72,6 +73,7 @@ def get_provider(key: str) -> CatalogProvider | None:
     Raises:
         RuntimeError: Always raised to indicate the registry is deprecated.
     """
+    _ = key
     raise _deprecated_registry_error("get_provider")
 
 
@@ -88,6 +90,7 @@ def list_providers() -> List[CatalogProvider]:
     Raises:
         RuntimeError: Always raised to indicate the registry is deprecated.
     """
+    _ = CatalogProvider
     raise _deprecated_registry_error("list_providers")
 
 
@@ -111,4 +114,5 @@ def ensure_providers(
     Raises:
         RuntimeError: Always raised to indicate the registry is deprecated.
     """
+    _ = (keys, providers)
     raise _deprecated_registry_error("ensure_providers")
