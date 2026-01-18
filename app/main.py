@@ -11,7 +11,6 @@ from app.api.health import router as health_router
 from app.api.legacy_downloader import router as legacy_router
 from app.cli import run_server
 
-
 bootstrap_init()
 
 

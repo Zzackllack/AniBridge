@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -5,10 +6,28 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+@pytest.fixture(autouse=True)
+def _fast_test_env(monkeypatch):
+    """Set up a fast test environment by disabling slow operations.
+
+    This fixture ensures tests run quickly by disabling external checks,
+    network operations, and automatic title index refreshes.
+    """
+    monkeypatch.setenv("ANIBRIDGE_TEST_MODE", "1")
+    monkeypatch.setenv("ANIBRIDGE_UPDATE_CHECK", "0")
+    monkeypatch.setenv("ANIWORLD_TITLES_REFRESH_HOURS", "0")
+    monkeypatch.setenv("STO_TITLES_REFRESH_HOURS", "0")
+    monkeypatch.setenv("ANIWORLD_ALPHABET_URL", "")
+    monkeypatch.setenv("STO_ALPHABET_URL", "")
+    monkeypatch.setenv("ANIWORLD_ALPHABET_HTML", "")
+    monkeypatch.setenv("STO_ALPHABET_HTML", "")
+    monkeypatch.setenv("PUBLIC_IP_CHECK_ENABLED", "0")
+    monkeypatch.setenv("PROXY_ENABLED", "0")
+    monkeypatch.setenv("MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN", "0")
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    # Disable external update checks during tests to avoid network flakiness
-    monkeypatch.setenv("ANIBRIDGE_UPDATE_CHECK", "0")
     data_dir = tmp_path / "data"
     download_dir = tmp_path / "downloads"
     monkeypatch.setenv("DATA_DIR", str(data_dir))
@@ -56,6 +75,7 @@ def client(tmp_path, monkeypatch):
 
     from app.main import app
     from app.db import create_db_and_tables
+
     # Patch scheduler calls where they are used (torrents module)
     import app.api.qbittorrent.torrents as qb_torrents
 
