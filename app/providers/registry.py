@@ -1,50 +1,114 @@
 from __future__ import annotations
 
-"""Thread-safe registry for catalog providers."""
+"""
+Deprecated provider registry module.
 
-import threading
-from typing import Dict, Iterable, List
+This module originally implemented a standalone, thread-safe registry for
+:class:`CatalogProvider` instances. The current provider initialization flow
+in ``app.providers`` does not use this registry at all, which made the
+previous implementation dead code and a potential source of confusion.
+
+The functions defined here are retained as stubs for backwards compatibility
+only. They deliberately raise :class:`RuntimeError` when called so that any
+accidental usage fails loudly and directs maintainers to the supported
+provider management API.
+"""
+
+from typing import Iterable, List
 
 from .base import CatalogProvider
 
-_PROVIDER_REGISTRY: Dict[str, CatalogProvider] = {}
-_PROVIDER_REGISTRY_LOCK = threading.Lock()
+
+def _deprecated_registry_error(function_name: str) -> RuntimeError:
+    """
+    Create a standardized error for calls into this deprecated module.
+
+    Parameters:
+        function_name: Name of the registry function that was called.
+
+    Returns:
+        RuntimeError indicating that the legacy registry is not supported.
+    """
+    message = (
+        f"app.providers.registry.{function_name}() is deprecated and the "
+        "legacy provider registry is no longer used. Please use the "
+        "public provider access functions exposed by the 'app.providers' "
+        "package instead."
+    )
+    return RuntimeError(message)
 
 
 def register_provider(provider: CatalogProvider) -> None:
-    """Register a CatalogProvider in the global registry.
+    """
+    Deprecated stub for registering a provider in the legacy registry.
+
+    This function previously stored the given provider instance in an
+    internal, thread-safe registry that is now unused. It now raises
+    :class:`RuntimeError` unconditionally to make any accidental use
+    explicit.
 
     Parameters:
-        provider (CatalogProvider): Provider instance to register.
+        provider: Provider instance that would have been registered.
+
+    Raises:
+        RuntimeError: Always raised to indicate the registry is deprecated.
     """
-    with _PROVIDER_REGISTRY_LOCK:
-        _PROVIDER_REGISTRY[provider.key] = provider
+    raise _deprecated_registry_error("register_provider")
 
 
 def get_provider(key: str) -> CatalogProvider | None:
-    """Return the provider registered for the given key, if any.
+    """
+    Deprecated stub for retrieving a provider from the legacy registry.
+
+    The active provider lookup logic is implemented in the
+    ``app.providers`` package, not in this module.
 
     Parameters:
-        key (str): Provider key to look up.
+        key: Provider key that would have been used to perform the lookup.
+
+    Returns:
+        This function never returns; it always raises :class:`RuntimeError`.
+
+    Raises:
+        RuntimeError: Always raised to indicate the registry is deprecated.
     """
-    with _PROVIDER_REGISTRY_LOCK:
-        return _PROVIDER_REGISTRY.get(key)
+    raise _deprecated_registry_error("get_provider")
 
 
 def list_providers() -> List[CatalogProvider]:
-    """Return a list of all registered providers."""
-    with _PROVIDER_REGISTRY_LOCK:
-        return list(_PROVIDER_REGISTRY.values())
+    """
+    Deprecated stub for listing providers from the legacy registry.
+
+    The authoritative list of providers is managed by the
+    ``app.providers`` package.
+
+    Returns:
+        This function never returns; it always raises :class:`RuntimeError`.
+
+    Raises:
+        RuntimeError: Always raised to indicate the registry is deprecated.
+    """
+    raise _deprecated_registry_error("list_providers")
 
 
-def ensure_providers(keys: Iterable[str], providers: Iterable[CatalogProvider]) -> None:
-    """Register providers whose keys match the requested key list.
+def ensure_providers(
+    keys: Iterable[str],
+    providers: Iterable[CatalogProvider],
+) -> None:
+    """
+    Deprecated stub for conditionally registering providers.
+
+    The original implementation registered providers in the local registry
+    if their keys matched the provided key set. Since the legacy registry is
+    no longer used, this function now raises :class:`RuntimeError` to
+    prevent silent divergence from the supported provider workflow.
 
     Parameters:
-        keys (Iterable[str]): Provider keys to include.
-        providers (Iterable[CatalogProvider]): Providers to consider for registration.
+        keys: Iterable of provider keys that would have been used for matching.
+        providers: Iterable of provider instances that would have been considered
+            for registration.
+
+    Raises:
+        RuntimeError: Always raised to indicate the registry is deprecated.
     """
-    keys_set = set(keys)
-    for provider in providers:
-        if provider.key in keys_set:
-            register_provider(provider)
+    raise _deprecated_registry_error("ensure_providers")

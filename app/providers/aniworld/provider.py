@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 from app.providers.base import CatalogProvider
 
@@ -8,6 +9,11 @@ _ANIWORLD_SLUG_PATTERN = re.compile(r"/anime/stream/([^/?#]+)")
 
 
 def _build_provider() -> CatalogProvider:
+    """Build the AniWorld CatalogProvider with configured index sources.
+
+    Returns:
+        A configured CatalogProvider instance for AniWorld.
+    """
     from app.config import (
         ANIWORLD_ALPHABET_HTML,
         ANIWORLD_ALPHABET_URL,
@@ -28,5 +34,11 @@ def _build_provider() -> CatalogProvider:
     )
 
 
+@lru_cache(maxsize=1)
 def get_provider() -> CatalogProvider:
+    """Return the cached AniWorld provider instance.
+
+    Returns:
+        The singleton CatalogProvider instance for AniWorld.
+    """
     return _build_provider()
