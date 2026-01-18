@@ -21,6 +21,7 @@ def list_providers() -> List[CatalogProvider]:
 
 
 def ensure_providers(keys: Iterable[str], providers: Iterable[CatalogProvider]) -> None:
+    keys_set = set(keys)
     for provider in providers:
-        if provider.key in keys:
+        if provider.key in keys_set:
             register_provider(provider)
