@@ -11,7 +11,14 @@ _MEGAKINO_SLUG_PATTERN = re.compile(r"/(?:serials|films)/\d+-([^./?#]+)")
 
 
 class MegakinoProvider(CatalogProvider):
+    """Catalog provider for Megakino titles and search."""
+
+    _cached_index: dict[str, str] | None = None
+    _cached_alts: dict[str, list[str]] | None = None
+    _cached_at: float | None = None
+
     def load_or_refresh_index(self) -> dict[str, str]:
+        """Load the Megakino index and refresh cached entries."""
         entries = megakino_client.get_default_client().load_index()
         index = {slug: megakino_client.slug_to_title(slug) for slug in entries}
         self._cached_index = index
@@ -31,7 +38,7 @@ class MegakinoProvider(CatalogProvider):
             entries = self.load_or_refresh_index()
         if slug not in entries:
             return None
-        return megakino_client.slug_to_title(slug)
+        return entries.get(slug)
 
     def search_slug(self, query: str) -> ProviderMatch | None:
         if not query:
