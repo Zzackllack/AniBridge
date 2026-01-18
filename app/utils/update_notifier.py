@@ -9,7 +9,6 @@ from packaging import version as _version
 from app._version import get_version
 from app.config import IN_DOCKER
 
-
 GITHUB_OWNER = os.getenv("ANIBRIDGE_GITHUB_OWNER", "zzackllack").strip()
 GITHUB_REPO = os.getenv("ANIBRIDGE_GITHUB_REPO", "AniBridge").strip()
 GHCR_IMAGE = os.getenv("ANIBRIDGE_GHCR_IMAGE", "zzackllack/anibridge").strip()

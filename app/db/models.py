@@ -166,8 +166,7 @@ def _migrate_episode_availability_table() -> None:
                 return
 
             logger.info("Migrating episodeavailability table to include site column.")
-            conn.exec_driver_sql(
-                """
+            conn.exec_driver_sql("""
                 CREATE TABLE episodeavailability_new (
                     slug TEXT NOT NULL,
                     season INTEGER NOT NULL,
@@ -182,10 +181,8 @@ def _migrate_episode_availability_table() -> None:
                     extra JSON,
                     PRIMARY KEY (slug, season, episode, language, site)
                 )
-                """
-            )
-            conn.exec_driver_sql(
-                """
+                """)
+            conn.exec_driver_sql("""
                 INSERT INTO episodeavailability_new (
                     slug, season, episode, language, site,
                     available, height, vcodec, provider, checked_at, extra
@@ -195,8 +192,7 @@ def _migrate_episode_availability_table() -> None:
                     'aniworld.to' AS site,
                     available, height, vcodec, provider, checked_at, extra
                 FROM episodeavailability
-                """
-            )
+                """)
             conn.exec_driver_sql("DROP TABLE episodeavailability")
             conn.exec_driver_sql(
                 "ALTER TABLE episodeavailability_new RENAME TO episodeavailability"

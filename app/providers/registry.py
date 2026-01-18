@@ -7,7 +7,6 @@ from typing import Dict, Iterable, List
 
 from .base import CatalogProvider
 
-
 _PROVIDER_REGISTRY: Dict[str, CatalogProvider] = {}
 _PROVIDER_REGISTRY_LOCK = threading.Lock()
 

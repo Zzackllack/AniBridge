@@ -5,7 +5,6 @@ from functools import lru_cache
 
 from app.providers.base import CatalogProvider
 
-
 _STO_SLUG_PATTERN = re.compile(r"/serie/stream/([^/?#]+)")
 
 

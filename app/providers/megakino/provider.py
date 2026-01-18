@@ -6,7 +6,6 @@ import time
 from app.providers.base import CatalogProvider, ProviderMatch
 from app.providers.megakino import client as megakino_client
 
-
 _MEGAKINO_SLUG_PATTERN = re.compile(r"/(?:serials|films)/\d+-([^./?#]+)")
 
 

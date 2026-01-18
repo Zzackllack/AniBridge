@@ -18,7 +18,6 @@ from app.config import (
     TORZNAB_FAKE_SEEDERS,
 )
 
-
 SUPPORTED_PARAMS = "q,season,ep"
 SUPPORTED_MOVIE_PARAMS = "q"
 SUPPORTED_SEARCH_PARAMS = "q"

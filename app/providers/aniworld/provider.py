@@ -4,7 +4,6 @@ import re
 
 from app.providers.base import CatalogProvider
 
-
 _ANIWORLD_SLUG_PATTERN = re.compile(r"/anime/stream/([^/?#]+)")
 
 
