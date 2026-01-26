@@ -12,8 +12,8 @@ importers:
         specifier: ^3.5.27
         version: 3.5.27(vue@3.5.22)
       lucide-vue-next:
-        specifier: ^0.562.0
-        version: 0.562.0(vue@3.5.22)
+        specifier: ^0.563.0
+        version: 0.563.0(vue@3.5.22)
       vue:
         specifier: ^3.5.20
         version: 3.5.22
@@ -801,8 +801,8 @@ packages:
   json-schema@0.4.0:
     resolution: {integrity: sha512-es94M3nTIfsEPisRafak+HDLfHXnKBhV3vU5eqPcS3flIWqcxJWgXHXiey3YrpaNsanY5ei1VoYEbOzijuq9BA==}
 
-  lucide-vue-next@0.562.0:
-    resolution: {integrity: sha512-LN0BLGKMFulv0lnfK29r14DcngRUhIqdcaL0zXTt2o0oS9odlrjCGaU3/X9hIihOjjN8l8e+Y9G/famcNYaI7Q==}
+  lucide-vue-next@0.563.0:
+    resolution: {integrity: sha512-zsE/lCKtmaa7bGfhSpN84br1K9YoQ5pCN+2oKWjQQG3Lo6ufUUKBuHSjNFI6RvUevxaajNXb8XwFUKeTXG3sIA==}
     peerDependencies:
       vue: '>=3.0.1'
 
@@ -1777,7 +1777,7 @@ snapshots:
 
   json-schema@0.4.0: {}
 
-  lucide-vue-next@0.562.0(vue@3.5.22):
+  lucide-vue-next@0.563.0(vue@3.5.22):
     dependencies:
       vue: 3.5.22
 
