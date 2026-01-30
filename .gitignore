@@ -531,6 +531,7 @@ release/
 .wrangler/
 changelog.md
 !scripts/release/
+/.ruff_cache/
 
 # ───── Spec-Kit (specify) ─────
 
