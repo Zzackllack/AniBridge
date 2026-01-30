@@ -20,7 +20,7 @@ from app.providers.base import CatalogProvider
 # Site-specific regex patterns for slug extraction
 HREF_PATTERNS: Dict[str, re.Pattern[str]] = {
     "aniworld.to": re.compile(r"/anime/stream/([^/?#]+)"),
-    "s.to": re.compile(r"/serie/stream/([^/?#]+)"),
+    "s.to": re.compile(r"/serie/([^/?#]+)"),
     "megakino": re.compile(r"/(?:serials|films)/\d+-([^./?#]+)"),
 }
 
