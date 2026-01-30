@@ -333,7 +333,7 @@ Rating (1-5):
 
 ### Search suggest
 
-```
+```json
 GET https://s.to/api/search/suggest?term=9-1-1
 {
   "shows": [
@@ -347,7 +347,7 @@ GET https://s.to/api/search/suggest?term=9-1-1
 
 ### Episode watched (CSRF/session required)
 
-```
+```json
 POST https://s.to/api/episodes/watched
 Headers:
   X-CSRF-TOKEN: <meta csrf-token>
@@ -364,7 +364,7 @@ Body:
 
 ### Provider data (HTML attributes)
 
-```
+```html
 <button
   data-link-id="21649813"
   data-play-url="/r?t=..."
