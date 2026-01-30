@@ -8,19 +8,25 @@ from typing import Dict, List, Optional, Set, Tuple
 import time
 import requests.exceptions
 from pathlib import Path
+from urllib.parse import quote
 
 import re
 from app.utils.http_client import get as http_get  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 
-from app.config import CATALOG_SITES_LIST, CATALOG_SITE_CONFIGS, MEGAKINO_BASE_URL
+from app.config import (
+    CATALOG_SITES_LIST,
+    CATALOG_SITE_CONFIGS,
+    MEGAKINO_BASE_URL,
+    STO_BASE_URL,
+)
 from app.providers import get_provider
 from app.providers.base import CatalogProvider
 
 # Site-specific regex patterns for slug extraction
 HREF_PATTERNS: Dict[str, re.Pattern[str]] = {
     "aniworld.to": re.compile(r"/anime/stream/([^/?#]+)"),
-    "s.to": re.compile(r"/serie/stream/([^/?#]+)"),
+    "s.to": re.compile(r"/serie/([^/?#]+)"),
     "megakino": re.compile(r"/(?:serials|films)/\d+-([^./?#]+)"),
 }
 
@@ -494,6 +500,73 @@ def _normalize_tokens(s: str) -> Set[str]:
     return set("".join(ch.lower() if ch.isalnum() else " " for ch in s).split())
 
 
+def _normalize_alnum(s: str) -> str:
+    return "".join(ch.lower() for ch in s if ch.isalnum())
+
+
+def _build_sto_search_terms(query: str) -> List[str]:
+    raw = (query or "").strip()
+    if not raw:
+        return []
+    terms = [raw]
+    compact = _normalize_alnum(raw)
+    if compact and compact != raw:
+        terms.append(compact)
+    if compact.isdigit() and len(compact) >= 3:
+        dashed = "-".join(compact)
+        if dashed not in terms:
+            terms.append(dashed)
+    return list(dict.fromkeys(t for t in terms if t))
+
+
+def _search_sto_slug(query: str) -> Optional[str]:
+    terms = _build_sto_search_terms(query)
+    if not terms:
+        return None
+    base_url = STO_BASE_URL.rstrip("/")
+    best_slug: Optional[str] = None
+    best_score = -1
+    q_tokens = _normalize_tokens(query)
+    q_norm = _normalize_alnum(query)
+
+    for term in terms:
+        try:
+            url = f"{base_url}/api/search/suggest?term={quote(term)}"
+            resp = http_get(url, timeout=15)
+            resp.raise_for_status()
+            payload = resp.json()
+        except Exception as exc:
+            logger.debug("S.to suggest lookup failed for term '{}': {}", term, exc)
+            continue
+
+        shows = payload.get("shows") if isinstance(payload, dict) else None
+        if not isinstance(shows, list):
+            continue
+
+        for entry in shows:
+            if not isinstance(entry, dict):
+                continue
+            name = str(entry.get("name") or "").strip()
+            url = str(entry.get("url") or "").strip()
+            slug = _extract_slug(url, "s.to")
+            if not slug or not name:
+                continue
+
+            t_tokens = _normalize_tokens(name)
+            score = len(q_tokens & t_tokens)
+            t_norm = _normalize_alnum(name)
+            if q_norm and t_norm and q_norm == t_norm:
+                score += 100
+            if score > best_score:
+                best_score = score
+                best_slug = slug
+
+        if best_slug:
+            return best_slug
+
+    return best_slug
+
+
 def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, str]]:
     """
     Find the best-matching site and slug for a free-text query by comparing token overlap with titles and alternative titles.
@@ -547,6 +620,11 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
 
         if best_slug and best_site:
             return (best_site, best_slug)
+        for search_site in sites:
+            if search_site == "s.to":
+                api_slug = _search_sto_slug(q)
+                if api_slug:
+                    return (search_site, api_slug)
         return None
 
     if site:
