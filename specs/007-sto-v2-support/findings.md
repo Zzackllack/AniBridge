@@ -79,6 +79,22 @@ Implications for AniBridge:
 - AniBridge can directly parse provider candidates and language mapping from HTML.
 - `/r?t=...` must be followed to obtain the provider embed URL; treat as opaque and do not attempt to decode.
 
+#### Language handling (v2)
+Episode pages expose language per provider via data attributes and visible headings (e.g., "Deutsch", "Englisch"). Recommended handling:
+
+- Treat each provider button as a distinct candidate with language metadata.
+- Extract and store:
+  - `data-language-id` (numeric key)
+  - `data-language-label` (localized display label)
+  - `data-provider-name`
+  - `data-play-url`
+- Normalize to internal language codes using a simple mapping:
+  - `1` -> `de` (German)
+  - `2` -> `en` (English)
+- If `data-language-id` is missing, fall back to `data-language-label` string matching.
+- Preserve both raw `language_id` and `language_label` for debugging and future additions.
+- Resolution preference should filter by language order (e.g., `de` then `en`), with a final fallback to any available language.
+
 ### 4) Public API endpoints (v2)
 
 Observed from live site and JS bundles:
@@ -92,8 +108,13 @@ Observed from live site and JS bundles:
 Observed from JS bundles and HTML:
 
 - `POST /api/episodes/watched`
-  - Payload: `{series_id, season_no, episode_no, episode_id, seen}`
+  - Payload (episode page): `{series_id, season_no, episode_no, episode_id, seen}`
+  - Payload (series page toggle): `{series_id, season_no, episode_no, episode_id, toggle: true}`
   - Requires `X-CSRF-TOKEN` header and likely session cookies.
+- Bulk season marking (series page):
+  - Script targets `#season-mark` and reads `data-mark-url`.
+  - Sends `POST` JSON `{ action: "seen" | "unseen" }` to `data-mark-url` with CSRF + `X-Requested-With: XMLHttpRequest`.
+  - Markup was not present in the guest HTML export (likely auth-only).
 - `GET /api/collections/my?term=...`
 - `GET /api/collections/for-series/<id>`
 - `POST /api/collections/attach`
@@ -107,6 +128,7 @@ Observations:
 
 - Attempting `https://s.to/api/collections/for-series/3592` without auth returns an HTML login page.
 - `https://s.to/api/episodes/157141/comments` returned 500 without auth.
+- Series page scripts reference `.episode-eye` buttons with data attributes (`data-series-id`, `data-season-no`, `data-episode-no`, `data-episode-id`). These elements were not present in the guest export, indicating they may be rendered only when logged in.
 
 Implications:
 
