@@ -25,7 +25,9 @@ def run_git_log(log_range: str) -> str:
             ["git", "log", "--reverse", f"--pretty=format:{pretty}", log_range],
             text=True,
         )
-    except subprocess.CalledProcessError as exc:  # pragma: no cover - invocation failure
+    except (
+        subprocess.CalledProcessError
+    ) as exc:  # pragma: no cover - invocation failure
         raise SystemExit(f"git log failed for range '{log_range}': {exc}") from exc
 
 
@@ -43,6 +45,7 @@ def parse_log_output(raw_log: str) -> list[dict[str, object]]:
             {
                 "commit": commit,
                 "abbrev": abbrev,
+                "short_hash": abbrev,
                 "subject": subject.strip(),
                 "body": body.strip(),
                 "author": {
@@ -74,11 +77,13 @@ def format_markdown_summary(
         for entry in entries_list:
             subject = entry["subject"]
             abbrev = entry["abbrev"]
-            author = entry["author"]
+            author = entry.get("author") or {}
+            author_name = author.get("name") if isinstance(author, dict) else None
+            author_email = author.get("email") if isinstance(author, dict) else None
             date_iso = entry["date"]
             body = entry["body"]
             lines.append(f"- `{abbrev}` {subject}")
-            lines.append(f"  Author: {author['name']} <{author['email']}>")
+            lines.append(f"  Author: {author_name or ''} <{author_email or ''}>")
             lines.append(f"  Date: {date_iso}")
             if body:
                 lines.append("  Message:")
@@ -93,8 +98,14 @@ def format_markdown_summary(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--current-tag", required=True, help="Tag representing the release being prepared")
-    parser.add_argument("--previous-tag", help="Most recent prior release tag (optional)")
+    parser.add_argument(
+        "--current-tag",
+        required=True,
+        help="Tag representing the release being prepared",
+    )
+    parser.add_argument(
+        "--previous-tag", help="Most recent prior release tag (optional)"
+    )
     parser.add_argument(
         "--output-dir",
         default=".",
