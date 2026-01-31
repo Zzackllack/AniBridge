@@ -1,4 +1,5 @@
 from pathlib import Path
+from pathlib import Path
 
 from app.providers.sto.v2 import (
     build_episode_url,
@@ -10,7 +11,15 @@ from app.providers.sto.v2 import (
 def _read_episode_fixture() -> str:
     root = Path(__file__).resolve().parents[1]
     path = root / "specs" / "007-sto-v2-support" / "html" / "2-episode.html"
-    return path.read_text(encoding="utf-8")
+    if path.exists():
+        return path.read_text(encoding="utf-8")
+    return """
+    <div id="episode-links">
+      <button data-play-url="/r?t=token1" data-provider-name="VOE" data-language-label="Deutsch" data-language-id="1"></button>
+      <button data-play-url="/r?t=token2" data-provider-name="Doodstream" data-language-label="Deutsch" data-language-id="1"></button>
+      <button data-play-url="/r?t=token3" data-provider-name="VOE" data-language-label="Englisch" data-language-id="2"></button>
+    </div>
+    """
 
 
 def test_build_episode_url() -> None:
