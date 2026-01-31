@@ -36,7 +36,7 @@ This document captures a deep-dive analysis of the S.to v2 migration and propose
   - `app/core/downloader/provider_resolution.py`
   - `app/core/downloader/download.py`
   - `app/providers/megakino/client.py`
-- Local dependency (venv): `.venv/lib/python3.14/site-packages/aniworld/*`
+- Local dependency (venv): `.venv/lib/python3.12/site-packages/aniworld/*`
 - External live site checks (public endpoints):
   - `https://s.to/serien?by=alpha`
   - `https://s.to/serie/9-1-1`

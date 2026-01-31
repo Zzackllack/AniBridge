@@ -51,7 +51,11 @@ def build_prompt(
         subject = sanitize(entry.get("subject", ""))
         body = sanitize(entry.get("body", ""))
         commit_hash = entry.get("commit", "")
-        short_hash = entry.get("abbrev") or (commit_hash[:7] if commit_hash else "")
+        short_hash = (
+            entry.get("short_hash")
+            or entry.get("abbrev")
+            or (commit_hash[:7] if commit_hash else "")
+        )
         author = entry.get("author") or {}
         author_name = (author.get("name") or "").strip()
         url = f"{repo_url}/commit/{commit_hash}"
@@ -90,6 +94,7 @@ def build_prompt(
     - If a change is very small or several commits are tightly related, summarize them in one bullet and include all commit links in the grouped format.
     - Prefer concise summaries; expand only when the commit message is ambiguous.
     - Do not place a commit link on the summary text itself; only the hash is linked.
+    - Call out migrations, API impacts, configuration additions, and compliance notes explicitly when present.
 
     Commit data (JSON list of objects with subject, body, author, date, short_hash, and url):
     {commit_json}

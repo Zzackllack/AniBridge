@@ -1,5 +1,4 @@
 from pathlib import Path
-from pathlib import Path
 
 from app.providers.sto.v2 import (
     build_episode_url,
@@ -9,8 +8,12 @@ from app.providers.sto.v2 import (
 
 
 def _read_episode_fixture() -> str:
-    root = Path(__file__).resolve().parents[1]
-    path = root / "specs" / "007-sto-v2-support" / "html" / "2-episode.html"
+    current = Path(__file__).resolve().parent
+    while current != current.parent:
+        if (current / "specs").is_dir():
+            break
+        current = current.parent
+    path = current / "specs" / "007-sto-v2-support" / "html" / "2-episode.html"
     if path.exists():
         return path.read_text(encoding="utf-8")
     return """

@@ -545,8 +545,8 @@ def _search_sto_slug(query: str) -> Optional[str]:
 
     for term in terms:
         try:
-            url = f"{base_url}/api/search/suggest?term={quote(term)}"
-            resp = http_get(url, timeout=15)
+            request_url = f"{base_url}/api/search/suggest?term={quote(term)}"
+            resp = http_get(request_url, timeout=15)
             resp.raise_for_status()
             payload = resp.json()
         except requests.exceptions.RequestException as exc:
@@ -564,8 +564,8 @@ def _search_sto_slug(query: str) -> Optional[str]:
             if not isinstance(entry, dict):
                 continue
             name = str(entry.get("name") or "").strip()
-            url = str(entry.get("url") or "").strip()
-            slug = _extract_slug(url, "s.to")
+            entry_url = str(entry.get("url") or "").strip()
+            slug = _extract_slug(entry_url, "s.to")
             if not slug or not name:
                 continue
 

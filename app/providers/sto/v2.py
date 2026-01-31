@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup  # type: ignore
 from loguru import logger
@@ -63,6 +65,11 @@ def fetch_episode_html(url: str) -> str:
     return resp.text
 
 
+async def fetch_episode_html_async(url: str) -> str:
+    """Asynchronously fetch episode HTML without blocking the event loop."""
+    return await asyncio.to_thread(fetch_episode_html, url)
+
+
 def parse_language_id(raw_id: str | None, label: str | None) -> Optional[int]:
     """Resolve a numeric language id from HTML attributes or label text.
 
@@ -114,9 +121,8 @@ def parse_episode_providers(
         if not play_url or not provider or not lang_id:
             continue
 
-        redirect_url = play_url
-        if redirect_url.startswith("/"):
-            redirect_url = f"{base_url.rstrip('/')}{redirect_url}"
+        base = f"{base_url.rstrip('/')}/"
+        redirect_url = urljoin(base, play_url)
 
         providers.setdefault(provider, {})[lang_id] = redirect_url
         if lang_id not in languages:
@@ -169,5 +175,9 @@ def enrich_episode_from_v2_url(*, episode: "Episode", base_url: str) -> None:
     link = getattr(episode, "link", None)
     if not link:
         return
-    html_text = fetch_episode_html(link)
+    try:
+        html_text = fetch_episode_html(link)
+    except Exception as exc:
+        logger.warning("Failed to fetch S.to v2 HTML for {}: {}", link, exc)
+        return
     enrich_episode_from_v2_html(episode=episode, html_text=html_text, base_url=base_url)
