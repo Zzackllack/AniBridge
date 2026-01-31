@@ -45,6 +45,7 @@ def build_episode(
     ep: Optional[Episode] = None
     site_domain = site
     site_cfg = CATALOG_SITE_CONFIGS.get(site)
+    base_url = None
     if site_cfg:
         base_url = site_cfg.get("base_url")
         if isinstance(base_url, str) and base_url:
@@ -58,7 +59,15 @@ def build_episode(
         ep = Episode(link=link, site=site_domain)
     elif slug and season and episode:
         logger.debug("Using slug/season/episode for episode.")
-        ep = Episode(slug=slug, season=season, episode=episode, site=site_domain)
+        if site == "s.to" and isinstance(base_url, str) and base_url:
+            from app.providers.sto.v2 import build_episode_url
+
+            link = build_episode_url(base_url, slug, season, episode)
+            ep = Episode(
+                link=link, slug=slug, season=season, episode=episode, site=site_domain
+            )
+        else:
+            ep = Episode(slug=slug, season=season, episode=episode, site=site_domain)
     else:
         logger.error(
             "Invalid episode parameters: must provide either link or (slug, season, episode)."
@@ -94,4 +103,13 @@ def build_episode(
                     getattr(ep, "episode", episode),
                     err,
                 )
+    if site == "s.to":
+        try:
+            from app.providers.sto.v2 import enrich_episode_from_v2_url
+
+            if isinstance(base_url, str) and base_url:
+                enrich_episode_from_v2_url(episode=ep, base_url=base_url)
+        except Exception as err:  # noqa: BLE001 - enrichment is optional; keep episode creation resilient
+            logger.warning("Failed to enrich S.to v2 episode: {}", err)
+
     return ep

@@ -51,6 +51,11 @@ def build_prompt(
         subject = sanitize(entry.get("subject", ""))
         body = sanitize(entry.get("body", ""))
         commit_hash = entry.get("commit", "")
+        short_hash = (
+            entry.get("short_hash")
+            or entry.get("abbrev")
+            or (commit_hash[:7] if commit_hash else "")
+        )
         author = entry.get("author") or {}
         author_name = (author.get("name") or "").strip()
         url = f"{repo_url}/commit/{commit_hash}"
@@ -58,6 +63,7 @@ def build_prompt(
             {
                 "subject": subject,
                 "body": body,
+                "short_hash": short_hash,
                 "author": author_name,  # Avoid sending email addresses to the LLM
                 "date": entry.get("date", ""),
                 "url": url,
@@ -82,11 +88,15 @@ def build_prompt(
     Section formatting rules:
     - Use Markdown headings (`## Heading`) for "Breaking Changes", "New Features", and "Other Changes".
     - Inside each section, list items as bullet points.
-    - Each bullet should cite the related commit using a Markdown link with the pattern `[short description](commit_url)`. Prefer the commit subject as the description.
-    - When possible, group multiple commits from the same theme into a single bullet referencing multiple links.
-    - Mention authors or additional context when the commit message alone is ambiguous.
+    - Use one of these commit reference formats:
+      - Single commit: `- [<short_hash>](<commit_url>) <commit message/summary>`
+      - Grouped commits: `- <summary> ([<short_hash>](<commit_url>), [<short_hash>](<commit_url>))`
+    - If a change is very small or several commits are tightly related, summarize them in one bullet and include all commit links in the grouped format.
+    - Prefer concise summaries; expand only when the commit message is ambiguous.
+    - Do not place a commit link on the summary text itself; only the hash is linked.
+    - Call out migrations, API impacts, configuration additions, and compliance notes explicitly when present.
 
-    Commit data (JSON list of objects with subject, body, author, date, and url):
+    Commit data (JSON list of objects with subject, body, author, date, short_hash, and url):
     {commit_json}
     """
     return textwrap.dedent(instructions).strip()
