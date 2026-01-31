@@ -291,7 +291,7 @@ STO_ALPHABET_HTML = Path(
     os.getenv("STO_ALPHABET_HTML", DATA_DIR / "sto-alphabeth.html")
 )
 STO_ALPHABET_URL = os.getenv(
-    "STO_ALPHABET_URL", f"{STO_BASE_URL}/serien-alphabet"
+    "STO_ALPHABET_URL", f"{STO_BASE_URL}/serien?by=alpha"
 ).strip()
 
 # Megakino (series/movies)
