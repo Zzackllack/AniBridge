@@ -531,6 +531,7 @@ release/
 .wrangler/
 changelog.md
 !scripts/release/
+/.ruff_cache/
 
 # ───── Spec-Kit (specify) ─────
 
@@ -561,4 +562,6 @@ changelog.md
 .windsurf/
 .gemini/
 
-/specs/context/
+/specs/context
+/specs/007-sto-v2-support/s.to-serien_by=alpha.html
+/specs/007-sto-v2-support/html
