@@ -109,7 +109,9 @@ def build_episode(
 
             if isinstance(base_url, str) and base_url:
                 enrich_episode_from_v2_url(episode=ep, base_url=base_url)
-        except Exception as err:  # noqa: BLE001 - enrichment is optional; keep episode creation resilient
+        except (
+            Exception
+        ) as err:  # noqa: BLE001 - enrichment is optional; keep episode creation resilient
             logger.warning("Failed to enrich S.to v2 episode: {}", err)
 
     return ep
