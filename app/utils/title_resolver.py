@@ -5,12 +5,13 @@ from app.utils.logger import config as configure_logger
 configure_logger()
 
 from typing import Dict, List, Optional, Set, Tuple
+import json
 import time
-import requests.exceptions
 from pathlib import Path
 from urllib.parse import quote
 
 import re
+import requests.exceptions
 from app.utils.http_client import get as http_get  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 
@@ -501,10 +502,17 @@ def _normalize_tokens(s: str) -> Set[str]:
 
 
 def _normalize_alnum(s: str) -> str:
+    """Lowercase and filter to alphanumeric characters."""
     return "".join(ch.lower() for ch in s if ch.isalnum())
 
 
 def _build_sto_search_terms(query: str) -> List[str]:
+    """Build ordered S.to search variants from a raw query.
+
+    Returns the raw query, a compact alphanumeric-only variant, and a dashed
+    variant when the compact form is numeric with length >= 3. Empty values are
+    filtered and the list is de-duplicated while preserving order.
+    """
     raw = (query or "").strip()
     if not raw:
         return []
@@ -520,6 +528,12 @@ def _build_sto_search_terms(query: str) -> List[str]:
 
 
 def _search_sto_slug(query: str) -> Optional[str]:
+    """Resolve an S.to slug using the public suggest API.
+
+    Queries /api/search/suggest for each term variant and scores results by
+    token overlap with a large boost for exact normalized matches. Returns the
+    best matching slug or None when no result can be found.
+    """
     terms = _build_sto_search_terms(query)
     if not terms:
         return None
@@ -535,7 +549,10 @@ def _search_sto_slug(query: str) -> Optional[str]:
             resp = http_get(url, timeout=15)
             resp.raise_for_status()
             payload = resp.json()
-        except Exception as exc:
+        except requests.exceptions.RequestException as exc:
+            logger.debug("S.to suggest lookup failed for term '{}': {}", term, exc)
+            continue
+        except (json.JSONDecodeError, ValueError) as exc:
             logger.debug("S.to suggest lookup failed for term '{}': {}", term, exc)
             continue
 
@@ -560,9 +577,6 @@ def _search_sto_slug(query: str) -> Optional[str]:
             if score > best_score:
                 best_score = score
                 best_slug = slug
-
-        if best_slug:
-            return best_slug
 
     return best_slug
 

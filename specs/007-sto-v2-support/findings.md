@@ -1,4 +1,23 @@
-# S.to V2 Recovery - Findings and Plan
+---
+post_title: "S.to V2 Recovery - Findings and Plan"
+author1: "Zzackllack"
+post_slug: "sto-v2-recovery-findings-plan"
+microsoft_alias: "tbd"
+featured_image: ""
+categories:
+  - "specs"
+tags:
+  - "s.to"
+  - "aniworld"
+  - "v2"
+  - "catalog"
+  - "parsing"
+ai_note: "Drafted with AI assistance."
+summary: "Research findings and implementation options for restoring S.to v2 support."
+post_date: "2026-01-31"
+---
+
+## S.to V2 Recovery - Findings and Plan
 
 ## Scope and intent
 
@@ -79,7 +98,7 @@ Implications for AniBridge:
 - AniBridge can directly parse provider candidates and language mapping from HTML.
 - `/r?t=...` must be followed to obtain the provider embed URL; treat as opaque and do not attempt to decode.
 
-#### Language handling (v2)
+### 4) Language handling (v2)
 Episode pages expose language per provider via data attributes and visible headings (e.g., "Deutsch", "Englisch"). Recommended handling:
 
 - Treat each provider button as a distinct candidate with language metadata.
@@ -95,7 +114,7 @@ Episode pages expose language per provider via data attributes and visible headi
 - Preserve both raw `language_id` and `language_label` for debugging and future additions.
 - Resolution preference should filter by language order (e.g., `de` then `en`), with a final fallback to any available language.
 
-### 4) Public API endpoints (v2)
+### 5) Public API endpoints (v2)
 
 Observed from live site and JS bundles:
 
@@ -103,7 +122,7 @@ Observed from live site and JS bundles:
   - Returns JSON with `shows[]`, each containing a `name` and a `url` (relative `/serie/<slug>`).
   - Works without auth.
 
-### 5) Private or CSRF-gated endpoints (v2)
+### 6) Private or CSRF-gated endpoints (v2)
 
 Observed from JS bundles and HTML:
 
@@ -135,7 +154,7 @@ Implications:
 - These endpoints are likely not reliable for anonymous scraping.
 - Use them only if we introduce session handling (cookie + CSRF + optional login).
 
-### 6) Robots and sitemap
+### 7) Robots and sitemap
 
 - `https://s.to/robots.txt` advertises `Sitemap: /sitemap.xml`.
 - `https://s.to/sitemap.xml` currently returns 404.

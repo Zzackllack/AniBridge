@@ -1,4 +1,21 @@
-# Wird S.to dauerhaft abgeschaltet? 😱⚰️
+---
+post_title: "Wird S.to dauerhaft abgeschaltet? 😱⚰️"
+author1: "Zzackllack"
+post_slug: "sto-wird-dauerhaft-abgeschaltet-2026"
+microsoft_alias: "tbd"
+featured_image: ""
+categories:
+  - "specs"
+tags:
+  - "s.to"
+  - "announcement"
+  - "migration"
+ai_note: "Drafted with AI assistance."
+summary: "German announcement text describing the S.to v2 migration."
+post_date: "2026-01-31"
+---
+
+## Wird S.to dauerhaft abgeschaltet? 😱⚰️
 
 Nach mehr als 10 Jahren wird das S.to-System in Kürze dauerhaft abgeschaltet. Einige Funktionen oder Bereiche sind mittlerweile veraltet, oder funktionieren nicht mehr so richtig. Eines der Beispiele ist die oft genutzte Suchfunktion. Dazu hat sich das Verhalten stark verändert.
 
