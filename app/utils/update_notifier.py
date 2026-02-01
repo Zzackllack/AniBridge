@@ -1,5 +1,4 @@
 import os
-import socket
 from typing import Optional, Tuple
 
 from app.utils.http_client import get as http_get
@@ -28,10 +27,10 @@ def _compare_versions(current: str, latest: str) -> int:
     """
     try:
         c = _version.parse(_normalize(current))
-        l = _version.parse(_normalize(latest))
-        if c < l:
+        latest_version = _version.parse(_normalize(latest))
+        if c < latest_version:
             return -1
-        if c > l:
+        if c > latest_version:
             return 1
         return 0
     except Exception:

@@ -5,6 +5,7 @@ that used to live in `app/models.py`. Functionality and public API are preserved
 imports should now use `from app.db import ...`.
 """
 
-from .models import *  # re-export full surface for backwards compatibility
+from . import models as _models
 
-__all__ = [name for name in globals() if not name.startswith("_")]
+__all__ = [name for name in dir(_models) if not name.startswith("_")]
+globals().update({name: getattr(_models, name) for name in __all__})
