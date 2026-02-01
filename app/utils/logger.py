@@ -49,7 +49,10 @@ def config():
                     level, record.getMessage()
                 )
 
-        logging.basicConfig(handlers=[_InterceptHandler()], level=LOG_LEVEL, force=True)
+        intercept_handler = _InterceptHandler()
+        logging.basicConfig(handlers=[intercept_handler], level=LOG_LEVEL, force=True)
+        logging.captureWarnings(True)
+        logging.lastResort = None
         for name in (
             "uvicorn",
             "uvicorn.error",
@@ -60,8 +63,8 @@ def config():
             "watchfiles.main",
         ):
             log = logging.getLogger(name)
-            log.handlers = []
-            log.propagate = True
+            log.handlers = [intercept_handler]
+            log.propagate = False
             if name.startswith("watchfiles"):
                 log.setLevel(logging.WARNING)
         _STDLIB_LOGGING_CONFIGURED = True

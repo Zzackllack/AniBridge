@@ -5,6 +5,9 @@ import sys
 from loguru import logger
 
 from app.config import ANIBRIDGE_HOST, ANIBRIDGE_PORT, ANIBRIDGE_RELOAD
+from app.utils.logger import config as configure_logger
+
+configure_logger()
 
 
 def run_server(app_obj):

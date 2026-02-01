@@ -10,6 +10,9 @@ from app.api.qbittorrent import router as qbittorrent_router
 from app.api.health import router as health_router
 from app.api.legacy_downloader import router as legacy_router
 from app.cli import run_server
+from app.utils.logger import config as configure_logger
+
+configure_logger()
 
 bootstrap_init()
 
