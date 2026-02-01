@@ -1,20 +1,17 @@
 import errno
 import threading
 from pathlib import Path
-from types import ModuleType
-from typing import Any, Optional
 
 from sqlmodel import Session
 
-from app.db.models import Job
 
 
 def _setup_scheduler(tmp_path, monkeypatch):
     """
     Prepare a test scheduler environment and return the scheduler module.
-    
+
     Sets environment variables ANIBRIDGE_UPDATE_CHECK, DATA_DIR, and DOWNLOAD_DIR for the test run, removes cached app modules related to configuration, database, and scheduler from sys.modules to ensure a fresh import, and initializes the test database tables. Finally imports and returns the app.core.scheduler module.
-    
+
     Returns:
         module: The imported `app.core.scheduler` module.
     """
@@ -44,7 +41,7 @@ def _setup_scheduler(tmp_path, monkeypatch):
 def _create_job():
     """
     Create a new job in the test database for the source site "aniworld.to" and return its identifier.
-    
+
     Returns:
         The created job's id.
     """
@@ -57,10 +54,10 @@ def _create_job():
 def _get_job(job_id: str):
     """
     Retrieve a job record from the database by its identifier.
-    
+
     Parameters:
         job_id (str): Identifier of the job to retrieve.
-    
+
     Returns:
         The job record matching `job_id`, or `None` if no such job exists.
     """

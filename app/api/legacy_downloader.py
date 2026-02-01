@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import threading
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import StreamingResponse

@@ -41,12 +41,14 @@ def test_availability_and_clienttask_crud(client):
             extra={"x": 1},
         )
         assert rec.is_fresh
-        got = get_availability(s, slug="slug", season=1, episode=1, language="German Dub")
+        got = get_availability(
+            s, slug="slug", season=1, episode=1, language="German Dub"
+        )
         assert got and got.available and got.height == 1080
         langs = list_available_languages_cached(s, slug="slug", season=1, episode=1)
         assert "German Dub" in langs
 
-        ct = upsert_client_task(
+        upsert_client_task(
             s,
             hash="abc",
             name="Name",

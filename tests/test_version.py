@@ -1,4 +1,3 @@
-import importlib
 from pathlib import Path
 
 
@@ -41,4 +40,3 @@ def test_get_version_fallback_to_default(monkeypatch):
     from app import _version as ver
 
     assert ver.get_version() == "0.0.0"
-

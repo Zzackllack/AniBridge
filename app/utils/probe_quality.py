@@ -1,9 +1,7 @@
 from __future__ import annotations
-from typing import Optional, Tuple, Dict, Any, List, cast
+from typing import Optional, Dict, Any, List, cast
 from loguru import logger
 import yt_dlp
-import os
-import sys
 
 from app.core.downloader import get_direct_url_with_fallback, build_episode
 from app.utils.naming import quality_from_info

@@ -25,11 +25,11 @@ except Exception:
     pass
 
 # Import submodules to register routes on the shared router
-from . import auth  # noqa: F401
-from . import app_meta  # noqa: F401
-from . import categories  # noqa: F401
-from . import sync  # noqa: F401
-from . import torrents  # noqa: F401
-from . import transfer  # noqa: F401
+from . import auth  # noqa: F401,E402
+from . import app_meta  # noqa: F401,E402
+from . import categories  # noqa: F401,E402
+from . import sync  # noqa: F401,E402
+from . import torrents  # noqa: F401,E402
+from . import transfer  # noqa: F401,E402
 
 __all__ = ["router"]

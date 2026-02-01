@@ -11,7 +11,6 @@ from app.utils.strm import allocate_unique_strm_path, build_strm_content
 from app.utils.terminal import (
     ProgressReporter,
     ProgressSnapshot,
-    is_interactive_terminal,
 )
 from app.db import engine, create_job, update_job
 from app.core.downloader import (
