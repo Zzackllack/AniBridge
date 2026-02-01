@@ -1,6 +1,4 @@
 from __future__ import annotations
-import sys
-import os
 from loguru import logger
 from app.utils.logger import config as configure_logger
 
@@ -15,8 +13,6 @@ import subprocess
 from app.config import (
     SOURCE_TAG,
     RELEASE_GROUP,
-    RELEASE_GROUP_ANIWORLD,
-    RELEASE_GROUP_STO,
 )
 from app.utils.title_resolver import resolve_series_title
 

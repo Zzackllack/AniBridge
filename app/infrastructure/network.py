@@ -217,7 +217,6 @@ def start_ip_check_thread(
     otherwise falls back to PROXY_IP_CHECK_INTERVAL_MIN.
     """
     import threading
-    import time
 
     if not (PROXY_ENABLED or PUBLIC_IP_CHECK_ENABLED):
         return None

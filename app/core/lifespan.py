@@ -24,7 +24,6 @@ from app.utils.domain_resolver import (
 
 from app.config import (
     DOWNLOAD_DIR,
-    DATA_DIR,
     DOWNLOADS_TTL_HOURS,
     CLEANUP_SCAN_INTERVAL_MIN,
     CATALOG_SITE_CONFIGS,
@@ -46,7 +45,6 @@ def _start_ttl_cleanup_thread(
     """Start a background thread that deletes old downloads based on TTL."""
 
     def _cleanup_loop():
-        import time
 
         exts = {".mp4", ".mkv", ".webm", ".avi", ".m4v"}
         ttl = timedelta(hours=float(DOWNLOADS_TTL_HOURS))

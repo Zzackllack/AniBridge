@@ -1,12 +1,9 @@
 import errno
 import threading
 from pathlib import Path
-from types import ModuleType
-from typing import Any, Optional
 
 from sqlmodel import Session
 
-from app.db.models import Job
 
 
 def _setup_scheduler(tmp_path, monkeypatch):

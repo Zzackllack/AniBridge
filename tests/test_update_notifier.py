@@ -1,4 +1,3 @@
-import types
 
 
 def test_compare_versions_basic():

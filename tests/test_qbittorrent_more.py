@@ -1,4 +1,3 @@
-import xml.etree.ElementTree as ET
 
 
 def test_add_missing_urls_returns_400(client):

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Optional
 from loguru import logger
 
-from app.config import PROGRESS_FORCE_BAR, PROGRESS_STEP_PERCENT, IN_DOCKER
+from app.config import PROGRESS_FORCE_BAR, PROGRESS_STEP_PERCENT
 
 
 def is_interactive_terminal() -> bool:

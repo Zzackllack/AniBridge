@@ -1,5 +1,4 @@
 import os
-import socket
 from typing import Optional, Tuple
 
 from app.utils.http_client import get as http_get
