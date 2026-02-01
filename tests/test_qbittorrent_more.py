@@ -1,5 +1,3 @@
-
-
 def test_add_missing_urls_returns_400(client):
     r = client.post("/api/v2/torrents/add", data={})
     assert r.status_code == 400
