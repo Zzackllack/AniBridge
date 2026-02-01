@@ -259,6 +259,7 @@ def _build_item(
         cat_id (int): Numeric category identifier to place in the <category> element.
         guid_str (str): Opaque GUID string to include inside the <guid> element (marked as not a permalink).
         length_bytes (Optional[int]): If provided, used as the enclosure length in bytes; otherwise a heuristic estimate is used.
+        language (Optional[str]): Language label (e.g., "German Sub") used to derive Newznab language and subs attributes.
     """
     logger.debug(
         f"Building RSS item: title='{title}', guid='{guid_str}', magnet='{magnet}'"

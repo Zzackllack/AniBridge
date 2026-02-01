@@ -7,6 +7,8 @@ import uuid
 from typing import Optional
 import logging
 
+_STDLIB_LOGGING_CONFIGURED = False
+
 # Ensure terminal duplication is active before any logger sinks attach.
 # This guarantees Loguru sinks bound to sys.stdout are teed into the file.
 try:
@@ -21,6 +23,7 @@ def config():
     Configure the global Loguru logger. Keeps this function lightweight so it
     can be imported across the codebase without side-effects.
     """
+    global _STDLIB_LOGGING_CONFIGURED
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
     logger.remove()
     logger.add(
@@ -30,36 +33,38 @@ def config():
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
         "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
     )
+    if not _STDLIB_LOGGING_CONFIGURED:
 
-    class _InterceptHandler(logging.Handler):
-        def emit(self, record: logging.LogRecord) -> None:
-            try:
-                level = logger.level(record.levelname).name
-            except ValueError:
-                level = record.levelno
-            frame, depth = logging.currentframe(), 2
-            while frame and frame.f_code.co_filename == logging.__file__:
-                frame = frame.f_back
-                depth += 1
-            logger.opt(depth=depth, exception=record.exc_info).log(
-                level, record.getMessage()
-            )
+        class _InterceptHandler(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                try:
+                    level = logger.level(record.levelname).name
+                except ValueError:
+                    level = record.levelno
+                frame, depth = logging.currentframe(), 2
+                while frame and frame.f_code.co_filename == logging.__file__:
+                    frame = frame.f_back
+                    depth += 1
+                logger.opt(depth=depth, exception=record.exc_info).log(
+                    level, record.getMessage()
+                )
 
-    logging.basicConfig(handlers=[_InterceptHandler()], level=LOG_LEVEL, force=True)
-    for name in (
-        "uvicorn",
-        "uvicorn.error",
-        "uvicorn.access",
-        "urllib3",
-        "urllib3.connectionpool",
-        "watchfiles",
-        "watchfiles.main",
-    ):
-        log = logging.getLogger(name)
-        log.handlers = []
-        log.propagate = True
-        if name.startswith("watchfiles"):
-            log.setLevel(logging.WARNING)
+        logging.basicConfig(handlers=[_InterceptHandler()], level=LOG_LEVEL, force=True)
+        for name in (
+            "uvicorn",
+            "uvicorn.error",
+            "uvicorn.access",
+            "urllib3",
+            "urllib3.connectionpool",
+            "watchfiles",
+            "watchfiles.main",
+        ):
+            log = logging.getLogger(name)
+            log.handlers = []
+            log.propagate = True
+            if name.startswith("watchfiles"):
+                log.setLevel(logging.WARNING)
+        _STDLIB_LOGGING_CONFIGURED = True
 
 
 def ensure_log_path(base_dir: Optional[Path] = None) -> Path:

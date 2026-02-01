@@ -29,7 +29,7 @@ For each `<item>` in the Torznab RSS feed returned by AniBridge, include:
 
 ```xml
 <newznab:attr name="language" value="German" />
-````
+```
 
 2) **Subtitles attribute**
 

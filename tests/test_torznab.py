@@ -62,7 +62,7 @@ def test_tvsearch_happy_path(client, monkeypatch):
         language,
         provider,
         site="aniworld.to",
-        **_kwargs: "magnet:?xt=urn:btih:test&dn=Title&aw_slug=slug&aw_s=1&aw_e=1&aw_lang=German+Dub&aw_site=aniworld.to",
+        **_kwargs: "magnet:?xt=urn:btih:test&dn=Title&aw_slug=slug&aw_s=1&aw_e=1&aw_lang=German+Sub&aw_site=aniworld.to",
     )
 
     resp = client.get(
