@@ -16,8 +16,9 @@ def public_save_path() -> str:
 
 
 # Categories map compatible with qBittorrent format
-from app.config import QBIT_PUBLIC_SAVE_PATH as _PUB
-
 CATEGORIES: Dict[str, dict] = {
-    "prowlarr": {"name": "prowlarr", "savePath": _PUB or str(DOWNLOAD_DIR)}
+    "prowlarr": {
+        "name": "prowlarr",
+        "savePath": QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR),
+    }
 }

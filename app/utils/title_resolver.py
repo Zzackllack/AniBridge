@@ -1,19 +1,18 @@
 from __future__ import annotations
-from loguru import logger
-from app.utils.logger import config as configure_logger
 
-configure_logger()
-
-from typing import Dict, List, Optional, Set, Tuple
 import json
+import re
 import time
 from pathlib import Path
 from urllib.parse import quote
+from typing import Dict, List, Optional, Set, Tuple
 
-import re
 import requests.exceptions
-from app.utils.http_client import get as http_get  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
+from loguru import logger
+
+from app.utils.logger import config as configure_logger
+from app.utils.http_client import get as http_get  # type: ignore
 
 from app.config import (
     CATALOG_SITES_LIST,
@@ -23,6 +22,8 @@ from app.config import (
 )
 from app.providers import get_provider
 from app.providers.base import CatalogProvider
+
+configure_logger()
 
 # Site-specific regex patterns for slug extraction
 HREF_PATTERNS: Dict[str, re.Pattern[str]] = {

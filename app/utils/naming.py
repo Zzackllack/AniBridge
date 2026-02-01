@@ -1,20 +1,22 @@
 from __future__ import annotations
-from loguru import logger
-from app.utils.logger import config as configure_logger
 
-configure_logger()
-
-from pathlib import Path
-from typing import Optional, Tuple, Dict, Any
 import json
 import re
 import subprocess
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
+
+from loguru import logger
+
+from app.utils.logger import config as configure_logger
 
 from app.config import (
     SOURCE_TAG,
     RELEASE_GROUP,
 )
 from app.utils.title_resolver import resolve_series_title
+
+configure_logger()
 
 LANG_TAG_MAP = {
     "German Dub": "GER",

@@ -48,7 +48,7 @@ def test_availability_and_clienttask_crud(client):
         langs = list_available_languages_cached(s, slug="slug", season=1, episode=1)
         assert "German Dub" in langs
 
-        ct = upsert_client_task(
+        upsert_client_task(
             s,
             hash="abc",
             name="Name",

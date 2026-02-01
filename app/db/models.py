@@ -450,7 +450,7 @@ def list_available_languages_cached(
             & (EpisodeAvailability.season == season)
             & (EpisodeAvailability.episode == episode)
             & (EpisodeAvailability.site == site)
-            & (EpisodeAvailability.available == True)
+            & EpisodeAvailability.available
         )
     ).all()
     fresh_langs: List[str] = []

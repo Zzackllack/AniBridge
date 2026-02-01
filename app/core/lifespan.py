@@ -45,7 +45,6 @@ def _start_ttl_cleanup_thread(
     """Start a background thread that deletes old downloads based on TTL."""
 
     def _cleanup_loop():
-
         exts = {".mp4", ".mkv", ".webm", ".avi", ".m4v"}
         ttl = timedelta(hours=float(DOWNLOADS_TTL_HOURS))
         logger.info(
@@ -137,15 +136,13 @@ async def lifespan(app: FastAPI):
     cleanup_stop = threading.Event()
     ip_stop = threading.Event()
     megakino_stop = threading.Event()
-    cleanup_thread: Optional[threading.Thread] = None
-    ip_thread: Optional[threading.Thread] = None
     if "megakino" in CATALOG_SITE_CONFIGS and not ANIBRIDGE_TEST_MODE:
         try:
             resolve_megakino_base_url()
         except Exception as e:
             logger.warning(f"megakino domain resolution failed: {e}")
     try:
-        cleanup_thread = _start_ttl_cleanup_thread(cleanup_stop)
+        _start_ttl_cleanup_thread(cleanup_stop)
     except Exception as e:
         logger.debug(f"cleanup thread start failed: {e}")
     try:

@@ -142,9 +142,9 @@ def log_full_system_report() -> None:
         meminfo = _read_file("/proc/meminfo", max_bytes=5000)
         if meminfo:
             lines = {
-                l.split(":", 1)[0]: l.split(":", 1)[1].strip()
-                for l in meminfo.splitlines()
-                if ":" in l
+                line.split(":", 1)[0]: line.split(":", 1)[1].strip()
+                for line in meminfo.splitlines()
+                if ":" in line
             }
             mt = lines.get("MemTotal")
             ma = lines.get("MemAvailable") or lines.get("MemFree")

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
-from loguru import logger
 
 from app.utils.logger import config as configure_logger
 
@@ -12,7 +11,7 @@ configure_logger()
 router = APIRouter(prefix="/torznab")
 
 # Import submodules to register routes on the shared router
-from . import api as _api  # noqa: F401
+from . import api as _api  # noqa: F401,E402
 
 # Re-export selected helpers for tests and external monkeypatching
 from .utils import (  # noqa: E402
