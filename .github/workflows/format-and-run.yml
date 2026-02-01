@@ -56,6 +56,10 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.head_ref || github.ref }}
+      - name: Refresh branch with latest fixes
+        run: |
+          git fetch --all
+          git pull --rebase origin "${GITHUB_HEAD_REF:-$(git rev-parse --abbrev-ref HEAD)}"
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
