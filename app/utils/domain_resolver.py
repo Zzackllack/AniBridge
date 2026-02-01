@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 import os
 import re
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from loguru import logger
 from requests.exceptions import RequestException
@@ -226,7 +227,7 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
     """
     Attempt to retrieve Megakino mirror domains from candidate mirrors files.
 
-    Fetches each candidate's /mirrors.txt and returns the first non-empty list of parsed domains. HTML responses, HTTP errors, and malformed mirror files are ignored; an empty list is returned if no valid mirrors are found.
+    Fetches each candidate's /mirrors.txt and returns the first non-empty list of parsed domains. HTML responses, HTTP errors, and malformed mirror files are ignored; if no valid mirrors are found, the function falls back to sitemap probes for all candidates and returns any resolved domains.
 
     Parameters:
         timeout (float | int): Request timeout in seconds.
@@ -235,10 +236,11 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
         list[str]: A list of mirror domains parsed from the first valid mirrors file, or an empty list if none were found.
     """
     logger.info("Fetching megakino mirror list.")
-    for candidate in MEGAKINO_DOMAIN_CANDIDATES:
+
+    def _fetch_mirrors(idx: int, candidate: str) -> tuple[int, Optional[list[str]]]:
         base_url = _build_base_url(candidate)
         if not base_url:
-            continue
+            return (idx, None)
         mirrors_url = f"{base_url.rstrip('/')}{MEGAKINO_MIRRORS_PATH}"
         try:
             resp = http_get(
@@ -253,10 +255,10 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
                     resp.status_code,
                     mirrors_url,
                 )
-                continue
+                return (idx, None)
             if _looks_like_html(resp.text or ""):
                 logger.debug("Megakino mirrors file returned HTML at {}", mirrors_url)
-                continue
+                return (idx, None)
             domains = _parse_mirror_domains(resp.text or "")
             if domains:
                 logger.info(
@@ -264,11 +266,76 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
                     mirrors_url,
                     len(domains),
                 )
-                return domains
+                return (idx, domains)
             logger.debug("Megakino mirrors file empty at {}", mirrors_url)
         except RequestException as exc:
             logger.debug("Megakino mirrors fetch failed for {}: {}", mirrors_url, exc)
-    return []
+        return (idx, None)
+
+    candidates = list(MEGAKINO_DOMAIN_CANDIDATES)
+    if candidates:
+        try:
+            from app.config import MAX_CONCURRENCY
+
+            max_workers = max(1, int(MAX_CONCURRENCY))
+        except Exception:
+            max_workers = 3
+
+        results: dict[int, list[str]] = {}
+        with ThreadPoolExecutor(max_workers=min(max_workers, len(candidates))) as ex:
+            futures = [
+                ex.submit(_fetch_mirrors, idx, candidate)
+                for idx, candidate in enumerate(candidates)
+            ]
+            for fut in as_completed(futures):
+                idx, domains = fut.result()
+                if domains:
+                    results[idx] = domains
+        for idx in range(len(candidates)):
+            if idx in results:
+                return results[idx]
+
+    logger.info(
+        "Megakino mirrors unavailable; falling back to sitemap probes for {} candidates.",
+        len(MEGAKINO_DOMAIN_CANDIDATES),
+    )
+    resolved: list[str] = []
+    seen: set[str] = set()
+    if not candidates:
+        return resolved
+
+    def _probe_candidate(idx: int, candidate: str) -> tuple[int, Optional[str]]:
+        base_url = _build_base_url(candidate)
+        if not base_url:
+            return (idx, None)
+        domain = _probe_megakino_sitemap(base_url, timeout=timeout)
+        return (idx, domain)
+
+    try:
+        from app.config import MAX_CONCURRENCY
+
+        max_workers = max(1, int(MAX_CONCURRENCY))
+    except Exception:
+        max_workers = 3
+
+    results: dict[int, str] = {}
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(candidates))) as ex:
+        futures = [
+            ex.submit(_probe_candidate, idx, candidate)
+            for idx, candidate in enumerate(candidates)
+        ]
+        for fut in as_completed(futures):
+            idx, domain = fut.result()
+            if domain:
+                results[idx] = domain
+
+    for idx in range(len(candidates)):
+        domain = results.get(idx)
+        if not domain or domain in seen:
+            continue
+        seen.add(domain)
+        resolved.append(domain)
+    return resolved
 
 
 def fetch_megakino_domain(timeout: float | int = 15) -> Optional[str]:

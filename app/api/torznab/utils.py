@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import List, Optional, Tuple
+import re
 import xml.etree.ElementTree as ET
 import threading
 
@@ -171,6 +172,36 @@ def _add_torznab_attr(item: ET.Element, name: str, value: str) -> None:
     attr.set("value", value)
 
 
+def _derive_newznab_language_attrs(
+    language: Optional[str], title: str
+) -> Tuple[Optional[str], Optional[str]]:
+    """Derive Newznab language/subs attributes from language labels or title tags."""
+    normalized = (language or "").strip().lower()
+    audio: Optional[str] = None
+    subs: Optional[str] = None
+
+    if normalized:
+        if "german" in normalized or "deutsch" in normalized:
+            audio = "German"
+        elif "english" in normalized or "englisch" in normalized:
+            audio = "English"
+        if "sub" in normalized and audio:
+            subs = audio
+
+    if not audio:
+        upper = title.upper()
+        if "GER.SUB" in upper or "GER-SUB" in upper or "GER_SUB" in upper:
+            return ("German", "German")
+        if "ENG.SUB" in upper or "ENG-SUB" in upper or "ENG_SUB" in upper:
+            return ("English", "English")
+        if re.search(r"(?:^|[.\-_ ])GER(?:[.\-_ ]|$)", upper):
+            return ("German", None)
+        if re.search(r"(?:^|[.\-_ ])ENG(?:[.\-_ ]|$)", upper):
+            return ("English", None)
+
+    return (audio, subs)
+
+
 def _estimate_size_from_title_bytes(title: str) -> int:
     t = title.lower()
     # crude heuristics based on common quality tags
@@ -213,6 +244,7 @@ def _build_item(
     cat_id: int,
     guid_str: str,
     length_bytes: int | None = None,
+    language: Optional[str] = None,
 ) -> None:
     """
     Append a complete Torznab-compatible RSS <item> to the provided channel element.
@@ -259,6 +291,12 @@ def _build_item(
     btih = _parse_btih_from_magnet(magnet)
     if btih:
         _add_torznab_attr(item, "infohash", btih)
+
+    audio_lang, subs_lang = _derive_newznab_language_attrs(language, title)
+    if audio_lang:
+        _add_torznab_attr(item, "language", audio_lang)
+    if subs_lang:
+        _add_torznab_attr(item, "subs", subs_lang)
 
     # Fake Seed-/Leech-Werte (per ENV konfigurierbar)
     seeders = max(0, int(TORZNAB_FAKE_SEEDERS))

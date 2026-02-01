@@ -34,7 +34,7 @@ def test_tvsearch_happy_path(client, monkeypatch):
     monkeypatch.setattr(
         tn,
         "list_available_languages_cached",
-        lambda session, slug, season, episode, site="aniworld.to": ["German Dub"],
+        lambda session, slug, season, episode, site="aniworld.to": ["German Sub"],
     )
     monkeypatch.setattr(
         tn,
@@ -75,7 +75,13 @@ def test_tvsearch_happy_path(client, monkeypatch):
     assert item is not None
     seed = item.find("{http://torznab.com/schemas/2015/feed}attr[@name='seeders']")
     leech = item.find("{http://torznab.com/schemas/2015/feed}attr[@name='leechers']")
+    lang_attr = item.find(
+        "{http://torznab.com/schemas/2015/feed}attr[@name='language']"
+    )
+    subs_attr = item.find("{http://torznab.com/schemas/2015/feed}attr[@name='subs']")
     assert seed is not None and leech is not None
+    assert lang_attr is not None and lang_attr.get("value") == "German"
+    assert subs_attr is not None and subs_attr.get("value") == "German"
 
 
 def test_tvsearch_empty(client):
