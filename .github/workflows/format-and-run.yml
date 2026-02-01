@@ -32,7 +32,7 @@ jobs:
           python -m pip install --upgrade pip uv
           uv pip install -r requirements-dev.txt
       - name: Run Ruff linter (auto-fix)
-        run: ruff check --fix app
+        run: ruff check --fix app tests
       - name: Commit and push changes
         run: |
           git config --local user.name "github-actions[bot]"
@@ -64,7 +64,7 @@ jobs:
           python -m pip install --upgrade pip uv
           uv pip install -r requirements-dev.txt
       - name: Run Ruff formatter
-        run: ruff format app
+        run: ruff format app tests
       - name: Commit and push changes
         run: |
           git config --local user.name "github-actions[bot]"
