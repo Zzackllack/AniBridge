@@ -9,15 +9,49 @@ Please read and adhere to our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Development Setup
 
+This repository uses [uv](https://docs.astral.sh/uv/). It is **highly recommended** to use it for development. Install it first if you haven't already:
+
+### MacOS
+
+```bash
+brew install uv
+```
+
+### Linux/MacOS
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### Windows
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+*Or via winget:*
+
+```powershell
+winget install --id=astral-sh.uv  -e
+```
+
+### Setting up the development environment
+
 ```bash
 git clone https://github.com/zzackllack/AniBridge.git
 cd AniBridge
-python -m venv .venv
+uv venv
 source .venv/bin/activate
-pip install -r requirements.txt
+uv pip install -r requirements-dev.txt
 ```
 
 Run the application locally with:
+
+```bash
+uv run -m app.main
+```
+
+Or directly with Python:
 
 ```bash
 python -m app.main
@@ -35,7 +69,8 @@ pytest
 
 ## Code Style
 
-- Format Python code with `ruff format`.
+- Follow Python Enhancement Proposals (PEPs) for style and best practices. Especially PEP 8 and PEP 257.
+- Format Python code with `ruff format`. And lint with `ruff check`.
 - Keep imports tidy and avoid unused code.
 - Update documentation and comments when behavior changes.
 
