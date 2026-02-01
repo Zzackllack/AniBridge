@@ -5,7 +5,6 @@ from pathlib import Path
 from sqlmodel import Session
 
 
-
 def _setup_scheduler(tmp_path, monkeypatch):
     """
     Prepare a test scheduler environment and return the scheduler module.
