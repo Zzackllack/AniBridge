@@ -226,7 +226,7 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
     """
     Attempt to retrieve Megakino mirror domains from candidate mirrors files.
 
-    Fetches each candidate's /mirrors.txt and returns the first non-empty list of parsed domains. HTML responses, HTTP errors, and malformed mirror files are ignored; an empty list is returned if no valid mirrors are found.
+    Fetches each candidate's /mirrors.txt and returns the first non-empty list of parsed domains. HTML responses, HTTP errors, and malformed mirror files are ignored; if no valid mirrors are found, the function falls back to sitemap probes for all candidates and returns any resolved domains.
 
     Parameters:
         timeout (float | int): Request timeout in seconds.
@@ -268,7 +268,22 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
             logger.debug("Megakino mirrors file empty at {}", mirrors_url)
         except RequestException as exc:
             logger.debug("Megakino mirrors fetch failed for {}: {}", mirrors_url, exc)
-    return []
+    logger.info(
+        "Megakino mirrors unavailable; falling back to sitemap probes for {} candidates.",
+        len(MEGAKINO_DOMAIN_CANDIDATES),
+    )
+    resolved: list[str] = []
+    seen: set[str] = set()
+    for candidate in MEGAKINO_DOMAIN_CANDIDATES:
+        base_url = _build_base_url(candidate)
+        if not base_url:
+            continue
+        domain = _probe_megakino_sitemap(base_url, timeout=timeout)
+        if not domain or domain in seen:
+            continue
+        seen.add(domain)
+        resolved.append(domain)
+    return resolved
 
 
 def fetch_megakino_domain(timeout: float | int = 15) -> Optional[str]:
