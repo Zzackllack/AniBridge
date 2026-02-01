@@ -12,7 +12,7 @@ Essentials
 Non-standard commands
 
 - Tests: `pytest`
-- Format: `black app`
+- Format: `ruff format app`
 - Docs build (local): `pnpm --prefix docs run build`
 - Docs build (Cloudflare/wrangler): `npm --prefix docs ci --no-audit --no-fund && npm --prefix docs run build`
 

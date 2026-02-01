@@ -35,7 +35,7 @@ pytest
 
 ## Code Style
 
-- Format Python code with `black`.
+- Format Python code with `ruff format`.
 - Keep imports tidy and avoid unused code.
 - Update documentation and comments when behavior changes.
 
@@ -58,7 +58,7 @@ Conventions and tips you should follow when editing the CODEOWNERS file:
 
 1. Fork the repository and create a new branch.
 2. Make your changes, including tests and docs.
-3. Run `black` on modified files and execute `pytest`.
+3. Run `ruff format` on modified files and execute `pytest`.
 4. Commit with clear messages and push your branch.
 5. Open a Pull Request describing your changes.
 

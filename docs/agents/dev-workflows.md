@@ -30,4 +30,4 @@
 
 ## Formatting
 
-- Format Python code with `black app`.
+- Format Python code with `ruff format app`.

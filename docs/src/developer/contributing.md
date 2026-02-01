@@ -17,7 +17,7 @@ pip install -r requirements.txt -r requirements-dev.txt
 ## Guidelines
 
 - Python 3.12+, type hints preferred
-- Format with `black`
+- Format with `ruff format`
 - Add tests for new behavior
 - Keep logs user-friendly and actionable
 
@@ -26,4 +26,3 @@ pip install -r requirements.txt -r requirements-dev.txt
 - Use descriptive titles
 - Explain the change and testing performed
 - Target small, focused diffs
-
