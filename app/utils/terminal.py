@@ -84,7 +84,7 @@ class ProgressReporter:
             self._bar.n = downloaded
             postfix = {}
             if snap.speed is not None:
-                postfix["Speed"] = f"{float(snap.speed)/(1024*1024):.2f} MB/s"
+                postfix["Speed"] = f"{float(snap.speed) / (1024 * 1024):.2f} MB/s"
             if snap.eta is not None:
                 postfix["ETA"] = f"{int(snap.eta)}s"
             if postfix:
@@ -101,7 +101,7 @@ class ProgressReporter:
                 if pct == 100 or pct // step > self._last_step_pct // step:
                     self._last_step_pct = pct
                     speed = (
-                        f"{float(snap.speed)/(1024*1024):.2f} MB/s"
+                        f"{float(snap.speed) / (1024 * 1024):.2f} MB/s"
                         if snap.speed is not None
                         else "-"
                     )

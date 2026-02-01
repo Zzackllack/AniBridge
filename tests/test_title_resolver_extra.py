@@ -9,6 +9,7 @@ def test_load_index_from_file(tmp_path, monkeypatch):
     monkeypatch.setenv("ANIWORLD_TITLES_REFRESH_HOURS", "0")
 
     import sys
+
     for m in ["app.config", "app.utils.title_resolver"]:
         if m in sys.modules:
             del sys.modules[m]

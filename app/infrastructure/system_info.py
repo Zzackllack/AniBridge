@@ -95,7 +95,7 @@ def log_full_system_report() -> None:
             f"SysInfo: python={sys.version.split()[0]} exec={sys.executable} pid={os.getpid()} cwd={os.getcwd()}"
         )
         logger.info(
-            f"SysInfo: argv={sys.argv} user_uid={os.getuid() if hasattr(os,'getuid') else 'n/a'} group_gid={os.getgid() if hasattr(os,'getgid') else 'n/a'}"
+            f"SysInfo: argv={sys.argv} user_uid={os.getuid() if hasattr(os, 'getuid') else 'n/a'} group_gid={os.getgid() if hasattr(os, 'getgid') else 'n/a'}"
         )
 
         # OS / platform
@@ -115,7 +115,7 @@ def log_full_system_report() -> None:
                 osrel.get("PRETTY_NAME")
                 or " ".join([osrel.get("NAME", ""), osrel.get("VERSION", "")]).strip()
             )
-            logger.info(f"SysInfo: os_release={pretty} id={osrel.get('ID','')}")
+            logger.info(f"SysInfo: os_release={pretty} id={osrel.get('ID', '')}")
 
         # Container / cgroup
         logger.info(f"SysInfo: in_docker={IN_DOCKER}")
