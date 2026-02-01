@@ -30,6 +30,6 @@
 ## CI/CD Workflows
 
 - `tests.yml`: installs `requirements-dev.txt` and runs pytest.
-- `format-and-run.yml`: runs `black app` and auto-commits formatting changes.
+- `format-and-run.yml`: runs `ruff format app` and auto-commits formatting changes.
 - `publish.yml`: builds and pushes GHCR images.
 - `release-on-tag.yml`: builds Python dists and PyInstaller artifacts on `v*` tags.

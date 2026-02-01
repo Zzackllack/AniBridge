@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import threading
 from typing import Dict, Optional
 from loguru import logger
 from app.utils.logger import config as configure_logger
@@ -208,17 +209,14 @@ def _fetch_public_ip() -> Optional[str]:
 
 
 def start_ip_check_thread(
-    stop_event: "threading.Event",
-) -> Optional["threading.Thread"]:
+    stop_event: threading.Event,
+) -> Optional[threading.Thread]:
     """Start a background thread that periodically logs the current public IP.
 
     Runs when either proxy is enabled or PUBLIC_IP_CHECK_ENABLED=true. Interval
     is taken from PUBLIC_IP_CHECK_INTERVAL_MIN when the latter is enabled,
     otherwise falls back to PROXY_IP_CHECK_INTERVAL_MIN.
     """
-    import threading
-    import time
-
     if not (PROXY_ENABLED or PUBLIC_IP_CHECK_ENABLED):
         return None
 

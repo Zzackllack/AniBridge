@@ -15,11 +15,11 @@ def test_slug_from_query_basic(monkeypatch):
     def mock_slug_from_query(q, _site=None):
         """
         Provide a test stub that returns a fixed (site_domain, slug) for queries containing "My Title".
-        
+
         Parameters:
             q (str): Query string to inspect.
             _site (str, optional): Ignored; present to match the real function signature.
-        
+
         Returns:
             tuple: (`site_domain`, `slug`) when `q` contains "My Title", `None` otherwise.
         """

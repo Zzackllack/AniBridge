@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Deprecated provider registry module.
 
@@ -13,6 +11,8 @@ only. They deliberately raise :class:`RuntimeError` when called so that any
 accidental usage fails loudly and directs maintainers to the supported
 provider management API.
 """
+
+from __future__ import annotations
 
 from typing import Iterable, List
 

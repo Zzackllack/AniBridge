@@ -306,7 +306,9 @@ def update_job(session: Session, job_id: str, **fields: Any) -> Optional[Job]:
 
 def cleanup_dangling_jobs(session: Session) -> int:
     logger.debug("Cleaning up dangling jobs (queued/downloading) on startup.")
-    rows = session.exec(select(Job).where(Job.status.in_(["queued", "downloading"]))).all()  # type: ignore
+    rows = session.exec(
+        select(Job).where(Job.status.in_(["queued", "downloading"]))
+    ).all()  # type: ignore
     if not rows:
         logger.info("No dangling jobs found to clean up.")
     for j in rows:
@@ -448,7 +450,7 @@ def list_available_languages_cached(
             & (EpisodeAvailability.season == season)
             & (EpisodeAvailability.episode == episode)
             & (EpisodeAvailability.site == site)
-            & (EpisodeAvailability.available == True)
+            & EpisodeAvailability.available
         )
     ).all()
     fresh_langs: List[str] = []

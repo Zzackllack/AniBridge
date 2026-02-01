@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from datetime import datetime, timezone
 from fastapi import Depends, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from loguru import logger

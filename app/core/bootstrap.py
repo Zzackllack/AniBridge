@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dotenv import load_dotenv
-from pathlib import Path
 from app.utils.logger import config as configure_logger, ensure_log_path
 from app.infrastructure.terminal_logger import TerminalLogger
 from app.config import DATA_DIR

@@ -1,6 +1,3 @@
-import types
-
-
 def test_compare_versions_basic():
     from app.utils import update_notifier as un
 
