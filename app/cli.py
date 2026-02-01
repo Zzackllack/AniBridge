@@ -23,6 +23,8 @@ def run_server(app_obj):
     else:
         reload_flag = not is_frozen
 
+    log_level = os.environ.get("LOG_LEVEL", "INFO").lower()
+
     if reload_flag:
         logger.info("Uvicorn reload enabled (development mode).")
         uvicorn.run(
@@ -30,6 +32,8 @@ def run_server(app_obj):
             host=ANIBRIDGE_HOST,
             port=ANIBRIDGE_PORT,
             reload=True,
+            log_config=None,
+            log_level=log_level,
         )
     else:
         logger.info("Uvicorn reload disabled (packaged/production mode).")
@@ -38,4 +42,6 @@ def run_server(app_obj):
             host=ANIBRIDGE_HOST,
             port=ANIBRIDGE_PORT,
             reload=False,
+            log_config=None,
+            log_level=log_level,
         )

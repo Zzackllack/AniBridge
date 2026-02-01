@@ -179,6 +179,7 @@ def _handle_preview_search(
                     pubdate=now,
                     cat_id=cat_id,
                     guid_str=guid_base,
+                    language=lang,
                 )
             if STRM_FILES_MODE in ("only", "both"):
                 magnet_strm = tn.build_magnet(
@@ -198,6 +199,7 @@ def _handle_preview_search(
                     pubdate=now,
                     cat_id=cat_id,
                     guid_str=f"{guid_base}:strm",
+                    language=lang,
                 )
         except (ValueError, RuntimeError, KeyError) as e:
             logger.error(f"Error building RSS item for release '{release_title}': {e}")
@@ -302,6 +304,7 @@ def torznab_api(
                     pubdate=now,
                     cat_id=cat_id,
                     guid_str=guid_base,
+                    language=TORZNAB_TEST_LANGUAGE,
                 )
             if STRM_FILES_MODE in ("only", "both"):
                 magnet_strm = tn.build_magnet(
@@ -320,6 +323,7 @@ def torznab_api(
                     pubdate=now,
                     cat_id=cat_id,
                     guid_str=f"{guid_base}:strm",
+                    language=TORZNAB_TEST_LANGUAGE,
                 )
         elif q_str:
             if movie_preferred:
@@ -384,6 +388,7 @@ def torznab_api(
                     pubdate=now,
                     cat_id=TORZNAB_CAT_MOVIE,
                     guid_str=guid_base,
+                    language=TORZNAB_TEST_LANGUAGE,
                 )
             if STRM_FILES_MODE in ("only", "both"):
                 magnet_strm = tn.build_magnet(
@@ -402,6 +407,7 @@ def torznab_api(
                     pubdate=now,
                     cat_id=TORZNAB_CAT_MOVIE,
                     guid_str=f"{guid_base}:strm",
+                    language=TORZNAB_TEST_LANGUAGE,
                 )
         elif q_str:
             _handle_preview_search(
@@ -585,6 +591,7 @@ def torznab_api(
                     pubdate=now,
                     cat_id=TORZNAB_CAT_ANIME,
                     guid_str=guid_base,
+                    language=lang,
                 )
             if STRM_FILES_MODE in ("only", "both"):
                 magnet_strm = tn.build_magnet(
@@ -604,6 +611,7 @@ def torznab_api(
                     pubdate=now,
                     cat_id=TORZNAB_CAT_ANIME,
                     guid_str=f"{guid_base}:strm",
+                    language=lang,
                 )
         except (ValueError, RuntimeError, KeyError) as e:
             logger.error(f"Error building RSS item for release '{release_title}': {e}")
