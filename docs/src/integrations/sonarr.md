@@ -39,6 +39,7 @@ Example (host path shown as `/path/to/downloads/anime`):
 - AniBridge env: `QBIT_PUBLIC_SAVE_PATH=/downloads`
 
 AniBridge’s qBittorrent shim will now publish:
+
 - `save_path` = `/downloads` in `/api/v2/app/preferences`, `/sync/maindata`, `/torrents/info`, `/torrents/properties`
 - `content_path` = `/downloads/<file>` once the file is known
 

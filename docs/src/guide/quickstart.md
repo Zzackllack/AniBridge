@@ -7,6 +7,20 @@ outline: deep
 
 Get AniBridge running in minutes. Pick one of the methods below.
 
+## Video walkthrough
+
+<div style="position: relative; width: 100%; padding-top: 56.25%;">
+  <iframe
+    src="https://www.youtube.com/embed/gbc24WHm7U4"
+    title="AniBridge Quickstart Video"
+    frameborder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allowfullscreen
+    style="position: absolute; inset: 0; width: 100%; height: 100%;"
+  ></iframe>
+</div>
+
 ::: danger Legal & Ethics
 Read the short [Legal Disclaimer](/legal) before continuing. AniBridge does not host or provide content. You are responsible for compliance with laws and site terms in your jurisdiction.
 :::
@@ -27,7 +41,7 @@ services:
     environment:
       - QBIT_PUBLIC_SAVE_PATH=/downloads
     volumes:
-      - ./downloads:/data/downloads/anime   # host path → container path
+      - ./downloads:/data/downloads   # host path → container path
       - ./data:/data                        # DB, logs
 ```
 
@@ -40,6 +54,7 @@ curl -sS http://localhost:8000/health
 ```
 
 ::: tip Sonarr/Prowlarr URLs
+
 - Torznab: `http://anibridge:8000/torznab/api`
 - qBittorrent base: `http://anibridge:8000/`
 :::
@@ -71,7 +86,7 @@ services:
     environment:
       - QBIT_PUBLIC_SAVE_PATH=/downloads
     volumes:
-      - ./downloads:/data/downloads/anime
+      - ./downloads:/data/downloads
       - ./data:/data
 ```
 
@@ -117,4 +132,4 @@ The API listens on `http://localhost:8000`.
 - Configure Prowlarr (Torznab): `http://localhost:8000/torznab/api`
 - Configure Sonarr (qBittorrent): `http://localhost:8000/`
 - Browse [Environment](/api/environment) for available settings
-- See [Integrations → Sonarr](/integrations/sonarr) and [Integrations → Docker](/integrations/docker)
+- See [Integrations → Sonarr](/integrations/sonarr), [Integrations → Radarr](/integrations/radarr ) and [Integrations → Prowlarr](/integrations/prowlarr) for setup guides

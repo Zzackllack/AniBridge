@@ -13,7 +13,7 @@ Configure AniBridge as a Torznab indexer in Prowlarr.
 2. Set URL to your AniBridge Torznab endpoint:
    - `http://anibridge:8000/torznab/api`
 3. If you set `INDEXER_API_KEY`, add it under “API Key”
-4. Categories: include `5070` (Anime)
+4. Click the checkbox "Prefer Magnet URL"
 
 ## Test
 
@@ -23,4 +23,3 @@ Configure AniBridge as a Torznab indexer in Prowlarr.
 
 - Map Prowlarr’s network to reach AniBridge (`docker compose` service name or host IP)
 - Ensure clean URLs aren’t required; Torznab is plain `/torznab/api` with query params
-
