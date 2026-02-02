@@ -1,7 +1,10 @@
 import DefaultTheme from 'vitepress/theme'
-import './custom.css'
 import type { Theme } from 'vitepress'
+import { theme as OpenAPITheme, useOpenapi } from 'vitepress-openapi/client'
+import 'vitepress-openapi/dist/style.css'
+import './custom.css'
 import VideoPlayer from './components/VideoPlayer.vue'
+import spec from '../../src/public/openapi.json' with { type: 'json' }
 
 function sameOrigin(url: string) {
   try {
@@ -60,6 +63,16 @@ const theme: Theme = {
   enhanceApp(ctx) {
     DefaultTheme.enhanceApp?.(ctx)
     const { app, router } = ctx
+    useOpenapi({
+      spec,
+      config: {
+        spec: {
+          groupByTags: true,
+          defaultTag: 'General',
+        },
+      },
+    })
+    OpenAPITheme.enhanceApp?.({ app })
     app.component('VideoPlayer', VideoPlayer)
     if (typeof window !== 'undefined') {
       // Attach initial listeners after hydration

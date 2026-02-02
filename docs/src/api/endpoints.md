@@ -1,58 +1,17 @@
 ---
-title: Endpoints
-outline: deep
+title: API Reference
+outline: false
 ---
 
-# Endpoints
+# API Reference
 
-This page summarizes all public endpoints. See subpages for details.
+This section is generated from the AniBridge OpenAPI specification. Use the tag pages for focused context, or jump straight into an operation page from the sidebar.
 
-## Health
+## Base URL
 
-```http
-GET /health
-```
+`http://localhost:8000` (default development host)
 
-Returns `{ "status": "ok" }`.
+> [!IMPORTANT]
+> If `INDEXER_API_KEY` is set, include `apikey=...` on every Torznab request.
 
-## Jobs
-
-- `POST /downloader/download` — enqueue a direct job
-- `GET /jobs/{job_id}` — job status
-- `GET /jobs/{job_id}/events` — Server-Sent Events (SSE)
-- `DELETE /jobs/{job_id}` — cancel
-
-## Torznab
-
-```http
-GET /torznab/api?t=caps|search|tvsearch&apikey=...&q=...&season=...&ep=...
-```
-
-See [Torznab](/api/torznab) for parameters and XML examples.
-
-## qBittorrent API Shim
-
-Base path: `/api/v2`
-
-- Auth: `POST /auth/login`, `POST /auth/logout`
-- App: `GET /app/version`, `GET /app/webapiVersion`, `GET /app/buildInfo`, `GET /app/preferences`
-- Categories: `GET /torrents/categories`, `POST /torrents/createCategory`, `POST /torrents/editCategory`, `POST /torrents/removeCategories`
-- Torrents: `POST /torrents/add`, `GET /torrents/info`, `GET /torrents/files`, `GET /torrents/properties`, `POST /torrents/delete`
-- Sync: `GET /sync/maindata`
-- Transfer: `GET /transfer/info`
-
-See [qBittorrent Shim](/api/qbittorrent) for payloads and responses.
-
-## Demo: Video Embed (Docs‑only)
-
-Below is a demo of the custom video component used in this documentation site. You can use it in any Markdown page as shown.
-
-<VideoPlayer
-  src="/test.mp4"
-  title="Sample: Flower in 4K"
-  caption="Custom player UI, brand‑matched accent"
-  :autoplay="false"
-  :muted="true"
-  aspect="16 / 9"
-  radius="16px"
-/>
+<OASpec :group-by-tags="true" hide-branding />

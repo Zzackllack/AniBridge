@@ -1,0 +1,13 @@
+---
+title: "{{ $params.pageTitle }}"
+outline: false
+aside: false
+---
+
+<script setup lang="ts">
+import { useData } from 'vitepress'
+
+const { params } = useData()
+</script>
+
+<OAOperation :operationId="params.operationId" :prefix-headings="true" />

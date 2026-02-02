@@ -1,6 +1,6 @@
 ---
 title: Torznab API
-outline: deep
+outline: false
 ---
 
 # Torznab API
@@ -16,33 +16,13 @@ Supported operations via `t`:
 > [!IMPORTANT]
 > If `INDEXER_API_KEY` is set, pass `apikey=...` on every request.
 
-## caps
+<OASpec :tags="['Torznab']" :group-by-tags="true" hide-info hide-servers hide-branding />
 
-```http
-GET /torznab/api?t=caps
-```
-
-Returns an XML with categories, supported params, and limits.
-
-## search
-
-```http
-GET /torznab/api?t=search&q={query}
-```
+## Behavior Notes
 
 - When `q` is empty and `TORZNAB_RETURN_TEST_RESULT=true`, a synthetic test item is returned for connectivity checks.
 - For a query, AniBridge resolves the slug across all enabled catalogues (AniWorld + Serienstream/s.to + megakino by default) and emits preview items for S01E01 across probable languages per site. Megakino is search-only, so queries must provide a slug or a megakino URL containing one.
-
-## tvsearch
-
-```http
-GET /torznab/api?t=tvsearch&q={title}&season={N}&ep={M}
-```
-
-Emits items only for actually available languages/providers (using cached probe or live check). Items include:
-
-- `<enclosure url="magnet:?..." type="application/x-bittorrent;x-scheme-handler/magnet" length="..." />`
-- Torznab attrs: `magneturl`, `size`, `infohash`, `seeders`, `peers`, `leechers`
+- `tvsearch` emits items only for actually available languages/providers (using cached probe or live check).
 
 ## Magnet Payload
 

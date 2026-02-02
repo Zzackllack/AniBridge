@@ -1,7 +1,22 @@
 import { defineConfig, type HeadConfig } from "vitepress";
+import { useSidebar } from "vitepress-openapi";
+import spec from "../src/public/openapi.json" with { type: "json" };
 
 // https://vitepress.dev/reference/site-config
 const siteUrl = "https://anibridge-docs.zacklack.de";
+const apiSidebar = useSidebar({
+  spec,
+  linkPrefix: "/api/operations/",
+  defaultTag: "General",
+});
+const apiOperationGroups = apiSidebar
+  .generateSidebarGroups({
+    linkPrefix: "/api/operations/",
+  })
+  .map((group) => ({
+    ...group,
+    collapsed: true,
+  }));
 
 export default defineConfig({
   head: [
@@ -203,13 +218,18 @@ export default defineConfig({
         {
           text: "API Reference",
           items: [
-            { text: "Endpoints", link: "/api/endpoints" },
+            { text: "Overview", link: "/api/endpoints" },
             { text: "Torznab", link: "/api/torznab" },
             { text: "qBittorrent Shim", link: "/api/qbittorrent" },
             { text: "Jobs & Events", link: "/api/jobs" },
             { text: "Environment", link: "/api/environment" },
             { text: "Data Model", link: "/api/data-model" },
           ],
+        },
+        {
+          text: "Operations",
+          items: apiOperationGroups,
+          collapsed: true,
         },
       ],
       "/integrations/": [
