@@ -561,6 +561,7 @@ changelog.md
 .claude/
 .windsurf/
 .gemini/
+.opencode/
 
 /specs/context
 /specs/007-sto-v2-support/s.to-serien_by=alpha.html

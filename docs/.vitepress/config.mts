@@ -93,7 +93,7 @@ export default defineConfig({
     const rel = (page as any)?.relativePath || "index.md";
     const url = new URL(
       rel.replace(/(^|\/)index\.md$/, "$1").replace(/\.md$/, "/"),
-      siteUrl
+      siteUrl,
     ).toString();
     const baseTitle = (siteConfig as any)?.site?.title || "AniBridge Docs";
     const pageTitle = (page as any)?.title;
@@ -218,7 +218,7 @@ export default defineConfig({
           items: [
             { text: "Prowlarr", link: "/integrations/prowlarr" },
             { text: "Sonarr", link: "/integrations/sonarr" },
-            { text: "Docker Compose", link: "/integrations/docker" },
+            { text: "Radarr", link: "/integrations/radarr" },
           ],
         },
       ],
@@ -240,7 +240,7 @@ export default defineConfig({
       { icon: "github", link: "https://github.com/zzackllack/AniBridge" },
     ],
     editLink: {
-      pattern: "https://github.com/zzackllack/AniBridge/edit/main/docs/:path",
+      pattern: "https://github.com/zzackllack/AniBridge/edit/main/docs/src/:path",
       text: "Edit this page on GitHub",
     },
     lastUpdated: { text: "Updated at" },
