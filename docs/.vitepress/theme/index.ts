@@ -4,7 +4,7 @@ import { theme as OpenAPITheme, useOpenapi } from 'vitepress-openapi/client'
 import 'vitepress-openapi/dist/style.css'
 import './custom.css'
 import VideoPlayer from './components/VideoPlayer.vue'
-import spec from '../../src/public/openapi.json' with { type: 'json' }
+import spec from '../../src/openapi.json'
 
 function sameOrigin(url: string) {
   try {

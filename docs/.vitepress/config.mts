@@ -1,6 +1,6 @@
 import { defineConfig, type HeadConfig } from "vitepress";
 import { useSidebar } from "vitepress-openapi";
-import spec from "../src/public/openapi.json" with { type: "json" };
+import spec from "../src/openapi.json";
 
 // https://vitepress.dev/reference/site-config
 const siteUrl = "https://anibridge-docs.zacklack.de";
@@ -103,6 +103,15 @@ export default defineConfig({
   cleanUrls: true,
   sitemap: {
     hostname: siteUrl,
+  },
+  vite: {
+    // Needed for ESM-only deps that may be used in VitePress config helpers.
+    ssr: {
+      noExternal: ["vitepress-openapi"],
+    },
+    optimizeDeps: {
+      include: ["vitepress-openapi/client"],
+    },
   },
   transformHead: ({ page, siteConfig }) => {
     const rel = (page as any)?.relativePath || "index.md";
