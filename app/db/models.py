@@ -141,7 +141,7 @@ logger.debug("SQLModel engine created.")
 MIGRATION_BASE_REVISION = "20260203_0001"
 
 
-def _get_alembic_config():
+def _get_alembic_config() -> "Config":
     from pathlib import Path
     from alembic.config import Config
 
@@ -194,9 +194,18 @@ def apply_migrations() -> None:
                     "SELECT version_num FROM alembic_version"
                 ).fetchall()
             versions = [row[0] for row in rows if row and row[0]]
-            if not versions and data_tables:
-                logger.info("Alembic version table is empty; stamping base revision.")
-                command.stamp(config, MIGRATION_BASE_REVISION)
+            if not versions:
+                if data_tables:
+                    logger.info(
+                        "Alembic version table is empty; stamping base revision "
+                        "for legacy database."
+                    )
+                    command.stamp(config, MIGRATION_BASE_REVISION)
+                else:
+                    logger.info(
+                        "Alembic version table is empty with no data tables; "
+                        "treating as fresh database."
+                    )
 
         command.upgrade(config, "head")
         logger.success("Database migrations complete.")

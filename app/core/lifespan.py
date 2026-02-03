@@ -99,7 +99,7 @@ async def lifespan(app: FastAPI):
     """
     Manage application startup and shutdown tasks for the given FastAPI application.
 
-    On startup this function performs best-effort initialization: applies global proxy settings, logs proxy and system reports, sends a startup notification, creates the database and tables, resets dangling jobs, initializes the executor, resolves Megakino domain configuration when present, and starts background worker threads (TTL cleanup, IP check, and optional Megakino domain checker).
+    On startup this function performs best-effort initialization: applies global proxy settings, logs proxy and system reports, sends a startup notification, runs database migrations when `DB_MIGRATE_ON_STARTUP` is true (otherwise creates tables directly), resets dangling jobs, initializes the executor, resolves Megakino domain configuration when present, and starts background worker threads (TTL cleanup, IP check, and optional Megakino domain checker).
 
     On shutdown it gracefully stops the executor, disposes the DB engine, and signals background threads to stop by setting their respective stop events.
 
