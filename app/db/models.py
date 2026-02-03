@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Literal, Generator, Any, List
+from typing import Optional, Literal, Generator, Any, List, TYPE_CHECKING
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from loguru import logger
@@ -10,6 +10,9 @@ from loguru import logger
 from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JSON
 from sqlalchemy.orm import registry as sa_registry
 from sqlalchemy.pool import NullPool
+
+if TYPE_CHECKING:
+    from alembic.config import Config
 
 from app.config import AVAILABILITY_TTL_HOURS, DATA_DIR
 
