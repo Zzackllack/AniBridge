@@ -7,7 +7,7 @@ applyTo: '**/*.md'
 
 The following markdown content rules are enforced in the validators:
 
-1. **Headings**: Use appropriate heading levels (H2, H3, etc.) to structure your content. Do not use an H1 heading, as this will be generated based on the title.
+1. **Headings**: Use appropriate heading levels (H1, H2, H3, etc.) to structure your content.
 2. **Lists**: Use bullet points or numbered lists for lists. Ensure proper indentation and spacing.
 3. **Code Blocks**: Use fenced code blocks for code snippets. Specify the language for syntax highlighting.
 4. **Links**: Use proper markdown syntax for links. Ensure that links are valid and accessible.
@@ -32,7 +32,7 @@ Follow these guidelines for formatting and structuring your markdown content:
 
 ## Validation Requirements
 
-Ensure compliance with the following validation requirements:
+Ensure compliance with the following validation requirements (does not apply to specs/specification files):
 
 - **Front Matter**: Include the following fields in the YAML front matter:
 
