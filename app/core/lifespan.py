@@ -28,12 +28,14 @@ from app.config import (
     CLEANUP_SCAN_INTERVAL_MIN,
     CATALOG_SITE_CONFIGS,
     ANIBRIDGE_TEST_MODE,
+    DB_MIGRATE_ON_STARTUP,
 )
 
 from app.core.scheduler import init_executor, shutdown_executor
 from app.db import (
     engine,
     dispose_engine,
+    apply_migrations,
     create_db_and_tables,
     cleanup_dangling_jobs,
 )
@@ -125,7 +127,10 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"notify_on_startup failed: {e}")
     logger.info("Application startup: creating DB and thread pool executor.")
-    create_db_and_tables()
+    if DB_MIGRATE_ON_STARTUP:
+        apply_migrations()
+    else:
+        create_db_and_tables()
     with Session(engine) as s:
         cleaned = cleanup_dangling_jobs(s)
         if cleaned:

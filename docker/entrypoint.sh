@@ -55,15 +55,6 @@ else
   chown "${PUID}:${PGID}" /app 2>/dev/null || true
 fi
 
-# Drop the SQLite cache on every container start -> fresh start because sqlite does not have good support for schema migrations
-DB_PATH="${DATA_DIR_ENV%/}/anibridge_jobs.db"
-if [ -e "$DB_PATH" ] || [ -e "${DB_PATH}-shm" ] || [ -e "${DB_PATH}-wal" ]; then
-  echo "[entrypoint] Removing cached database at $DB_PATH"
-  rm -f "$DB_PATH" "${DB_PATH}-shm" "${DB_PATH}-wal" 2>/dev/null || true
-else
-  echo "[entrypoint] No cached database found at $DB_PATH"
-fi
-
 # Ensure configured download/public paths exist and are owned correctly
 ensure_dir_owned() {
   local d="$1"

@@ -28,6 +28,7 @@ COPY --from=deps /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.
 COPY app/ ./app/
 COPY VERSION ./
 COPY requirements.runtime.txt ./
+COPY alembic.ini ./
 
 # Prepare writable data directory for runtime mounts (ownership finalized at runtime)
 RUN mkdir -p /data
