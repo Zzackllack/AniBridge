@@ -14,6 +14,7 @@
 - Configurable via `PUID`, `PGID`, `CHOWN_RECURSIVE`.
 - Ensures directories exist and have correct ownership.
 - Handles optional download/public paths.
+- Does not run migrations; schema changes are applied in app startup.
 
 ## Images
 
@@ -28,6 +29,7 @@
 - Ports: `8000:8000`.
 - Volume: `./data:/data` (DB, downloads, logs).
 - Healthcheck uses curl to `/health`.
+- Migrations run at app startup when `DB_MIGRATE_ON_STARTUP=true` (default).
 
 ### `docker-compose.dev.yaml`
 

@@ -12,7 +12,7 @@
 ## Episode Availability Cache
 
 - EpisodeAvailability (SQLModel)
-  - Composite key: slug, season, episode, language.
+  - Composite key: slug, season, episode, language, site.
   - Tracks provider availability and quality metadata.
   - `is_fresh` validates TTL against `AVAILABILITY_TTL_HOURS`.
 
@@ -22,9 +22,15 @@
 
 ## SQL Engine Helpers
 
-- `create_db_and_tables()` ensures tables exist on startup.
+- `apply_migrations()` runs Alembic migrations (default at app startup).
+- `create_db_and_tables()` creates tables directly (used for tests/legacy paths).
 - `cleanup_dangling_jobs()` resets jobs stuck in non-terminal state to `failed`.
 - `dispose_engine()` closes engine on shutdown/testing.
+
+## Migrations
+
+- Alembic configuration lives in `alembic.ini`.
+- Migration scripts live in `app/db/migrations/versions`.
 
 ## Data Directory
 
