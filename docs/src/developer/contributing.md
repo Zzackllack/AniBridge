@@ -16,13 +16,13 @@ Please read and adhere to our [Code of Conduct](https://raw.githubusercontent.co
 
 This repository uses [uv](https://docs.astral.sh/uv/). It is **highly recommended** to use it for development. Install it first if you haven't already:
 
-### MacOS
+### macOS
 
 ```bash
 brew install uv
 ```
 
-### Linux/MacOS
+### Linux/macOS
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -62,7 +62,7 @@ Or directly with Python:
 python -m app.main
 ```
 
-Test changes to github workflows using a tool like [act](https://github.com/nektos/act).
+Test changes to GitHub workflows using a tool like [act](https://github.com/nektos/act).
 
 ## Testing
 
@@ -81,7 +81,7 @@ pytest
 
 ## Commit Messages
 
-We follow the Conventional Commits specification: https://www.conventionalcommits.org/en/v1.0.0/#specification
+We follow the [Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/#specification).
 
 ## Codeowners
 

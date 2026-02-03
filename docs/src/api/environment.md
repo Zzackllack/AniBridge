@@ -91,6 +91,7 @@ Comprehensive list of env vars read in `app/config.py`.
   - `*`: allow all origins (default).
   - CSV list: allow only those origins (example: `http://localhost:5173,http://127.0.0.1:5173`).
   - `off`/`none`: disable CORS middleware entirely.
+- `ANIBRIDGE_CORS_ALLOW_CREDENTIALS` (default: `true`) — whether to include `Access-Control-Allow-Credentials: true` when CORS is enabled with non-wildcard origins. Ignored when `ANIBRIDGE_CORS_ORIGINS=*` (credentials are always disabled for wildcard origins).
 
 > [!WARNING]
 > Proxy support is experimental. Use a full VPN (or a Gluetun sidecar in Docker) for stable production operation.

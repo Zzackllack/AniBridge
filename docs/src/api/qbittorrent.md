@@ -1,6 +1,21 @@
 ---
 title: qBittorrent API Shim
 outline: false
+post_title: qBittorrent API Shim
+author1: Zack Lack
+post_slug: qbittorrent-api-shim
+microsoft_alias: zzackllack
+featured_image: /logo.png
+categories:
+  - API
+tags:
+  - qbittorrent
+  - api
+  - sonarr
+  - prowlarr
+ai_note: Updated with AI assistance; reviewed by maintainers.
+summary: Minimal qBittorrent-compatible endpoints used by *arr clients, backed by AniBridge jobs.
+post_date: 2026-02-03
 ---
 
 # qBittorrent API Shim

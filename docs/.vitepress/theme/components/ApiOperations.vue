@@ -6,6 +6,18 @@ import spec from '../../../src/openapi.json'
 
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head'
 
+type OpenAPIOperationObject = {
+  operationId?: string
+  summary?: string
+  tags?: string[]
+}
+
+type OpenAPIPathItemObject = Partial<Record<HttpMethod, OpenAPIOperationObject>>
+
+type OpenAPISpec = {
+  paths?: Record<string, OpenAPIPathItemObject>
+}
+
 type OperationEntry = {
   operationId: string
   method: HttpMethod
@@ -34,8 +46,8 @@ const allOperations = computed<OperationEntry[]>(() => {
   const methods: HttpMethod[] = ['get', 'post', 'put', 'patch', 'delete', 'options', 'head']
   const out: OperationEntry[] = []
 
-  const paths = (spec as any)?.paths ?? {}
-  for (const [path, def] of Object.entries<any>(paths)) {
+  const paths = (spec as OpenAPISpec).paths ?? {}
+  for (const [path, def] of Object.entries(paths)) {
     for (const method of methods) {
       const op = def?.[method]
       if (!op?.operationId) continue
@@ -83,6 +95,8 @@ const filteredOperations = computed(() => {
 const groupedByTag = computed(() => {
   const groups = new Map<string, OperationEntry[]>()
   for (const op of filteredOperations.value) {
+    // Intentionally show multi-tag operations under each matching tag.
+    // This improves discoverability when users browse by domain area.
     for (const tag of op.tags.length ? op.tags : ['General']) {
       if (props.tags?.length && !props.tags.includes(tag)) continue
       const list = groups.get(tag) ?? []
@@ -123,6 +137,7 @@ onMounted(() => {
         </summary>
         <ul class="items">
           <li v-for="op in g.ops" :key="op.operationId" class="item">
+            <!-- Provided globally by vitepress-openapi via OpenAPITheme.enhanceApp -->
             <OAOperationLink
               :href="hrefFor(op.operationId)"
               :method="op.method"

@@ -1,8 +1,21 @@
 import spec from '../../openapi.json'
 
+type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head'
+
+type OpenAPIOperationObject = {
+  operationId?: string
+  summary?: string
+}
+
+type OpenAPIPathItemObject = Partial<Record<HttpMethod, OpenAPIOperationObject>>
+
+type OpenAPISpec = {
+  paths?: Record<string, OpenAPIPathItemObject>
+}
+
 export default {
   paths() {
-    const methods = [
+    const methods: readonly HttpMethod[] = [
       'get',
       'post',
       'put',
@@ -10,12 +23,12 @@ export default {
       'delete',
       'options',
       'head',
-    ] as const
+    ]
 
     const out: Array<{ params: { operationId: string; pageTitle: string } }> = []
-    const paths = (spec as any)?.paths ?? {}
+    const paths = (spec as OpenAPISpec).paths ?? {}
 
-    for (const [path, def] of Object.entries<any>(paths)) {
+    for (const [path, def] of Object.entries(paths)) {
       for (const method of methods) {
         const op = def?.[method]
         if (!op) continue
