@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from loguru import logger
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 
 from app.core.bootstrap import init as bootstrap_init
 from app.core.lifespan import lifespan
@@ -10,6 +11,7 @@ from app.api.qbittorrent import router as qbittorrent_router
 from app.api.health import router as health_router
 from app.api.legacy_downloader import router as legacy_router
 from app.cli import run_server
+from app.config import ANIBRIDGE_CORS_ORIGINS
 from app.utils.logger import config as configure_logger
 
 configure_logger()
@@ -18,6 +20,16 @@ bootstrap_init()
 
 
 app = FastAPI(title="AniBridge-Minimal", lifespan=lifespan)
+if ANIBRIDGE_CORS_ORIGINS:
+    is_wildcard = "*" in ANIBRIDGE_CORS_ORIGINS
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"] if is_wildcard else ANIBRIDGE_CORS_ORIGINS,
+        # Credentials cannot be used with wildcard origins.
+        allow_credentials=False if is_wildcard else True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 app.include_router(torznab_router)
 app.include_router(qbittorrent_router)
 app.include_router(health_router)

@@ -11,6 +11,7 @@
 
 - Version source: `VERSION` file.
 - `Makefile` provides `patch`, `minor`, `major` targets using `bump2version`.
+- Version bumps also update `docs/src/openapi.json` (`info.version`) and `docs/package.json` (`version`) for the docs API reference.
 - Python distributions built via `python -m build`.
 - PyInstaller builds use `anibridge.spec` and `hooks/hook-fake_useragent.py`.
 - Releases publish artifacts and SHA256 checksums via GitHub Actions on tag push.
