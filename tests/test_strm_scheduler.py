@@ -21,6 +21,7 @@ def _setup_scheduler(tmp_path, monkeypatch):
     download_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("DATA_DIR", str(data_dir))
     monkeypatch.setenv("DOWNLOAD_DIR", str(download_dir))
+    monkeypatch.setenv("DB_MIGRATE_ON_STARTUP", "0")
 
     import sys
 
