@@ -3,26 +3,105 @@ title: Contributing
 outline: deep
 ---
 
-# Contributing
+# Contributing to AniBridge
 
-We welcome contributions. Please follow the existing style and keep changes focused.
+Thank you for your interest in improving AniBridge! The following guidelines will help you get
+started.
 
-## Setup
+## Code of Conduct
+
+Please read and adhere to our [Code of Conduct](https://raw.githubusercontent.com/Zzackllack/AniBridge/refs/heads/main/CODE_OF_CONDUCT.md).
+
+## Development Setup
+
+This repository uses [uv](https://docs.astral.sh/uv/). It is **highly recommended** to use it for development. Install it first if you haven't already:
+
+### macOS
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt -r requirements-dev.txt
+brew install uv
 ```
 
-## Guidelines
+### Linux/macOS
 
-- Python 3.12+, type hints preferred
-- Format with `ruff format`
-- Add tests for new behavior
-- Keep logs user-friendly and actionable
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
-## PRs
+### Windows
 
-- Use descriptive titles
-- Explain the change and testing performed
-- Target small, focused diffs
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+*Or via winget:*
+
+```powershell
+winget install --id=astral-sh.uv  -e
+```
+
+### Setting up the development environment
+
+```bash
+git clone https://github.com/zzackllack/AniBridge.git
+cd AniBridge
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements-dev.txt
+```
+
+Run the application locally with:
+
+```bash
+uv run -m app.main
+```
+
+Or directly with Python:
+
+```bash
+python -m app.main
+```
+
+Test changes to GitHub workflows using a tool like [act](https://github.com/nektos/act).
+
+## Testing
+
+Before submitting a pull request ensure that all tests pass:
+
+```bash
+pytest
+```
+
+## Code Style
+
+- Follow Python Enhancement Proposals (PEPs) for style and best practices. Especially PEP 8 and PEP 257.
+- Format Python code with `ruff format`. And lint with `ruff check`.
+- Keep imports tidy and avoid unused code.
+- Update documentation and comments when behavior changes.
+
+## Commit Messages
+
+We follow the [Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/#specification).
+
+## Codeowners
+
+The codeowners for this repository are listed in the [CODEOWNERS](https://raw.githubusercontent.com/Zzackllack/AniBridge/refs/heads/main/.github/CODEOWNERS) file. Please update it as necessary when making changes to the codebase.
+
+Conventions and tips you should follow when editing the CODEOWNERS file:
+
+- The last matching rule wins, so put broad rules first and narrow overrides later.
+- Paths are repository-rooted and support `*` and `**` globs.
+- Only `CODEOWNERS`, `.github/CODEOWNERS`, or `docs/CODEOWNERS` are recognized by GitHub.
+- Use @org/team for teams.
+
+## Pull Request Process
+
+1. Fork the repository and create a new branch.
+2. Make your changes, including tests and docs.
+3. Run `ruff format` on modified files and execute `pytest`.
+4. Commit with clear messages and push your branch.
+5. Open a Pull Request describing your changes.
+
+## Questions?
+
+Feel free to open an issue if you need help with contributing.

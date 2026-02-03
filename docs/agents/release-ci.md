@@ -11,9 +11,14 @@
 
 - Version source: `VERSION` file.
 - `Makefile` provides `patch`, `minor`, `major` targets using `bump2version`.
+- Version bumps also update `docs/src/openapi.json` (`info.version`) and `docs/package.json` (`version`) for the docs API reference.
 - Python distributions built via `python -m build`.
 - PyInstaller builds use `anibridge.spec` and `hooks/hook-fake_useragent.py`.
 - Releases publish artifacts and SHA256 checksums via GitHub Actions on tag push.
+
+## Docs Build (Cloudflare)
+
+Cloudflare uses `npm ci` for docs builds. Because this repo uses `vitepress@2.0.0-alpha.*`, npm may treat it as not satisfying peer ranges unless peer checks are relaxed. We ship `docs/.npmrc` with `legacy-peer-deps=true` to make CI installs deterministic.
 
 ## Release Playbook
 

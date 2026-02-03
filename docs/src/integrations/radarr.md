@@ -18,8 +18,12 @@ Point Radarr at AniBridge’s qBittorrent-compatible API.
    - Host: `anibridge` (or `localhost`)
    - Port: `8000`
 3. Username/Password: any (auth is stubbed)
-4. Category: `prowlarr` (or a custom one you create via API)
+4. Category: `prowlarr` or none (or a custom one you create via API)
 5. Test and Save
+
+## Configure AniBridge Indexer to only use the AniBridge Download Client
+
+1. Radarr → Settings → Indexers → [your Indexer Name (Prowlarr)] → Make sure the hidden/advanced settings are shown (gear icon bottom right) → Downloader → Select `AniBridge` (or whatever you named the qBittorrent client above)
 
 ## Completed Download Handling
 
