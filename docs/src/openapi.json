@@ -1,0 +1,792 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AniBridge API",
+    "version": "2.0.0",
+    "description": "AniBridge exposes a Torznab feed and a qBittorrent-compatible API shim for *arr automation. This specification documents the public HTTP endpoints."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Service status endpoints."
+    },
+    {
+      "name": "Jobs",
+      "description": "Queue and job lifecycle endpoints."
+    },
+    {
+      "name": "Torznab",
+      "description": "Torznab indexer feed endpoints."
+    },
+    {
+      "name": "qBittorrent Auth",
+      "description": "Authentication shim endpoints."
+    },
+    {
+      "name": "qBittorrent Torrents",
+      "description": "Torrent lifecycle endpoints."
+    },
+    {
+      "name": "qBittorrent Categories",
+      "description": "Category management endpoints."
+    },
+    {
+      "name": "qBittorrent Sync",
+      "description": "Sync state endpoints."
+    },
+    {
+      "name": "qBittorrent Transfer",
+      "description": "Transfer stats endpoints."
+    },
+    {
+      "name": "qBittorrent App",
+      "description": "App metadata and preferences endpoints."
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Service is up.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/downloader/download": {
+      "post": {
+        "tags": ["Jobs"],
+        "summary": "Enqueue a direct download job",
+        "operationId": "createDownloadJob",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DownloadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCreateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}": {
+      "get": {
+        "tags": ["Jobs"],
+        "summary": "Get job status",
+        "operationId": "getJobStatus",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Jobs"],
+        "summary": "Cancel a job",
+        "operationId": "cancelJob",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancellation accepted or rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCancelResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}/events": {
+      "get": {
+        "tags": ["Jobs"],
+        "summary": "Stream job events (SSE)",
+        "operationId": "streamJobEvents",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server-sent events stream.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/torznab/api": {
+      "get": {
+        "tags": ["Torznab"],
+        "summary": "Torznab query (caps, search, tvsearch)",
+        "operationId": "torznabQuery",
+        "parameters": [
+          {
+            "name": "t",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["caps", "search", "tvsearch"]
+            },
+            "description": "Operation type."
+          },
+          {
+            "name": "apikey",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required when INDEXER_API_KEY is set."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Query string (search/tvsearch)."
+          },
+          {
+            "name": "season",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "Season number (tvsearch)."
+          },
+          {
+            "name": "ep",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "Episode number (tvsearch)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Torznab XML response.",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/auth/login": {
+      "post": {
+        "tags": ["qBittorrent Auth"],
+        "summary": "Login (stubbed)",
+        "operationId": "qbittorrentLogin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Always succeeds and sets a SID cookie.",
+            "content": {
+              "text/plain": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/auth/logout": {
+      "post": {
+        "tags": ["qBittorrent Auth"],
+        "summary": "Logout",
+        "operationId": "qbittorrentLogout",
+        "responses": {
+          "200": {
+            "description": "Logout acknowledged.",
+            "content": {
+              "text/plain": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/torrents/add": {
+      "post": {
+        "tags": ["qBittorrent Torrents"],
+        "summary": "Add torrent(s)",
+        "operationId": "qbittorrentAddTorrents",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "urls": {
+                    "type": "string",
+                    "description": "One or more magnet URLs separated by newlines."
+                  },
+                  "category": { "type": "string" },
+                  "savepath": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Enqueued.",
+            "content": {
+              "text/plain": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/torrents/info": {
+      "get": {
+        "tags": ["qBittorrent Torrents"],
+        "summary": "List torrents",
+        "operationId": "qbittorrentListTorrents",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of torrents.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/TorrentInfo" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/torrents/files": {
+      "get": {
+        "tags": ["qBittorrent Torrents"],
+        "summary": "List torrent files",
+        "operationId": "qbittorrentTorrentFiles",
+        "parameters": [
+          {
+            "name": "hash",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Single-file view for the torrent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/TorrentFile" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/torrents/properties": {
+      "get": {
+        "tags": ["qBittorrent Torrents"],
+        "summary": "Torrent properties",
+        "operationId": "qbittorrentTorrentProperties",
+        "parameters": [
+          {
+            "name": "hash",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Torrent properties.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TorrentProperties" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/torrents/delete": {
+      "post": {
+        "tags": ["qBittorrent Torrents"],
+        "summary": "Delete torrents",
+        "operationId": "qbittorrentDeleteTorrents",
+        "parameters": [
+          {
+            "name": "hashes",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Pipe-delimited list of hashes."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delete acknowledged.",
+            "content": {
+              "text/plain": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/torrents/categories": {
+      "get": {
+        "tags": ["qBittorrent Categories"],
+        "summary": "List categories",
+        "operationId": "qbittorrentListCategories",
+        "responses": {
+          "200": {
+            "description": "Map of categories.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CategoryMap" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/torrents/createCategory": {
+      "post": {
+        "tags": ["qBittorrent Categories"],
+        "summary": "Create category",
+        "operationId": "qbittorrentCreateCategory",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "category": { "type": "string" },
+                  "savePath": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Category created.",
+            "content": {
+              "text/plain": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/torrents/editCategory": {
+      "post": {
+        "tags": ["qBittorrent Categories"],
+        "summary": "Edit category",
+        "operationId": "qbittorrentEditCategory",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "category": { "type": "string" },
+                  "savePath": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Category updated.",
+            "content": {
+              "text/plain": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/torrents/removeCategories": {
+      "post": {
+        "tags": ["qBittorrent Categories"],
+        "summary": "Remove categories",
+        "operationId": "qbittorrentRemoveCategories",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "categories": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Categories removed.",
+            "content": {
+              "text/plain": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/sync/maindata": {
+      "get": {
+        "tags": ["qBittorrent Sync"],
+        "summary": "Sync main data",
+        "operationId": "qbittorrentSyncMainData",
+        "responses": {
+          "200": {
+            "description": "Sync payload.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SyncMainData" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/transfer/info": {
+      "get": {
+        "tags": ["qBittorrent Transfer"],
+        "summary": "Transfer info",
+        "operationId": "qbittorrentTransferInfo",
+        "responses": {
+          "200": {
+            "description": "Transfer stats.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TransferInfo" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/app/version": {
+      "get": {
+        "tags": ["qBittorrent App"],
+        "summary": "App version",
+        "operationId": "qbittorrentAppVersion",
+        "responses": {
+          "200": {
+            "description": "Version string.",
+            "content": {
+              "text/plain": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/app/webapiVersion": {
+      "get": {
+        "tags": ["qBittorrent App"],
+        "summary": "Web API version",
+        "operationId": "qbittorrentAppWebApiVersion",
+        "responses": {
+          "200": {
+            "description": "Web API version string.",
+            "content": {
+              "text/plain": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/app/buildInfo": {
+      "get": {
+        "tags": ["qBittorrent App"],
+        "summary": "Build info",
+        "operationId": "qbittorrentAppBuildInfo",
+        "responses": {
+          "200": {
+            "description": "Build metadata.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AppBuildInfo" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/app/preferences": {
+      "get": {
+        "tags": ["qBittorrent App"],
+        "summary": "Preferences",
+        "operationId": "qbittorrentAppPreferences",
+        "responses": {
+          "200": {
+            "description": "Preference payload.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AppPreferences" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "ok" }
+        },
+        "required": ["status"]
+      },
+      "DownloadRequest": {
+        "type": "object",
+        "properties": {
+          "slug": { "type": "string" },
+          "season": { "type": "integer", "minimum": 0 },
+          "episode": { "type": "integer", "minimum": 0 },
+          "language": { "type": "string" },
+          "link": { "type": "string" },
+          "provider": { "type": "string" },
+          "title_hint": { "type": "string" }
+        },
+        "description": "Provide either slug/season/episode/language or a direct link with optional hints."
+      },
+      "JobCreateResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": { "type": "string" }
+        },
+        "required": ["job_id"]
+      },
+      "JobStatus": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["queued", "downloading", "completed", "failed", "cancelled"]
+          },
+          "progress": { "type": "number", "format": "float" },
+          "downloaded_bytes": { "type": "integer", "format": "int64" },
+          "total_bytes": { "type": "integer", "format": "int64" },
+          "speed": { "type": "integer", "format": "int64" },
+          "eta": { "type": "integer", "format": "int64" },
+          "message": { "type": "string", "nullable": true },
+          "result_path": { "type": "string", "nullable": true }
+        },
+        "required": ["id", "status", "progress"]
+      },
+      "JobCancelResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["cancelling", "not-running"]
+          }
+        },
+        "required": ["status"]
+      },
+      "TorrentInfo": {
+        "type": "object",
+        "properties": {
+          "hash": { "type": "string" },
+          "name": { "type": "string" },
+          "progress": { "type": "number", "format": "float" },
+          "state": { "type": "string" },
+          "size": { "type": "integer", "format": "int64" },
+          "save_path": { "type": "string" },
+          "content_path": { "type": "string" },
+          "added_on": { "type": "integer", "format": "int64" },
+          "completion_on": { "type": "integer", "format": "int64" }
+        }
+      },
+      "TorrentFile": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "size": { "type": "integer", "format": "int64" },
+          "progress": { "type": "number", "format": "float" }
+        }
+      },
+      "TorrentProperties": {
+        "type": "object",
+        "properties": {
+          "save_path": { "type": "string" },
+          "total_size": { "type": "integer", "format": "int64" },
+          "comment": { "type": "string" }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "savePath": { "type": "string" }
+        }
+      },
+      "CategoryMap": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/Category"
+        }
+      },
+      "SyncMainData": {
+        "type": "object",
+        "properties": {
+          "torrents": { "type": "object" },
+          "categories": { "$ref": "#/components/schemas/CategoryMap" },
+          "server_state": { "type": "object" }
+        }
+      },
+      "TransferInfo": {
+        "type": "object",
+        "properties": {
+          "dl_info_speed": { "type": "integer", "format": "int64" },
+          "up_info_speed": { "type": "integer", "format": "int64" },
+          "dl_info_data": { "type": "integer", "format": "int64" },
+          "up_info_data": { "type": "integer", "format": "int64" }
+        }
+      },
+      "AppBuildInfo": {
+        "type": "object",
+        "properties": {
+          "qt": { "type": "string" },
+          "libtorrent": { "type": "string" },
+          "boost": { "type": "string" }
+        }
+      },
+      "AppPreferences": {
+        "type": "object",
+        "properties": {
+          "save_path": { "type": "string" },
+          "temp_path_enabled": { "type": "boolean" },
+          "temp_path": { "type": "string" }
+        }
+      }
+    }
+  }
+}

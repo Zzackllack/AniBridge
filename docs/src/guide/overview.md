@@ -40,7 +40,7 @@ It targets AniWorld for anime, Serienstream/s.to for general series, and megakin
 - `GET /torznab/api`: Torznab endpoint (caps/search/tvsearch)
 - `POST /api/v2/torrents/add`: qBittorrent shim to add a task
 
-See the full [API Reference](/api/endpoints) for parameters and examples.
+See the full [API Reference](/api/overview) for parameters and examples.
 
 ## Typical Flow
 
