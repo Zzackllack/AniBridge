@@ -195,9 +195,7 @@ def apply_migrations() -> None:
                 ).fetchall()
             versions = [row[0] for row in rows if row and row[0]]
             if not versions and data_tables:
-                logger.info(
-                    "Alembic version table is empty; stamping base revision."
-                )
+                logger.info("Alembic version table is empty; stamping base revision.")
                 command.stamp(config, MIGRATION_BASE_REVISION)
 
         command.upgrade(config, "head")
