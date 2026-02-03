@@ -9,7 +9,9 @@ Base: `/api/v2`
 
 AniBridge implements a minimal subset that Sonarr/Prowlarr use. Authentication is stubbed; any credentials are accepted and a `SID` cookie is set.
 
-<OASpec
+## Operations
+
+<ApiOperations
   :tags="[
     'qBittorrent Auth',
     'qBittorrent Torrents',
@@ -18,10 +20,6 @@ AniBridge implements a minimal subset that Sonarr/Prowlarr use. Authentication i
     'qBittorrent Transfer',
     'qBittorrent App'
   ]"
-  :group-by-tags="true"
-  hide-info
-  hide-servers
-  hide-branding
 />
 
 ## Behavior Notes

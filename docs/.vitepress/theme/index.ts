@@ -4,6 +4,7 @@ import { theme as OpenAPITheme, useOpenapi } from 'vitepress-openapi/client'
 import 'vitepress-openapi/dist/style.css'
 import './custom.css'
 import VideoPlayer from './components/VideoPlayer.vue'
+import ApiOperations from './components/ApiOperations.vue'
 import spec from '../../src/openapi.json'
 
 function sameOrigin(url: string) {
@@ -74,6 +75,7 @@ const theme: Theme = {
     })
     OpenAPITheme.enhanceApp?.({ app })
     app.component('VideoPlayer', VideoPlayer)
+    app.component('ApiOperations', ApiOperations)
     if (typeof window !== 'undefined') {
       // Attach initial listeners after hydration
       setTimeout(() => {

@@ -7,7 +7,9 @@ outline: false
 
 AniBridge exposes a simple job model with progress tracking and SSE.
 
-<OASpec :tags="['Jobs']" :group-by-tags="true" hide-info hide-servers hide-branding />
+## Operations
+
+<ApiOperations :tags="['Jobs']" />
 
 ## Enqueue Example
 

@@ -15,7 +15,7 @@ const apiOperationGroups = apiSidebar
   })
   .map((group) => ({
     ...group,
-    collapsed: true,
+    collapsed: false,
   }));
 
 export default defineConfig({
@@ -199,7 +199,7 @@ export default defineConfig({
     siteTitle: "AniBridge",
     nav: [
       { text: "Guide", link: "/guide/overview" },
-      { text: "API", link: "/api/endpoints" },
+      { text: "API", link: "/api/overview" },
       { text: "Integrations", link: "/integrations/prowlarr" },
       { text: "Developer", link: "/developer/running" },
       { text: "Legal", link: "/legal" },
@@ -227,7 +227,7 @@ export default defineConfig({
         {
           text: "API Reference",
           items: [
-            { text: "Overview", link: "/api/endpoints" },
+            { text: "Overview", link: "/api/overview" },
             { text: "Torznab", link: "/api/torznab" },
             { text: "qBittorrent Shim", link: "/api/qbittorrent" },
             { text: "Jobs & Events", link: "/api/jobs" },
@@ -238,7 +238,7 @@ export default defineConfig({
         {
           text: "Operations",
           items: apiOperationGroups,
-          collapsed: true,
+          collapsed: false,
         },
       ],
       "/integrations/": [

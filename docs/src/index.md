@@ -14,7 +14,7 @@ hero:
       link: /guide/quickstart
     - theme: alt
       text: API Reference
-      link: /api/endpoints
+      link: /api/overview
     - theme: alt
       text: GitHub
       link: https://github.com/zzackllack/AniBridge

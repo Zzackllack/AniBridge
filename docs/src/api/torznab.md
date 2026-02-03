@@ -16,7 +16,9 @@ Supported operations via `t`:
 > [!IMPORTANT]
 > If `INDEXER_API_KEY` is set, pass `apikey=...` on every request.
 
-<OASpec :tags="['Torznab']" :group-by-tags="true" hide-info hide-servers hide-branding />
+## Operations
+
+<ApiOperations :tags="['Torznab']" />
 
 ## Behavior Notes
 
