@@ -1,7 +1,22 @@
 import { defineConfig, type HeadConfig } from "vitepress";
+import { useSidebar } from "vitepress-openapi";
+import spec from "../src/openapi.json";
 
 // https://vitepress.dev/reference/site-config
 const siteUrl = "https://anibridge-docs.zacklack.de";
+const apiSidebar = useSidebar({
+  spec,
+  linkPrefix: "/api/operations/",
+  defaultTag: "General",
+});
+const apiOperationGroups = apiSidebar
+  .generateSidebarGroups({
+    linkPrefix: "/api/operations/",
+  })
+  .map((group) => ({
+    ...group,
+    collapsed: false,
+  }));
 
 export default defineConfig({
   head: [
@@ -89,6 +104,15 @@ export default defineConfig({
   sitemap: {
     hostname: siteUrl,
   },
+  vite: {
+    // Needed for ESM-only deps that may be used in VitePress config helpers.
+    ssr: {
+      noExternal: ["vitepress-openapi"],
+    },
+    optimizeDeps: {
+      include: ["vitepress-openapi/client"],
+    },
+  },
   transformHead: ({ page, siteConfig }) => {
     const rel = (page as any)?.relativePath || "index.md";
     const url = new URL(
@@ -175,7 +199,7 @@ export default defineConfig({
     siteTitle: "AniBridge",
     nav: [
       { text: "Guide", link: "/guide/overview" },
-      { text: "API", link: "/api/endpoints" },
+      { text: "API", link: "/api/overview" },
       { text: "Integrations", link: "/integrations/prowlarr" },
       { text: "Developer", link: "/developer/running" },
       { text: "Legal", link: "/legal" },
@@ -203,13 +227,18 @@ export default defineConfig({
         {
           text: "API Reference",
           items: [
-            { text: "Endpoints", link: "/api/endpoints" },
+            { text: "Overview", link: "/api/overview" },
             { text: "Torznab", link: "/api/torznab" },
             { text: "qBittorrent Shim", link: "/api/qbittorrent" },
             { text: "Jobs & Events", link: "/api/jobs" },
             { text: "Environment", link: "/api/environment" },
             { text: "Data Model", link: "/api/data-model" },
           ],
+        },
+        {
+          text: "Operations",
+          items: apiOperationGroups,
+          collapsed: false,
         },
       ],
       "/integrations/": [

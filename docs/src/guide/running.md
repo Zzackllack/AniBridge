@@ -19,7 +19,7 @@ python -m app.main
 ```
 
 - Health: `GET /health`
-- Docs: see [API](/api/endpoints) for curl examples
+- Docs: see [API](/api/overview) for curl examples
 
 ## Docker Compose
 
