@@ -5,6 +5,7 @@ yt-dlp
 pydantic
 sqlmodel
 SQLAlchemy
+alembic
 tqdm
 ruff
 loguru

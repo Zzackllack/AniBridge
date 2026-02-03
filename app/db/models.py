@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Literal, Generator, Any, List
+from typing import Optional, Literal, Generator, Any, List, TYPE_CHECKING
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from loguru import logger
@@ -10,6 +10,9 @@ from loguru import logger
 from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JSON
 from sqlalchemy.orm import registry as sa_registry
 from sqlalchemy.pool import NullPool
+
+if TYPE_CHECKING:
+    from alembic.config import Config
 
 from app.config import AVAILABILITY_TTL_HOURS, DATA_DIR
 
@@ -138,88 +141,91 @@ engine = create_engine(
 )
 logger.debug("SQLModel engine created.")
 
+MIGRATION_BASE_REVISION = "20260203_0001"
 
-def _migrate_episode_availability_table() -> None:
+
+def _get_alembic_config() -> "Config":
+    from pathlib import Path
+    from alembic.config import Config
+
+    config_path: Path | None = None
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "alembic.ini"
+        if candidate.exists():
+            config_path = candidate
+            break
+
+    if config_path is not None:
+        config = Config(str(config_path))
+    else:
+        logger.warning("Alembic config not found; using defaults.")
+        config = Config()
+
+    migrations_path = Path(__file__).resolve().parent / "migrations"
+    config.set_main_option("script_location", str(migrations_path))
+    config.set_main_option("sqlalchemy.url", DATABASE_URL)
+    return config
+
+
+def apply_migrations() -> None:
     """
-    Ensure the episodeavailability table includes the site column in its primary key.
-    Performs an in-place SQLite migration when running against an existing database
-    created before multi-site support was introduced.
+    Apply Alembic migrations, including a bootstrap step for legacy databases
+    that predate Alembic versioning.
     """
+    from alembic import command
+    from sqlalchemy import inspect
+
+    logger.debug("Applying DB migrations.")
     try:
-        with engine.begin() as conn:
-            table_present = conn.exec_driver_sql(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='episodeavailability'"
-            ).fetchone()
-            if not table_present:
-                logger.debug(
-                    "episodeavailability table not found; no migration necessary."
-                )
+        config = _get_alembic_config()
+        inspector = inspect(engine)
+        tables = set(inspector.get_table_names())
+        has_version = "alembic_version" in tables
+        data_tables = tables - {"alembic_version"}
+
+        if not has_version:
+            if not tables:
+                command.upgrade(config, "head")
+                logger.success("Database created via Alembic migrations.")
                 return
 
-            columns = conn.exec_driver_sql(
-                "PRAGMA table_info('episodeavailability')"
-            ).fetchall()
-            if any(col[1] == "site" for col in columns):
-                logger.debug(
-                    "episodeavailability table already contains 'site' column."
-                )
-                return
+            logger.info("Legacy database detected; stamping base revision.")
+            command.stamp(config, MIGRATION_BASE_REVISION)
+        else:
+            with engine.begin() as conn:
+                rows = conn.exec_driver_sql(
+                    "SELECT version_num FROM alembic_version"
+                ).fetchall()
+            versions = [row[0] for row in rows if row and row[0]]
+            if not versions:
+                if data_tables:
+                    logger.info(
+                        "Alembic version table is empty; stamping base revision "
+                        "for legacy database."
+                    )
+                    command.stamp(config, MIGRATION_BASE_REVISION)
+                else:
+                    logger.info(
+                        "Alembic version table is empty with no data tables; "
+                        "treating as fresh database."
+                    )
 
-            logger.info("Migrating episodeavailability table to include site column.")
-            conn.exec_driver_sql("""
-                CREATE TABLE episodeavailability_new (
-                    slug TEXT NOT NULL,
-                    season INTEGER NOT NULL,
-                    episode INTEGER NOT NULL,
-                    language TEXT NOT NULL,
-                    site TEXT NOT NULL DEFAULT 'aniworld.to',
-                    available BOOLEAN NOT NULL,
-                    height INTEGER,
-                    vcodec TEXT,
-                    provider TEXT,
-                    checked_at DATETIME NOT NULL,
-                    extra JSON,
-                    PRIMARY KEY (slug, season, episode, language, site)
-                )
-                """)
-            conn.exec_driver_sql("""
-                INSERT INTO episodeavailability_new (
-                    slug, season, episode, language, site,
-                    available, height, vcodec, provider, checked_at, extra
-                )
-                SELECT
-                    slug, season, episode, language,
-                    'aniworld.to' AS site,
-                    available, height, vcodec, provider, checked_at, extra
-                FROM episodeavailability
-                """)
-            conn.exec_driver_sql("DROP TABLE episodeavailability")
-            conn.exec_driver_sql(
-                "ALTER TABLE episodeavailability_new RENAME TO episodeavailability"
-            )
-            conn.exec_driver_sql(
-                "CREATE INDEX ix_episodeavailability_checked_at ON episodeavailability(checked_at)"
-            )
-            logger.success("episodeavailability table migrated to include site column.")
-    except Exception as exc:
-        logger.error(f"Failed to migrate episodeavailability table: {exc}")
+        command.upgrade(config, "head")
+        logger.success("Database migrations complete.")
+    except Exception as e:
+        logger.error(f"Error applying DB migrations: {e}")
         raise
 
 
 def create_db_and_tables() -> None:
-    """
-    Ensure the application's SQLite database file and ORM tables exist, running any required schema migration first.
-
-    Performs any necessary episode availability migration and creates tables defined on the module's private metadata, creating the database file if it does not already exist.
-    """
-    logger.debug("Creating DB and tables if not exist.")
+    """Create tables directly without running Alembic migrations."""
+    logger.debug("Creating DB and tables if not exist (no migrations).")
     try:
-        _migrate_episode_availability_table()
-        # Use this module's private metadata
         ModelBase.metadata.create_all(engine)
         logger.success("Database and tables created or already exist.")
     except Exception as e:
         logger.error(f"Error creating DB and tables: {e}")
+        raise
 
 
 def get_session() -> Generator[Session, None, None]:

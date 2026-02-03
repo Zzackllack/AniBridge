@@ -452,6 +452,7 @@ logger.debug(
 
 ANIBRIDGE_RELOAD = _as_bool(os.getenv("ANIBRIDGE_RELOAD", None), False)
 ANIBRIDGE_TEST_MODE = _as_bool(os.getenv("ANIBRIDGE_TEST_MODE", None), False)
+DB_MIGRATE_ON_STARTUP = _as_bool(os.getenv("DB_MIGRATE_ON_STARTUP", None), True)
 ANIBRIDGE_HOST = os.getenv("ANIBRIDGE_HOST", "0.0.0.0").strip() or "0.0.0.0"
 ANIBRIDGE_PORT = int(os.getenv("ANIBRIDGE_PORT", "8000") or 8000)
 
