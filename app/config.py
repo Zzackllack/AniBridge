@@ -454,3 +454,28 @@ ANIBRIDGE_RELOAD = _as_bool(os.getenv("ANIBRIDGE_RELOAD", None), False)
 ANIBRIDGE_TEST_MODE = _as_bool(os.getenv("ANIBRIDGE_TEST_MODE", None), False)
 ANIBRIDGE_HOST = os.getenv("ANIBRIDGE_HOST", "0.0.0.0").strip() or "0.0.0.0"
 ANIBRIDGE_PORT = int(os.getenv("ANIBRIDGE_PORT", "8000") or 8000)
+
+# --- CORS ---
+# Browser-based API clients (like the docs "try it out") need CORS enabled.
+#
+# Values:
+# - Unset/empty: allow all origins ("*") (default)
+# - "*": allow all origins
+# - Comma-separated list: allow only these origins
+# - "off" / "none": disable CORS entirely (no middleware)
+_cors_raw = os.getenv("ANIBRIDGE_CORS_ORIGINS", "").strip()
+_cors_raw_lower = _cors_raw.lower()
+if _cors_raw_lower in {"off", "none"}:
+    ANIBRIDGE_CORS_ORIGINS: list[str] = []
+elif not _cors_raw or _cors_raw == "*":
+    ANIBRIDGE_CORS_ORIGINS = ["*"]
+else:
+    ANIBRIDGE_CORS_ORIGINS = [o.strip() for o in _cors_raw.split(",") if o.strip()]
+logger.debug(f"ANIBRIDGE_CORS_ORIGINS={ANIBRIDGE_CORS_ORIGINS}")
+
+# Controls Access-Control-Allow-Credentials when CORS is enabled and origins are
+# not a wildcard. For wildcard origins, credentials are always disabled.
+ANIBRIDGE_CORS_ALLOW_CREDENTIALS = _as_bool(
+    os.getenv("ANIBRIDGE_CORS_ALLOW_CREDENTIALS", "true"), True
+)
+logger.debug(f"ANIBRIDGE_CORS_ALLOW_CREDENTIALS={ANIBRIDGE_CORS_ALLOW_CREDENTIALS}")
