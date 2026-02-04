@@ -24,6 +24,8 @@ def _fast_test_env(monkeypatch):
     monkeypatch.setenv("PROXY_ENABLED", "0")
     monkeypatch.setenv("MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN", "0")
     monkeypatch.setenv("DB_MIGRATE_ON_STARTUP", "0")
+    monkeypatch.setenv("STRM_PROXY_AUTH", "none")
+    monkeypatch.setenv("STRM_PUBLIC_BASE_URL", "http://testserver")
 
 
 @pytest.fixture
@@ -67,6 +69,7 @@ def client(tmp_path, monkeypatch):
         "app.api.qbittorrent.sync",
         "app.api.qbittorrent.torrents",
         "app.api.qbittorrent.transfer",
+        "app.api.strm",
         "app.main",
     ]
     for m in modules:

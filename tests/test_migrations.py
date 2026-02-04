@@ -4,7 +4,7 @@ from pathlib import Path
 from sqlalchemy import inspect
 
 
-HEAD_REVISION = "20260203_0002"
+HEAD_REVISION = "20260204_0003"
 
 
 def _load_db(tmp_path: Path, monkeypatch):
@@ -47,6 +47,7 @@ def test_apply_migrations_fresh_db(tmp_path, monkeypatch):
     assert "job" in tables
     assert "episodeavailability" in tables
     assert "clienttask" in tables
+    assert "strmurlmapping" in tables
     assert "alembic_version" in tables
     assert _get_version(models) == HEAD_REVISION
 
@@ -76,5 +77,6 @@ def test_apply_migrations_empty_version_table(tmp_path, monkeypatch):
     inspector = inspect(models.engine)
     tables = set(inspector.get_table_names())
     assert "job" in tables
+    assert "strmurlmapping" in tables
     assert "alembic_version" in tables
     assert _get_version(models) == HEAD_REVISION
