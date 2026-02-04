@@ -68,4 +68,4 @@ Assessment: HMAC signing is a standard, library-supported approach for URL authe
 
 ## Recommendation (Conditional)
 
-Proceed with an in-app proxy and HLS rewrite design unless maintainers explicitly prefer adopting an external HLS proxy project. The existing projects validate feasibility but do not eliminate the need for AniBridge-specific resolver, auth, and refresh logic. [HLSCachingReverseProxyServer](https://github.com/matvp91/HLSCachingReverseProxyServer), [HLS-Proxy](https://github.com/warren-bank/HLS-Proxy), [m3u8-streaming-proxy](https://github.com/kazutoiris/m3u8-streaming-proxy)
+Proceed with an in-app proxy and HLS rewrite design unless maintainers explicitly prefer adopting an external HLS proxy project. The existing projects validate feasibility but do not eliminate the need for AniBridge-specific resolver, auth, and refresh logic. [HLSCachingReverseProxyServer](https://github.com/StyleShare/HLSCachingReverseProxyServer), [HLS-Proxy](https://github.com/warren-bank/HLS-Proxy), [m3u8-streaming-proxy](https://github.com/MetaHat/m3u8-streaming-proxy)
