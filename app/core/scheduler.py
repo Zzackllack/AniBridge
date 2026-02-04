@@ -213,15 +213,50 @@ def _run_strm(job_id: str, req: dict, stop_event: threading.Event) -> None:
             raise Exception("Cancelled")
 
         site = str(req.get("site") or "aniworld.to")
-        ep = build_episode(
-            slug=req.get("slug"),
-            season=req.get("season"),
-            episode=req.get("episode"),
-            site=site,
-        )
-        direct_url, provider_used = get_direct_url_with_fallback(
-            ep, preferred=req.get("provider"), language=str(req.get("language") or "")
-        )
+        slug = req.get("slug")
+        if "megakino" in site and slug:
+            from app.providers.megakino.client import get_default_client
+            from app.config import PROVIDER_ORDER
+
+            client = get_default_client()
+            preferred = str(req.get("provider") or "").strip() or None
+            provider_candidates = []
+            if preferred:
+                provider_candidates.append(preferred)
+            for prov_name in PROVIDER_ORDER:
+                if prov_name not in provider_candidates:
+                    provider_candidates.append(prov_name)
+            if not provider_candidates:
+                provider_candidates = [None]
+
+            last_error: Exception | None = None
+            direct_url = None
+            provider_used = "EMBED"
+            for prov_name in provider_candidates:
+                try:
+                    direct_url, provider_used = client.resolve_direct_url(
+                        slug=slug, preferred_provider=prov_name
+                    )
+                    break
+                except Exception as exc:
+                    last_error = exc
+                    continue
+            if not direct_url:
+                raise Exception(
+                    f"Megakino STRM resolution failed after retries: {last_error}"
+                )
+        else:
+            ep = build_episode(
+                slug=req.get("slug"),
+                season=req.get("season"),
+                episode=req.get("episode"),
+                site=site,
+            )
+            direct_url, provider_used = get_direct_url_with_fallback(
+                ep,
+                preferred=req.get("provider"),
+                language=str(req.get("language") or ""),
+            )
 
         if stop_event.is_set():
             raise Exception("Cancelled")
