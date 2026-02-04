@@ -46,4 +46,6 @@ For Serienstream releases the prefix switches to `sto_` (e.g., `sto_slug`, `sto_
 
 When `STRM_FILES_MODE` is enabled (`both` or `only`), AniBridge emits additional Torznab items with a ` [STRM]` suffix. Selecting such an item causes AniBridge to create a `.strm` file (plain text, one URL line) instead of downloading the media file.
 
+When `STRM_PROXY_MODE=proxy`, the `.strm` file points to the AniBridge proxy endpoint (`/strm/stream`) rather than a provider/CDN URL. In `direct` mode it writes the resolved provider URL directly.
+
 STRM variants intentionally report a normal-looking size (the same heuristic sizing as non-STRM items) so they are not rejected by Arr size filters.

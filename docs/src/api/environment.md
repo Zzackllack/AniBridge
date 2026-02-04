@@ -31,6 +31,11 @@ Comprehensive list of env vars read in `app/config.py`.
 ## STRM Files
 
 - `STRM_FILES_MODE` (`no|both|only`, default: `no`) — controls whether Torznab emits STRM variants and whether AniBridge creates `.strm` files instead of downloading media.
+- `STRM_PROXY_MODE` (`direct|proxy|redirect`, default: `proxy`) — when `proxy`, `.strm` files contain AniBridge proxy URLs instead of provider/CDN URLs (redirect behaves like proxy streaming).
+- `STRM_PUBLIC_BASE_URL` (required for proxy mode) — public base URL used to build stable STRM proxy URLs.
+- `STRM_PROXY_AUTH` (`none|token|apikey`, default: `token`) — auth mode for STRM proxy endpoints.
+- `STRM_PROXY_SECRET` — shared secret for HMAC token signing or API key mode (required when auth is not `none`).
+- `STRM_PROXY_CACHE_TTL_SECONDS` (default: `0`) — TTL for resolved URL cache; `0` disables expiration.
 
 ## Providers & Languages
 
