@@ -29,6 +29,11 @@ def config():
     except ValueError:
         logger.level("TRACE", no=5, color="<cyan>", icon="T")
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+    stdlib_level = LOG_LEVEL
+    if LOG_LEVEL == "TRACE":
+        # Register TRACE with stdlib logging and map to numeric level 5.
+        logging.addLevelName(5, "TRACE")
+        stdlib_level = 5
     logger.remove()
     logger.add(
         sys.stdout,
@@ -54,7 +59,7 @@ def config():
                 )
 
         intercept_handler = _InterceptHandler()
-        logging.basicConfig(handlers=[intercept_handler], level=LOG_LEVEL, force=True)
+        logging.basicConfig(handlers=[intercept_handler], level=stdlib_level, force=True)
         logging.captureWarnings(True)
         logging.lastResort = None
         for name in (
