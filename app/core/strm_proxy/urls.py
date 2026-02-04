@@ -71,6 +71,10 @@ def build_proxy_url(upstream_url: str) -> str:
     """
     if is_already_proxied(upstream_url):
         return upstream_url
+    parsed = urlsplit(upstream_url)
+    name = (parsed.path or "").rsplit("/", 1)[-1].strip()
+    if not name or "." not in name:
+        name = "resource.bin"
     params = {"u": upstream_url}
     params.update(build_auth_params(params))
-    return _build_url("/strm/proxy", params)
+    return _build_url(f"/strm/proxy/{name}", params)

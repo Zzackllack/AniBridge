@@ -465,7 +465,8 @@ async def _proxy_head(
 
 
 @router.api_route("/strm/proxy", methods=["GET", "HEAD"])
-async def strm_proxy(request: Request):
+@router.api_route("/strm/proxy/{path_hint:path}", methods=["GET", "HEAD"])
+async def strm_proxy(request: Request, path_hint: str = ""):
     """
     Proxy arbitrary upstream URLs (segments, keys, playlists) with streaming.
     """
