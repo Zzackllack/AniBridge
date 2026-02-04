@@ -59,7 +59,9 @@ def config():
                 )
 
         intercept_handler = _InterceptHandler()
-        logging.basicConfig(handlers=[intercept_handler], level=stdlib_level, force=True)
+        logging.basicConfig(
+            handlers=[intercept_handler], level=stdlib_level, force=True
+        )
         logging.captureWarnings(True)
         logging.lastResort = None
         for name in (

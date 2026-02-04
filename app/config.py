@@ -483,9 +483,7 @@ except ValueError:
 
 STRM_PROXY_ENABLED = STRM_PROXY_MODE == "proxy"
 if STRM_PROXY_ENABLED and not STRM_PUBLIC_BASE_URL:
-    logger.warning(
-        "STRM proxy mode is enabled but STRM_PUBLIC_BASE_URL is not set."
-    )
+    logger.warning("STRM proxy mode is enabled but STRM_PUBLIC_BASE_URL is not set.")
 logger.debug(
     "STRM proxy config: mode={} auth={} cache_ttl_seconds={}",
     STRM_PROXY_MODE,

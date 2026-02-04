@@ -17,8 +17,7 @@ def test_rewrite_hls_master_playlist():
     assert "proxy://https://origin.example/dir/low/playlist.m3u8" in rewritten
     assert "proxy://https://cdn.example.com/high/playlist.m3u8" in rewritten
     assert (
-        'URI="proxy://https://origin.example/dir/audio/eng/playlist.m3u8"'
-        in rewritten
+        'URI="proxy://https://origin.example/dir/audio/eng/playlist.m3u8"' in rewritten
     )
 
 

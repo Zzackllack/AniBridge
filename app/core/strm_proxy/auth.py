@@ -83,7 +83,9 @@ def require_auth(params: Mapping[str, str]) -> None:
             try:
                 exp = int(exp_raw)
             except ValueError as exc:
-                raise HTTPException(status_code=401, detail="invalid token expiry") from exc
+                raise HTTPException(
+                    status_code=401, detail="invalid token expiry"
+                ) from exc
             if int(time.time()) > exp:
                 raise HTTPException(status_code=401, detail="token expired")
         expected = sign_params(payload, secret)

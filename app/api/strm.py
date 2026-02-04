@@ -184,6 +184,7 @@ def _streaming_body(response: httpx.Response, client: httpx.AsyncClient):
     Create an async generator that streams upstream bytes and closes resources.
     """
     logger.trace("Streaming body start (status={})", response.status_code)
+
     async def _gen():
         try:
             async for chunk in response.aiter_bytes(chunk_size=_STREAM_CHUNK_SIZE):
@@ -320,9 +321,7 @@ async def _fetch_with_refresh(
             session, identity, force_refresh=force_refresh
         )
         try:
-            response, client = await _open_upstream(
-                url, method=method, headers=headers
-            )
+            response, client = await _open_upstream(url, method=method, headers=headers)
         except httpx.RequestError as exc:
             last_error = exc
             if attempt == 0:
@@ -335,7 +334,9 @@ async def _fetch_with_refresh(
                 force_refresh = True
                 attempt += 1
                 continue
-            raise HTTPException(status_code=502, detail="upstream request failed") from exc
+            raise HTTPException(
+                status_code=502, detail="upstream request failed"
+            ) from exc
 
         if response.status_code in _REFRESH_STATUSES and attempt == 0:
             logger.warning(
@@ -462,9 +463,7 @@ async def strm_stream(
     )
 
 
-async def _proxy_head(
-    url: str, *, headers: Mapping[str, str]
-) -> Response:
+async def _proxy_head(url: str, *, headers: Mapping[str, str]) -> Response:
     """
     Handle HEAD requests for arbitrary proxied upstream URLs.
     """

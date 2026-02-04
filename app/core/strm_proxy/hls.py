@@ -25,6 +25,7 @@ def _rewrite_uri_attr(
     from loguru import logger
 
     logger.trace("Rewriting HLS tag URI in line: {}", line.strip())
+
     def _replace(match: re.Match[str]) -> str:
         raw_uri = match.group("uri")
         abs_uri = urljoin(base_url, raw_uri)
