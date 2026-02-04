@@ -1,0 +1,90 @@
+from __future__ import annotations
+
+import hmac
+import hashlib
+import time
+from typing import Mapping
+
+from fastapi import HTTPException
+from loguru import logger
+
+from app.config import STRM_PROXY_AUTH, STRM_PROXY_SECRET
+
+
+def _canonical_params(params: Mapping[str, str]) -> str:
+    """
+    Produce a deterministic query string for signing from the given params.
+    """
+    items = sorted((k, v) for k, v in params.items())
+    return "&".join(f"{k}={v}" for k, v in items)
+
+
+def sign_params(params: Mapping[str, str], secret: str) -> str:
+    """
+    Compute an HMAC-SHA256 signature for the provided parameters.
+    """
+    canonical = _canonical_params(params)
+    digest = hmac.new(secret.encode("utf-8"), canonical.encode("utf-8"), hashlib.sha256)
+    return digest.hexdigest()
+
+
+def _require_secret() -> str:
+    """
+    Return the configured STRM proxy secret or raise if unset.
+    """
+    if not STRM_PROXY_SECRET:
+        logger.error("STRM proxy auth enabled but STRM_PROXY_SECRET is unset.")
+        raise HTTPException(status_code=500, detail="STRM proxy auth misconfigured")
+    return STRM_PROXY_SECRET
+
+
+def build_auth_params(params: Mapping[str, str]) -> dict[str, str]:
+    """
+    Return auth parameters for a signed/authorized proxy URL.
+    """
+    mode = STRM_PROXY_AUTH
+    if mode == "none":
+        return {}
+    secret = _require_secret()
+    if mode == "apikey":
+        return {"apikey": secret}
+    if mode == "token":
+        sig = sign_params(params, secret)
+        return {"sig": sig}
+    logger.warning("Unknown STRM_PROXY_AUTH mode: {}", mode)
+    return {}
+
+
+def require_auth(params: Mapping[str, str]) -> None:
+    """
+    Validate STRM proxy auth based on the configured mode.
+    """
+    mode = STRM_PROXY_AUTH
+    if mode == "none":
+        return
+    secret = _require_secret()
+    if mode == "apikey":
+        if params.get("apikey") != secret:
+            logger.warning("STRM proxy apikey missing or invalid.")
+            raise HTTPException(status_code=401, detail="invalid apikey")
+        return
+    if mode == "token":
+        sig = params.get("sig")
+        if not sig:
+            logger.warning("STRM proxy signature missing.")
+            raise HTTPException(status_code=401, detail="missing signature")
+        payload = {k: v for k, v in params.items() if k != "sig"}
+        exp_raw = payload.get("exp")
+        if exp_raw:
+            try:
+                exp = int(exp_raw)
+            except ValueError as exc:
+                raise HTTPException(status_code=401, detail="invalid token expiry") from exc
+            if int(time.time()) > exp:
+                raise HTTPException(status_code=401, detail="token expired")
+        expected = sign_params(payload, secret)
+        if not hmac.compare_digest(sig, expected):
+            logger.warning("STRM proxy signature mismatch.")
+            raise HTTPException(status_code=401, detail="invalid signature")
+        return
+    logger.warning("Unknown STRM proxy auth mode: {}", mode)

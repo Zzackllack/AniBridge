@@ -443,6 +443,56 @@ if STRM_FILES_MODE not in ("no", "both", "only"):
     STRM_FILES_MODE = "no"
 logger.debug(f"STRM_FILES_MODE={STRM_FILES_MODE}")
 
+# --- STRM proxy streaming ---
+# Controls whether STRM files point to AniBridge proxy URLs or direct provider URLs.
+STRM_PROXY_MODE = os.getenv("STRM_PROXY_MODE", "proxy").strip().lower()
+if STRM_PROXY_MODE not in ("direct", "proxy", "redirect"):
+    logger.warning(
+        f"Invalid STRM_PROXY_MODE={STRM_PROXY_MODE!r}; defaulting to 'proxy'."
+    )
+    STRM_PROXY_MODE = "proxy"
+if STRM_PROXY_MODE == "redirect":
+    logger.warning(
+        "STRM_PROXY_MODE=redirect is not implemented; using proxy streaming."
+    )
+    STRM_PROXY_MODE = "proxy"
+
+# Public base URL used to build stable STRM proxy URLs (required for proxy mode).
+STRM_PUBLIC_BASE_URL = os.getenv("STRM_PUBLIC_BASE_URL", "").strip()
+
+# Auth mode for proxy endpoints: none, token (HMAC), or apikey.
+STRM_PROXY_AUTH = os.getenv("STRM_PROXY_AUTH", "token").strip().lower()
+if STRM_PROXY_AUTH not in ("none", "token", "apikey"):
+    logger.warning(
+        f"Invalid STRM_PROXY_AUTH={STRM_PROXY_AUTH!r}; defaulting to 'token'."
+    )
+    STRM_PROXY_AUTH = "token"
+
+# Shared secret for STRM proxy auth. Used for token signatures and API key mode.
+STRM_PROXY_SECRET = os.getenv("STRM_PROXY_SECRET", "").strip()
+
+# Cache TTL (seconds) for resolved STRM URLs. 0 disables expiration.
+_strm_cache_ttl_raw = os.getenv("STRM_PROXY_CACHE_TTL_SECONDS", "0").strip()
+try:
+    STRM_PROXY_CACHE_TTL_SECONDS = int(_strm_cache_ttl_raw or 0)
+except ValueError:
+    logger.warning(
+        f"Invalid STRM_PROXY_CACHE_TTL_SECONDS={_strm_cache_ttl_raw!r}; defaulting to 0."
+    )
+    STRM_PROXY_CACHE_TTL_SECONDS = 0
+
+STRM_PROXY_ENABLED = STRM_PROXY_MODE == "proxy"
+if STRM_PROXY_ENABLED and not STRM_PUBLIC_BASE_URL:
+    logger.warning(
+        "STRM proxy mode is enabled but STRM_PUBLIC_BASE_URL is not set."
+    )
+logger.debug(
+    "STRM proxy config: mode={} auth={} cache_ttl_seconds={}",
+    STRM_PROXY_MODE,
+    STRM_PROXY_AUTH,
+    STRM_PROXY_CACHE_TTL_SECONDS,
+)
+
 # --- Progress rendering ---
 PROGRESS_FORCE_BAR = _as_bool(os.getenv("PROGRESS_FORCE_BAR", None), False)
 PROGRESS_STEP_PERCENT = max(1, int(os.getenv("PROGRESS_STEP_PERCENT", "5")))

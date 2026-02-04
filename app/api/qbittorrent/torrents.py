@@ -70,6 +70,7 @@ def torrents_add(
         site = payload.get(
             f"{prefix}_site", "aniworld.to" if prefix == "aw" else "s.to"
         )
+        provider = payload.get(f"{prefix}_provider")
         mode = (payload.get(f"{prefix}_mode") or "").strip().lower()
         name = payload.get("dn", f"{slug}.S{season:02d}E{episode:02d}.{language}")
         xt = payload["xt"]
@@ -96,6 +97,8 @@ def torrents_add(
     }
     if name:
         req["title_hint"] = name
+    if provider:
+        req["provider"] = provider
     if mode:
         req["mode"] = mode
     job_id = schedule_download(req)
