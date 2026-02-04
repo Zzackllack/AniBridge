@@ -105,6 +105,29 @@ class EpisodeAvailability(ModelBase, table=True):
         return age <= timedelta(hours=AVAILABILITY_TTL_HOURS)
 
 
+# ---------------- STRM Proxy URL Mapping
+class StrmUrlMapping(ModelBase, table=True):
+    """
+    Persistent mapping of episode identity to resolved upstream URLs for STRM proxying.
+
+    The provider field is stored as a non-nullable string to allow composite primary
+    key usage even when no provider hint is supplied (empty string = no provider).
+    """
+
+    site: str = Field(default="aniworld.to", primary_key=True)
+    slug: str = Field(primary_key=True)
+    season: int = Field(primary_key=True)
+    episode: int = Field(primary_key=True)
+    language: str = Field(primary_key=True)
+    provider: str = Field(default="", primary_key=True)
+
+    resolved_url: str
+    provider_used: Optional[str] = None
+    resolved_headers: Optional[dict] = Field(sa_column=Column(JSON), default=None)
+    resolved_at: datetime = Field(default_factory=utcnow, index=True)
+    updated_at: datetime = Field(default_factory=utcnow, index=True)
+
+
 # ---------------- qBittorrent-Shim: ClientTask
 class ClientTask(ModelBase, table=True):
     """
@@ -473,6 +496,110 @@ def list_available_languages_cached(
             )
     logger.info(f"Available fresh languages: {fresh_langs}")
     return fresh_langs
+
+
+# --- STRM URL Mapping CRUD
+def get_strm_mapping(
+    session: Session,
+    *,
+    site: str,
+    slug: str,
+    season: int,
+    episode: int,
+    language: str,
+    provider: Optional[str] = None,
+) -> Optional[StrmUrlMapping]:
+    """
+    Fetch a STRM URL mapping for the given episode identity and optional provider hint.
+
+    Parameters:
+        provider (Optional[str]): Preferred provider hint, stored as empty string when unset.
+    """
+    key = (site, slug, season, episode, language, provider or "")
+    logger.debug("Fetching STRM mapping for {}", key)
+    rec = session.get(StrmUrlMapping, key)
+    if rec:
+        logger.debug("STRM mapping found.")
+    else:
+        logger.debug("STRM mapping not found.")
+    return rec
+
+
+def upsert_strm_mapping(
+    session: Session,
+    *,
+    site: str,
+    slug: str,
+    season: int,
+    episode: int,
+    language: str,
+    provider: Optional[str],
+    resolved_url: str,
+    provider_used: Optional[str] = None,
+    resolved_headers: Optional[dict] = None,
+) -> StrmUrlMapping:
+    """
+    Create or update a STRM URL mapping and persist it.
+    """
+    key = (site, slug, season, episode, language, provider or "")
+    logger.debug("Upserting STRM mapping for {}", key)
+    rec = session.get(StrmUrlMapping, key)
+    if rec is None:
+        logger.info("No existing STRM mapping found, creating new.")
+        rec = StrmUrlMapping(
+            site=site,
+            slug=slug,
+            season=season,
+            episode=episode,
+            language=language,
+            provider=provider or "",
+            resolved_url=resolved_url,
+            provider_used=provider_used,
+            resolved_headers=resolved_headers,
+            resolved_at=utcnow(),
+            updated_at=utcnow(),
+        )
+        session.add(rec)
+    else:
+        logger.info("Existing STRM mapping found, updating.")
+        rec.resolved_url = resolved_url
+        rec.provider_used = provider_used
+        rec.resolved_headers = resolved_headers
+        rec.resolved_at = utcnow()
+        rec.updated_at = utcnow()
+        session.add(rec)
+    try:
+        session.commit()
+        session.refresh(rec)
+        logger.success("Upserted STRM mapping for {}", key)
+    except Exception as e:
+        logger.error(f"Failed to upsert STRM mapping: {e}")
+        raise
+    return rec
+
+
+def delete_strm_mapping(
+    session: Session,
+    *,
+    site: str,
+    slug: str,
+    season: int,
+    episode: int,
+    language: str,
+    provider: Optional[str] = None,
+) -> None:
+    """
+    Delete a STRM URL mapping for the given identity when present.
+    """
+    key = (site, slug, season, episode, language, provider or "")
+    logger.debug("Deleting STRM mapping for {}", key)
+    rec = session.get(StrmUrlMapping, key)
+    if rec:
+        session.delete(rec)
+        session.commit()
+        logger.success("Deleted STRM mapping for {}", key)
+    else:
+        logger.debug("No STRM mapping found for {}", key)
 
 
 # --- ClientTask CRUD
