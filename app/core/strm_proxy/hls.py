@@ -22,6 +22,9 @@ def _rewrite_uri_attr(
     """
     Rewrite URI attributes within a single HLS tag line.
     """
+    from loguru import logger
+
+    logger.trace("Rewriting HLS tag URI in line: {}", line.strip())
     def _replace(match: re.Match[str]) -> str:
         raw_uri = match.group("uri")
         abs_uri = urljoin(base_url, raw_uri)
@@ -40,6 +43,9 @@ def rewrite_hls_playlist(
     """
     Rewrite all URI-bearing lines/tags in an HLS playlist.
     """
+    from loguru import logger
+
+    logger.debug("Rewriting HLS playlist from {}", base_url)
     if not playlist_text:
         return playlist_text
 
@@ -60,9 +66,11 @@ def rewrite_hls_playlist(
             continue
 
         abs_uri = urljoin(base_url, stripped)
+        logger.trace("Rewriting HLS URI line: {}", stripped)
         out_lines.append(rewrite_url(abs_uri))
 
     result = "\n".join(out_lines)
     if ends_with_newline:
         result += "\n"
+    logger.success("Rewrote HLS playlist ({} lines)", len(out_lines))
     return result

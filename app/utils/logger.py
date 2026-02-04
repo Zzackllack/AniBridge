@@ -24,6 +24,10 @@ def config():
     can be imported across the codebase without side-effects.
     """
     global _STDLIB_LOGGING_CONFIGURED
+    try:
+        logger.level("TRACE")
+    except ValueError:
+        logger.level("TRACE", no=5, color="<cyan>", icon="T")
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
     logger.remove()
     logger.add(

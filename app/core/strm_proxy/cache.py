@@ -48,21 +48,25 @@ class StrmMemoryCache:
         """
         Retrieve a cached entry for the given identity if fresh.
         """
+        logger.trace("Memory cache lookup for {}", identity.cache_key())
         key = identity.cache_key()
         with self._lock:
             entry = self._data.get(key)
             if not entry:
+                logger.trace("Memory cache miss for {}", key)
                 return None
             if not self._is_fresh(entry):
                 logger.debug("STRM cache expired for {}", key)
                 self._data.pop(key, None)
                 return None
+            logger.trace("Memory cache hit for {}", key)
             return entry
 
     def set(self, identity: StrmIdentity, entry: StrmCacheEntry) -> None:
         """
         Store a cache entry for the given identity.
         """
+        logger.trace("Memory cache set for {}", identity.cache_key())
         key = identity.cache_key()
         with self._lock:
             self._data[key] = entry
@@ -71,6 +75,7 @@ class StrmMemoryCache:
         """
         Remove any cached entry for the given identity.
         """
+        logger.trace("Memory cache invalidate for {}", identity.cache_key())
         key = identity.cache_key()
         with self._lock:
             self._data.pop(key, None)

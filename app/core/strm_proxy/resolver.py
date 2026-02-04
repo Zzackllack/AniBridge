@@ -14,6 +14,7 @@ def resolve_direct_url(identity: StrmIdentity) -> tuple[str, str]:
     """
     Resolve a direct upstream URL for the given STRM identity.
     """
+    logger.debug("Resolving STRM upstream for {}", identity.cache_key())
     with disabled_proxy_env():
         site = identity.site
         slug = identity.slug

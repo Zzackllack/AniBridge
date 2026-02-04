@@ -15,6 +15,7 @@ def _canonical_params(params: Mapping[str, str]) -> str:
     """
     Produce a deterministic query string for signing from the given params.
     """
+    logger.trace("Canonicalizing auth params: {}", sorted(params.keys()))
     items = sorted((k, v) for k, v in params.items())
     return "&".join(f"{k}={v}" for k, v in items)
 
@@ -23,6 +24,7 @@ def sign_params(params: Mapping[str, str], secret: str) -> str:
     """
     Compute an HMAC-SHA256 signature for the provided parameters.
     """
+    logger.trace("Signing STRM proxy params")
     canonical = _canonical_params(params)
     digest = hmac.new(secret.encode("utf-8"), canonical.encode("utf-8"), hashlib.sha256)
     return digest.hexdigest()
@@ -42,6 +44,7 @@ def build_auth_params(params: Mapping[str, str]) -> dict[str, str]:
     """
     Return auth parameters for a signed/authorized proxy URL.
     """
+    logger.trace("Building auth params for STRM proxy")
     mode = STRM_PROXY_AUTH
     if mode == "none":
         return {}
@@ -59,6 +62,7 @@ def require_auth(params: Mapping[str, str]) -> None:
     """
     Validate STRM proxy auth based on the configured mode.
     """
+    logger.trace("Validating STRM proxy auth mode={}", STRM_PROXY_AUTH)
     mode = STRM_PROXY_AUTH
     if mode == "none":
         return

@@ -59,6 +59,7 @@ def _is_fresh(resolved_at: datetime) -> bool:
     """
     Determine whether a cached mapping is still within the configured TTL.
     """
+    logger.trace("Checking STRM cache freshness at {}", resolved_at)
     if STRM_PROXY_CACHE_TTL_SECONDS <= 0:
         return True
     return _utcnow() - resolved_at <= timedelta(seconds=STRM_PROXY_CACHE_TTL_SECONDS)
@@ -68,6 +69,7 @@ def _filter_headers(headers: Mapping[str, str]) -> dict[str, str]:
     """
     Filter upstream headers to a safe pass-through allowlist.
     """
+    logger.trace("Filtering upstream headers: {}", list(headers.keys()))
     out: dict[str, str] = {}
     for k, v in headers.items():
         if k.lower() in _ALLOWED_HEADERS:
@@ -88,6 +90,7 @@ def _is_hls_response(url: str, headers: Mapping[str, str]) -> bool:
     """
     Detect whether an upstream response is an HLS playlist.
     """
+    logger.trace("Detecting HLS response for {}", _redact_upstream(url))
     content_type = headers.get("content-type", "").split(";")[0].strip().lower()
     if content_type in _HLS_CONTENT_TYPES:
         return True
@@ -112,6 +115,7 @@ def _parse_identity(params: Mapping[str, str]) -> StrmIdentity:
     """
     Parse required episode identity fields from query parameters.
     """
+    logger.trace("Parsing STRM identity params: {}", sorted(params.keys()))
     slug = (params.get("slug") or "").strip()
     if not slug:
         raise HTTPException(status_code=400, detail="missing slug")
@@ -143,6 +147,7 @@ def _validate_upstream_url(url: str) -> None:
     """
     Ensure the upstream URL uses an allowed HTTP(S) scheme.
     """
+    logger.trace("Validating upstream URL scheme: {}", _redact_upstream(url))
     parsed = urlsplit(url)
     if parsed.scheme not in ("http", "https"):
         raise HTTPException(status_code=400, detail="invalid upstream url scheme")
@@ -152,6 +157,7 @@ def _build_async_client() -> httpx.AsyncClient:
     """
     Build an AsyncClient for upstream streaming without env proxies.
     """
+    logger.trace("Building upstream AsyncClient")
     timeout = httpx.Timeout(30.0, connect=10.0, read=60.0, write=30.0, pool=30.0)
     return httpx.AsyncClient(
         timeout=timeout,
@@ -166,6 +172,7 @@ async def _open_upstream(
     """
     Open an upstream streaming response and return the response + client.
     """
+    logger.trace("Opening upstream {} {}", method, _redact_upstream(url))
     client = _build_async_client()
     request = client.build_request(method, url, headers=headers)
     response = await client.send(request, stream=True)
@@ -176,6 +183,7 @@ def _streaming_body(response: httpx.Response, client: httpx.AsyncClient):
     """
     Create an async generator that streams upstream bytes and closes resources.
     """
+    logger.trace("Streaming body start (status={})", response.status_code)
     async def _gen():
         try:
             async for chunk in response.aiter_bytes(chunk_size=_STREAM_CHUNK_SIZE):
@@ -191,8 +199,10 @@ def _cache_get(session: Session, identity: StrmIdentity) -> Optional[StrmCacheEn
     """
     Load a cached mapping from memory or persistence when fresh.
     """
+    logger.trace("Checking STRM cache for {}", identity.cache_key())
     entry = MEMORY_CACHE.get(identity)
     if entry:
+        logger.debug("STRM cache hit (memory) for {}", identity.cache_key())
         return entry
 
     rec = get_strm_mapping(
@@ -205,8 +215,10 @@ def _cache_get(session: Session, identity: StrmIdentity) -> Optional[StrmCacheEn
         provider=identity.provider,
     )
     if not rec:
+        logger.debug("STRM cache miss (db) for {}", identity.cache_key())
         return None
     if not _is_fresh(rec.resolved_at):
+        logger.debug("STRM cache stale (db) for {}", identity.cache_key())
         return None
     entry = StrmCacheEntry(
         url=rec.resolved_url,
@@ -226,6 +238,7 @@ def _cache_set(
     """
     Persist the resolved mapping and update the in-memory cache.
     """
+    logger.debug("Persisting STRM mapping for {}", identity.cache_key())
     entry = StrmCacheEntry(url=url, provider_used=provider_used, resolved_at=_utcnow())
     MEMORY_CACHE.set(identity, entry)
     upsert_strm_mapping(
@@ -246,6 +259,7 @@ def _cache_invalidate(session: Session, identity: StrmIdentity) -> None:
     """
     Remove cached mappings from memory and persistence.
     """
+    logger.warning("Invalidating STRM mapping for {}", identity.cache_key())
     MEMORY_CACHE.invalidate(identity)
     delete_strm_mapping(
         session,
@@ -264,9 +278,11 @@ async def _resolve_with_cache(
     """
     Resolve an upstream URL using cache and persistence, refreshing when needed.
     """
+    logger.trace("Resolving upstream with cache (refresh={})", force_refresh)
     if not force_refresh:
         cached = _cache_get(session, identity)
         if cached:
+            logger.info("Using cached STRM mapping for {}", identity.cache_key())
             return cached.url, cached.provider_used
 
     try:
@@ -279,6 +295,9 @@ async def _resolve_with_cache(
             status_code=502, detail="upstream resolution failed"
         ) from exc
     _cache_set(session, identity, direct_url, provider_used)
+    logger.success(
+        "Resolved STRM upstream provider={} for {}", provider_used, identity.cache_key()
+    )
     return direct_url, provider_used
 
 
@@ -292,6 +311,7 @@ async def _fetch_with_refresh(
     """
     Fetch upstream content with refresh-on-failure and cache invalidation.
     """
+    logger.trace("Fetching upstream (attempts up to 2)")
     attempt = 0
     force_refresh = False
     last_error: Exception | None = None
@@ -332,6 +352,11 @@ async def _fetch_with_refresh(
 
         if last_error:
             logger.debug("Refresh recovered from error: {}", last_error)
+        logger.trace(
+            "Upstream response status={} for {}",
+            response.status_code,
+            _redact_upstream(url),
+        )
         return response, client, url
 
     raise HTTPException(status_code=502, detail="upstream request failed")
@@ -346,6 +371,7 @@ async def _handle_head(
     """
     Handle HEAD requests against resolved upstream URLs.
     """
+    logger.trace("Handling STRM HEAD request")
     response, client, _url = await _fetch_with_refresh(
         session, identity, method="HEAD", headers=headers
     )
@@ -403,6 +429,7 @@ async def strm_stream(
     )
 
     if _is_hls_response(url, response.headers):
+        logger.debug("Detected HLS playlist for {}", _redact_upstream(url))
         body = await response.aread()
         await response.aclose()
         await client.aclose()
@@ -417,6 +444,7 @@ async def strm_stream(
         out_bytes = rewritten.encode("utf-8")
         headers = _filter_headers(response.headers)
         headers["Content-Length"] = str(len(out_bytes))
+        logger.success("Rewrote HLS playlist ({} bytes)", len(out_bytes))
         return Response(
             content=out_bytes,
             status_code=response.status_code,
@@ -426,6 +454,7 @@ async def strm_stream(
 
     headers = _filter_headers(response.headers)
     _ensure_content_type(headers, "application/octet-stream")
+    logger.debug("Streaming non-HLS response (status={})", response.status_code)
     return StreamingResponse(
         _streaming_body(response, client),
         status_code=response.status_code,
@@ -439,6 +468,7 @@ async def _proxy_head(
     """
     Handle HEAD requests for arbitrary proxied upstream URLs.
     """
+    logger.trace("Handling STRM proxy HEAD request")
     try:
         response, client = await _open_upstream(url, method="HEAD", headers=headers)
     except httpx.RequestError as exc:
@@ -483,7 +513,11 @@ async def strm_proxy(request: Request, path_hint: str = ""):
     if "user-agent" in request.headers:
         upstream_headers["User-Agent"] = request.headers["user-agent"]
 
-    logger.info("STRM proxy upstream={}", _redact_upstream(upstream_url))
+    logger.info(
+        "STRM proxy upstream={} hint={}",
+        _redact_upstream(upstream_url),
+        path_hint or "<none>",
+    )
 
     if request.method == "HEAD":
         return await _proxy_head(upstream_url, headers=upstream_headers)
@@ -496,6 +530,7 @@ async def strm_proxy(request: Request, path_hint: str = ""):
         raise HTTPException(status_code=502, detail="upstream request failed") from exc
 
     if _is_hls_response(upstream_url, response.headers):
+        logger.debug("Detected HLS playlist for {}", _redact_upstream(upstream_url))
         body = await response.aread()
         await response.aclose()
         await client.aclose()
@@ -512,6 +547,7 @@ async def strm_proxy(request: Request, path_hint: str = ""):
         out_bytes = rewritten.encode("utf-8")
         headers = _filter_headers(response.headers)
         headers["Content-Length"] = str(len(out_bytes))
+        logger.success("Rewrote HLS playlist ({} bytes)", len(out_bytes))
         return Response(
             content=out_bytes,
             status_code=response.status_code,
@@ -521,6 +557,7 @@ async def strm_proxy(request: Request, path_hint: str = ""):
 
     headers = _filter_headers(response.headers)
     _ensure_content_type(headers, "application/octet-stream")
+    logger.debug("Streaming proxied response (status={})", response.status_code)
     return StreamingResponse(
         _streaming_body(response, client),
         status_code=response.status_code,
