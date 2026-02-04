@@ -22,13 +22,13 @@ A simple redirect is insufficient: redirecting to the provider URL still makes t
 
 ## Why HLS Complicates Proxying
 
-Most STRM entries are HLS `.m3u8` playlists (per prior STRM/HLS context notes). HLS playlists are line-based documents containing either tags or URIs, and playlists can be master playlists (referencing variants) or media playlists (referencing segments). citeturn3view3 The URIs inside a playlist can be relative to the playlist URL. citeturn3view4 This means proxying only the initial `.m3u8` response is insufficient; all nested playlist and segment URIs must be rewritten to point back to AniBridge so the media server never contacts the CDN directly.
+Most STRM entries are HLS `.m3u8` playlists (per prior STRM/HLS context notes). HLS playlists are line-based documents containing either tags or URIs, and playlists can be master playlists (referencing variants) or media playlists (referencing segments). [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216) The URIs inside a playlist can be relative to the playlist URL. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216) This means proxying only the initial `.m3u8` response is insufficient; all nested playlist and segment URIs must be rewritten to point back to AniBridge so the media server never contacts the CDN directly.
 
-HLS also includes URI-bearing tags such as `EXT-X-KEY`, `EXT-X-MAP`, `EXT-X-MEDIA`, `EXT-X-I-FRAME-STREAM-INF`, and `EXT-X-SESSION-KEY`, which must be rewritten to avoid leaking CDN access outside the VPN egress. citeturn3view3turn3view4
+HLS also includes URI-bearing tags such as `EXT-X-KEY`, `EXT-X-MAP`, `EXT-X-MEDIA`, `EXT-X-I-FRAME-STREAM-INF`, and `EXT-X-SESSION-KEY`, which must be rewritten to avoid leaking CDN access outside the VPN egress. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
 
 ## Why HTTP Range Support Is Mandatory
 
-HTTP Range requests are the standard way clients request partial content and seek within streams. Range semantics and `Accept-Ranges` / `Content-Range` behavior are defined in HTTP semantics. citeturn2view2turn2view3 Streaming proxies must preserve Range behavior to avoid breaking playback and seeking. Jellyfin has documented issues where byte-range requests are not passed through for `.strm` sources, reinforcing that Range handling is critical for STRM playback. citeturn23view0
+HTTP Range requests are the standard way clients request partial content and seek within streams. Range semantics and `Accept-Ranges` / `Content-Range` behavior are defined in HTTP semantics. [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) Streaming proxies must preserve Range behavior to avoid breaking playback and seeking. Jellyfin has documented issues where byte-range requests are not passed through for `.strm` sources, reinforcing that Range handling is critical for STRM playback. [Jellyfin Issue #11676](https://github.com/jellyfin/jellyfin/issues/11676)
 
 ## Required Direction (High Level)
 

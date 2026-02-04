@@ -22,7 +22,7 @@ Enumerate unresolved questions that block final design decisions, each with why 
 
 ## Deployment And Ingress
 
-- Q: What reverse proxies are used in real deployments (Traefik, Nginx, Caddy, none)? Why it matters: buffering and timeout defaults affect streaming. Decision impacted: required documentation and configuration guidance. citeturn10view1turn11view0
+- Q: What reverse proxies are used in real deployments (Traefik, Nginx, Caddy, none)? Why it matters: buffering and timeout defaults affect streaming. Decision impacted: required documentation and configuration guidance. [Traefik Buffering Middleware](https://doc.traefik.io/traefik/middlewares/http/buffering/), [Nginx proxy_buffering](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering)
 - Q: Are there multi-worker or multi-replica deployments (uvicorn workers, multiple containers)? Why it matters: in-memory cache consistency and signing validation. Decision impacted: cache design and token scheme.
 - Q: Is AniBridge typically exposed only on LAN or over WAN? Why it matters: security and auth requirements differ. Decision impacted: default auth mode and signing strictness.
 - Q: Are deployments typically behind Gluetun or full VPN, or is `PROXY_*` the main method? Why it matters: upstream token binding and retry strategy. Decision impacted: resolver retry policy and proxy configuration assumptions. See `docs/src/guide/quickstart.md:62` and `docs/src/guide/networking.md:8`.
@@ -30,23 +30,23 @@ Enumerate unresolved questions that block final design decisions, each with why 
 ## Security And Access Control
 
 - Q: Must the proxy be accessible without auth on trusted LANs, or should auth always be required? Why it matters: open proxy risk. Decision impacted: default `STRM_PROXY_AUTH` setting.
-- Q: If using HMAC signing, what expiry window is acceptable (seconds vs minutes)? Why it matters: token leakage risk vs playback stability. Decision impacted: signing scheme and clock skew tolerance. citeturn16view0
+- Q: If using HMAC signing, what expiry window is acceptable (seconds vs minutes)? Why it matters: token leakage risk vs playback stability. Decision impacted: signing scheme and clock skew tolerance. [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104)
 - Q: Should we support per-client allowlists (CIDR or IP ranges)? Why it matters: reduces open proxy abuse. Decision impacted: auth design and config surface.
-- Q: Is SSRF protection required (block private IPs, metadata IPs, or non-HTTP schemes)? Why it matters: proxy endpoints can be abused to access internal resources. Decision impacted: URL validation and allowlist/denylist logic. citeturn17view0
+- Q: Is SSRF protection required (block private IPs, metadata IPs, or non-HTTP schemes)? Why it matters: proxy endpoints can be abused to access internal resources. Decision impacted: URL validation and allowlist/denylist logic. [OWASP SSRF Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)
 
 ## HLS Behavior
 
-- Q: Do we have examples of actual provider HLS playlists used in STRM (master vs media, encrypted vs clear)? Why it matters: rewrite rules and tag coverage depend on real-world inputs. Decision impacted: rewrite parser and test vectors. citeturn3view3
+- Q: Do we have examples of actual provider HLS playlists used in STRM (master vs media, encrypted vs clear)? Why it matters: rewrite rules and tag coverage depend on real-world inputs. Decision impacted: rewrite parser and test vectors. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
 - Q: Are EXT-X-KEY URIs routinely used by the providers? Why it matters: key proxying and redaction requirements. Decision impacted: key handling policy and logging.
-- Q: Are playlists using relative URIs, absolute URIs, or both? Why it matters: rewrite must resolve relative URIs correctly. Decision impacted: base URL resolution rules. citeturn3view4
-- Q: Are audio/subtitle renditions required (`EXT-X-MEDIA`)? Why it matters: incomplete rewrites break playback. Decision impacted: tag coverage and tests. citeturn3view3
+- Q: Are playlists using relative URIs, absolute URIs, or both? Why it matters: rewrite must resolve relative URIs correctly. Decision impacted: base URL resolution rules. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
+- Q: Are audio/subtitle renditions required (`EXT-X-MEDIA`)? Why it matters: incomplete rewrites break playback. Decision impacted: tag coverage and tests. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
 - Q: Are byte-range segments (`EXT-X-BYTERANGE`) used by providers? Why it matters: range proxying for segment files may be necessary. Decision impacted: range handling on segment requests.
 
 ## Range And Streaming Behavior
 
 - Q: Do clients send `HEAD` requests before playback, and should those be supported? Why it matters: some players probe metadata via HEAD. Decision impacted: HEAD passthrough implementation.
 - Q: What chunk sizes are safe for segment proxying (e.g., 64KB, 256KB)? Why it matters: affects memory and throughput. Decision impacted: streaming implementation and performance tuning.
-- Q: Do deployments require HTTP/2 or HTTP/3, or is HTTP/1.1 sufficient? Why it matters: Range and streaming semantics are defined but proxy behavior differs by protocol. Decision impacted: server configuration guidance. citeturn2view2
+- Q: Do deployments require HTTP/2 or HTTP/3, or is HTTP/1.1 sufficient? Why it matters: Range and streaming semantics are defined but proxy behavior differs by protocol. Decision impacted: server configuration guidance. [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
 
 ## Resolver Integration
 

@@ -15,16 +15,16 @@ Define threat model, auth/signing options, SSRF protections, and logging redacti
 ## Threat Model
 
 - Open proxy abuse (unauthenticated use to proxy arbitrary URLs).
-- SSRF via `u=` or playlist URIs to internal networks or metadata endpoints. citeturn17view0
+- SSRF via `u=` or playlist URIs to internal networks or metadata endpoints. [OWASP SSRF Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)
 - Token leakage in logs or analytics.
 - Replay attacks against signed URLs if expiry is too long.
-- Key URI leakage from HLS (`EXT-X-KEY`). citeturn3view3
+- Key URI leakage from HLS (`EXT-X-KEY`). [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
 
 ## Auth Options (Draft)
 
 1. `none`: no auth; only acceptable for trusted LAN deployments.
 2. `apikey`: reuse existing API key model; token passed as query param.
-3. `token` (HMAC signed URLs): sign query parameters with expiry using HMAC (RFC 2104). citeturn16view0
+3. `token` (HMAC signed URLs): sign query parameters with expiry using HMAC (RFC 2104). [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104)
 
 ## Recommended Default (Conditional)
 
@@ -41,7 +41,7 @@ Define threat model, auth/signing options, SSRF protections, and logging redacti
 
 - Validate that upstream URLs are HTTP(S) only.
 - Optionally enforce allowlist of provider domains.
-- Block requests to private IP ranges, loopback, or link-local metadata endpoints (decision gate). citeturn17view0
+- Block requests to private IP ranges, loopback, or link-local metadata endpoints (decision gate). [OWASP SSRF Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)
 
 ## Logging Redaction Rules
 

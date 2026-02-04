@@ -16,7 +16,7 @@ Define exact playlist parsing and rewrite rules for HLS `.m3u8` content, includi
 
 Option A: Use the Python `m3u8` library for parsing and rendering.
 
-- Rationale: the library supports loading and dumping HLS playlists and provides structured access to tags and URIs. citeturn15view0
+- Rationale: the library supports loading and dumping HLS playlists and provides structured access to tags and URIs. [m3u8 Python Library](https://github.com/globocom/m3u8)
 
 Option B: Implement a strict line-based parser that rewrites URI-bearing lines and tag attributes.
 
@@ -26,28 +26,28 @@ Decision gate: choose based on real-world playlist complexity and maintainer app
 
 ## HLS Rewrite Rules (Normative)
 
-HLS playlists are line-oriented and contain a mix of tags (`#EXT-*`) and URI lines; playlists are either master or media playlists. citeturn3view3
+HLS playlists are line-oriented and contain a mix of tags (`#EXT-*`) and URI lines; playlists are either master or media playlists. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
 
 ### Rule 1: Detect Playlist Type
 
-- If playlist contains `#EXT-X-STREAM-INF` or `#EXT-X-I-FRAME-STREAM-INF`, treat it as a master playlist. citeturn3view3
+- If playlist contains `#EXT-X-STREAM-INF` or `#EXT-X-I-FRAME-STREAM-INF`, treat it as a master playlist. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
 - Otherwise, treat as a media playlist.
 
 ### Rule 2: Rewrite All URI Lines
 
 - Any non-empty, non-`#` line is a URI and must be rewritten to the proxy endpoint.
-- Resolve relative URIs against the playlist URL before rewriting. citeturn3view4
+- Resolve relative URIs against the playlist URL before rewriting. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
 
 ### Rule 3: Rewrite URI-Bearing Tags (Exhaustive List)
 
 The following tags contain URI attributes and must be rewritten:
 
-1. `#EXT-X-KEY:URI="..."` for encryption keys. citeturn3view3
-2. `#EXT-X-MAP:URI="..."` for init segments. citeturn3view4
-3. `#EXT-X-MEDIA:URI="..."` for audio/subtitle renditions. citeturn3view4
-4. `#EXT-X-STREAM-INF` followed by a URI line for variant playlists. citeturn3view3
-5. `#EXT-X-I-FRAME-STREAM-INF:URI="..."` for I-frame playlists. citeturn3view4
-6. `#EXT-X-SESSION-KEY:URI="..."` for session-wide keys. citeturn3view4
+1. `#EXT-X-KEY:URI="..."` for encryption keys. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
+2. `#EXT-X-MAP:URI="..."` for init segments. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
+3. `#EXT-X-MEDIA:URI="..."` for audio/subtitle renditions. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
+4. `#EXT-X-STREAM-INF` followed by a URI line for variant playlists. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
+5. `#EXT-X-I-FRAME-STREAM-INF:URI="..."` for I-frame playlists. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
+6. `#EXT-X-SESSION-KEY:URI="..."` for session-wide keys. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
 
 ### Rule 4: Preserve Non-URI Tags
 
@@ -75,7 +75,7 @@ The following tags contain URI attributes and must be rewritten:
 
 ## Test Vectors (Synthetic, Derived From Spec)
 
-These examples are synthetic but aligned with RFC 8216 semantics. citeturn3view3turn3view4
+These examples are synthetic but aligned with RFC 8216 semantics. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
 
 ### Test Vector 1: Master Playlist
 

@@ -17,8 +17,8 @@ Define the target architecture and endpoint contracts for STRM proxy streaming, 
 1. Preserve default behavior unless `STRM_PROXY_MODE` (or equivalent) is explicitly enabled.
 2. Keep STRM proxy URLs stable and stateless by encoding episode identity in query parameters.
 3. Avoid redirects; always stream bytes through AniBridge to preserve VPN egress consistency. See `specs/006-fix-strm-files/context.md:23`.
-4. Implement HLS-aware rewriting for all playlists and URI-bearing tags per HLS specification. citeturn3view3turn3view4
-5. Preserve HTTP Range semantics end-to-end. citeturn2view2turn2view3
+4. Implement HLS-aware rewriting for all playlists and URI-bearing tags per HLS specification. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
+5. Preserve HTTP Range semantics end-to-end. [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
 
 ## High-Level Flow
 
@@ -41,7 +41,7 @@ flowchart TD
   D --> E[Rewrite all URI-bearing lines/tags]
   E --> F[Return rewritten playlist]
   F --> G[Client follows rewritten URIs]
-  G --> H[/strm/proxy endpoint]
+  G --> H[strm/proxy endpoint]
   H --> I[Stream segment/key/init bytes]
 ```
 
@@ -75,23 +75,23 @@ These are draft inputs that must be confirmed by maintainers.
 
 ## Response Contract (Draft)
 
-1. For non-HLS media, respond with a streaming body using `StreamingResponse` semantics, preserving upstream status code and key headers. FastAPI/Starlette streaming responses accept generators/iterators to stream bodies. citeturn2view1turn5view0
-2. For HLS playlists, respond with `Content-Type: application/vnd.apple.mpegurl` and a rewritten playlist body. HLS playlist structure and tag/URI requirements are defined in RFC 8216. citeturn3view3turn3view4
-3. When the request includes `Range`, forward it upstream and preserve `206 Partial Content` with `Content-Range` or return `416 Range Not Satisfiable` for invalid ranges. citeturn2view2turn2view3
+1. For non-HLS media, respond with a streaming body using `StreamingResponse` semantics, preserving upstream status code and key headers. FastAPI/Starlette streaming responses accept generators/iterators to stream bodies. [FastAPI StreamingResponse](https://fastapi.tiangolo.com/advanced/custom-response/), [Starlette Responses](https://www.starlette.io/responses/)
+2. For HLS playlists, respond with `Content-Type: application/vnd.apple.mpegurl` and a rewritten playlist body. HLS playlist structure and tag/URI requirements are defined in RFC 8216. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
+3. When the request includes `Range`, forward it upstream and preserve `206 Partial Content` with `Content-Range` or return `416 Range Not Satisfiable` for invalid ranges. [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
 
 ## Request Lifecycle (Draft)
 
 1. Validate query params and auth token/signature.
 2. Build episode identity and check cache for a resolved URL and any required headers.
 3. If cache miss or refresh required, resolve via `get_direct_url_with_fallback` (same resolver used for STRM). Evidence in `app/core/scheduler.py:215`.
-4. Fetch upstream response using a streaming HTTP client (HTTPX or aiohttp). citeturn13view0turn14view0
+4. Fetch upstream response using a streaming HTTP client (HTTPX or aiohttp). [HTTPX Async Streaming](https://www.python-httpx.org/async/), [aiohttp Streams](https://docs.aiohttp.org/en/stable/streams.html)
 5. If upstream is HLS playlist, rewrite all URIs to `/strm/proxy` (or `/strm/hls/proxy`) and return rewritten playlist.
 6. If upstream fails with refresh-eligible status, re-resolve and retry once before failing. See `specs/010-strm-proxy-stream/github-issue.md:103`.
 
 ## Auth And Signing (Draft)
 
 - Default: `STRM_PROXY_AUTH=token` (HMAC) or `apikey`, configurable.
-- Token design uses HMAC with expiry to prevent replay. HMAC is standardized in RFC 2104. citeturn16view0
+- Token design uses HMAC with expiry to prevent replay. HMAC is standardized in RFC 2104. [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104)
 
 ## Decision Gates
 

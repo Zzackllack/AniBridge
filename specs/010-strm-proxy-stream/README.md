@@ -41,9 +41,9 @@ This spec set formalizes the STRM proxy-stream direction documented in `specs/01
 ## Glossary
 
 - STRM: A plain-text file containing a single HTTP(S) URL used by media servers for playback.
-- HLS: HTTP Live Streaming, a playlist-based streaming format using `.m3u8` playlists and segment files. citeturn3view3
-- Range: HTTP byte range requests enabling partial content retrieval (e.g., seeking). citeturn2view2
-- Master playlist: HLS playlist that references variant playlists. citeturn3view3
-- Media playlist: HLS playlist that references media segments. citeturn3view3
-- Segment: Individual media chunk referenced by a media playlist (e.g., `.ts`, `.m4s`). citeturn3view3
-- Init segment: Initialization data referenced via `EXT-X-MAP`. citeturn3view3
+- HLS: HTTP Live Streaming, a playlist-based streaming format using `.m3u8` playlists and segment files. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
+- Range: HTTP byte range requests enabling partial content retrieval (e.g., seeking). [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
+- Master playlist: HLS playlist that references variant playlists. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
+- Media playlist: HLS playlist that references media segments. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
+- Segment: Individual media chunk referenced by a media playlist (e.g., `.ts`, `.m4s`). [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
+- Init segment: Initialization data referenced via `EXT-X-MAP`. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)

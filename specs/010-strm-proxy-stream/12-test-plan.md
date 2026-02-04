@@ -14,9 +14,9 @@ Define unit, integration, and end-to-end test coverage for STRM proxy streaming,
 
 ## Unit Tests
 
-1. Range parsing: validate `Range` header parsing and response selection (`200`, `206`, `416`) per RFC 9110. citeturn2view2turn2view3
-2. HLS rewrite: rewrite URI lines and tag URI attributes (`EXT-X-KEY`, `EXT-X-MAP`, `EXT-X-MEDIA`, `EXT-X-STREAM-INF`, `EXT-X-I-FRAME-STREAM-INF`, `EXT-X-SESSION-KEY`) per RFC 8216. citeturn3view3turn3view4
-3. URL signing: generate and verify HMAC signatures with expiry (RFC 2104). citeturn16view0
+1. Range parsing: validate `Range` header parsing and response selection (`200`, `206`, `416`) per RFC 9110. [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
+2. HLS rewrite: rewrite URI lines and tag URI attributes (`EXT-X-KEY`, `EXT-X-MAP`, `EXT-X-MEDIA`, `EXT-X-STREAM-INF`, `EXT-X-I-FRAME-STREAM-INF`, `EXT-X-SESSION-KEY`) per RFC 8216. [RFC 8216](https://www.rfc-editor.org/rfc/rfc8216)
+3. URL signing: generate and verify HMAC signatures with expiry (RFC 2104). [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104)
 4. Cache behavior: TTL expiry, invalidation on refresh-eligible failures.
 
 ## Integration Tests
@@ -31,7 +31,7 @@ Define unit, integration, and end-to-end test coverage for STRM proxy streaming,
 1. Use the dev compose stack (`docker-compose.dev.yaml`) with Jellyfin, Sonarr, Prowlarr, and AniBridge.
 2. Add Gluetun sidecar and set `network_mode: service:gluetun` per quickstart guidance to reproduce egress mismatch. See `docs/src/guide/quickstart.md:62`.
 3. Generate STRM files and confirm playback succeeds from Jellyfin while AniBridge remains behind VPN.
-4. Seek/scrub in Jellyfin and verify `206 Partial Content` with proper `Content-Range` is returned. citeturn2view2
+4. Seek/scrub in Jellyfin and verify `206 Partial Content` with proper `Content-Range` is returned. [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
 
 ## Reproducing IP/ASN Mismatch
 
