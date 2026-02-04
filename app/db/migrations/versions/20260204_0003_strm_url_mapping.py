@@ -19,6 +19,12 @@ depends_on = None
 
 
 def upgrade() -> None:
+    conn = op.get_bind()
+    table_present = conn.exec_driver_sql(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='strmurlmapping'"
+    ).fetchone()
+    if table_present:
+        return
     op.create_table(
         "strmurlmapping",
         sa.Column("site", sa.String(), nullable=False),
@@ -57,6 +63,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    conn = op.get_bind()
+    table_present = conn.exec_driver_sql(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='strmurlmapping'"
+    ).fetchone()
+    if not table_present:
+        return
     op.drop_index("ix_strmurlmapping_updated_at", table_name="strmurlmapping")
     op.drop_index("ix_strmurlmapping_resolved_at", table_name="strmurlmapping")
     op.drop_table("strmurlmapping")

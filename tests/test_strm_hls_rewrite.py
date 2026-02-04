@@ -11,7 +11,8 @@ def test_rewrite_hls_master_playlist():
         '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="English",URI="audio/eng/playlist.m3u8"\n'
     )
     base_url = "https://origin.example/dir/master.m3u8"
-    rewrite = lambda u: f"proxy://{u}"
+    def rewrite(u: str) -> str:
+        return f"proxy://{u}"
     rewritten = rewrite_hls_playlist(playlist, base_url=base_url, rewrite_url=rewrite)
 
     assert "proxy://https://origin.example/dir/low/playlist.m3u8" in rewritten
@@ -34,7 +35,8 @@ def test_rewrite_hls_media_playlist_with_key_and_map():
         "#EXT-X-ENDLIST\n"
     )
     base_url = "https://origin.example/media/playlist.m3u8"
-    rewrite = lambda u: f"proxy://{u}"
+    def rewrite(u: str) -> str:
+        return f"proxy://{u}"
     rewritten = rewrite_hls_playlist(playlist, base_url=base_url, rewrite_url=rewrite)
 
     assert 'URI="proxy://https://origin.example/media/init.mp4"' in rewritten
