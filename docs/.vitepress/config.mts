@@ -231,6 +231,7 @@ export default defineConfig({
             { text: "Torznab", link: "/api/torznab" },
             { text: "qBittorrent Shim", link: "/api/qbittorrent" },
             { text: "Jobs & Events", link: "/api/jobs" },
+            { text: "STRM Proxy", link: "/api/strm-proxy" },
             { text: "Environment", link: "/api/environment" },
             { text: "Data Model", link: "/api/data-model" },
           ],

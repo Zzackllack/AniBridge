@@ -14,6 +14,9 @@ This section is organized around operation pages (one page per endpoint). Use th
 > [!IMPORTANT]
 > If `INDEXER_API_KEY` is set, include `apikey=...` on every Torznab request.
 
+> [!TIP]
+> STRM proxy endpoints (`/strm/*`) use their own auth settings via `STRM_PROXY_AUTH`.
+
 ## Browse Operations
 
 <ApiOperations />

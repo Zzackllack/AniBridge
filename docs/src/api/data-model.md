@@ -55,3 +55,20 @@ completion_on?: datetime
 state: 'queued' | 'downloading' | 'paused' | 'completed' | 'error'
 ```
 
+## StrmUrlMapping
+
+Persistent mapping for STRM proxying (resolved upstream URLs).
+
+```ts
+site: string
+slug: string
+season: number
+episode: number
+language: string
+provider: string // empty string when no provider hint
+resolved_url: string
+provider_used?: string
+resolved_headers?: object
+resolved_at: datetime
+updated_at: datetime
+```
