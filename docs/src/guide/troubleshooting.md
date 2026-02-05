@@ -56,8 +56,9 @@ outline: deep
 
 ## Sonarr fails to import completed downloads due to "No audio tracks detected"
 
-- This is a know issue that sometimes can appear when using `.strm` files and is likely related to ffmpeg/ffprobe,
-this is not an issue on the side of AniBridge.This will not be worked on.
-You will need to import the download manually or disable "analyze video files"
-in Sonarr settings. For more information, see the following issue
-[Issue #50](https://github.com/Zzackllack/AniBridge/issues/50).
+> [!WARNING]
+> This is a known Sonarr behavior with `.strm` files. When Sonarr's
+> ffprobe succeeds on a `.strm`, it may report zero audio tracks and
+> reject the import. This is not an AniBridge issue. Workarounds: manual
+> import or disable "Analyze video files" in Sonarr. For details, see
+> [Issue #50](https://github.com/Zzackllack/AniBridge/issues/50).
