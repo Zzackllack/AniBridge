@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 import ipaddress
 import socket
-from typing import Mapping, Optional
+from typing import Callable, Mapping, Optional
 from urllib.parse import urlsplit
 
 import anyio
@@ -260,25 +260,39 @@ async def _validate_upstream_url(url: str) -> None:
 
 
 _UPSTREAM_CLIENT: httpx.AsyncClient | None = None
+_UPSTREAM_CLIENT_FACTORY: Callable[[], httpx.AsyncClient] | None = None
 _UPSTREAM_CLIENT_LOCK = anyio.Lock()
+
+
+def _build_async_client() -> httpx.AsyncClient:
+    """
+    Constructs an httpx.AsyncClient configured for upstream streaming requests.
+    """
+    logger.trace("Building upstream AsyncClient")
+    timeout = httpx.Timeout(30.0, connect=10.0, read=60.0, write=30.0, pool=30.0)
+    return httpx.AsyncClient(
+        timeout=timeout,
+        follow_redirects=True,
+        trust_env=False,
+    )
 
 
 async def _get_async_client() -> httpx.AsyncClient:
     """
     Return a shared AsyncClient for upstream streaming requests.
     """
-    global _UPSTREAM_CLIENT
+    global _UPSTREAM_CLIENT, _UPSTREAM_CLIENT_FACTORY
     async with _UPSTREAM_CLIENT_LOCK:
-        if _UPSTREAM_CLIENT is None or _UPSTREAM_CLIENT.is_closed:
-            logger.trace("Building upstream AsyncClient")
-            timeout = httpx.Timeout(
-                30.0, connect=10.0, read=60.0, write=30.0, pool=30.0
-            )
-            _UPSTREAM_CLIENT = httpx.AsyncClient(
-                timeout=timeout,
-                follow_redirects=True,
-                trust_env=False,
-            )
+        factory = _build_async_client
+        if (
+            _UPSTREAM_CLIENT is None
+            or _UPSTREAM_CLIENT.is_closed
+            or _UPSTREAM_CLIENT_FACTORY is not factory
+        ):
+            if _UPSTREAM_CLIENT is not None and not _UPSTREAM_CLIENT.is_closed:
+                await _UPSTREAM_CLIENT.aclose()
+            _UPSTREAM_CLIENT = factory()
+            _UPSTREAM_CLIENT_FACTORY = factory
         return _UPSTREAM_CLIENT
 
 
@@ -769,8 +783,9 @@ async def close_upstream_client() -> None:
     """
     Close the shared upstream AsyncClient (called from app lifespan shutdown).
     """
-    global _UPSTREAM_CLIENT
+    global _UPSTREAM_CLIENT, _UPSTREAM_CLIENT_FACTORY
     if _UPSTREAM_CLIENT is None:
         return
     await _UPSTREAM_CLIENT.aclose()
     _UPSTREAM_CLIENT = None
+    _UPSTREAM_CLIENT_FACTORY = None
