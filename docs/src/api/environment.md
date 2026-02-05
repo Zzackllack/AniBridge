@@ -49,6 +49,12 @@ Comprehensive list of env vars read in `app/config.py`.
 - `STRM_PROXY_TOKEN_TTL_SECONDS` (default: `900`) — TTL for STRM proxy signed
   URL tokens.
 
+::: warning
+Sonarr can occasionally reject `.strm` imports with “No audio tracks detected” even when playback works. If this
+appears, use manual import or disable “Analyze video files” in Sonarr. See
+[Issue #50](https://github.com/zzackllack/anibridge/issues/50).
+:::
+
 ## Providers & Languages
 
 - `PROVIDER_ORDER` (CSV; priority-ordered)

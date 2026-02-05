@@ -48,6 +48,12 @@ one HTTP(S) URL line) instead of downloading media bytes. When
 `STRM_PROXY_MODE=proxy`, the `.strm` file contains a stable AniBridge URL
 that streams bytes from the upstream provider/CDN.
 
+::: warning
+Sonarr can occasionally reject `.strm` imports with “No audio tracks detected” even when playback works. If this
+appears, use manual import or disable “Analyze video files” in Sonarr. See
+[Issue #50](https://github.com/zzackllack/anibridge/issues/50).
+:::
+
 ## Provider & Language
 
 - `PROVIDER_ORDER`: comma-separated providers by priority (e.g., `VOE,Filemoon,Streamtape,...`)

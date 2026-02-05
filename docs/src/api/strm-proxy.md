@@ -66,5 +66,11 @@ GET /strm/proxy/seg-1-v1-a1.ts?u=https%3A%2F%2Fcdn.example%2Fseg-1-v1-a1.ts&sig=
 
 ## Notes
 
+::: warning
+Sonarr can occasionally reject `.strm` imports with “No audio tracks detected” even when playback works. This
+usually happens when Sonarr’s ffprobe succeeds on the `.strm` file and reports zero audio streams. Workaround:
+use manual import or disable “Analyze video files” in Sonarr. See [Issue #50](https://github.com/zzackllack/anibridge/issues/50).
+:::
+
 - AniBridge never redirects STRM playback; bytes are streamed.
 - `STRM_PUBLIC_BASE_URL` must match how your media server reaches AniBridge (LAN host, reverse proxy, etc.).

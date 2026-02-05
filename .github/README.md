@@ -19,6 +19,11 @@ AniBridge is a minimal FastAPI service that bridges anime and series streaming c
 - Simple `/health` endpoint for container or orchestration checks.
 - Docker Image for easy deployment
 
+> [!NOTE]
+> Sonarr can occasionally reject `.strm` imports with “No audio tracks detected” even when playback works in
+> Jellyfin. If this happens, use manual import or disable “Analyze video files” in Sonarr. See
+> [Issue #50](https://github.com/zzackllack/anibridge/issues/50).
+
 ## Currently work-in-progress / TODO
 
 - Better code structure and organization (refactoring, modularization, right now the code is a bit messy with comments in multiple languages, redundant code, etc. 😅)
