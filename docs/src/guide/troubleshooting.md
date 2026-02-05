@@ -53,3 +53,11 @@ outline: deep
 - Override with `MEGAKINO_BASE_URL` if automatic resolution fails.
 - Set `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN=0` to disable background checks during troubleshooting.
 - Remember megakino is search-only; queries must provide a slug or a megakino URL containing one.
+
+## Sonarr fails to import completed downloads due to "No audio tracks detected"
+
+- This is a know issue that sometimes can appear when using `.strm` files and is likely related to ffmpeg/ffprobe,
+this is not an issue on the side of AniBridge.This will not be worked on.
+You will need to import the download manually or disable "analyze video files"
+in Sonarr settings. For more information, see the following issue
+[Issue #50](https://github.com/Zzackllack/AniBridge/issues/50).
