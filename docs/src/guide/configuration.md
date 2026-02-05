@@ -32,15 +32,21 @@ AniBridge is configured via environment variables (works well with Docker). Sens
   - `no`: behave like today (download via yt-dlp).
   - `both`: emit both variants for each Torznab item (download + STRM).
   - `only`: emit only STRM variants.
-- `STRM_PROXY_MODE` (`direct|proxy|redirect`, default: `proxy`)
+- `STRM_PROXY_MODE` (`direct|proxy|redirect`, default: `direct`)
 - `STRM_PUBLIC_BASE_URL` (required when proxy mode is enabled)
 - `STRM_PROXY_AUTH` (`none|token|apikey`, default: `token`)
 - `STRM_PROXY_SECRET` (shared secret for token/apikey auth)
+- `STRM_PROXY_UPSTREAM_ALLOWLIST` (comma-separated upstream host allowlist)
 - `STRM_PROXY_CACHE_TTL_SECONDS` (default: `0`)
+- `STRM_PROXY_TOKEN_TTL_SECONDS` (default: `900`)
 
-When `STRM_PROXY_AUTH` is set to `token` or `apikey`, `STRM_PROXY_SECRET` must be configured.
+When `STRM_PROXY_AUTH` is set to `token` or `apikey`, `STRM_PROXY_SECRET`
+must be configured.
 
-In STRM mode, AniBridge schedules creation of a `.strm` file (plain text, one HTTP(S) URL line) instead of downloading media bytes. When `STRM_PROXY_MODE=proxy`, the `.strm` file contains a stable AniBridge URL that streams bytes from the upstream provider/CDN.
+In STRM mode, AniBridge schedules creation of a `.strm` file (plain text,
+one HTTP(S) URL line) instead of downloading media bytes. When
+`STRM_PROXY_MODE=proxy`, the `.strm` file contains a stable AniBridge URL
+that streams bytes from the upstream provider/CDN.
 
 ## Provider & Language
 

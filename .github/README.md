@@ -15,6 +15,7 @@ AniBridge is a minimal FastAPI service that bridges anime and series streaming c
 - **Torznab endpoint** that indexes available episodes from AniWorld, Serienstream (s.to), and megakino.
 - **qBittorrent API shim** allowing Prowlarr/Sonarr to enqueue downloads.
 - **Background scheduler** with progress tracking for downloads.
+- **STRM files and STRM proxy** support for stable streaming URLs.
 - Simple `/health` endpoint for container or orchestration checks.
 - Docker Image for easy deployment
 
