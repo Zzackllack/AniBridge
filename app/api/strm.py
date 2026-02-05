@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+import ipaddress
+import socket
 from typing import Mapping, Optional
 from urllib.parse import urlsplit
 
@@ -11,12 +13,13 @@ from fastapi.responses import Response, StreamingResponse
 from loguru import logger
 from sqlmodel import Session
 
-from app.config import STRM_PROXY_CACHE_TTL_SECONDS
+from app.config import STRM_PROXY_CACHE_TTL_SECONDS, STRM_PROXY_UPSTREAM_ALLOWLIST
 from app.db import (
     get_session,
     get_strm_mapping,
     upsert_strm_mapping,
     delete_strm_mapping,
+    utcnow,
 )
 from app.core.strm_proxy import (
     StrmIdentity,
@@ -48,13 +51,6 @@ _HLS_CONTENT_TYPES = {
 _STREAM_CHUNK_SIZE = 64 * 1024
 
 
-def _utcnow() -> datetime:
-    """
-    Return current UTC time as timezone-aware datetime.
-    """
-    return datetime.now(timezone.utc)
-
-
 def _is_fresh(resolved_at: datetime) -> bool:
     """
     Determine whether a cached mapping is still within the configured TTL.
@@ -62,7 +58,7 @@ def _is_fresh(resolved_at: datetime) -> bool:
     logger.trace("Checking STRM cache freshness at {}", resolved_at)
     if STRM_PROXY_CACHE_TTL_SECONDS <= 0:
         return True
-    return _utcnow() - resolved_at <= timedelta(seconds=STRM_PROXY_CACHE_TTL_SECONDS)
+    return utcnow() - resolved_at <= timedelta(seconds=STRM_PROXY_CACHE_TTL_SECONDS)
 
 
 def _filter_headers(headers: Mapping[str, str]) -> dict[str, str]:
@@ -104,11 +100,46 @@ def _redact_upstream(url: str) -> str:
     """
     try:
         parsed = urlsplit(url)
-        host = parsed.netloc
+        host = parsed.hostname or ""
+        if parsed.port:
+            host = f"{host}:{parsed.port}"
         path = parsed.path or "/"
-        return f"{host}:{hash(path) & 0xFFFF_FFFF:x}"
+        return f"{host or '<unknown>'}:{hash(path) & 0xFFFF_FFFF:x}"
     except Exception:
         return "<redacted>"
+
+
+def _resolve_upstream_ips(
+    host: str,
+) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+    """
+    Resolve the host to all A/AAAA records or return the literal IP.
+    """
+    try:
+        literal_ip = ipaddress.ip_address(host)
+    except ValueError:
+        literal_ip = None
+    if literal_ip is not None:
+        return [literal_ip]
+    try:
+        infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+    except socket.gaierror:
+        return []
+    resolved: list[ipaddress.IPv4Address | ipaddress.IPv6Address] = []
+    for _, _, _, _, sockaddr in infos:
+        addr = sockaddr[0]
+        try:
+            resolved.append(ipaddress.ip_address(addr))
+        except ValueError:
+            continue
+    unique: list[ipaddress.IPv4Address | ipaddress.IPv6Address] = []
+    seen: set[ipaddress.IPv4Address | ipaddress.IPv6Address] = set()
+    for ip in resolved:
+        if ip in seen:
+            continue
+        seen.add(ip)
+        unique.append(ip)
+    return unique
 
 
 def _parse_identity(params: Mapping[str, str]) -> StrmIdentity:
@@ -151,6 +182,28 @@ def _validate_upstream_url(url: str) -> None:
     parsed = urlsplit(url)
     if parsed.scheme not in ("http", "https"):
         raise HTTPException(status_code=400, detail="invalid upstream url scheme")
+    host = (parsed.hostname or "").strip().lower()
+    if not host or host == "localhost":
+        raise HTTPException(status_code=400, detail="invalid upstream host")
+    if host in STRM_PROXY_UPSTREAM_ALLOWLIST:
+        return
+    if host and "." not in host:
+        try:
+            ipaddress.ip_address(host)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="invalid upstream host")
+    resolved_ips = _resolve_upstream_ips(host)
+    if not resolved_ips:
+        raise HTTPException(status_code=400, detail="unresolvable upstream host")
+    for ip in resolved_ips:
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+        ):
+            raise HTTPException(status_code=400, detail="upstream host not allowed")
 
 
 def _build_async_client() -> httpx.AsyncClient:
@@ -240,7 +293,7 @@ def _cache_set(
     Persist the resolved mapping and update the in-memory cache.
     """
     logger.debug("Persisting STRM mapping for {}", identity.cache_key())
-    entry = StrmCacheEntry(url=url, provider_used=provider_used, resolved_at=_utcnow())
+    entry = StrmCacheEntry(url=url, provider_used=provider_used, resolved_at=utcnow())
     MEMORY_CACHE.set(identity, entry)
     upsert_strm_mapping(
         session,
@@ -445,6 +498,7 @@ async def strm_stream(
         out_bytes = rewritten.encode("utf-8")
         headers = _filter_headers(response.headers)
         headers["Content-Length"] = str(len(out_bytes))
+        headers["Content-Type"] = "application/vnd.apple.mpegurl"
         logger.success("Rewrote HLS playlist ({} bytes)", len(out_bytes))
         return Response(
             content=out_bytes,
@@ -546,6 +600,7 @@ async def strm_proxy(request: Request, path_hint: str = ""):
         out_bytes = rewritten.encode("utf-8")
         headers = _filter_headers(response.headers)
         headers["Content-Length"] = str(len(out_bytes))
+        headers["Content-Type"] = "application/vnd.apple.mpegurl"
         logger.success("Rewrote HLS playlist ({} bytes)", len(out_bytes))
         return Response(
             content=out_bytes,

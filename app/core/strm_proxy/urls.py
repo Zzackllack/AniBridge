@@ -46,7 +46,7 @@ def is_already_proxied(url: str) -> bool:
     """
     from loguru import logger
 
-    base = STRM_PUBLIC_BASE_URL.strip()
+    base = (STRM_PUBLIC_BASE_URL or "").strip()
     if not base:
         return False
     base = base.rstrip("/") + "/"

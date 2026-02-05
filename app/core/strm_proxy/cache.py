@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import threading
 from typing import Optional
 
 from loguru import logger
 
 from app.config import STRM_PROXY_CACHE_TTL_SECONDS
+from app.db import utcnow
 from .types import StrmIdentity
 
 
@@ -16,13 +17,6 @@ class StrmCacheEntry:
     url: str
     provider_used: Optional[str]
     resolved_at: datetime
-
-
-def _utcnow() -> datetime:
-    """
-    Return current UTC time as timezone-aware datetime.
-    """
-    return datetime.now(timezone.utc)
 
 
 class StrmMemoryCache:
@@ -41,7 +35,7 @@ class StrmMemoryCache:
         """
         if self._ttl_seconds <= 0:
             return True
-        age = _utcnow() - entry.resolved_at
+        age = utcnow() - entry.resolved_at
         return age <= timedelta(seconds=self._ttl_seconds)
 
     def get(self, identity: StrmIdentity) -> Optional[StrmCacheEntry]:
