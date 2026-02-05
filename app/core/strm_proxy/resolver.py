@@ -12,7 +12,12 @@ from .types import StrmIdentity
 
 def resolve_direct_url(identity: StrmIdentity) -> tuple[str, str]:
     """
-    Resolve a direct upstream URL for the given STRM identity.
+    Resolve an upstream direct URL for a STRM identity, using Megakino-specific provider retries when applicable and a generic fallback otherwise.
+
+    When the identity's site includes "megakino" and a slug is present, attempts to resolve via Megakino client across a prioritized list of providers (including the identity's preferred provider if set) and raises an exception if all attempts fail. For other sites or when slug is missing, builds an episode descriptor and uses the generic fallback resolver.
+
+    Returns:
+        tuple[str, str | None]: A pair where the first element is the resolved direct upstream URL and the second is the provider name that produced the URL, or `None` if no provider name is available.
     """
     logger.debug("Resolving STRM upstream for {}", identity.cache_key())
     with disabled_proxy_env():

@@ -94,6 +94,14 @@ class EpisodeAvailability(ModelBase, table=True):
 
     @property
     def is_fresh(self) -> bool:
+        """
+        Determine whether this availability record is still fresh according to AVAILABILITY_TTL_HOURS.
+
+        If AVAILABILITY_TTL_HOURS is less than or equal to zero the record is considered always fresh. Freshness is determined by comparing the time since `checked_at` to the TTL.
+
+        Returns:
+            `true` if the time since `checked_at` is less than or equal to AVAILABILITY_TTL_HOURS, `false` otherwise.
+        """
         logger.debug(
             f"Checking freshness for {self.slug} S{self.season}E{self.episode} {self.language}"
         )
@@ -512,10 +520,13 @@ def get_strm_mapping(
     provider: Optional[str] = None,
 ) -> Optional[StrmUrlMapping]:
     """
-    Fetch a STRM URL mapping for the given episode identity and optional provider hint.
+    Fetch the STRM URL mapping for the specified episode identity and optional provider hint.
 
     Parameters:
-        provider (Optional[str]): Preferred provider hint, stored as empty string when unset.
+        provider (Optional[str]): Preferred provider hint; treated as the empty string when not provided.
+
+    Returns:
+        Optional[StrmUrlMapping]: The matching StrmUrlMapping record if found, `None` otherwise.
     """
     key = (site, slug, season, episode, language, provider or "")
     logger.debug("Fetching STRM mapping for {}", key)
@@ -541,7 +552,22 @@ def upsert_strm_mapping(
     resolved_headers: Optional[dict] = None,
 ) -> StrmUrlMapping:
     """
-    Create or update a STRM URL mapping and persist it.
+    Create or update a STRM URL mapping for a specific (site, slug, season, episode, language, provider) key and persist it.
+
+    Parameters:
+        session: Database session used to load and persist the mapping.
+        site (str): Site identifier (part of the composite key).
+        slug (str): Content slug (part of the composite key).
+        season (int): Season number (part of the composite key).
+        episode (int): Episode number (part of the composite key).
+        language (str): Language code (part of the composite key).
+        provider (Optional[str]): Provider identifier (part of the composite key). If `None`, an empty string is used for the key.
+        resolved_url (str): The resolved stream URL to store.
+        provider_used (Optional[str]): The provider that was actually used to resolve `resolved_url`.
+        resolved_headers (Optional[dict]): Optional headers associated with the resolved URL; stored as JSON.
+
+    Returns:
+        StrmUrlMapping: The persisted mapping instance with `resolved_at` and `updated_at` set to the current UTC time.
     """
     key = (site, slug, season, episode, language, provider or "")
     logger.debug("Upserting STRM mapping for {}", key)
@@ -591,7 +617,11 @@ def delete_strm_mapping(
     provider: Optional[str] = None,
 ) -> None:
     """
-    Delete a STRM URL mapping for the given identity when present.
+    Delete the STRM URL mapping identified by the composite key if it exists.
+
+    If `provider` is `None`, it is treated as the empty string when looking up the mapping. The deletion is committed to the database; if no matching mapping is found the function does nothing.
+    Parameters:
+        provider (Optional[str]): Provider identifier; use `None` to match the empty-string provider key.
     """
     key = (site, slug, season, episode, language, provider or "")
     logger.debug("Deleting STRM mapping for {}", key)
@@ -621,14 +651,14 @@ def upsert_client_task(
     site: str = "aniworld.to",
 ) -> ClientTask:
     """
-    Create or update a ClientTask record for the given torrent/file hash.
+    Insert or update a ClientTask record identified by its hash.
 
     Parameters:
         hash (str): Unique identifier for the client task (primary key).
         site (str): Site identifier to store on the record; defaults to "aniworld.to".
 
     Returns:
-        ClientTask: The inserted or updated ClientTask instance refreshed from the database.
+        ClientTask: The persisted ClientTask instance refreshed from the database.
     """
     logger.debug(f"Upserting client task for hash {hash} on site {site}")
     rec = session.get(ClientTask, hash)
