@@ -13,6 +13,15 @@ def test_rewrite_hls_master_playlist():
     base_url = "https://origin.example/dir/master.m3u8"
 
     def rewrite(u: str) -> str:
+        """
+        Prefix the given URL with the proxy scheme.
+        
+        Parameters:
+            u (str): The original URL to rewrite.
+        
+        Returns:
+            str: The URL prefixed with "proxy://".
+        """
         return f"proxy://{u}"
 
     rewritten = rewrite_hls_playlist(playlist, base_url=base_url, rewrite_url=rewrite)
@@ -39,6 +48,15 @@ def test_rewrite_hls_media_playlist_with_key_and_map():
     base_url = "https://origin.example/media/playlist.m3u8"
 
     def rewrite(u: str) -> str:
+        """
+        Prefix the given URL with the proxy scheme.
+        
+        Parameters:
+            u (str): The original URL to rewrite.
+        
+        Returns:
+            str: The URL prefixed with "proxy://".
+        """
         return f"proxy://{u}"
 
     rewritten = rewrite_hls_playlist(playlist, base_url=base_url, rewrite_url=rewrite)

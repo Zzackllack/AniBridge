@@ -13,7 +13,13 @@ from app.config import STRM_PROXY_AUTH, STRM_PROXY_SECRET
 
 def _canonical_params(params: Mapping[str, str]) -> str:
     """
-    Produce a deterministic query string for signing from the given params.
+    Create a deterministic query string from provided parameters for signing.
+    
+    Parameters:
+        params (Mapping[str, str]): Mapping of parameter names to values. Keys are sorted alphabetically for determinism.
+    
+    Returns:
+        canonical (str): A string of `key=value` pairs joined by `&`, with pairs ordered by key.
     """
     logger.trace("Canonicalizing auth params: {}", sorted(params.keys()))
     items = sorted((k, v) for k, v in params.items())
@@ -22,7 +28,14 @@ def _canonical_params(params: Mapping[str, str]) -> str:
 
 def sign_params(params: Mapping[str, str], secret: str) -> str:
     """
-    Compute an HMAC-SHA256 signature for the provided parameters.
+    Generate an HMAC-SHA256 signature for the given parameters using the provided secret key.
+    
+    Parameters:
+        params (Mapping[str, str]): Parameter mapping to sign; ordering is canonicalized before signing.
+        secret (str): Secret key used as the HMAC signing key.
+    
+    Returns:
+        sig (str): Hexadecimal HMAC-SHA256 digest of the canonicalized parameters.
     """
     logger.trace("Signing STRM proxy params")
     canonical = _canonical_params(params)
@@ -32,7 +45,13 @@ def sign_params(params: Mapping[str, str], secret: str) -> str:
 
 def _require_secret() -> str:
     """
-    Return the configured STRM proxy secret or raise if unset.
+    Retrieve the configured STRM proxy secret.
+    
+    Returns:
+        secret (str): The configured STRM proxy secret.
+    
+    Raises:
+        HTTPException: If STRM_PROXY_SECRET is unset — results in HTTP 500 with detail "STRM proxy auth misconfigured".
     """
     if not STRM_PROXY_SECRET:
         logger.error("STRM proxy auth enabled but STRM_PROXY_SECRET is unset.")
@@ -42,7 +61,19 @@ def _require_secret() -> str:
 
 def build_auth_params(params: Mapping[str, str]) -> dict[str, str]:
     """
-    Return auth parameters for a signed/authorized proxy URL.
+    Build authentication parameters for a STRM proxy URL based on the configured auth mode.
+    
+    Parameters:
+        params (Mapping[str, str]): Query parameters that will be used when generating a token signature (when applicable).
+    
+    Returns:
+        dict[str, str]: Authentication parameters to append to the proxy URL:
+            - {} when mode is "none" or unknown,
+            - {"apikey": secret} when mode is "apikey",
+            - {"sig": signature} when mode is "token" (signature computed from `params`).
+    
+    Raises:
+        HTTPException: If the configured secret is missing or unset (results in a 500 error).
     """
     logger.trace("Building auth params for STRM proxy")
     mode = STRM_PROXY_AUTH
@@ -60,7 +91,22 @@ def build_auth_params(params: Mapping[str, str]) -> dict[str, str]:
 
 def require_auth(params: Mapping[str, str]) -> None:
     """
-    Validate STRM proxy auth based on the configured mode.
+    Validate request parameters against the configured STRM proxy authentication mode.
+    
+    Checks the global STRM_PROXY_AUTH mode:
+    - If "none": no validation is performed.
+    - If "apikey": requires params["apikey"] to equal the configured secret; otherwise raises HTTPException(401, "invalid apikey").
+    - If "token": requires a "sig" parameter, validates optional "exp" as an integer timestamp not in the past, recomputes the expected signature from the remaining parameters and the configured secret, and raises HTTPException(401, ...) for missing/invalid/expired tokens or signature mismatches.
+    
+    Parameters:
+        params (Mapping[str, str]): Request parameters to validate. Recognized keys:
+            - "apikey" for apikey mode
+            - "sig" for token mode
+            - optional "exp" (integer UNIX timestamp) in token mode
+    
+    Raises:
+        HTTPException: 401 for missing/invalid apikey, missing signature, invalid token expiry, expired token, or invalid signature.
+        HTTPException: 500 if the STRM proxy secret is not configured.
     """
     logger.trace("Validating STRM proxy auth mode={}", STRM_PROXY_AUTH)
     mode = STRM_PROXY_AUTH

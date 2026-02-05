@@ -20,8 +20,9 @@ except Exception:
 
 def config():
     """
-    Configure the global Loguru logger. Keeps this function lightweight so it
-    can be imported across the codebase without side-effects.
+    Configure the global Loguru logger and integrate Python's standard logging into Loguru.
+    
+    Reads the LOG_LEVEL environment variable (defaults to "INFO"), ensures a TRACE level exists for Loguru when requested, installs a stdout sink with a structured timestamped format and colorization, and — on first invocation — registers an intercepting standard-library logging handler that redirects stdlib and selected third-party logger output into Loguru (including registering TRACE as numeric level for the stdlib when used). This function is safe to call multiple times; stdlib integration is performed only once.
     """
     global _STDLIB_LOGGING_CONFIGURED
     try:
@@ -46,6 +47,14 @@ def config():
 
         class _InterceptHandler(logging.Handler):
             def emit(self, record: logging.LogRecord) -> None:
+                """
+                Forward a stdlib LogRecord to the Loguru logger.
+                
+                Maps the record's level name to a Loguru level (falls back to the record's numeric level if mapping fails), adjusts call depth so Loguru attributes the log to the original calling frame, and logs the record message with any associated exception information.
+                
+                Parameters:
+                    record (logging.LogRecord): The standard library log record to forward.
+                """
                 try:
                     level = logger.level(record.levelname).name
                 except ValueError:
