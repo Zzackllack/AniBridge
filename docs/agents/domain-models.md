@@ -19,8 +19,8 @@
 ## STRM Proxy Mapping
 
 - StrmUrlMapping (SQLModel)
-  - Composite key: site, slug, season, episode, language, provider.
-  - Persists resolved upstream URLs and provider metadata for STRM proxying.
+  - Fields: site, slug, season, episode, language, provider, resolved_url,
+    provider_used, resolved_headers, resolved_at, updated_at.
 
 ## Domain Models (Python)
 

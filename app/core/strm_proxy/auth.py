@@ -4,11 +4,12 @@ import hmac
 import hashlib
 import time
 from typing import Mapping
+from urllib.parse import urlencode
 
 from fastapi import HTTPException
 from loguru import logger
 
-from app.config import STRM_PROXY_AUTH, STRM_PROXY_SECRET
+from app.config import STRM_PROXY_AUTH, STRM_PROXY_SECRET, STRM_PROXY_TOKEN_TTL_SECONDS
 
 
 def _canonical_params(params: Mapping[str, str]) -> str:
@@ -22,8 +23,8 @@ def _canonical_params(params: Mapping[str, str]) -> str:
         canonical (str): A string of `key=value` pairs joined by `&`, with pairs ordered by key.
     """
     logger.trace("Canonicalizing auth params: {}", sorted(params.keys()))
-    items = sorted((k, v) for k, v in params.items())
-    return "&".join(f"{k}={v}" for k, v in items)
+    items = sorted(params.items())
+    return urlencode(items, doseq=False)
 
 
 def sign_params(params: Mapping[str, str], secret: str) -> str:
@@ -83,10 +84,12 @@ def build_auth_params(params: Mapping[str, str]) -> dict[str, str]:
     if mode == "apikey":
         return {"apikey": secret}
     if mode == "token":
-        sig = sign_params(params, secret)
-        return {"sig": sig}
-    logger.warning("Unknown STRM_PROXY_AUTH mode: {}", mode)
-    return {}
+        payload = dict(params)
+        exp = int(time.time()) + STRM_PROXY_TOKEN_TTL_SECONDS
+        payload["exp"] = str(exp)
+        sig = sign_params(payload, secret)
+        return {"sig": sig, "exp": str(exp)}
+    raise ValueError(f"Unknown STRM_PROXY_AUTH mode: {mode}")
 
 
 def require_auth(params: Mapping[str, str]) -> None:
@@ -139,4 +142,4 @@ def require_auth(params: Mapping[str, str]) -> None:
             logger.warning("STRM proxy signature mismatch.")
             raise HTTPException(status_code=401, detail="invalid signature")
         return
-    logger.warning("Unknown STRM proxy auth mode: {}", mode)
+    raise ValueError(f"Unknown STRM proxy auth mode: {mode}")

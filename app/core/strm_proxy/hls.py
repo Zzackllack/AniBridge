@@ -13,7 +13,7 @@ _URI_TAG_PREFIXES = (
     "#EXT-X-SESSION-KEY",
 )
 
-_URI_ATTR_RE = re.compile(r'URI=(?P<quote>"?)(?P<uri>[^",]*)(?P=quote)')
+_URI_ATTR_RE = re.compile(r'URI=(?:"(?P<uri_quoted>[^"]*)"|(?P<uri_unquoted>[^,]*))')
 
 
 def _rewrite_uri_attr(
@@ -44,11 +44,10 @@ def _rewrite_uri_attr(
         Returns:
                 str: The replacement attribute string in the form `URI="proxied"` if the original used quotes, or `URI=proxied` otherwise.
         """
-        raw_uri = match.group("uri")
+        raw_uri = match.group("uri_quoted") or match.group("uri_unquoted") or ""
         abs_uri = urljoin(base_url, raw_uri)
         proxied = rewrite_url(abs_uri)
-        quote = match.group("quote") or ""
-        if quote:
+        if match.group("uri_quoted") is not None:
             return f'URI="{proxied}"'
         return f"URI={proxied}"
 

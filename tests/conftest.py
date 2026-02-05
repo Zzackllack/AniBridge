@@ -26,6 +26,7 @@ def _fast_test_env(monkeypatch):
     monkeypatch.setenv("DB_MIGRATE_ON_STARTUP", "0")
     monkeypatch.setenv("STRM_PROXY_AUTH", "none")
     monkeypatch.setenv("STRM_PUBLIC_BASE_URL", "http://testserver")
+    monkeypatch.setenv("STRM_PROXY_UPSTREAM_ALLOWLIST", "upstream")
 
 
 @pytest.fixture

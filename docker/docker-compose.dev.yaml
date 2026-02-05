@@ -2,18 +2,18 @@
 # It sets up the AniBridge application along with Sonarr, Radarr, Prowlarr, and Jellyfin services.
 # Adjust environment variables and volume mounts as needed for your development setup.
 
-version: "3.8"
+name: anibridge-dev
 services:
   anibridge:
-    build: .
+    build: ..
     container_name: anibridge-dev
     ports:
       - "8000:8000"
     env_file:
-      - .env
+      - ../.env
     volumes:
-      - ./data:/app/data
-      - ./data/downloads:/downloads
+      - ../data:/app/data
+      - ../data/downloads:/downloads
     healthcheck:
       test:
         ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
@@ -31,9 +31,9 @@ services:
       - PGID=1000
       - TZ=Europe/Berlin
     volumes:
-      - ./data/sonarr/config:/config
-      - ./data/downloads:/downloads
-      - ./data/sonarr/tv:/tv
+      - ../data/sonarr/config:/config
+      - ../data/downloads:/downloads
+      - ../data/sonarr/tv:/tv
     restart: unless-stopped
     depends_on:
       - anibridge
@@ -49,7 +49,7 @@ services:
       - PGID=1000
       - TZ=Europe/Berlin
     volumes:
-      - ./data/prowlarr/config:/config
+      - ../data/prowlarr/config:/config
     restart: unless-stopped
     depends_on:
       - anibridge
@@ -64,9 +64,9 @@ services:
       - PGID=1000
       - TZ=Europe/Berlin
     volumes:
-      - ./data/radarr/config:/config
-      - ./data/downloads:/downloads
-      - ./data/radarr/movies:/movies
+      - ../data/radarr/config:/config
+      - ../data/downloads:/downloads
+      - ../data/radarr/movies:/movies
     restart: unless-stopped
     depends_on:
       - anibridge
@@ -79,13 +79,13 @@ services:
       - 8096:8096/tcp
       - 7359:7359/udp
     volumes:
-      - ./data/jellyfin/config:/config
-      - ./data/jellyfin/cache:/cache
+      - ../data/jellyfin/config:/config
+      - ../data/jellyfin/cache:/cache
       - type: bind
-        source: ./data/sonarr/tv
+        source: ../data/sonarr/tv
         target: /tv
       - type: bind
-        source: ./data/radarr/movies
+        source: ../data/radarr/movies
         target: /movies
     restart: "unless-stopped"
     # Optional - alternative address used for autodiscovery

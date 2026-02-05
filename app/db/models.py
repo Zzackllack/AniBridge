@@ -131,7 +131,9 @@ class StrmUrlMapping(ModelBase, table=True):
 
     resolved_url: str
     provider_used: Optional[str] = None
-    resolved_headers: Optional[dict] = Field(sa_column=Column(JSON), default=None)
+    resolved_headers: Optional[dict[str, Any]] = Field(
+        sa_column=Column(JSON), default=None
+    )
     resolved_at: datetime = Field(default_factory=utcnow, index=True)
     updated_at: datetime = Field(default_factory=utcnow, index=True)
 

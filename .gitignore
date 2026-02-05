@@ -172,6 +172,7 @@ public/build/
 .env.test.local
 .env.production.local
 .env.*.local
+.env.vpn
 
 # =============================================================================
 # NEXT.JS
