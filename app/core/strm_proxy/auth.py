@@ -96,4 +96,4 @@ def require_auth(params: Mapping[str, str]) -> None:
             logger.warning("STRM proxy signature mismatch.")
             raise HTTPException(status_code=401, detail="invalid signature")
         return
-    logger.warning("Unknown STRM proxy auth mode: {}", mode)
+    raise ValueError(f"Unknown STRM proxy auth mode: {mode}")
