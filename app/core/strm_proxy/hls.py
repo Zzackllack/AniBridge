@@ -38,10 +38,12 @@ def _rewrite_uri_attr(
         Replace a regex match for an HLS URI attribute with a rewritten absolute/proxied URI, preserving original quoting.
 
         Parameters:
-                match (re.Match[str]): A regex match object with named groups "uri" (the original URI text, possibly relative) and "quote" (the surrounding quote character if present).
+                match (re.Match[str]): A regex match object with named groups "uri_quoted" (the URI inside quotes) and
+                    "uri_unquoted" (the URI without quotes).
 
         Returns:
-                str: The replacement attribute string in the form `URI="proxied"` if the original used quotes, or `URI=proxied` otherwise.
+                str: The replacement attribute string in the form `URI="proxied"` if the original used quotes, or
+                    `URI=proxied` if the original was unquoted.
         """
         raw_uri = match.group("uri_quoted") or match.group("uri_unquoted") or ""
         abs_uri = urljoin(base_url, raw_uri)

@@ -196,3 +196,19 @@ def test_run_strm_creates_proxy_url(tmp_path, monkeypatch):
     assert out_path.exists()
     data = out_path.read_text(encoding="utf-8")
     assert data.startswith("https://anibridge.test/strm/stream?")
+
+    from app.db import get_strm_mapping, engine
+
+    with Session(engine) as session:
+        mapping = get_strm_mapping(
+            session,
+            site=req["site"],
+            slug=req["slug"],
+            season=req["season"],
+            episode=req["episode"],
+            language=req["language"],
+            provider=None,
+        )
+        assert mapping is not None
+        assert mapping.resolved_url == "https://example.com/video.mp4"
+        assert mapping.provider_used == "VOE"

@@ -216,11 +216,20 @@ def _run_strm(job_id: str, req: dict, stop_event: threading.Event) -> None:
             raise Exception("Cancelled")
 
         site = str(req.get("site") or "aniworld.to")
+        season_raw = req.get("season")
+        episode_raw = req.get("episode")
+        if season_raw is None or episode_raw is None:
+            raise ValueError("Missing season or episode for STRM request")
+        try:
+            season = int(season_raw)
+            episode = int(episode_raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Invalid season or episode for STRM request") from exc
         identity = StrmIdentity(
             site=site,
             slug=str(req.get("slug") or ""),
-            season=int(req.get("season")),
-            episode=int(req.get("episode")),
+            season=season,
+            episode=episode,
             language=str(req.get("language") or ""),
             provider=str(req.get("provider") or "").strip() or None,
         )

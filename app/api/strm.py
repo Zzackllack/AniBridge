@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 import ipaddress
 import socket
-from typing import Callable, Mapping, Optional
+from typing import Mapping, Optional
 from urllib.parse import urlsplit
 
 import anyio
@@ -260,7 +260,6 @@ async def _validate_upstream_url(url: str) -> None:
 
 
 _UPSTREAM_CLIENT: httpx.AsyncClient | None = None
-_UPSTREAM_CLIENT_FACTORY: Callable[[], httpx.AsyncClient] | None = None
 _UPSTREAM_CLIENT_LOCK = anyio.Lock()
 
 
@@ -281,18 +280,10 @@ async def _get_async_client() -> httpx.AsyncClient:
     """
     Return a shared AsyncClient for upstream streaming requests.
     """
-    global _UPSTREAM_CLIENT, _UPSTREAM_CLIENT_FACTORY
+    global _UPSTREAM_CLIENT
     async with _UPSTREAM_CLIENT_LOCK:
-        factory = _build_async_client
-        if (
-            _UPSTREAM_CLIENT is None
-            or _UPSTREAM_CLIENT.is_closed
-            or _UPSTREAM_CLIENT_FACTORY is not factory
-        ):
-            if _UPSTREAM_CLIENT is not None and not _UPSTREAM_CLIENT.is_closed:
-                await _UPSTREAM_CLIENT.aclose()
-            _UPSTREAM_CLIENT = factory()
-            _UPSTREAM_CLIENT_FACTORY = factory
+        if _UPSTREAM_CLIENT is None or _UPSTREAM_CLIENT.is_closed:
+            _UPSTREAM_CLIENT = _build_async_client()
         return _UPSTREAM_CLIENT
 
 
@@ -783,9 +774,8 @@ async def close_upstream_client() -> None:
     """
     Close the shared upstream AsyncClient (called from app lifespan shutdown).
     """
-    global _UPSTREAM_CLIENT, _UPSTREAM_CLIENT_FACTORY
+    global _UPSTREAM_CLIENT
     if _UPSTREAM_CLIENT is None:
         return
     await _UPSTREAM_CLIENT.aclose()
     _UPSTREAM_CLIENT = None
-    _UPSTREAM_CLIENT_FACTORY = None

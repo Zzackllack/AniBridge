@@ -10,7 +10,7 @@ from app.core.downloader import build_episode, get_direct_url_with_fallback
 from .types import StrmIdentity
 
 
-def resolve_direct_url(identity: StrmIdentity) -> tuple[str, str]:
+def resolve_direct_url(identity: StrmIdentity) -> tuple[str, str | None]:
     """
     Resolve an upstream direct URL for a STRM identity, using Megakino-specific provider retries when applicable and a generic fallback otherwise.
 
@@ -52,7 +52,7 @@ def resolve_direct_url(identity: StrmIdentity) -> tuple[str, str]:
                     continue
             raise Exception(
                 f"Megakino STRM resolution failed after retries: {last_error}"
-            )
+            ) from last_error
 
         episode = build_episode(
             slug=identity.slug,

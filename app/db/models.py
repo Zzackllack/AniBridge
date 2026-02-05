@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Literal, Generator, Any, List, TYPE_CHECKING
+from typing import Optional, Literal, Generator, Any, Dict, List, TYPE_CHECKING
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from loguru import logger
@@ -552,7 +552,7 @@ def upsert_strm_mapping(
     provider: Optional[str],
     resolved_url: str,
     provider_used: Optional[str] = None,
-    resolved_headers: Optional[dict] = None,
+    resolved_headers: Optional[Dict[str, Any]] = None,
 ) -> StrmUrlMapping:
     """
     Create or update a STRM URL mapping for a specific (site, slug, season, episode, language, provider) key and persist it.

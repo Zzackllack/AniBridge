@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Mapping
 from urllib.parse import urlencode, urljoin, urlsplit
 
+from loguru import logger
+
 from app.config import STRM_PUBLIC_BASE_URL
 from .auth import build_auth_params
 from .types import StrmIdentity
@@ -48,8 +50,6 @@ def _build_url(path: str, params: Mapping[str, str]) -> str:
     Returns:
         str: Absolute URL under the configured STRM public base, including a query string when `params` is non-empty.
     """
-    from loguru import logger
-
     logger.trace("Building STRM proxy URL for {}", path)
     base = _require_public_base()
     base_with_slash = base + "/"
@@ -68,8 +68,6 @@ def is_already_proxied(url: str) -> bool:
     Returns:
         `true` if the URL targets the STRM proxy endpoints (i.e. starts with the public base followed by `strm/`), `false` otherwise.
     """
-    from loguru import logger
-
     base = (STRM_PUBLIC_BASE_URL or "").strip()
     if not base:
         return False
@@ -89,8 +87,6 @@ def build_stream_url(identity: StrmIdentity) -> str:
     Returns:
         url (str): Absolute URL to the STRM proxy `/strm/stream` endpoint containing the identity parameters and merged authentication parameters.
     """
-    from loguru import logger
-
     logger.debug("Building STRM stream URL for {}", identity.cache_key())
     params: dict[str, str] = {
         "site": identity.site,
@@ -117,8 +113,6 @@ def build_proxy_url(upstream_url: str) -> str:
     Returns:
         str: The STRM proxy URL. Returns `upstream_url` unchanged when it already points to the STRM proxy; otherwise returns a proxy endpoint URL that includes authentication parameters and the original URL as the `u` query parameter.
     """
-    from loguru import logger
-
     logger.trace("Building STRM proxy URL for {}", upstream_url)
     if is_already_proxied(upstream_url):
         return upstream_url
