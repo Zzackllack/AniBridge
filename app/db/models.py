@@ -4,6 +4,7 @@ from typing import Optional, Literal, Generator, Any, List, TYPE_CHECKING
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from loguru import logger
+from fastapi import HTTPException
 
 # Defer logger configuration to application startup
 
@@ -267,6 +268,8 @@ def get_session() -> Generator[Session, None, None]:
         with Session(engine) as session:
             logger.debug("DB session created.")
             yield session
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating DB session: {e}")
         raise

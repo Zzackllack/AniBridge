@@ -101,7 +101,7 @@ def build_stream_url(identity: StrmIdentity) -> str:
     }
     if identity.provider:
         params["provider"] = identity.provider
-    params.update(build_auth_params(params))
+    params.update(build_auth_params(params, include_exp=False))
     return _build_url("/strm/stream", params)
 
 

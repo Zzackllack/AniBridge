@@ -60,12 +60,16 @@ def _require_secret() -> str:
     return STRM_PROXY_SECRET
 
 
-def build_auth_params(params: Mapping[str, str]) -> dict[str, str]:
+def build_auth_params(
+    params: Mapping[str, str], *, include_exp: bool = True
+) -> dict[str, str]:
     """
     Build authentication parameters for a STRM proxy URL based on the configured auth mode.
 
     Parameters:
         params (Mapping[str, str]): Query parameters that will be used when generating a token signature (when applicable).
+        include_exp (bool): When true, include an expiring `exp` timestamp for token mode. When false, generate a
+            non-expiring signature.
 
     Returns:
         dict[str, str]: Authentication parameters to append to the proxy URL:
@@ -85,10 +89,15 @@ def build_auth_params(params: Mapping[str, str]) -> dict[str, str]:
         return {"apikey": secret}
     if mode == "token":
         payload = dict(params)
-        exp = int(time.time()) + STRM_PROXY_TOKEN_TTL_SECONDS
-        payload["exp"] = str(exp)
+        exp: int | None = None
+        if include_exp:
+            exp = int(time.time()) + STRM_PROXY_TOKEN_TTL_SECONDS
+            payload["exp"] = str(exp)
         sig = sign_params(payload, secret)
-        return {"sig": sig, "exp": str(exp)}
+        out = {"sig": sig}
+        if exp is not None:
+            out["exp"] = str(exp)
+        return out
     raise ValueError(f"Unknown STRM_PROXY_AUTH mode: {mode}")
 
 
