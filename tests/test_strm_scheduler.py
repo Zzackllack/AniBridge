@@ -8,12 +8,12 @@ from sqlmodel import Session
 def _setup_scheduler(tmp_path, monkeypatch, *, strm_proxy_mode: str = "direct"):
     """
     Prepare a test scheduler environment configured for STRM proxy behavior and return the scheduler module.
-    
+
     Sets environment variables for test data and download directories, database startup behavior, and STRM proxy configuration; clears related app modules from the import cache to ensure a fresh import; creates database tables required for tests; and imports the app.core.scheduler module.
-    
+
     Parameters:
         strm_proxy_mode (str): STRM proxy mode to configure for the test environment. Expected values include "direct" and "proxy".
-    
+
     Returns:
         module: The imported `app.core.scheduler` module.
     """
@@ -166,7 +166,7 @@ def test_run_strm_marks_failed_on_unwritable_directory(tmp_path, monkeypatch):
 def test_run_strm_creates_proxy_url(tmp_path, monkeypatch):
     """
     Verifies that when STRM proxy mode is enabled, running _run_strm produces a proxy-served URL file and completes the job.
-    
+
     Asserts the job status becomes "completed", a non-empty result_path is written, the result file exists, and its contents start with the expected proxy URL prefix.
     """
     scheduler = _setup_scheduler(tmp_path, monkeypatch, strm_proxy_mode="proxy")

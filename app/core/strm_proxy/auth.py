@@ -14,10 +14,10 @@ from app.config import STRM_PROXY_AUTH, STRM_PROXY_SECRET
 def _canonical_params(params: Mapping[str, str]) -> str:
     """
     Create a deterministic query string from provided parameters for signing.
-    
+
     Parameters:
         params (Mapping[str, str]): Mapping of parameter names to values. Keys are sorted alphabetically for determinism.
-    
+
     Returns:
         canonical (str): A string of `key=value` pairs joined by `&`, with pairs ordered by key.
     """
@@ -29,11 +29,11 @@ def _canonical_params(params: Mapping[str, str]) -> str:
 def sign_params(params: Mapping[str, str], secret: str) -> str:
     """
     Generate an HMAC-SHA256 signature for the given parameters using the provided secret key.
-    
+
     Parameters:
         params (Mapping[str, str]): Parameter mapping to sign; ordering is canonicalized before signing.
         secret (str): Secret key used as the HMAC signing key.
-    
+
     Returns:
         sig (str): Hexadecimal HMAC-SHA256 digest of the canonicalized parameters.
     """
@@ -46,10 +46,10 @@ def sign_params(params: Mapping[str, str], secret: str) -> str:
 def _require_secret() -> str:
     """
     Retrieve the configured STRM proxy secret.
-    
+
     Returns:
         secret (str): The configured STRM proxy secret.
-    
+
     Raises:
         HTTPException: If STRM_PROXY_SECRET is unset — results in HTTP 500 with detail "STRM proxy auth misconfigured".
     """
@@ -62,16 +62,16 @@ def _require_secret() -> str:
 def build_auth_params(params: Mapping[str, str]) -> dict[str, str]:
     """
     Build authentication parameters for a STRM proxy URL based on the configured auth mode.
-    
+
     Parameters:
         params (Mapping[str, str]): Query parameters that will be used when generating a token signature (when applicable).
-    
+
     Returns:
         dict[str, str]: Authentication parameters to append to the proxy URL:
             - {} when mode is "none" or unknown,
             - {"apikey": secret} when mode is "apikey",
             - {"sig": signature} when mode is "token" (signature computed from `params`).
-    
+
     Raises:
         HTTPException: If the configured secret is missing or unset (results in a 500 error).
     """
@@ -92,18 +92,18 @@ def build_auth_params(params: Mapping[str, str]) -> dict[str, str]:
 def require_auth(params: Mapping[str, str]) -> None:
     """
     Validate request parameters against the configured STRM proxy authentication mode.
-    
+
     Checks the global STRM_PROXY_AUTH mode:
     - If "none": no validation is performed.
     - If "apikey": requires params["apikey"] to equal the configured secret; otherwise raises HTTPException(401, "invalid apikey").
     - If "token": requires a "sig" parameter, validates optional "exp" as an integer timestamp not in the past, recomputes the expected signature from the remaining parameters and the configured secret, and raises HTTPException(401, ...) for missing/invalid/expired tokens or signature mismatches.
-    
+
     Parameters:
         params (Mapping[str, str]): Request parameters to validate. Recognized keys:
             - "apikey" for apikey mode
             - "sig" for token mode
             - optional "exp" (integer UNIX timestamp) in token mode
-    
+
     Raises:
         HTTPException: 401 for missing/invalid apikey, missing signature, invalid token expiry, expired token, or invalid signature.
         HTTPException: 500 if the STRM proxy secret is not configured.

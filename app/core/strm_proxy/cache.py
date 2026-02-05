@@ -21,7 +21,7 @@ class StrmCacheEntry:
 def _utcnow() -> datetime:
     """
     Get the current UTC time as a timezone-aware datetime.
-    
+
     Returns:
         datetime: Current UTC datetime with timezone set to UTC.
     """
@@ -36,7 +36,7 @@ class StrmMemoryCache:
     def __init__(self, ttl_seconds: int):
         """
         Create a thread-safe in-memory cache for resolved STRM URLs using the specified TTL.
-        
+
         Parameters:
             ttl_seconds (int): Time-to-live for cache entries in seconds. If less than or equal to zero, cached entries are treated as never expiring.
         """
@@ -47,9 +47,9 @@ class StrmMemoryCache:
     def _is_fresh(self, entry: StrmCacheEntry) -> bool:
         """
         Check whether a cache entry is still within the configured time-to-live (TTL).
-        
+
         This compares the entry's resolved_at timestamp to the current UTC time; if the cache's TTL is less than or equal to zero, entries are considered always fresh.
-        
+
         Returns:
             True if the entry's age is less than or equal to the TTL or if TTL <= 0, False otherwise.
         """
@@ -61,10 +61,10 @@ class StrmMemoryCache:
     def get(self, identity: StrmIdentity) -> Optional[StrmCacheEntry]:
         """
         Retrieve the cached StrmCacheEntry for the given identity if a fresh entry exists.
-        
+
         Parameters:
             identity (StrmIdentity): Identity whose cache key is used to look up the entry.
-        
+
         Returns:
             StrmCacheEntry | None: `StrmCacheEntry` if a fresh entry exists for the identity, `None` otherwise.
         """
@@ -85,7 +85,7 @@ class StrmMemoryCache:
     def set(self, identity: StrmIdentity, entry: StrmCacheEntry) -> None:
         """
         Store the provided StrmCacheEntry in the in-memory cache under the key derived from `identity`.
-        
+
         Parameters:
             identity (StrmIdentity): Identity whose cache key will be used to index the entry.
             entry (StrmCacheEntry): Cache entry to store.
@@ -98,7 +98,7 @@ class StrmMemoryCache:
     def invalidate(self, identity: StrmIdentity) -> None:
         """
         Invalidate the cache entry associated with the given STRM identity.
-        
+
         Parameters:
             identity (StrmIdentity): The identity whose cached entry will be removed if present.
         """

@@ -19,7 +19,7 @@ class StrmIdentity:
     def cache_key(self) -> tuple[str, str, int, int, str, str]:
         """
         Create a stable tuple key that uniquely identifies this stream instance for caching or deduplication.
-        
+
         Returns:
             tuple[str, str, int, int, str, str]: A 6-tuple containing (site, slug, season, episode, language, provider) where `provider` is the empty string if the instance's provider is `None`.
         """

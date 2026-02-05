@@ -188,7 +188,7 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
 def _run_strm(job_id: str, req: dict, stop_event: threading.Event) -> None:
     """
     Create a .strm file in the configured download directory that points to a resolved remote media URL and update the job's status and result in the database.
-    
+
     Parameters:
         job_id (str): Identifier of the job being executed; used to update job state.
         req (dict): STRM request containing identifiers and optional metadata. Recognized keys:
@@ -201,7 +201,7 @@ def _run_strm(job_id: str, req: dict, stop_event: threading.Event) -> None:
             - 'site' (str, optional) — source site, defaults to "aniworld.to"
             - 'mode' (str, optional)
         stop_event (threading.Event): Event that, when set, requests cancellation of the operation.
-    
+
     Behavior:
         - Resolves a media URL for the requested episode, writes an atomic `.strm` file pointing to that URL, and marks the job as completed with the resulting path and progress.
         - If a proxy mode is enabled, records a mapping of the resolved URL and provider in the database and uses a proxied stream URL in the .strm.

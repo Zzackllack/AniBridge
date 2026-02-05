@@ -58,10 +58,10 @@ def _utcnow() -> datetime:
 def _is_fresh(resolved_at: datetime) -> bool:
     """
     Check whether a cached STRM mapping is still within the configured cache TTL.
-    
+
     Parameters:
         resolved_at (datetime): Timestamp when the mapping was resolved.
-    
+
     Returns:
         True if the mapping's age is less than or equal to the configured cache TTL (or if the TTL is set to a non-positive value), False otherwise.
     """
@@ -74,10 +74,10 @@ def _is_fresh(resolved_at: datetime) -> bool:
 def _filter_headers(headers: Mapping[str, str]) -> dict[str, str]:
     """
     Filter an upstream response header mapping to the module's allowlist of safe headers.
-    
+
     Parameters:
         headers (Mapping[str, str]): Mapping of headers received from the upstream response.
-    
+
     Returns:
         filtered_headers (dict[str, str]): A new dict containing only headers whose names (case-insensitive) are present in the allowlist.
     """
@@ -92,11 +92,11 @@ def _filter_headers(headers: Mapping[str, str]) -> dict[str, str]:
 def _ensure_content_type(headers: dict[str, str], default: str) -> dict[str, str]:
     """
     Ensure a Content-Type header exists in the given headers, using the provided default if missing.
-    
+
     Parameters:
         headers (dict[str, str]): Mapping of header names to values; keys are treated case-insensitively.
         default (str): Content-Type value to insert when no Content-Type header is present.
-    
+
     Returns:
         dict[str, str]: The same headers mapping with a Content-Type entry guaranteed to be present.
     """
@@ -108,13 +108,13 @@ def _ensure_content_type(headers: dict[str, str], default: str) -> dict[str, str
 def _is_hls_response(url: str, headers: Mapping[str, str]) -> bool:
     """
     Determine whether an upstream response represents an HLS playlist.
-    
+
     Checks the `Content-Type` header against known HLS MIME types; if no decisive Content-Type is present, falls back to inspecting the URL path for `.m3u8` or `.m3u` extensions.
-    
+
     Parameters:
         url (str): The upstream request URL.
         headers (Mapping[str, str]): The upstream response headers (case-insensitive keys expected).
-    
+
     Returns:
         bool: `true` if the response is an HLS playlist, `false` otherwise.
     """
@@ -129,7 +129,7 @@ def _is_hls_response(url: str, headers: Mapping[str, str]) -> bool:
 def _redact_upstream(url: str) -> str:
     """
     Create a compact identifier for an upstream URL suitable for logs.
-    
+
     Returns:
         str: "<redacted>" if the URL cannot be parsed; otherwise "<host>:<short-hash>" where <short-hash> is a four-byte hexadecimal fingerprint of the URL path.
     """
@@ -145,7 +145,7 @@ def _redact_upstream(url: str) -> str:
 def _parse_identity(params: Mapping[str, str]) -> StrmIdentity:
     """
     Parse episode identity fields from query parameters into a StrmIdentity.
-    
+
     Extracts the following values from params (with synonyms and defaults):
     - slug (required)
     - site (optional, defaults to "aniworld.to")
@@ -153,13 +153,13 @@ def _parse_identity(params: Mapping[str, str]) -> StrmIdentity:
     - season via "s" or "season" (required, parsed as int)
     - episode via "e" or "episode" (required, parsed as int)
     - provider (optional)
-    
+
     Parameters:
         params (Mapping[str, str]): Query parameter mapping.
-    
+
     Returns:
         StrmIdentity: Parsed identity with fields site, slug, season, episode, language, and optional provider.
-    
+
     Raises:
         HTTPException: 400 if any required field is missing or if season/episode cannot be parsed as integers.
     """
@@ -194,7 +194,7 @@ def _parse_identity(params: Mapping[str, str]) -> StrmIdentity:
 def _validate_upstream_url(url: str) -> None:
     """
     Validate that the provided upstream URL uses the HTTP or HTTPS scheme.
-    
+
     Raises:
         HTTPException: with status code 400 if the URL's scheme is not "http" or "https".
     """
@@ -207,7 +207,7 @@ def _validate_upstream_url(url: str) -> None:
 def _build_async_client() -> httpx.AsyncClient:
     """
     Constructs an httpx.AsyncClient configured for upstream streaming requests.
-    
+
     Returns:
         httpx.AsyncClient: An AsyncClient with sensible timeouts for streaming, redirects enabled, and environment proxying disabled.
     """
@@ -225,12 +225,12 @@ async def _open_upstream(
 ) -> tuple[httpx.Response, httpx.AsyncClient]:
     """
     Open an upstream HTTP request and return the active streaming response together with its client.
-    
+
     Parameters:
         url (str): Upstream URL to request.
         method (str): HTTP method to use (e.g., "GET", "HEAD").
         headers (Mapping[str, str]): Headers to include in the upstream request.
-    
+
     Returns:
         tuple[httpx.Response, httpx.AsyncClient]: The streaming `httpx.Response` and the `httpx.AsyncClient` used for the request; the caller is responsible for closing both to release network resources.
     """
@@ -244,7 +244,7 @@ async def _open_upstream(
 def _streaming_body(response: httpx.Response, client: httpx.AsyncClient):
     """
     Stream bytes from an upstream response and ensure both the response and its client are closed when streaming ends.
-    
+
     Returns:
         An asynchronous iterator that yields bytes chunks from the upstream response.
     """
@@ -253,10 +253,10 @@ def _streaming_body(response: httpx.Response, client: httpx.AsyncClient):
     async def _gen():
         """
         Yield successive byte chunks from an upstream HTTP response and ensure resources are closed when iteration ends.
-        
+
         Yields:
             bytes: Consecutive chunks of the upstream response body.
-            
+
         Notes:
             Ensures `response.aclose()` and `client.aclose()` are awaited when the generator exits or an error occurs.
         """
@@ -273,9 +273,9 @@ def _streaming_body(response: httpx.Response, client: httpx.AsyncClient):
 def _cache_get(session: Session, identity: StrmIdentity) -> Optional[StrmCacheEntry]:
     """
     Return a fresh cached STRM mapping from memory or persistent storage if available.
-    
+
     If an in-memory entry exists, it is returned immediately. Otherwise the persistent store is queried; if a fresh record is found it is converted to a StrmCacheEntry, stored in the memory cache, and returned. Stale or missing records result in `None`.
-    
+
     Returns:
         StrmCacheEntry: The fresh cached mapping with resolved URL and metadata, `None` otherwise.
     """
@@ -317,9 +317,9 @@ def _cache_set(
 ) -> None:
     """
     Persist a resolved STRM mapping to memory and the database.
-    
+
     Updates the in-memory cache for the provided identity and persists the resolved URL and provider information to persistent storage.
-    
+
     Parameters:
         identity: Episode identity (site, slug, season, episode, language, provider) used as the cache key.
         url: The resolved direct upstream URL to cache and persist.
@@ -345,7 +345,7 @@ def _cache_set(
 def _cache_invalidate(session: Session, identity: StrmIdentity) -> None:
     """
     Invalidate the resolved STRM mapping for an episode in both the in-memory cache and persistent storage.
-    
+
     Parameters:
         identity (StrmIdentity): Episode identity whose mapping will be removed; identified by site, slug, season, episode, language, and provider.
     """
@@ -367,17 +367,17 @@ async def _resolve_with_cache(
 ) -> tuple[str, Optional[str]]:
     """
     Resolve and return the upstream direct URL for a STRM identity, using a cached mapping when available.
-    
+
     If `force_refresh` is true, bypasses any cached mapping and resolves a fresh upstream URL.
-    
+
     Parameters:
-    	force_refresh (bool): When true, skip cache and perform a fresh resolution.
-    
+        force_refresh (bool): When true, skip cache and perform a fresh resolution.
+
     Returns:
-    	tuple[str, Optional[str]]: `(direct_url, provider_used)` where `direct_url` is the resolved upstream URL and `provider_used` is the identifier of the provider used to resolve the URL, or `None` if unknown.
-    
+        tuple[str, Optional[str]]: `(direct_url, provider_used)` where `direct_url` is the resolved upstream URL and `provider_used` is the identifier of the provider used to resolve the URL, or `None` if unknown.
+
     Raises:
-    	HTTPException: Raised with status 502 if upstream resolution fails.
+        HTTPException: Raised with status 502 if upstream resolution fails.
     """
     logger.trace("Resolving upstream with cache (refresh={})", force_refresh)
     if not force_refresh:
@@ -411,14 +411,14 @@ async def _fetch_with_refresh(
 ) -> tuple[httpx.Response, httpx.AsyncClient, str]:
     """
     Attempt to fetch upstream content for the given STRM identity, retrying once after invalidating the cached mapping if the first attempt fails or returns a refresh-triggering status.
-    
+
     If the first request raises a network error or returns a status in the refresh set, the cache entry for the identity is invalidated and the function resolves the upstream URL again before a single retry. On persistent failure the function raises an HTTP 502 error.
-    
+
     Parameters:
         identity (StrmIdentity): The episode/stream identity used to resolve the upstream URL.
         method (str): HTTP method to use when requesting the upstream resource (e.g., "GET", "HEAD").
         headers (Mapping[str, str]): Headers to pass to the upstream request.
-    
+
     Returns:
         tuple[httpx.Response, httpx.AsyncClient, str]: The upstream HTTPX response, the AsyncClient used for the request (caller is responsible for closing), and the resolved upstream URL.
     """
@@ -481,13 +481,13 @@ async def _handle_head(
 ) -> Response:
     """
     Handle a HEAD request by probing the resolved upstream and returning its status and allowed headers.
-    
+
     If the upstream does not support HEAD (405 or 501), this will perform a ranged GET to obtain headers and the effective status. The returned Response has an empty body but preserves filtered upstream headers and the upstream status code.
-    
+
     Parameters:
         identity (StrmIdentity): Episode identity used to resolve the upstream URL.
         headers (Mapping[str, str]): Headers forwarded to the upstream request (e.g., Range, User-Agent).
-    
+
     Returns:
         Response: A FastAPI Response with an empty body, the upstream status code, and filtered headers (ensuring a Content-Type).
     """
@@ -518,10 +518,10 @@ async def strm_stream(
 ):
     """
     Stream an episode or rewrite an upstream HLS playlist through the STRM proxy.
-    
+
     Returns:
         A Response or StreamingResponse containing the upstream content or a rewritten HLS playlist.
-    
+
     Raises:
         HTTPException: Raised with status 500 if HLS playlist rewriting fails.
     """
@@ -591,15 +591,15 @@ async def strm_stream(
 async def _proxy_head(url: str, *, headers: Mapping[str, str]) -> Response:
     """
     Handle HEAD requests for arbitrary proxied upstream URLs.
-    
+
     Sends a HEAD request to the upstream and, if the upstream responds with 405 or 501, falls back to a GET with `Range: bytes=0-0` to obtain response headers. Filters allowed headers, ensures a Content-Type is present, closes upstream connections, and returns an empty Response carrying the upstream status code and filtered headers.
-    
+
     Parameters:
         headers (Mapping[str, str]): Headers to forward to the upstream request (for example `Range` and `User-Agent`).
-    
+
     Returns:
         Response: A FastAPI Response with an empty body, the upstream status code, and the filtered/ensured headers.
-    
+
     Raises:
         HTTPException: With status code 502 if the upstream request fails.
     """
@@ -634,13 +634,13 @@ async def _proxy_head(url: str, *, headers: Mapping[str, str]) -> Response:
 async def strm_proxy(request: Request, path_hint: str = ""):
     """
     Proxy an arbitrary upstream URL, returning either a rewritten HLS playlist or a streamed proxy response.
-    
+
     Parameters:
         path_hint (str): Optional path hint used for logging to indicate the proxied resource path.
-    
+
     Returns:
         Response or StreamingResponse: If the upstream response is an HLS playlist, returns a Response with the rewritten playlist and appropriate Content-Type and Content-Length. Otherwise returns a StreamingResponse that streams the upstream bytes with filtered headers and the upstream status code.
-    
+
     Raises:
         HTTPException: Raised with status 400 when the upstream URL parameter `u` is missing or uses an invalid scheme.
         HTTPException: Raised with status 502 when the upstream request fails.

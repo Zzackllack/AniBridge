@@ -96,9 +96,9 @@ class EpisodeAvailability(ModelBase, table=True):
     def is_fresh(self) -> bool:
         """
         Determine whether this availability record is still fresh according to AVAILABILITY_TTL_HOURS.
-        
+
         If AVAILABILITY_TTL_HOURS is less than or equal to zero the record is considered always fresh. Freshness is determined by comparing the time since `checked_at` to the TTL.
-        
+
         Returns:
             `true` if the time since `checked_at` is less than or equal to AVAILABILITY_TTL_HOURS, `false` otherwise.
         """
@@ -519,10 +519,10 @@ def get_strm_mapping(
 ) -> Optional[StrmUrlMapping]:
     """
     Fetch the STRM URL mapping for the specified episode identity and optional provider hint.
-    
+
     Parameters:
         provider (Optional[str]): Preferred provider hint; treated as the empty string when not provided.
-    
+
     Returns:
         Optional[StrmUrlMapping]: The matching StrmUrlMapping record if found, `None` otherwise.
     """
@@ -551,7 +551,7 @@ def upsert_strm_mapping(
 ) -> StrmUrlMapping:
     """
     Create or update a STRM URL mapping for a specific (site, slug, season, episode, language, provider) key and persist it.
-    
+
     Parameters:
         session: Database session used to load and persist the mapping.
         site (str): Site identifier (part of the composite key).
@@ -563,7 +563,7 @@ def upsert_strm_mapping(
         resolved_url (str): The resolved stream URL to store.
         provider_used (Optional[str]): The provider that was actually used to resolve `resolved_url`.
         resolved_headers (Optional[dict]): Optional headers associated with the resolved URL; stored as JSON.
-    
+
     Returns:
         StrmUrlMapping: The persisted mapping instance with `resolved_at` and `updated_at` set to the current UTC time.
     """
@@ -616,7 +616,7 @@ def delete_strm_mapping(
 ) -> None:
     """
     Delete the STRM URL mapping identified by the composite key if it exists.
-    
+
     If `provider` is `None`, it is treated as the empty string when looking up the mapping. The deletion is committed to the database; if no matching mapping is found the function does nothing.
     Parameters:
         provider (Optional[str]): Provider identifier; use `None` to match the empty-string provider key.
@@ -650,11 +650,11 @@ def upsert_client_task(
 ) -> ClientTask:
     """
     Insert or update a ClientTask record identified by its hash.
-    
+
     Parameters:
         hash (str): Unique identifier for the client task (primary key).
         site (str): Site identifier to store on the record; defaults to "aniworld.to".
-    
+
     Returns:
         ClientTask: The persisted ClientTask instance refreshed from the database.
     """

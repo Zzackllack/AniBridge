@@ -32,13 +32,13 @@ def _fast_test_env(monkeypatch):
 def client(tmp_path, monkeypatch):
     """
     Provide a configured TestClient connected to a freshly initialized, isolated test application.
-    
+
     This fixture prepares an isolated environment for FastAPI tests by setting DATA_DIR and DOWNLOAD_DIR to temporary locations, ensuring the repository root is on sys.path, installing a minimal stub for `aniworld.parser`, clearing SQLModel metadata, removing relevant app modules from sys.modules to force clean imports, initializing the test database schema, and patching qbittorrent scheduler calls to deterministic no-op/test values before yielding the TestClient.
-    
+
     Parameters:
         tmp_path (pathlib.Path): Temporary directory provided by pytest for creating per-test filesystem paths.
         monkeypatch (pytest.MonkeyPatch): Pytest fixture used to set environment variables and patch attributes.
-    
+
     Returns:
         TestClient: A TestClient instance for the FastAPI app backed by the prepared test environment and database.
     """

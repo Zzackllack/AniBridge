@@ -15,10 +15,10 @@ def test_rewrite_hls_master_playlist():
     def rewrite(u: str) -> str:
         """
         Prefix the given URL with the proxy scheme.
-        
+
         Parameters:
             u (str): The original URL to rewrite.
-        
+
         Returns:
             str: The URL prefixed with "proxy://".
         """
@@ -50,10 +50,10 @@ def test_rewrite_hls_media_playlist_with_key_and_map():
     def rewrite(u: str) -> str:
         """
         Prefix the given URL with the proxy scheme.
-        
+
         Parameters:
             u (str): The original URL to rewrite.
-        
+
         Returns:
             str: The URL prefixed with "proxy://".
         """

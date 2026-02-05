@@ -21,7 +21,7 @@ depends_on = None
 def upgrade() -> None:
     """
     Create the `strmurlmapping` table and its indexes if the table does not already exist.
-    
+
     Creates a table named `strmurlmapping` with columns:
     - `site` (String, not null)
     - `slug` (String, not null)
@@ -34,7 +34,7 @@ def upgrade() -> None:
     - `resolved_headers` (JSON, nullable)
     - `resolved_at` (DateTime, not null)
     - `updated_at` (DateTime, not null)
-    
+
     Establishes a composite primary key on (`site`, `slug`, `season`, `episode`, `language`, `provider`) named `pk_strmurlmapping`, and creates non-unique indexes `ix_strmurlmapping_resolved_at` on `resolved_at` and `ix_strmurlmapping_updated_at` on `updated_at`.
     """
     conn = op.get_bind()
@@ -83,7 +83,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     """
     Downgrades the database schema by removing the strmurlmapping table and its indexes if present.
-    
+
     Performs a presence check and, if the table exists, drops the indexes `ix_strmurlmapping_updated_at`
     and `ix_strmurlmapping_resolved_at` and then drops the `strmurlmapping` table. No action is taken
     if the table does not exist.
