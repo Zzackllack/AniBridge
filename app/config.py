@@ -499,9 +499,7 @@ except ValueError:
     )
     STRM_PROXY_TOKEN_TTL_SECONDS = 900
 if STRM_PROXY_TOKEN_TTL_SECONDS <= 0:
-    logger.warning(
-        "STRM_PROXY_TOKEN_TTL_SECONDS must be positive; defaulting to 900."
-    )
+    logger.warning("STRM_PROXY_TOKEN_TTL_SECONDS must be positive; defaulting to 900.")
     STRM_PROXY_TOKEN_TTL_SECONDS = 900
 
 STRM_PROXY_ENABLED = STRM_PROXY_MODE == "proxy"

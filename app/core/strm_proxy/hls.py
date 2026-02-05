@@ -13,9 +13,7 @@ _URI_TAG_PREFIXES = (
     "#EXT-X-SESSION-KEY",
 )
 
-_URI_ATTR_RE = re.compile(
-    r'URI=(?:"(?P<uri_quoted>[^"]*)"|(?P<uri_unquoted>[^,]*))'
-)
+_URI_ATTR_RE = re.compile(r'URI=(?:"(?P<uri_quoted>[^"]*)"|(?P<uri_unquoted>[^,]*))')
 
 
 def _rewrite_uri_attr(
