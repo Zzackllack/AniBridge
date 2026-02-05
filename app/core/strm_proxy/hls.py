@@ -4,6 +4,7 @@ import re
 from typing import Callable
 from urllib.parse import urljoin
 
+from loguru import logger
 
 _URI_TAG_PREFIXES = (
     "#EXT-X-KEY",
@@ -30,8 +31,6 @@ def _rewrite_uri_attr(
     Returns:
         str: The input line with each `URI` attribute replaced by its resolved and rewritten URI, preserving whether the original attribute used quotes.
     """
-    from loguru import logger
-
     logger.trace("Rewriting HLS tag URI in line: {}", line.strip())
 
     def _replace(match: re.Match[str]) -> str:
@@ -70,8 +69,6 @@ def rewrite_hls_playlist(
     Returns:
         str: The playlist text with all URI-bearing tags and standalone URI lines rewritten; preserves the original trailing newline when present.
     """
-    from loguru import logger
-
     logger.debug("Rewriting HLS playlist from {}", base_url)
     if not playlist_text:
         return playlist_text
@@ -99,5 +96,5 @@ def rewrite_hls_playlist(
     result = "\n".join(out_lines)
     if ends_with_newline:
         result += "\n"
-    logger.success("Rewrote HLS playlist ({} lines)", len(out_lines))
+    logger.debug("Rewrote HLS playlist ({} lines)", len(out_lines))
     return result

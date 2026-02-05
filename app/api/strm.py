@@ -15,11 +15,11 @@ from sqlmodel import Session
 
 from app.config import STRM_PROXY_CACHE_TTL_SECONDS, STRM_PROXY_UPSTREAM_ALLOWLIST
 from app.db import (
-    get_session,
-    get_strm_mapping,
-    upsert_strm_mapping,
-    delete_strm_mapping,
-    utcnow,
+    get_session,  # type: ignore
+    get_strm_mapping,  # type: ignore
+    upsert_strm_mapping,  # type: ignore
+    delete_strm_mapping,  # type: ignore
+    utcnow,  # type: ignore
 )
 from app.core.strm_proxy import (
     StrmIdentity,
@@ -140,7 +140,7 @@ def _redact_upstream(url: str) -> str:
         return "<redacted>"
 
 
-def _resolve_upstream_ips(
+async def _resolve_upstream_ips(
     host: str,
 ) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
     """
@@ -153,7 +153,9 @@ def _resolve_upstream_ips(
     if literal_ip is not None:
         return [literal_ip]
     try:
-        infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+        infos = await anyio.to_thread.run_sync(  # type: ignore
+            lambda: socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+        )
     except socket.gaierror:
         return []
     resolved: list[ipaddress.IPv4Address | ipaddress.IPv6Address] = []
@@ -222,7 +224,7 @@ def _parse_identity(params: Mapping[str, str]) -> StrmIdentity:
     )
 
 
-def _validate_upstream_url(url: str) -> None:
+async def _validate_upstream_url(url: str) -> None:
     """
     Validate that the provided upstream URL uses the HTTP or HTTPS scheme.
 
@@ -243,7 +245,7 @@ def _validate_upstream_url(url: str) -> None:
             ipaddress.ip_address(host)
         except ValueError:
             raise HTTPException(status_code=400, detail="invalid upstream host")
-    resolved_ips = _resolve_upstream_ips(host)
+    resolved_ips = await _resolve_upstream_ips(host)
     if not resolved_ips:
         raise HTTPException(status_code=400, detail="unresolvable upstream host")
     for ip in resolved_ips:
@@ -257,27 +259,34 @@ def _validate_upstream_url(url: str) -> None:
             raise HTTPException(status_code=400, detail="upstream host not allowed")
 
 
-def _build_async_client() -> httpx.AsyncClient:
-    """
-    Constructs an httpx.AsyncClient configured for upstream streaming requests.
+_UPSTREAM_CLIENT: httpx.AsyncClient | None = None
+_UPSTREAM_CLIENT_LOCK = anyio.Lock()
 
-    Returns:
-        httpx.AsyncClient: An AsyncClient with sensible timeouts for streaming, redirects enabled, and environment proxying disabled.
+
+async def _get_async_client() -> httpx.AsyncClient:
     """
-    logger.trace("Building upstream AsyncClient")
-    timeout = httpx.Timeout(30.0, connect=10.0, read=60.0, write=30.0, pool=30.0)
-    return httpx.AsyncClient(
-        timeout=timeout,
-        follow_redirects=True,
-        trust_env=False,
-    )
+    Return a shared AsyncClient for upstream streaming requests.
+    """
+    global _UPSTREAM_CLIENT
+    async with _UPSTREAM_CLIENT_LOCK:
+        if _UPSTREAM_CLIENT is None or _UPSTREAM_CLIENT.is_closed:
+            logger.trace("Building upstream AsyncClient")
+            timeout = httpx.Timeout(
+                30.0, connect=10.0, read=60.0, write=30.0, pool=30.0
+            )
+            _UPSTREAM_CLIENT = httpx.AsyncClient(
+                timeout=timeout,
+                follow_redirects=True,
+                trust_env=False,
+            )
+        return _UPSTREAM_CLIENT
 
 
 async def _open_upstream(
     url: str, *, method: str, headers: Mapping[str, str]
-) -> tuple[httpx.Response, httpx.AsyncClient]:
+) -> httpx.Response:
     """
-    Open an upstream HTTP request and return the active streaming response together with its client.
+    Open an upstream HTTP request and return the active streaming response.
 
     Parameters:
         url (str): Upstream URL to request.
@@ -285,18 +294,18 @@ async def _open_upstream(
         headers (Mapping[str, str]): Headers to include in the upstream request.
 
     Returns:
-        tuple[httpx.Response, httpx.AsyncClient]: The streaming `httpx.Response` and the `httpx.AsyncClient` used for the request; the caller is responsible for closing both to release network resources.
+        httpx.Response: The streaming `httpx.Response`; the caller is responsible for closing it to release network resources.
     """
     logger.trace("Opening upstream {} {}", method, _redact_upstream(url))
-    client = _build_async_client()
+    client = await _get_async_client()
     request = client.build_request(method, url, headers=headers)
     response = await client.send(request, stream=True)
-    return response, client
+    return response
 
 
-def _streaming_body(response: httpx.Response, client: httpx.AsyncClient):
+def _streaming_body(response: httpx.Response):
     """
-    Stream bytes from an upstream response and ensure both the response and its client are closed when streaming ends.
+    Stream bytes from an upstream response and ensure the response is closed when streaming ends.
 
     Returns:
         An asynchronous iterator that yields bytes chunks from the upstream response.
@@ -311,14 +320,13 @@ def _streaming_body(response: httpx.Response, client: httpx.AsyncClient):
             bytes: Consecutive chunks of the upstream response body.
 
         Notes:
-            Ensures `response.aclose()` and `client.aclose()` are awaited when the generator exits or an error occurs.
+            Ensures `response.aclose()` is awaited when the generator exits or an error occurs.
         """
         try:
             async for chunk in response.aiter_bytes(chunk_size=_STREAM_CHUNK_SIZE):
                 yield chunk
         finally:
             await response.aclose()
-            await client.aclose()
 
     return _gen()
 
@@ -440,7 +448,7 @@ async def _resolve_with_cache(
             return cached.url, cached.provider_used
 
     try:
-        direct_url, provider_used = await anyio.to_thread.run_sync(
+        direct_url, provider_used = await anyio.to_thread.run_sync(  # type: ignore
             resolve_direct_url, identity
         )
     except Exception as exc:
@@ -461,7 +469,7 @@ async def _fetch_with_refresh(
     *,
     method: str,
     headers: Mapping[str, str],
-) -> tuple[httpx.Response, httpx.AsyncClient, str]:
+) -> tuple[httpx.Response, str]:
     """
     Attempt to fetch upstream content for the given STRM identity, retrying once after invalidating the cached mapping if the first attempt fails or returns a refresh-triggering status.
 
@@ -473,7 +481,7 @@ async def _fetch_with_refresh(
         headers (Mapping[str, str]): Headers to pass to the upstream request.
 
     Returns:
-        tuple[httpx.Response, httpx.AsyncClient, str]: The upstream HTTPX response, the AsyncClient used for the request (caller is responsible for closing), and the resolved upstream URL.
+        tuple[httpx.Response, str]: The upstream HTTPX response and the resolved upstream URL.
     """
     logger.trace("Fetching upstream (attempts up to 2)")
     attempt = 0
@@ -484,7 +492,7 @@ async def _fetch_with_refresh(
             session, identity, force_refresh=force_refresh
         )
         try:
-            response, client = await _open_upstream(url, method=method, headers=headers)
+            response = await _open_upstream(url, method=method, headers=headers)
         except httpx.RequestError as exc:
             last_error = exc
             if attempt == 0:
@@ -508,7 +516,6 @@ async def _fetch_with_refresh(
                 _redact_upstream(url),
             )
             await response.aclose()
-            await client.aclose()
             _cache_invalidate(session, identity)
             force_refresh = True
             attempt += 1
@@ -521,7 +528,7 @@ async def _fetch_with_refresh(
             response.status_code,
             _redact_upstream(url),
         )
-        return response, client, url
+        return response, url
 
     raise HTTPException(status_code=502, detail="upstream request failed")
 
@@ -545,22 +552,20 @@ async def _handle_head(
         Response: A FastAPI Response with an empty body, the upstream status code, and filtered headers (ensuring a Content-Type).
     """
     logger.trace("Handling STRM HEAD request")
-    response, client, _url = await _fetch_with_refresh(
+    response, _url = await _fetch_with_refresh(
         session, identity, method="HEAD", headers=headers
     )
     if response.status_code in (405, 501):
         await response.aclose()
-        await client.aclose()
         fallback_headers = dict(headers)
         fallback_headers.setdefault("Range", "bytes=0-0")
-        response, client, _url = await _fetch_with_refresh(
+        response, _url = await _fetch_with_refresh(
             session, identity, method="GET", headers=fallback_headers
         )
         await response.aread()
     filtered = _filter_headers(response.headers)
     _ensure_content_type(filtered, "application/octet-stream")
     await response.aclose()
-    await client.aclose()
     return Response(content=b"", status_code=response.status_code, headers=filtered)
 
 
@@ -603,7 +608,7 @@ async def strm_stream(
     if request.method == "HEAD":
         return await _handle_head(session, identity, headers=upstream_headers)
 
-    response, client, url = await _fetch_with_refresh(
+    response, url = await _fetch_with_refresh(
         session, identity, method="GET", headers=upstream_headers
     )
 
@@ -611,7 +616,6 @@ async def strm_stream(
         logger.debug("Detected HLS playlist for {}", _redact_upstream(url))
         body = await response.aread()
         await response.aclose()
-        await client.aclose()
         charset = response.encoding or "utf-8"
         playlist_text = body.decode(charset, errors="replace")
         try:
@@ -636,7 +640,7 @@ async def strm_stream(
     _ensure_content_type(headers, "application/octet-stream")
     logger.debug("Streaming non-HLS response (status={})", response.status_code)
     return StreamingResponse(
-        _streaming_body(response, client),
+        _streaming_body(response),
         status_code=response.status_code,
         headers=headers,
     )
@@ -659,18 +663,15 @@ async def _proxy_head(url: str, *, headers: Mapping[str, str]) -> Response:
     """
     logger.trace("Handling STRM proxy HEAD request")
     try:
-        response, client = await _open_upstream(url, method="HEAD", headers=headers)
+        response = await _open_upstream(url, method="HEAD", headers=headers)
     except httpx.RequestError as exc:
         raise HTTPException(status_code=502, detail="upstream request failed") from exc
     if response.status_code in (405, 501):
         await response.aclose()
-        await client.aclose()
         fallback_headers = dict(headers)
         fallback_headers.setdefault("Range", "bytes=0-0")
         try:
-            response, client = await _open_upstream(
-                url, method="GET", headers=fallback_headers
-            )
+            response = await _open_upstream(url, method="GET", headers=fallback_headers)
         except httpx.RequestError as exc:
             raise HTTPException(
                 status_code=502, detail="upstream request failed"
@@ -679,7 +680,6 @@ async def _proxy_head(url: str, *, headers: Mapping[str, str]) -> Response:
     filtered = _filter_headers(response.headers)
     _ensure_content_type(filtered, "application/octet-stream")
     await response.aclose()
-    await client.aclose()
     return Response(content=b"", status_code=response.status_code, headers=filtered)
 
 
@@ -705,7 +705,7 @@ async def strm_proxy(request: Request, path_hint: str = ""):
     upstream_url = (params.get("u") or "").strip()
     if not upstream_url:
         raise HTTPException(status_code=400, detail="missing upstream url")
-    _validate_upstream_url(upstream_url)
+    await _validate_upstream_url(upstream_url)
 
     upstream_headers: dict[str, str] = {}
     if "range" in request.headers:
@@ -723,7 +723,7 @@ async def strm_proxy(request: Request, path_hint: str = ""):
         return await _proxy_head(upstream_url, headers=upstream_headers)
 
     try:
-        response, client = await _open_upstream(
+        response = await _open_upstream(
             upstream_url, method="GET", headers=upstream_headers
         )
     except httpx.RequestError as exc:
@@ -733,7 +733,6 @@ async def strm_proxy(request: Request, path_hint: str = ""):
         logger.debug("Detected HLS playlist for {}", _redact_upstream(upstream_url))
         body = await response.aread()
         await response.aclose()
-        await client.aclose()
         charset = response.encoding or "utf-8"
         playlist_text = body.decode(charset, errors="replace")
         try:
@@ -760,7 +759,18 @@ async def strm_proxy(request: Request, path_hint: str = ""):
     _ensure_content_type(headers, "application/octet-stream")
     logger.debug("Streaming proxied response (status={})", response.status_code)
     return StreamingResponse(
-        _streaming_body(response, client),
+        _streaming_body(response),
         status_code=response.status_code,
         headers=headers,
     )
+
+
+async def close_upstream_client() -> None:
+    """
+    Close the shared upstream AsyncClient (called from app lifespan shutdown).
+    """
+    global _UPSTREAM_CLIENT
+    if _UPSTREAM_CLIENT is None:
+        return
+    await _UPSTREAM_CLIENT.aclose()
+    _UPSTREAM_CLIENT = None
