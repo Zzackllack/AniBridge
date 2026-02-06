@@ -67,6 +67,24 @@ def _build_upstream_app():
             media_type="video/mp4",
         )
 
+    @app.get("/master.m3u8")
+    async def master_playlist():
+        """
+        Return a minimal HLS playlist with one relative segment URI.
+        """
+        playlist = "#EXTM3U\n#EXTINF:6.0,\nsegment-001.ts\n#EXT-X-ENDLIST\n"
+        return Response(
+            content=playlist.encode("utf-8"),
+            media_type="application/vnd.apple.mpegurl",
+        )
+
+    @app.get("/segment-001.ts")
+    async def segment():
+        """
+        Return synthetic MPEG-TS bytes for HLS proxy tests.
+        """
+        return Response(content=b"\x47\x40\x00\x10", media_type="video/mp2t")
+
     return app
 
 
@@ -141,3 +159,94 @@ def test_strm_proxy_forwards_range(client, monkeypatch):
     assert resp.status_code == 206
     assert resp.content == b"01234"
     assert resp.headers.get("Content-Range") == "bytes 0-4/10"
+
+
+def test_strm_stream_hls_uses_remux_when_available(client, monkeypatch):
+    upstream_app = _build_upstream_app()
+    _patch_async_client(monkeypatch, upstream_app)
+
+    monkeypatch.setattr(
+        "app.api.strm.resolve_direct_url",
+        lambda _identity: ("http://upstream/master.m3u8", "VOE"),
+    )
+
+    async def _fake_remux(_upstream_url: str, *, user_agent: str | None):
+        assert user_agent is not None
+        return Response(content=b"remux-ok", media_type="video/mp4")
+
+    monkeypatch.setattr("app.api.strm._build_hls_remux_response", _fake_remux)
+
+    resp = client.get(
+        "/strm/stream",
+        params={
+            "site": "aniworld.to",
+            "slug": "show",
+            "s": "1",
+            "e": "1",
+            "lang": "German Dub",
+        },
+        headers={"User-Agent": "Jellyfin-Test"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.content == b"remux-ok"
+    assert resp.headers["content-type"].startswith("video/mp4")
+
+
+def test_strm_stream_hls_falls_back_to_playlist_when_remux_unavailable(
+    client, monkeypatch
+):
+    upstream_app = _build_upstream_app()
+    _patch_async_client(monkeypatch, upstream_app)
+
+    monkeypatch.setattr(
+        "app.api.strm.resolve_direct_url",
+        lambda _identity: ("http://upstream/master.m3u8", "VOE"),
+    )
+
+    async def _no_remux(_upstream_url: str, *, user_agent: str | None):
+        return None
+
+    monkeypatch.setattr("app.api.strm._build_hls_remux_response", _no_remux)
+
+    resp = client.get(
+        "/strm/stream",
+        params={
+            "site": "aniworld.to",
+            "slug": "show",
+            "s": "1",
+            "e": "1",
+            "lang": "German Dub",
+        },
+    )
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/vnd.apple.mpegurl")
+    assert (
+        "/strm/proxy/segment-001.ts?u=http%3A%2F%2Fupstream%2Fsegment-001.ts"
+        in resp.text
+    )
+
+
+def test_strm_stream_head_hls_reports_mp4_when_remux_enabled(client, monkeypatch):
+    upstream_app = _build_upstream_app()
+    _patch_async_client(monkeypatch, upstream_app)
+
+    monkeypatch.setattr(
+        "app.api.strm.resolve_direct_url",
+        lambda _identity: ("http://upstream/master.m3u8", "VOE"),
+    )
+
+    resp = client.head(
+        "/strm/stream",
+        params={
+            "site": "aniworld.to",
+            "slug": "show",
+            "s": "1",
+            "e": "1",
+            "lang": "German Dub",
+        },
+    )
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("video/mp4")
