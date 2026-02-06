@@ -68,9 +68,35 @@ def _build_upstream_app():
         )
 
     @app.get("/master.m3u8")
-    async def master_playlist():
+    async def media_playlist():
         """
-        Return a minimal HLS playlist with one relative segment URI.
+        Return a minimal HLS media playlist with one relative segment URI.
+        """
+        playlist = "#EXTM3U\n#EXTINF:6.0,\nsegment-001.ts\n#EXT-X-ENDLIST\n"
+        return Response(
+            content=playlist.encode("utf-8"),
+            media_type="application/vnd.apple.mpegurl",
+        )
+
+    @app.get("/master-with-stream.m3u8")
+    async def master_with_stream_playlist():
+        """
+        Return an HLS master playlist with one variant lacking AVERAGE-BANDWIDTH.
+        """
+        playlist = (
+            "#EXTM3U\n"
+            "#EXT-X-STREAM-INF:BANDWIDTH=1519549,RESOLUTION=1280x720\n"
+            "variant-v1.m3u8\n"
+        )
+        return Response(
+            content=playlist.encode("utf-8"),
+            media_type="application/vnd.apple.mpegurl",
+        )
+
+    @app.get("/variant-v1.m3u8")
+    async def variant_playlist():
+        """
+        Return an HLS media playlist referenced from the master playlist.
         """
         playlist = "#EXTM3U\n#EXTINF:6.0,\nsegment-001.ts\n#EXT-X-ENDLIST\n"
         return Response(
@@ -161,7 +187,7 @@ def test_strm_proxy_forwards_range(client, monkeypatch):
     assert resp.headers.get("Content-Range") == "bytes 0-4/10"
 
 
-def test_strm_stream_hls_uses_remux_when_available(client, monkeypatch):
+def test_strm_stream_hls_media_playlist_returns_synthetic_master(client, monkeypatch):
     upstream_app = _build_upstream_app()
     _patch_async_client(monkeypatch, upstream_app)
 
@@ -169,45 +195,6 @@ def test_strm_stream_hls_uses_remux_when_available(client, monkeypatch):
         "app.api.strm.resolve_direct_url",
         lambda _identity: ("http://upstream/master.m3u8", "VOE"),
     )
-
-    async def _fake_remux(_upstream_url: str, *, user_agent: str | None):
-        assert user_agent is not None
-        return Response(content=b"remux-ok", media_type="video/mp4")
-
-    monkeypatch.setattr("app.api.strm._build_hls_remux_response", _fake_remux)
-
-    resp = client.get(
-        "/strm/stream",
-        params={
-            "site": "aniworld.to",
-            "slug": "show",
-            "s": "1",
-            "e": "1",
-            "lang": "German Dub",
-        },
-        headers={"User-Agent": "Jellyfin-Test"},
-    )
-
-    assert resp.status_code == 200
-    assert resp.content == b"remux-ok"
-    assert resp.headers["content-type"].startswith("video/mp4")
-
-
-def test_strm_stream_hls_falls_back_to_playlist_when_remux_unavailable(
-    client, monkeypatch
-):
-    upstream_app = _build_upstream_app()
-    _patch_async_client(monkeypatch, upstream_app)
-
-    monkeypatch.setattr(
-        "app.api.strm.resolve_direct_url",
-        lambda _identity: ("http://upstream/master.m3u8", "VOE"),
-    )
-
-    async def _no_remux(_upstream_url: str, *, user_agent: str | None):
-        return None
-
-    monkeypatch.setattr("app.api.strm._build_hls_remux_response", _no_remux)
 
     resp = client.get(
         "/strm/stream",
@@ -222,13 +209,60 @@ def test_strm_stream_hls_falls_back_to_playlist_when_remux_unavailable(
 
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("application/vnd.apple.mpegurl")
+    assert "#EXT-X-STREAM-INF:BANDWIDTH=2500000,AVERAGE-BANDWIDTH=2125000" in resp.text
+    assert "/strm/proxy/master.m3u8?u=http%3A%2F%2Fupstream%2Fmaster.m3u8" in resp.text
+
+
+def test_strm_stream_hls_master_injects_average_bandwidth(client, monkeypatch):
+    upstream_app = _build_upstream_app()
+    _patch_async_client(monkeypatch, upstream_app)
+
+    monkeypatch.setattr(
+        "app.api.strm.resolve_direct_url",
+        lambda _identity: ("http://upstream/master-with-stream.m3u8", "VOE"),
+    )
+
+    resp = client.get(
+        "/strm/stream",
+        params={
+            "site": "aniworld.to",
+            "slug": "show",
+            "s": "1",
+            "e": "1",
+            "lang": "German Dub",
+        },
+    )
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/vnd.apple.mpegurl")
+    assert "BANDWIDTH=1519549" in resp.text
+    assert "AVERAGE-BANDWIDTH=1291616" in resp.text
     assert (
-        "/strm/proxy/segment-001.ts?u=http%3A%2F%2Fupstream%2Fsegment-001.ts"
+        "/strm/proxy/variant-v1.m3u8?u=http%3A%2F%2Fupstream%2Fvariant-v1.m3u8"
         in resp.text
     )
 
 
-def test_strm_stream_head_hls_reports_mp4_when_remux_enabled(client, monkeypatch):
+def test_strm_proxy_hls_master_injects_average_bandwidth(client, monkeypatch):
+    upstream_app = _build_upstream_app()
+    _patch_async_client(monkeypatch, upstream_app)
+
+    resp = client.get(
+        "/strm/proxy",
+        params={"u": "http://upstream/master-with-stream.m3u8"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/vnd.apple.mpegurl")
+    assert "BANDWIDTH=1519549" in resp.text
+    assert "AVERAGE-BANDWIDTH=1291616" in resp.text
+    assert (
+        "/strm/proxy/variant-v1.m3u8?u=http%3A%2F%2Fupstream%2Fvariant-v1.m3u8"
+        in resp.text
+    )
+
+
+def test_strm_stream_head_hls_keeps_playlist_content_type(client, monkeypatch):
     upstream_app = _build_upstream_app()
     _patch_async_client(monkeypatch, upstream_app)
 
@@ -249,4 +283,4 @@ def test_strm_stream_head_hls_reports_mp4_when_remux_enabled(client, monkeypatch
     )
 
     assert resp.status_code == 200
-    assert resp.headers["content-type"].startswith("video/mp4")
+    assert resp.headers["content-type"].startswith("application/vnd.apple.mpegurl")

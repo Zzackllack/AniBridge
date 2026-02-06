@@ -1,4 +1,9 @@
-from app.core.strm_proxy.hls import rewrite_hls_playlist
+from app.core.strm_proxy.hls import (
+    build_synthetic_master_playlist,
+    inject_stream_inf_bandwidth_hints,
+    is_hls_media_playlist,
+    rewrite_hls_playlist,
+)
 
 
 def _proxy_rewrite(u: str) -> str:
@@ -126,3 +131,53 @@ def test_rewrite_hls_uri_tags_v7_plus():
     assert 'URI="proxy://https://origin.example/live/rendition.m3u8"' in rewritten
     assert 'URI="proxy://https://origin.example/live/session.json"' in rewritten
     assert 'URI="proxy://https://origin.example/live/keys/session.key"' in rewritten
+
+
+def test_inject_stream_inf_bandwidth_hints_adds_average_when_missing():
+    playlist = (
+        "#EXTM3U\n"
+        "#EXT-X-STREAM-INF:BANDWIDTH=1200000,RESOLUTION=1280x720\n"
+        "video/main.m3u8\n"
+    )
+
+    rewritten = inject_stream_inf_bandwidth_hints(playlist, default_bandwidth=2_500_000)
+
+    assert (
+        "#EXT-X-STREAM-INF:BANDWIDTH=1200000,RESOLUTION=1280x720,AVERAGE-BANDWIDTH=1020000"
+        in rewritten
+    )
+
+
+def test_inject_stream_inf_bandwidth_hints_adds_both_when_missing():
+    playlist = (
+        "#EXTM3U\n"
+        '#EXT-X-STREAM-INF:RESOLUTION=1280x720,CODECS="avc1.4d401f,mp4a.40.2"\n'
+        "video/main.m3u8\n"
+    )
+
+    rewritten = inject_stream_inf_bandwidth_hints(playlist, default_bandwidth=900000)
+
+    assert (
+        '#EXT-X-STREAM-INF:RESOLUTION=1280x720,CODECS="avc1.4d401f,mp4a.40.2",BANDWIDTH=900000,AVERAGE-BANDWIDTH=765000'
+        in rewritten
+    )
+
+
+def test_is_hls_media_playlist():
+    media_playlist = "#EXTM3U\n#EXTINF:6.0,\nseg-1.ts\n#EXT-X-ENDLIST\n"
+    master_playlist = "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000000\nvariant.m3u8\n"
+
+    assert is_hls_media_playlist(media_playlist) is True
+    assert is_hls_media_playlist(master_playlist) is False
+
+
+def test_build_synthetic_master_playlist():
+    playlist = build_synthetic_master_playlist(
+        "https://example.test/playlist.m3u8",
+        bandwidth=1_519_549,
+    )
+
+    assert playlist.startswith("#EXTM3U\n#EXT-X-VERSION:3\n")
+    assert "BANDWIDTH=1519549" in playlist
+    assert "AVERAGE-BANDWIDTH=1291616" in playlist
+    assert "https://example.test/playlist.m3u8\n" in playlist

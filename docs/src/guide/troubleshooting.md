@@ -74,6 +74,8 @@ outline: deep
   Jellyfin may show 0 kbps.
 - Verify the master playlist URL is reachable through AniBridge and the proxy
   rewrites are intact.
+- Keep `STRM_PROXY_HLS_HINTS_ENABLED=true` so AniBridge can add missing
+  master playlist bitrate hints.
 
 ## Sonarr fails to import completed downloads due to "No audio tracks detected"
 

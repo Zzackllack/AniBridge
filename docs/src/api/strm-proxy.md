@@ -17,7 +17,7 @@ AniBridge can generate `.strm` files that point to a stable AniBridge URL instea
 
 `STRM_PROXY_MODE=proxy`  
 `STRM_PUBLIC_BASE_URL=https://<your-anibridge-host>`
-`STRM_PROXY_HLS_REMUX=true` (default)
+`STRM_PROXY_HLS_HINTS_ENABLED=true` (default)
 
 Auth mode is controlled by `STRM_PROXY_AUTH`:
 
@@ -92,16 +92,21 @@ Relative URLs are resolved against the playlist URL before proxying.
 Some HLS providers expose TS segments where ffprobe cannot read a per-video
 bitrate, causing media servers to display `Video-Bitrate: 0 kbps`.
 
-AniBridge mitigates this on `/strm/stream` by remuxing HLS inputs to fragmented MP4
-when `STRM_PROXY_HLS_REMUX=true` (default). This keeps video codec data but gives
-ffprobe/Jellyfin stream-level bitrate metadata.
+AniBridge mitigates this in playlist space (no segment remux/transcode):
+
+- On master playlists, AniBridge preserves upstream `BANDWIDTH` and injects
+  `AVERAGE-BANDWIDTH` when missing.
+- If an upstream URL points directly to a media playlist, AniBridge can return a
+  synthetic one-variant master playlist from `/strm/stream` that points to the
+  proxied media playlist URL.
+- On `/strm/proxy`, AniBridge rewrites URIs as before and also injects missing
+  `AVERAGE-BANDWIDTH` for master variants.
 
 Notes:
 
-- Video is copied (no video re-encode). Audio is normalized to AAC for MP4 compatibility.
-- If remux startup fails or `STRM_PROXY_HLS_REMUX=false`, AniBridge falls back to
-  normal playlist rewriting.
-- `BANDWIDTH` in HLS is still preserved and proxied unchanged.
+- This is heuristic metadata normalization, not measured bitrate from segments.
+- Tune default hints with `STRM_PROXY_HLS_HINT_BANDWIDTH`.
+- Disable this behavior with `STRM_PROXY_HLS_HINTS_ENABLED=false`.
 
 ## Refresh On Failure
 

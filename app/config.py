@@ -523,6 +523,98 @@ if STRM_PROXY_HLS_HINT_BANDWIDTH <= 0:
     )
     STRM_PROXY_HLS_HINT_BANDWIDTH = 2_500_000
 
+# File-backed cached remux for HLS STRM playback.
+STRM_PROXY_HLS_REMUX_CACHED_ENABLED = _as_bool(
+    os.getenv("STRM_PROXY_HLS_REMUX_CACHED_ENABLED", None), False
+)
+
+_strm_hls_remux_cache_dir_raw = os.getenv("STRM_PROXY_HLS_REMUX_CACHE_DIR", "").strip()
+if _strm_hls_remux_cache_dir_raw:
+    STRM_PROXY_HLS_REMUX_CACHE_DIR = Path(_strm_hls_remux_cache_dir_raw).expanduser()
+else:
+    STRM_PROXY_HLS_REMUX_CACHE_DIR = DATA_DIR / "strm-remux-cache"
+
+_strm_hls_remux_cache_ttl_raw = os.getenv(
+    "STRM_PROXY_HLS_REMUX_CACHE_TTL_SECONDS", "86400"
+).strip()
+try:
+    STRM_PROXY_HLS_REMUX_CACHE_TTL_SECONDS = int(_strm_hls_remux_cache_ttl_raw or 0)
+except ValueError:
+    logger.warning(
+        f"Invalid STRM_PROXY_HLS_REMUX_CACHE_TTL_SECONDS={_strm_hls_remux_cache_ttl_raw!r}; defaulting to 86400."
+    )
+    STRM_PROXY_HLS_REMUX_CACHE_TTL_SECONDS = 86_400
+if STRM_PROXY_HLS_REMUX_CACHE_TTL_SECONDS < 0:
+    logger.warning(
+        "STRM_PROXY_HLS_REMUX_CACHE_TTL_SECONDS must be >= 0; defaulting to 86400."
+    )
+    STRM_PROXY_HLS_REMUX_CACHE_TTL_SECONDS = 86_400
+
+_strm_hls_remux_build_timeout_raw = os.getenv(
+    "STRM_PROXY_HLS_REMUX_BUILD_TIMEOUT_SECONDS", "240"
+).strip()
+try:
+    STRM_PROXY_HLS_REMUX_BUILD_TIMEOUT_SECONDS = int(
+        _strm_hls_remux_build_timeout_raw or 0
+    )
+except ValueError:
+    logger.warning(
+        f"Invalid STRM_PROXY_HLS_REMUX_BUILD_TIMEOUT_SECONDS={_strm_hls_remux_build_timeout_raw!r}; defaulting to 240."
+    )
+    STRM_PROXY_HLS_REMUX_BUILD_TIMEOUT_SECONDS = 240
+if STRM_PROXY_HLS_REMUX_BUILD_TIMEOUT_SECONDS <= 0:
+    logger.warning(
+        "STRM_PROXY_HLS_REMUX_BUILD_TIMEOUT_SECONDS must be positive; defaulting to 240."
+    )
+    STRM_PROXY_HLS_REMUX_BUILD_TIMEOUT_SECONDS = 240
+
+_strm_hls_remux_max_concurrent_raw = os.getenv(
+    "STRM_PROXY_HLS_REMUX_MAX_CONCURRENT_BUILDS", "1"
+).strip()
+try:
+    STRM_PROXY_HLS_REMUX_MAX_CONCURRENT_BUILDS = int(
+        _strm_hls_remux_max_concurrent_raw or 0
+    )
+except ValueError:
+    logger.warning(
+        f"Invalid STRM_PROXY_HLS_REMUX_MAX_CONCURRENT_BUILDS={_strm_hls_remux_max_concurrent_raw!r}; defaulting to 1."
+    )
+    STRM_PROXY_HLS_REMUX_MAX_CONCURRENT_BUILDS = 1
+if STRM_PROXY_HLS_REMUX_MAX_CONCURRENT_BUILDS <= 0:
+    logger.warning(
+        "STRM_PROXY_HLS_REMUX_MAX_CONCURRENT_BUILDS must be positive; defaulting to 1."
+    )
+    STRM_PROXY_HLS_REMUX_MAX_CONCURRENT_BUILDS = 1
+
+_strm_hls_remux_fail_cooldown_raw = os.getenv(
+    "STRM_PROXY_HLS_REMUX_FAIL_COOLDOWN_SECONDS", "600"
+).strip()
+try:
+    STRM_PROXY_HLS_REMUX_FAIL_COOLDOWN_SECONDS = int(
+        _strm_hls_remux_fail_cooldown_raw or 0
+    )
+except ValueError:
+    logger.warning(
+        f"Invalid STRM_PROXY_HLS_REMUX_FAIL_COOLDOWN_SECONDS={_strm_hls_remux_fail_cooldown_raw!r}; defaulting to 600."
+    )
+    STRM_PROXY_HLS_REMUX_FAIL_COOLDOWN_SECONDS = 600
+if STRM_PROXY_HLS_REMUX_FAIL_COOLDOWN_SECONDS < 0:
+    logger.warning(
+        "STRM_PROXY_HLS_REMUX_FAIL_COOLDOWN_SECONDS must be >= 0; defaulting to 600."
+    )
+    STRM_PROXY_HLS_REMUX_FAIL_COOLDOWN_SECONDS = 600
+
+if STRM_PROXY_HLS_REMUX_CACHED_ENABLED:
+    try:
+        STRM_PROXY_HLS_REMUX_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        logger.warning(
+            "Cannot create STRM remux cache dir {}; disabling remux cache: {}",
+            STRM_PROXY_HLS_REMUX_CACHE_DIR,
+            exc,
+        )
+        STRM_PROXY_HLS_REMUX_CACHED_ENABLED = False
+
 STRM_PROXY_ENABLED = STRM_PROXY_MODE == "proxy"
 if STRM_PROXY_ENABLED and not STRM_PUBLIC_BASE_URL:
     logger.error("STRM proxy mode is enabled but STRM_PUBLIC_BASE_URL is not set.")
@@ -531,13 +623,19 @@ if STRM_PROXY_ENABLED and STRM_PROXY_AUTH != "none" and not STRM_PROXY_SECRET:
     logger.error("STRM proxy auth enabled but STRM_PROXY_SECRET is not set.")
     raise RuntimeError("STRM_PROXY_SECRET is required when STRM_PROXY_AUTH is enabled.")
 logger.debug(
-    "STRM proxy config: mode={} auth={} cache_ttl_seconds={} token_ttl_seconds={} hls_hints_enabled={} hls_hint_bandwidth={} allowlist_count={}",
+    "STRM proxy config: mode={} auth={} cache_ttl_seconds={} token_ttl_seconds={} hls_hints_enabled={} hls_hint_bandwidth={} hls_remux_cached_enabled={} hls_remux_cache_dir={} hls_remux_cache_ttl_seconds={} hls_remux_build_timeout_seconds={} hls_remux_max_concurrent_builds={} hls_remux_fail_cooldown_seconds={} allowlist_count={}",
     STRM_PROXY_MODE,
     STRM_PROXY_AUTH,
     STRM_PROXY_CACHE_TTL_SECONDS,
     STRM_PROXY_TOKEN_TTL_SECONDS,
     STRM_PROXY_HLS_HINTS_ENABLED,
     STRM_PROXY_HLS_HINT_BANDWIDTH,
+    STRM_PROXY_HLS_REMUX_CACHED_ENABLED,
+    STRM_PROXY_HLS_REMUX_CACHE_DIR,
+    STRM_PROXY_HLS_REMUX_CACHE_TTL_SECONDS,
+    STRM_PROXY_HLS_REMUX_BUILD_TIMEOUT_SECONDS,
+    STRM_PROXY_HLS_REMUX_MAX_CONCURRENT_BUILDS,
+    STRM_PROXY_HLS_REMUX_FAIL_COOLDOWN_SECONDS,
     len(STRM_PROXY_UPSTREAM_ALLOWLIST),
 )
 

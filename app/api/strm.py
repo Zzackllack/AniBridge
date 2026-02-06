@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 import anyio
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from loguru import logger
 from sqlmodel import Session
 
@@ -30,6 +30,7 @@ from app.core.strm_proxy import (
     StrmIdentity,
     build_proxy_url,
     MEMORY_CACHE,
+    REMUX_CACHE_MANAGER,
     StrmCacheEntry,
     build_synthetic_master_playlist,
     inject_stream_inf_bandwidth_hints,
@@ -639,6 +640,38 @@ async def strm_stream(
 
     if _is_hls_response(url, response.headers):
         logger.debug("Detected HLS playlist for {}", _redact_upstream(url))
+        if REMUX_CACHE_MANAGER.enabled:
+            try:
+                remux = await REMUX_CACHE_MANAGER.ensure_artifact(
+                    identity=identity,
+                    upstream_url=url,
+                    request_id=req_id,
+                )
+            except Exception:
+                remux = None
+                logger.exception(
+                    "STRM remux cache path failed unexpectedly for {}", req_id
+                )
+            else:
+                if remux.artifact_path is not None:
+                    await response.aclose()
+                    logger.success(
+                        "Serving STRM remux artifact request_id={} key={} source={}",
+                        req_id,
+                        remux.cache_key,
+                        remux.source_fingerprint,
+                    )
+                    return FileResponse(
+                        path=remux.artifact_path,
+                        media_type="video/mp4",
+                    )
+                logger.warning(
+                    "STRM remux fallback request_id={} key={} reason={}",
+                    req_id,
+                    remux.cache_key,
+                    remux.fallback_reason or remux.state,
+                )
+
         body = await response.aread()
         await response.aclose()
         charset = response.encoding or "utf-8"

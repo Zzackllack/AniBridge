@@ -31,6 +31,7 @@ Jellyfin relies on the HLS master playlist to read `BANDWIDTH` values from
 `#EXT-X-STREAM-INF`. If the master playlist is not reachable (or the upstream
 only serves a media playlist), Jellyfin may report 0 kbps. Ensure AniBridge can
 serve the master playlist over HTTPS and that your `.strm` URLs resolve to it.
+AniBridge can inject missing master hints when `STRM_PROXY_HLS_HINTS_ENABLED=true`.
 
 ## Why doesn't Direct Play work in browser clients?
 

@@ -136,6 +136,12 @@ async def lifespan(app: FastAPI):
         if cleaned:
             logger.warning(f"Reset {cleaned} dangling jobs to 'failed'")
     init_executor()
+    try:
+        from app.core.strm_proxy import REMUX_CACHE_MANAGER
+
+        await REMUX_CACHE_MANAGER.maybe_cleanup(force=True)
+    except Exception as e:
+        logger.warning("STRM remux startup cleanup failed: {}", e)
 
     # Start background workers
     cleanup_stop = threading.Event()

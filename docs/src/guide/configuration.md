@@ -39,6 +39,8 @@ AniBridge is configured via environment variables (works well with Docker). Sens
 - `STRM_PROXY_UPSTREAM_ALLOWLIST` (comma-separated upstream host allowlist)
 - `STRM_PROXY_CACHE_TTL_SECONDS` (default: `0`)
 - `STRM_PROXY_TOKEN_TTL_SECONDS` (default: `900`)
+- `STRM_PROXY_HLS_HINTS_ENABLED` (`true|false`, default: `true`)
+- `STRM_PROXY_HLS_HINT_BANDWIDTH` (default: `2500000`; bits/s fallback for HLS master variant hints)
 
 When `STRM_PROXY_AUTH` is set to `token` or `apikey`, `STRM_PROXY_SECRET`
 must be configured.
