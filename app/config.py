@@ -502,6 +502,10 @@ if STRM_PROXY_TOKEN_TTL_SECONDS <= 0:
     logger.warning("STRM_PROXY_TOKEN_TTL_SECONDS must be positive; defaulting to 900.")
     STRM_PROXY_TOKEN_TTL_SECONDS = 900
 
+# When enabled, HLS upstreams are remuxed to fragmented MP4 for /strm/stream.
+# This helps media servers detect non-zero video bitrate from HLS sources.
+STRM_PROXY_HLS_REMUX = _as_bool(os.getenv("STRM_PROXY_HLS_REMUX", None), True)
+
 STRM_PROXY_ENABLED = STRM_PROXY_MODE == "proxy"
 if STRM_PROXY_ENABLED and not STRM_PUBLIC_BASE_URL:
     logger.error("STRM proxy mode is enabled but STRM_PUBLIC_BASE_URL is not set.")
@@ -510,11 +514,12 @@ if STRM_PROXY_ENABLED and STRM_PROXY_AUTH != "none" and not STRM_PROXY_SECRET:
     logger.error("STRM proxy auth enabled but STRM_PROXY_SECRET is not set.")
     raise RuntimeError("STRM_PROXY_SECRET is required when STRM_PROXY_AUTH is enabled.")
 logger.debug(
-    "STRM proxy config: mode={} auth={} cache_ttl_seconds={} token_ttl_seconds={} allowlist_count={}",
+    "STRM proxy config: mode={} auth={} cache_ttl_seconds={} token_ttl_seconds={} hls_remux={} allowlist_count={}",
     STRM_PROXY_MODE,
     STRM_PROXY_AUTH,
     STRM_PROXY_CACHE_TTL_SECONDS,
     STRM_PROXY_TOKEN_TTL_SECONDS,
+    STRM_PROXY_HLS_REMUX,
     len(STRM_PROXY_UPSTREAM_ALLOWLIST),
 )
 

@@ -12,6 +12,9 @@ _URI_TAG_PREFIXES = (
     "#EXT-X-MEDIA",
     "#EXT-X-I-FRAME-STREAM-INF",
     "#EXT-X-SESSION-KEY",
+    "#EXT-X-PRELOAD-HINT",
+    "#EXT-X-RENDITION-REPORT",
+    "#EXT-X-SESSION-DATA",
 )
 
 _URI_ATTR_RE = re.compile(r'URI=(?:"(?P<uri_quoted>[^"]*)"|(?P<uri_unquoted>[^,]*))')
