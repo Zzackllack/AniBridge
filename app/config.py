@@ -502,9 +502,26 @@ if STRM_PROXY_TOKEN_TTL_SECONDS <= 0:
     logger.warning("STRM_PROXY_TOKEN_TTL_SECONDS must be positive; defaulting to 900.")
     STRM_PROXY_TOKEN_TTL_SECONDS = 900
 
-# When enabled, HLS upstreams are remuxed to fragmented MP4 for /strm/stream.
-# This helps media servers detect non-zero video bitrate from HLS sources.
-STRM_PROXY_HLS_REMUX = _as_bool(os.getenv("STRM_PROXY_HLS_REMUX", None), True)
+# When enabled, AniBridge adds bitrate hints to HLS master playlists and can
+# synthesize a minimal master when the upstream only exposes a media playlist.
+STRM_PROXY_HLS_HINTS_ENABLED = _as_bool(
+    os.getenv("STRM_PROXY_HLS_HINTS_ENABLED", None), True
+)
+
+# Default BANDWIDTH hint (bits/s) used when upstream variants omit it.
+_strm_hls_hint_bandwidth_raw = os.getenv("STRM_PROXY_HLS_HINT_BANDWIDTH", "2500000")
+try:
+    STRM_PROXY_HLS_HINT_BANDWIDTH = int(_strm_hls_hint_bandwidth_raw or 0)
+except ValueError:
+    logger.warning(
+        f"Invalid STRM_PROXY_HLS_HINT_BANDWIDTH={_strm_hls_hint_bandwidth_raw!r}; defaulting to 2500000."
+    )
+    STRM_PROXY_HLS_HINT_BANDWIDTH = 2_500_000
+if STRM_PROXY_HLS_HINT_BANDWIDTH <= 0:
+    logger.warning(
+        "STRM_PROXY_HLS_HINT_BANDWIDTH must be positive; defaulting to 2500000."
+    )
+    STRM_PROXY_HLS_HINT_BANDWIDTH = 2_500_000
 
 STRM_PROXY_ENABLED = STRM_PROXY_MODE == "proxy"
 if STRM_PROXY_ENABLED and not STRM_PUBLIC_BASE_URL:
@@ -514,12 +531,13 @@ if STRM_PROXY_ENABLED and STRM_PROXY_AUTH != "none" and not STRM_PROXY_SECRET:
     logger.error("STRM proxy auth enabled but STRM_PROXY_SECRET is not set.")
     raise RuntimeError("STRM_PROXY_SECRET is required when STRM_PROXY_AUTH is enabled.")
 logger.debug(
-    "STRM proxy config: mode={} auth={} cache_ttl_seconds={} token_ttl_seconds={} hls_remux={} allowlist_count={}",
+    "STRM proxy config: mode={} auth={} cache_ttl_seconds={} token_ttl_seconds={} hls_hints_enabled={} hls_hint_bandwidth={} allowlist_count={}",
     STRM_PROXY_MODE,
     STRM_PROXY_AUTH,
     STRM_PROXY_CACHE_TTL_SECONDS,
     STRM_PROXY_TOKEN_TTL_SECONDS,
-    STRM_PROXY_HLS_REMUX,
+    STRM_PROXY_HLS_HINTS_ENABLED,
+    STRM_PROXY_HLS_HINT_BANDWIDTH,
     len(STRM_PROXY_UPSTREAM_ALLOWLIST),
 )
 

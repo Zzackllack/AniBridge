@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timedelta
 import ipaddress
-import shutil
 import socket
 from typing import Mapping, Optional
 from urllib.parse import urlsplit
@@ -17,7 +15,8 @@ from sqlmodel import Session
 
 from app.config import (
     STRM_PROXY_CACHE_TTL_SECONDS,
-    STRM_PROXY_HLS_REMUX,
+    STRM_PROXY_HLS_HINT_BANDWIDTH,
+    STRM_PROXY_HLS_HINTS_ENABLED,
     STRM_PROXY_UPSTREAM_ALLOWLIST,
 )
 from app.db import (
@@ -29,12 +28,15 @@ from app.db import (
 )
 from app.core.strm_proxy import (
     StrmIdentity,
-    resolve_direct_url,
     build_proxy_url,
-    rewrite_hls_playlist,
     MEMORY_CACHE,
     StrmCacheEntry,
+    build_synthetic_master_playlist,
+    inject_stream_inf_bandwidth_hints,
+    is_hls_media_playlist,
     require_auth,
+    resolve_direct_url,
+    rewrite_hls_playlist,
 )
 
 
@@ -55,22 +57,6 @@ _HLS_CONTENT_TYPES = {
     "audio/mpegurl",
 }
 _STREAM_CHUNK_SIZE = 64 * 1024
-_REMUX_STARTUP_TIMEOUT_SECONDS = 8.0
-_FFMPEG_AVAILABLE: bool | None = None
-_FFMPEG_MISSING_WARNED = False
-
-
-def _ffmpeg_available() -> bool:
-    """
-    Return whether an ffmpeg binary is available in PATH.
-    """
-    global _FFMPEG_AVAILABLE, _FFMPEG_MISSING_WARNED
-    if _FFMPEG_AVAILABLE is None:
-        _FFMPEG_AVAILABLE = shutil.which("ffmpeg") is not None
-        if not _FFMPEG_AVAILABLE and not _FFMPEG_MISSING_WARNED:
-            logger.warning("STRM HLS remux is enabled but ffmpeg is not in PATH")
-            _FFMPEG_MISSING_WARNED = True
-    return _FFMPEG_AVAILABLE
 
 
 def _is_fresh(resolved_at: datetime) -> bool:
@@ -370,168 +356,6 @@ def _streaming_body(response: httpx.Response):
     return _gen()
 
 
-def _build_hls_remux_command(url: str, user_agent: str | None) -> list[str]:
-    """
-    Build an ffmpeg command that remuxes an HLS input into fragmented MP4.
-
-    Parameters:
-        url (str): Upstream HLS URL.
-        user_agent (str | None): Optional User-Agent to forward to ffmpeg's HTTP client.
-
-    Returns:
-        list[str]: Command argv suitable for `asyncio.create_subprocess_exec`.
-    """
-    cmd = [
-        "ffmpeg",
-        "-nostdin",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-    ]
-    if user_agent:
-        cmd.extend(["-user_agent", user_agent])
-    cmd.extend(
-        [
-            "-i",
-            url,
-            "-map",
-            "0:v:0",
-            "-map",
-            "0:a?",
-            "-sn",
-            "-dn",
-            "-c:v",
-            "copy",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "192k",
-            "-movflags",
-            "frag_keyframe+empty_moov+default_base_moof",
-            "-f",
-            "mp4",
-            "pipe:1",
-        ]
-    )
-    return cmd
-
-
-async def _terminate_process(process: asyncio.subprocess.Process) -> None:
-    """
-    Stop a subprocess gracefully and ensure it exits.
-    """
-    if process.returncode is not None:
-        return
-    try:
-        process.terminate()
-    except ProcessLookupError:
-        return
-    with anyio.move_on_after(2):
-        await process.wait()
-    if process.returncode is not None:
-        return
-    try:
-        process.kill()
-    except ProcessLookupError:
-        return
-    await process.wait()
-
-
-def _remux_streaming_body(process: asyncio.subprocess.Process, first_chunk: bytes):
-    """
-    Yield bytes from an ffmpeg remux subprocess and terminate it on exit.
-    """
-
-    async def _gen():
-        stdout = process.stdout
-        assert stdout is not None
-        try:
-            if first_chunk:
-                yield first_chunk
-            while True:
-                chunk = await stdout.read(_STREAM_CHUNK_SIZE)
-                if not chunk:
-                    break
-                yield chunk
-            await process.wait()
-        finally:
-            await _terminate_process(process)
-
-    return _gen()
-
-
-async def _build_hls_remux_response(
-    upstream_url: str, *, user_agent: str | None
-) -> StreamingResponse | None:
-    """
-    Start an ffmpeg HLS->fMP4 remux stream and return a StreamingResponse.
-
-    Returns `None` when remuxing is disabled or ffmpeg cannot start producing
-    stream bytes quickly.
-    """
-    if not STRM_PROXY_HLS_REMUX:
-        return None
-    if not _ffmpeg_available():
-        return None
-    cmd = _build_hls_remux_command(upstream_url, user_agent)
-    logger.debug("Starting HLS remux for {}", _redact_upstream(upstream_url))
-    try:
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
-    except Exception as exc:
-        logger.warning("Failed to spawn ffmpeg remux process: {}", exc)
-        return None
-
-    stdout = process.stdout
-    if stdout is None:
-        await _terminate_process(process)
-        return None
-
-    first_chunk = b""
-    try:
-        with anyio.fail_after(_REMUX_STARTUP_TIMEOUT_SECONDS):
-            first_chunk = await stdout.read(_STREAM_CHUNK_SIZE)
-    except TimeoutError:
-        logger.warning(
-            "Timed out waiting for remux output (upstream={})",
-            _redact_upstream(upstream_url),
-        )
-        await _terminate_process(process)
-        return None
-    except Exception as exc:
-        logger.warning(
-            "Remux startup failed for {}: {}",
-            _redact_upstream(upstream_url),
-            exc,
-        )
-        await _terminate_process(process)
-        return None
-
-    if not first_chunk:
-        await process.wait()
-        logger.warning(
-            "Remux produced no output (exit={}) for {}",
-            process.returncode,
-            _redact_upstream(upstream_url),
-        )
-        return None
-
-    headers = {
-        "Content-Type": "video/mp4",
-        "Accept-Ranges": "none",
-    }
-    logger.success("Serving remuxed fMP4 stream for {}", _redact_upstream(upstream_url))
-    return StreamingResponse(
-        _remux_streaming_body(process, first_chunk),
-        status_code=200,
-        media_type="video/mp4",
-        headers=headers,
-    )
-
-
 def _cache_get(session: Session, identity: StrmIdentity) -> Optional[StrmCacheEntry]:
     """
     Return a fresh cached STRM mapping from memory or persistent storage if available.
@@ -764,16 +588,6 @@ async def _handle_head(
             session, identity, method="GET", headers=fallback_headers
         )
         await response.aread()
-    if STRM_PROXY_HLS_REMUX and _ffmpeg_available() and _is_hls_response(
-        url, response.headers
-    ):
-        filtered = _filter_headers(response.headers)
-        _set_header_case_insensitive(filtered, name="Content-Type", value="video/mp4")
-        for key in list(filtered.keys()):
-            if key.lower() == "content-length":
-                filtered.pop(key, None)
-        await response.aclose()
-        return Response(content=b"", status_code=response.status_code, headers=filtered)
     filtered = _filter_headers(response.headers)
     _ensure_content_type(filtered, "application/octet-stream")
     await response.aclose()
@@ -827,20 +641,29 @@ async def strm_stream(
         logger.debug("Detected HLS playlist for {}", _redact_upstream(url))
         body = await response.aread()
         await response.aclose()
-        remuxed = await _build_hls_remux_response(
-            url, user_agent=request.headers.get("user-agent")
-        )
-        if remuxed is not None:
-            return remuxed
         charset = response.encoding or "utf-8"
         playlist_text = body.decode(charset, errors="replace")
-        try:
-            rewritten = rewrite_hls_playlist(
-                playlist_text, base_url=url, rewrite_url=build_proxy_url
+        if STRM_PROXY_HLS_HINTS_ENABLED:
+            playlist_text = inject_stream_inf_bandwidth_hints(
+                playlist_text,
+                default_bandwidth=STRM_PROXY_HLS_HINT_BANDWIDTH,
             )
-        except ValueError as exc:
+        if STRM_PROXY_HLS_HINTS_ENABLED and is_hls_media_playlist(playlist_text):
+            rewritten = build_synthetic_master_playlist(
+                build_proxy_url(url),
+                bandwidth=STRM_PROXY_HLS_HINT_BANDWIDTH,
+            )
+        else:
+            try:
+                rewritten = rewrite_hls_playlist(
+                    playlist_text, base_url=url, rewrite_url=build_proxy_url
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=500, detail=str(exc)) from exc
+        try:
+            out_bytes = rewritten.encode("utf-8")
+        except UnicodeEncodeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
-        out_bytes = rewritten.encode("utf-8")
         headers = _filter_headers(response.headers)
         _set_header_case_insensitive(
             headers, name="Content-Length", value=str(len(out_bytes))
@@ -957,6 +780,11 @@ async def strm_proxy(request: Request, path_hint: str = ""):
         await response.aclose()
         charset = response.encoding or "utf-8"
         playlist_text = body.decode(charset, errors="replace")
+        if STRM_PROXY_HLS_HINTS_ENABLED:
+            playlist_text = inject_stream_inf_bandwidth_hints(
+                playlist_text,
+                default_bandwidth=STRM_PROXY_HLS_HINT_BANDWIDTH,
+            )
         try:
             rewritten = rewrite_hls_playlist(
                 playlist_text,

@@ -18,6 +18,134 @@ _URI_TAG_PREFIXES = (
 )
 
 _URI_ATTR_RE = re.compile(r'URI=(?:"(?P<uri_quoted>[^"]*)"|(?P<uri_unquoted>[^,]*))')
+_STREAM_INF_PREFIX = "#EXT-X-STREAM-INF:"
+_EXTINF_PREFIX = "#EXTINF:"
+_MIN_AVERAGE_BANDWIDTH = 192_000
+
+
+def _split_hls_attrs(raw: str) -> list[str]:
+    """
+    Split an HLS attribute list by commas while respecting quoted values.
+    """
+    parts: list[str] = []
+    buf: list[str] = []
+    in_quotes = False
+    for ch in raw:
+        if ch == '"':
+            in_quotes = not in_quotes
+        if ch == "," and not in_quotes:
+            part = "".join(buf).strip()
+            if part:
+                parts.append(part)
+            buf = []
+            continue
+        buf.append(ch)
+    tail = "".join(buf).strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
+
+def _parse_bandwidth(attrs: list[str]) -> int | None:
+    """
+    Return parsed BANDWIDTH from `#EXT-X-STREAM-INF` attributes when present.
+    """
+    for attr in attrs:
+        if "=" not in attr:
+            continue
+        key, value = attr.split("=", 1)
+        if key.strip().upper() != "BANDWIDTH":
+            continue
+        try:
+            return int(value.strip().strip('"'))
+        except ValueError:
+            return None
+    return None
+
+
+def _compute_average_bandwidth(bandwidth: int) -> int:
+    """
+    Compute a conservative AVERAGE-BANDWIDTH estimate from BANDWIDTH.
+    """
+    return max(int(bandwidth * 0.85), _MIN_AVERAGE_BANDWIDTH)
+
+
+def is_hls_media_playlist(playlist_text: str) -> bool:
+    """
+    Return whether playlist text looks like a media playlist (not master).
+    """
+    if not playlist_text:
+        return False
+    has_stream_inf = False
+    has_extinf = False
+    for raw_line in playlist_text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith(_STREAM_INF_PREFIX):
+            has_stream_inf = True
+        if line.startswith(_EXTINF_PREFIX):
+            has_extinf = True
+    return has_extinf and not has_stream_inf
+
+
+def inject_stream_inf_bandwidth_hints(
+    playlist_text: str, *, default_bandwidth: int
+) -> str:
+    """
+    Ensure master playlist variants include BANDWIDTH and AVERAGE-BANDWIDTH.
+    """
+    if not playlist_text:
+        return playlist_text
+    if default_bandwidth <= 0:
+        default_bandwidth = _MIN_AVERAGE_BANDWIDTH
+
+    ends_with_newline = playlist_text.endswith("\n")
+    out_lines: list[str] = []
+    for line in playlist_text.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith(_STREAM_INF_PREFIX):
+            out_lines.append(line)
+            continue
+
+        prefix_idx = line.find(_STREAM_INF_PREFIX)
+        prefix = line[:prefix_idx] + _STREAM_INF_PREFIX
+        attrs_raw = line[prefix_idx + len(_STREAM_INF_PREFIX) :]
+        attrs = _split_hls_attrs(attrs_raw)
+        keys = {
+            attr.split("=", 1)[0].strip().upper()
+            for attr in attrs
+            if "=" in attr and attr.split("=", 1)[0].strip()
+        }
+        bandwidth = _parse_bandwidth(attrs)
+        if "BANDWIDTH" not in keys:
+            bandwidth = default_bandwidth
+            attrs.append(f"BANDWIDTH={bandwidth}")
+        if bandwidth is None:
+            bandwidth = default_bandwidth
+        if "AVERAGE-BANDWIDTH" not in keys:
+            attrs.append(f"AVERAGE-BANDWIDTH={_compute_average_bandwidth(bandwidth)}")
+        out_lines.append(prefix + ",".join(attrs))
+
+    result = "\n".join(out_lines)
+    if ends_with_newline:
+        result += "\n"
+    return result
+
+
+def build_synthetic_master_playlist(media_playlist_url: str, *, bandwidth: int) -> str:
+    """
+    Build a minimal master playlist that points to a media playlist URL.
+    """
+    if bandwidth <= 0:
+        bandwidth = _MIN_AVERAGE_BANDWIDTH
+    average = _compute_average_bandwidth(bandwidth)
+    return (
+        "#EXTM3U\n"
+        "#EXT-X-VERSION:3\n"
+        f"#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},AVERAGE-BANDWIDTH={average}\n"
+        f"{media_playlist_url}\n"
+    )
 
 
 def _rewrite_uri_attr(
