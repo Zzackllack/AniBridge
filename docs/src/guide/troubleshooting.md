@@ -54,6 +54,27 @@ outline: deep
 - Set `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN=0` to disable background checks during troubleshooting.
 - Remember megakino is search-only; queries must provide a slug or a megakino URL containing one.
 
+## Direct Play fails or forces transcoding in browser clients
+
+- Ensure AniBridge is reachable over HTTPS when Jellyfin/Plex/Emby is HTTPS.
+- Mixed content blocking will prevent browsers from loading HTTP streams on an HTTPS page.
+- Put AniBridge behind a reverse proxy with TLS and set `STRM_PUBLIC_BASE_URL` to the HTTPS URL.
+- If clients cannot reach AniBridge at the public URL, Direct Play cannot work even over HTTPS.
+  Expose AniBridge publicly (or to your LAN) and ensure the URL is reachable by both the
+  media server and the client device.
+- Check the browser devtools console for mixed content errors.
+- Even when Direct Play fails, the fallback is often a lightweight stream copy/proxy
+  rather than a full re-encode. A modern CPU (or GPU) typically handles this fine,
+  but it still consumes server resources and can affect multiple concurrent streams.
+
+## Jellyfin shows 0 kbps bitrate for HLS
+
+- Jellyfin reads bandwidth data from the master playlist (`#EXT-X-STREAM-INF`).
+- If the master playlist is blocked (mixed content) or not provided by the upstream,
+  Jellyfin may show 0 kbps.
+- Verify the master playlist URL is reachable through AniBridge and the proxy
+  rewrites are intact.
+
 ## Sonarr fails to import completed downloads due to "No audio tracks detected"
 
 > [!WARNING]

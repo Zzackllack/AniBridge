@@ -24,6 +24,53 @@ Auth mode is controlled by `STRM_PROXY_AUTH`:
 - `apikey`: shared key in `apikey`
 - `none`: no auth (LAN only)
 
+## Direct Play Requirements
+
+Browser-based clients (Jellyfin, Plex, Emby) enforce mixed content rules. If your media
+server is served over HTTPS, AniBridge must also be served over HTTPS or the browser
+will block the stream and force server-side transcoding.
+
+Recommended setup:
+
+- Place AniBridge behind a reverse proxy with TLS.
+- Ensure the public URL is reachable by both the browser client and the media server.
+- Set `STRM_PUBLIC_BASE_URL` to the HTTPS URL that Jellyfin and clients use to reach AniBridge.
+  If clients can’t reach AniBridge (even over HTTPS), Direct Play will fail and the
+  server will fall back to proxying/transcoding.
+
+### Nginx (example)
+
+```nginx
+server {
+  listen 443 ssl;
+  server_name anibridge.example;
+
+  location / {
+    proxy_pass http://127.0.0.1:8083;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+  }
+}
+```
+
+### Caddy (example)
+
+```caddy
+anibridge.example {
+  reverse_proxy 127.0.0.1:8083
+}
+```
+
+### Traefik (Docker labels example)
+
+```yaml
+labels:
+  - "traefik.http.routers.anibridge.rule=Host(`anibridge.example`)"
+  - "traefik.http.routers.anibridge.entrypoints=websecure"
+  - "traefik.http.routers.anibridge.tls=true"
+  - "traefik.http.services.anibridge.loadbalancer.server.port=8083"
+```
+
 ## Endpoints
 
 <ApiOperations :tags="['STRM Proxy']"/>
@@ -32,10 +79,25 @@ Auth mode is controlled by `STRM_PROXY_AUTH`:
 
 AniBridge rewrites:
 
-- URI lines
-- `EXT-X-KEY`, `EXT-X-MAP`, `EXT-X-MEDIA`, `EXT-X-STREAM-INF`, `EXT-X-I-FRAME-STREAM-INF`, `EXT-X-SESSION-KEY`
+- URI lines (including the line following `#EXT-X-STREAM-INF`)
+- Tags with `URI=` attributes: `EXT-X-KEY`, `EXT-X-MAP`, `EXT-X-MEDIA`,
+  `EXT-X-I-FRAME-STREAM-INF`, `EXT-X-SESSION-KEY`, `EXT-X-SESSION-DATA`,
+  `EXT-X-PRELOAD-HINT`, `EXT-X-RENDITION-REPORT`
 
 Relative URLs are resolved against the playlist URL before proxying.
+
+## Bitrate Detection
+
+Media servers rely on the HLS master playlist to read variant bandwidth values
+(`BANDWIDTH` on `#EXT-X-STREAM-INF`). AniBridge preserves all HLS metadata unchanged
+and only rewrites URIs, so bitrate visibility depends on the upstream manifests.
+
+Notes:
+
+- If the upstream only serves a media playlist (no master), there is no variant
+  bandwidth metadata to read.
+- `BANDWIDTH` is a total variant bitrate and may differ from codec-level bitrates
+  inside the media segments. AniBridge does not modify segment metadata.
 
 ## Refresh On Failure
 

@@ -37,7 +37,8 @@ Comprehensive list of env vars read in `app/config.py`.
   `proxy`, `.strm` files contain AniBridge proxy URLs instead of provider/CDN
   URLs (redirect behaves like proxy streaming).
 - `STRM_PUBLIC_BASE_URL` (required for proxy mode) — public base URL used to
-  build stable STRM proxy URLs.
+  build stable STRM proxy URLs. Use HTTPS when your media server is HTTPS to
+  avoid mixed content blocking in browser clients.
 - `STRM_PROXY_AUTH` (`none|token|apikey`, default: `token`) — auth mode for
   STRM proxy endpoints.
 - `STRM_PROXY_SECRET` — shared secret for HMAC token signing or API key mode
