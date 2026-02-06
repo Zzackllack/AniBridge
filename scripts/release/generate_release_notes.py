@@ -82,8 +82,18 @@ def build_prompt(
     Follow this structure exactly:
     1. Start with a concise, single-paragraph summary (no heading) describing the overall release.
     2. Add a section titled "Breaking Changes". If there are none, write "Breaking Changes" followed by "None." on the next line.
-    3. Add a section titled "New Features". If there are none, state that explicitly.
-    4. Add a section titled "Other Changes". Include remaining noteworthy updates or say "None." if empty.
+    3. Add a section titled "New Features" (feat: commits). If there are none, state that explicitly.
+    4. Add a section titled "Other Changes". Include remaining noteworthy updates by analyzing the commit messages in the format of the conventional commit message format, then map them to these categories:
+    - fix: → Fixed:
+    - docs: → Documentation:
+    - style → Style:
+    - refactor: → Refactored:
+    - perf: → Performance:
+    - test: → Tests:
+    - build: → Build:
+    - ci: → CI/CD:
+    - chore: → Chores:
+    If there are no other changes, write the section heading followed by "None." on the next line.
 
     Section formatting rules:
     - Use Markdown headings (`## Heading`) for "Breaking Changes", "New Features", and "Other Changes".
