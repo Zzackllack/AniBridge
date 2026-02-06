@@ -15,8 +15,14 @@ AniBridge is a minimal FastAPI service that bridges anime and series streaming c
 - **Torznab endpoint** that indexes available episodes from AniWorld, Serienstream (s.to), and megakino.
 - **qBittorrent API shim** allowing Prowlarr/Sonarr to enqueue downloads.
 - **Background scheduler** with progress tracking for downloads.
+- **STRM files and STRM proxy** support for stable streaming URLs.
 - Simple `/health` endpoint for container or orchestration checks.
 - Docker Image for easy deployment
+
+> [!NOTE]
+> Sonarr can occasionally reject `.strm` imports with “No audio tracks detected” even when playback works in
+> Jellyfin. If this happens, use manual import or disable “Analyze video files” in Sonarr. See
+> [Issue #50](https://github.com/zzackllack/anibridge/issues/50).
 
 ## Currently work-in-progress / TODO
 

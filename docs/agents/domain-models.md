@@ -16,6 +16,12 @@
   - Tracks provider availability and quality metadata.
   - `is_fresh` validates TTL against `AVAILABILITY_TTL_HOURS`.
 
+## STRM Proxy Mapping
+
+- StrmUrlMapping (SQLModel)
+  - Fields: site, slug, season, episode, language, provider, resolved_url,
+    provider_used, resolved_headers, resolved_at, updated_at.
+
 ## Domain Models (Python)
 
 - `app/domain/models.py` mirrors DB models but is decoupled for domain logic and API serialization.

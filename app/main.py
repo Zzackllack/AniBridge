@@ -9,6 +9,7 @@ from app.api.torznab import router as torznab_router
 from app.api.qbittorrent import router as qbittorrent_router
 from app.api.health import router as health_router
 from app.api.legacy_downloader import router as legacy_router
+from app.api.strm import router as strm_router
 from app.cli import run_server
 from app.cors import apply_cors_middleware
 from app.config import ANIBRIDGE_CORS_ALLOW_CREDENTIALS, ANIBRIDGE_CORS_ORIGINS
@@ -30,6 +31,7 @@ app.include_router(torznab_router)
 app.include_router(qbittorrent_router)
 app.include_router(health_router)
 app.include_router(legacy_router)
+app.include_router(strm_router)
 
 
 if __name__ == "__main__":

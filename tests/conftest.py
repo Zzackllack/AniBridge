@@ -24,10 +24,25 @@ def _fast_test_env(monkeypatch):
     monkeypatch.setenv("PROXY_ENABLED", "0")
     monkeypatch.setenv("MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN", "0")
     monkeypatch.setenv("DB_MIGRATE_ON_STARTUP", "0")
+    monkeypatch.setenv("STRM_PROXY_AUTH", "none")
+    monkeypatch.setenv("STRM_PUBLIC_BASE_URL", "http://testserver")
+    monkeypatch.setenv("STRM_PROXY_UPSTREAM_ALLOWLIST", "upstream")
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
+    """
+    Provide a configured TestClient connected to a freshly initialized, isolated test application.
+
+    This fixture prepares an isolated environment for FastAPI tests by setting DATA_DIR and DOWNLOAD_DIR to temporary locations, ensuring the repository root is on sys.path, installing a minimal stub for `aniworld.parser`, clearing SQLModel metadata, removing relevant app modules from sys.modules to force clean imports, initializing the test database schema, and patching qbittorrent scheduler calls to deterministic no-op/test values before yielding the TestClient.
+
+    Parameters:
+        tmp_path (pathlib.Path): Temporary directory provided by pytest for creating per-test filesystem paths.
+        monkeypatch (pytest.MonkeyPatch): Pytest fixture used to set environment variables and patch attributes.
+
+    Returns:
+        TestClient: A TestClient instance for the FastAPI app backed by the prepared test environment and database.
+    """
     data_dir = tmp_path / "data"
     download_dir = tmp_path / "downloads"
     monkeypatch.setenv("DATA_DIR", str(data_dir))
@@ -57,6 +72,13 @@ def client(tmp_path, monkeypatch):
         "app.config",
         "app.db",
         "app.db.models",
+        "app.core.strm_proxy",
+        "app.core.strm_proxy.auth",
+        "app.core.strm_proxy.cache",
+        "app.core.strm_proxy.hls",
+        "app.core.strm_proxy.resolver",
+        "app.core.strm_proxy.types",
+        "app.core.strm_proxy.urls",
         "app.api.torznab",
         "app.api.torznab.api",
         "app.api.torznab.utils",
@@ -67,6 +89,7 @@ def client(tmp_path, monkeypatch):
         "app.api.qbittorrent.sync",
         "app.api.qbittorrent.torrents",
         "app.api.qbittorrent.transfer",
+        "app.api.strm",
         "app.main",
     ]
     for m in modules:

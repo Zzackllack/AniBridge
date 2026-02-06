@@ -30,7 +30,30 @@ Comprehensive list of env vars read in `app/config.py`.
 
 ## STRM Files
 
-- `STRM_FILES_MODE` (`no|both|only`, default: `no`) — controls whether Torznab emits STRM variants and whether AniBridge creates `.strm` files instead of downloading media.
+- `STRM_FILES_MODE` (`no|both|only`, default: `no`) — controls whether
+  Torznab emits STRM variants and whether AniBridge creates `.strm` files
+  instead of downloading media.
+- `STRM_PROXY_MODE` (`direct|proxy|redirect`, default: `direct`) — when
+  `proxy`, `.strm` files contain AniBridge proxy URLs instead of provider/CDN
+  URLs (redirect behaves like proxy streaming).
+- `STRM_PUBLIC_BASE_URL` (required for proxy mode) — public base URL used to
+  build stable STRM proxy URLs.
+- `STRM_PROXY_AUTH` (`none|token|apikey`, default: `token`) — auth mode for
+  STRM proxy endpoints.
+- `STRM_PROXY_SECRET` — shared secret for HMAC token signing or API key mode
+  (required when auth is not `none`).
+- `STRM_PROXY_UPSTREAM_ALLOWLIST` — comma-separated upstream host allowlist
+  for proxying (optional).
+- `STRM_PROXY_CACHE_TTL_SECONDS` (default: `0`) — TTL for resolved URL cache;
+  `0` disables expiration.
+- `STRM_PROXY_TOKEN_TTL_SECONDS` (default: `900`) — TTL for STRM proxy signed
+  URL tokens.
+
+::: warning
+Sonarr can occasionally reject `.strm` imports with “No audio tracks detected” even when playback works. If this
+appears, use manual import or disable “Analyze video files” in Sonarr. See
+[Issue #50](https://github.com/zzackllack/anibridge/issues/50).
+:::
 
 ## Providers & Languages
 

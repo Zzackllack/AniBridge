@@ -167,6 +167,12 @@ async def lifespan(app: FastAPI):
         # Shutdown services
         shutdown_executor()
         try:
+            from app.api import strm as strm_api
+
+            await strm_api.close_upstream_client()
+        except Exception as e:
+            logger.warning("close_upstream_client failed: {}", e)
+        try:
             dispose_engine()
         except Exception as e:
             logger.warning("dispose_engine failed: {}", e)

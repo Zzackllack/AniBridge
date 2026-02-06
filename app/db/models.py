@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional, Literal, Generator, Any, List, TYPE_CHECKING
+from typing import Optional, Literal, Generator, Any, Dict, List, TYPE_CHECKING
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 from loguru import logger
+from fastapi import HTTPException
 
 # Defer logger configuration to application startup
 
@@ -94,6 +95,14 @@ class EpisodeAvailability(ModelBase, table=True):
 
     @property
     def is_fresh(self) -> bool:
+        """
+        Determine whether this availability record is still fresh according to AVAILABILITY_TTL_HOURS.
+
+        If AVAILABILITY_TTL_HOURS is less than or equal to zero the record is considered always fresh. Freshness is determined by comparing the time since `checked_at` to the TTL.
+
+        Returns:
+            `true` if the time since `checked_at` is less than or equal to AVAILABILITY_TTL_HOURS, `false` otherwise.
+        """
         logger.debug(
             f"Checking freshness for {self.slug} S{self.season}E{self.episode} {self.language}"
         )
@@ -103,6 +112,31 @@ class EpisodeAvailability(ModelBase, table=True):
         age = as_aware_utc(utcnow()) - as_aware_utc(self.checked_at)
         logger.debug(f"Age of availability: {age}")
         return age <= timedelta(hours=AVAILABILITY_TTL_HOURS)
+
+
+# ---------------- STRM Proxy URL Mapping
+class StrmUrlMapping(ModelBase, table=True):
+    """
+    Persistent mapping of episode identity to resolved upstream URLs for STRM proxying.
+
+    The provider field is stored as a non-nullable string to allow composite primary
+    key usage even when no provider hint is supplied (empty string = no provider).
+    """
+
+    site: str = Field(default="aniworld.to", primary_key=True)
+    slug: str = Field(primary_key=True)
+    season: int = Field(primary_key=True)
+    episode: int = Field(primary_key=True)
+    language: str = Field(primary_key=True)
+    provider: str = Field(default="", primary_key=True)
+
+    resolved_url: str
+    provider_used: Optional[str] = None
+    resolved_headers: Optional[dict[str, Any]] = Field(
+        sa_column=Column(JSON), default=None
+    )
+    resolved_at: datetime = Field(default_factory=utcnow, index=True)
+    updated_at: datetime = Field(default_factory=utcnow, index=True)
 
 
 # ---------------- qBittorrent-Shim: ClientTask
@@ -234,6 +268,8 @@ def get_session() -> Generator[Session, None, None]:
         with Session(engine) as session:
             logger.debug("DB session created.")
             yield session
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating DB session: {e}")
         raise
@@ -475,6 +511,132 @@ def list_available_languages_cached(
     return fresh_langs
 
 
+# --- STRM URL Mapping CRUD
+def get_strm_mapping(
+    session: Session,
+    *,
+    site: str,
+    slug: str,
+    season: int,
+    episode: int,
+    language: str,
+    provider: Optional[str] = None,
+) -> Optional[StrmUrlMapping]:
+    """
+    Fetch the STRM URL mapping for the specified episode identity and optional provider hint.
+
+    Parameters:
+        provider (Optional[str]): Preferred provider hint; treated as the empty string when not provided.
+
+    Returns:
+        Optional[StrmUrlMapping]: The matching StrmUrlMapping record if found, `None` otherwise.
+    """
+    key = (site, slug, season, episode, language, provider or "")
+    logger.debug("Fetching STRM mapping for {}", key)
+    rec = session.get(StrmUrlMapping, key)
+    if rec:
+        logger.debug("STRM mapping found.")
+    else:
+        logger.debug("STRM mapping not found.")
+    return rec
+
+
+def upsert_strm_mapping(
+    session: Session,
+    *,
+    site: str,
+    slug: str,
+    season: int,
+    episode: int,
+    language: str,
+    provider: Optional[str],
+    resolved_url: str,
+    provider_used: Optional[str] = None,
+    resolved_headers: Optional[Dict[str, Any]] = None,
+) -> StrmUrlMapping:
+    """
+    Create or update a STRM URL mapping for a specific (site, slug, season, episode, language, provider) key and persist it.
+
+    Parameters:
+        session: Database session used to load and persist the mapping.
+        site (str): Site identifier (part of the composite key).
+        slug (str): Content slug (part of the composite key).
+        season (int): Season number (part of the composite key).
+        episode (int): Episode number (part of the composite key).
+        language (str): Language code (part of the composite key).
+        provider (Optional[str]): Provider identifier (part of the composite key). If `None`, an empty string is used for the key.
+        resolved_url (str): The resolved stream URL to store.
+        provider_used (Optional[str]): The provider that was actually used to resolve `resolved_url`.
+        resolved_headers (Optional[dict]): Optional headers associated with the resolved URL; stored as JSON.
+
+    Returns:
+        StrmUrlMapping: The persisted mapping instance with `resolved_at` and `updated_at` set to the current UTC time.
+    """
+    key = (site, slug, season, episode, language, provider or "")
+    logger.debug("Upserting STRM mapping for {}", key)
+    rec = session.get(StrmUrlMapping, key)
+    if rec is None:
+        logger.info("No existing STRM mapping found, creating new.")
+        rec = StrmUrlMapping(
+            site=site,
+            slug=slug,
+            season=season,
+            episode=episode,
+            language=language,
+            provider=provider or "",
+            resolved_url=resolved_url,
+            provider_used=provider_used,
+            resolved_headers=resolved_headers,
+            resolved_at=utcnow(),
+            updated_at=utcnow(),
+        )
+        session.add(rec)
+    else:
+        logger.info("Existing STRM mapping found, updating.")
+        rec.resolved_url = resolved_url
+        rec.provider_used = provider_used
+        rec.resolved_headers = resolved_headers
+        rec.resolved_at = utcnow()
+        rec.updated_at = utcnow()
+        session.add(rec)
+    try:
+        session.commit()
+        session.refresh(rec)
+        logger.success("Upserted STRM mapping for {}", key)
+    except Exception as e:
+        logger.error(f"Failed to upsert STRM mapping: {e}")
+        raise
+    return rec
+
+
+def delete_strm_mapping(
+    session: Session,
+    *,
+    site: str,
+    slug: str,
+    season: int,
+    episode: int,
+    language: str,
+    provider: Optional[str] = None,
+) -> None:
+    """
+    Delete the STRM URL mapping identified by the composite key if it exists.
+
+    If `provider` is `None`, it is treated as the empty string when looking up the mapping. The deletion is committed to the database; if no matching mapping is found the function does nothing.
+    Parameters:
+        provider (Optional[str]): Provider identifier; use `None` to match the empty-string provider key.
+    """
+    key = (site, slug, season, episode, language, provider or "")
+    logger.debug("Deleting STRM mapping for {}", key)
+    rec = session.get(StrmUrlMapping, key)
+    if rec:
+        session.delete(rec)
+        session.commit()
+        logger.success("Deleted STRM mapping for {}", key)
+    else:
+        logger.debug("No STRM mapping found for {}", key)
+
+
 # --- ClientTask CRUD
 def upsert_client_task(
     session: Session,
@@ -492,14 +654,14 @@ def upsert_client_task(
     site: str = "aniworld.to",
 ) -> ClientTask:
     """
-    Create or update a ClientTask record for the given torrent/file hash.
+    Insert or update a ClientTask record identified by its hash.
 
     Parameters:
         hash (str): Unique identifier for the client task (primary key).
         site (str): Site identifier to store on the record; defaults to "aniworld.to".
 
     Returns:
-        ClientTask: The inserted or updated ClientTask instance refreshed from the database.
+        ClientTask: The persisted ClientTask instance refreshed from the database.
     """
     logger.debug(f"Upserting client task for hash {hash} on site {site}")
     rec = session.get(ClientTask, hash)

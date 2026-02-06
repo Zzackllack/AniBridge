@@ -5,11 +5,14 @@ from pathlib import Path
 from sqlmodel import Session
 
 
-def _setup_scheduler(tmp_path, monkeypatch):
+def _setup_scheduler(tmp_path, monkeypatch, *, strm_proxy_mode: str = "direct"):
     """
-    Prepare a test scheduler environment and return the scheduler module.
+    Prepare a test scheduler environment configured for STRM proxy behavior and return the scheduler module.
 
-    Sets environment variables ANIBRIDGE_UPDATE_CHECK, DATA_DIR, and DOWNLOAD_DIR for the test run, removes cached app modules related to configuration, database, and scheduler from sys.modules to ensure a fresh import, and initializes the test database tables. Finally imports and returns the app.core.scheduler module.
+    Sets environment variables for test data and download directories, database startup behavior, and STRM proxy configuration; clears related app modules from the import cache to ensure a fresh import; creates database tables required for tests; and imports the app.core.scheduler module.
+
+    Parameters:
+        strm_proxy_mode (str): STRM proxy mode to configure for the test environment. Expected values include "direct" and "proxy".
 
     Returns:
         module: The imported `app.core.scheduler` module.
@@ -22,10 +25,26 @@ def _setup_scheduler(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(data_dir))
     monkeypatch.setenv("DOWNLOAD_DIR", str(download_dir))
     monkeypatch.setenv("DB_MIGRATE_ON_STARTUP", "0")
+    monkeypatch.setenv("STRM_PROXY_MODE", strm_proxy_mode)
+    monkeypatch.setenv("STRM_PROXY_AUTH", "none")
+    if strm_proxy_mode == "proxy":
+        monkeypatch.setenv("STRM_PUBLIC_BASE_URL", "https://anibridge.test")
 
     import sys
 
-    for mod in ("app.config", "app.db", "app.db.models", "app.core.scheduler"):
+    for mod in (
+        "app.config",
+        "app.db",
+        "app.db.models",
+        "app.core.strm_proxy",
+        "app.core.strm_proxy.auth",
+        "app.core.strm_proxy.cache",
+        "app.core.strm_proxy.hls",
+        "app.core.strm_proxy.resolver",
+        "app.core.strm_proxy.types",
+        "app.core.strm_proxy.urls",
+        "app.core.scheduler",
+    ):
         if mod in sys.modules:
             del sys.modules[mod]
 
@@ -68,12 +87,11 @@ def _get_job(job_id: str):
 
 
 def test_run_strm_creates_file_and_updates_job(tmp_path, monkeypatch):
-    scheduler = _setup_scheduler(tmp_path, monkeypatch)
-    monkeypatch.setattr(scheduler, "build_episode", lambda **kwargs: object())
+    scheduler = _setup_scheduler(tmp_path, monkeypatch, strm_proxy_mode="direct")
     monkeypatch.setattr(
         scheduler,
-        "get_direct_url_with_fallback",
-        lambda *args, **kwargs: ("https://example.com/video.mp4", "VOE"),
+        "resolve_direct_url",
+        lambda identity: ("https://example.com/video.mp4", "VOE"),
     )
 
     job_id = _create_job()
@@ -101,12 +119,11 @@ def test_run_strm_creates_file_and_updates_job(tmp_path, monkeypatch):
 
 def test_run_strm_marks_failed_on_invalid_url(tmp_path, monkeypatch):
     """Test that _run_strm fails when given a non-HTTP(S) URL."""
-    scheduler = _setup_scheduler(tmp_path, monkeypatch)
-    monkeypatch.setattr(scheduler, "build_episode", lambda **kwargs: object())
+    scheduler = _setup_scheduler(tmp_path, monkeypatch, strm_proxy_mode="direct")
     monkeypatch.setattr(
         scheduler,
-        "get_direct_url_with_fallback",
-        lambda *args, **kwargs: ("ftp://example.com/video.mp4", "VOE"),
+        "resolve_direct_url",
+        lambda identity: ("ftp://example.com/video.mp4", "VOE"),
     )
 
     job_id = _create_job()
@@ -121,12 +138,11 @@ def test_run_strm_marks_failed_on_invalid_url(tmp_path, monkeypatch):
 
 
 def test_run_strm_marks_failed_on_unwritable_directory(tmp_path, monkeypatch):
-    scheduler = _setup_scheduler(tmp_path, monkeypatch)
-    monkeypatch.setattr(scheduler, "build_episode", lambda **kwargs: object())
+    scheduler = _setup_scheduler(tmp_path, monkeypatch, strm_proxy_mode="direct")
     monkeypatch.setattr(
         scheduler,
-        "get_direct_url_with_fallback",
-        lambda *args, **kwargs: ("https://example.com/video.mp4", "VOE"),
+        "resolve_direct_url",
+        lambda identity: ("https://example.com/video.mp4", "VOE"),
     )
     monkeypatch.setattr(
         scheduler,
@@ -145,3 +161,54 @@ def test_run_strm_marks_failed_on_unwritable_directory(tmp_path, monkeypatch):
     assert job.status == "failed"
     assert job.message
     assert "Download dir not writable" in job.message
+
+
+def test_run_strm_creates_proxy_url(tmp_path, monkeypatch):
+    """
+    Verifies that when STRM proxy mode is enabled, running _run_strm produces a proxy-served URL file and completes the job.
+
+    Asserts the job status becomes "completed", a non-empty result_path is written, the result file exists, and its contents start with the expected proxy URL prefix.
+    """
+    scheduler = _setup_scheduler(tmp_path, monkeypatch, strm_proxy_mode="proxy")
+    monkeypatch.setattr(
+        scheduler,
+        "resolve_direct_url",
+        lambda identity: ("https://example.com/video.mp4", "VOE"),
+    )
+
+    job_id = _create_job()
+    req = {
+        "slug": "my-show",
+        "season": 1,
+        "episode": 2,
+        "language": "German Dub",
+        "title_hint": "My Show",
+        "site": "aniworld.to",
+    }
+    scheduler._run_strm(job_id, req, threading.Event())
+
+    job = _get_job(job_id)
+    assert job is not None
+    assert job.status == "completed"
+    assert job.result_path
+
+    out_path = Path(job.result_path)
+    assert out_path.exists()
+    data = out_path.read_text(encoding="utf-8")
+    assert data.startswith("https://anibridge.test/strm/stream?")
+
+    from app.db import get_strm_mapping, engine
+
+    with Session(engine) as session:
+        mapping = get_strm_mapping(
+            session,
+            site=req["site"],
+            slug=req["slug"],
+            season=req["season"],
+            episode=req["episode"],
+            language=req["language"],
+            provider=None,
+        )
+        assert mapping is not None
+        assert mapping.resolved_url == "https://example.com/video.mp4"
+        assert mapping.provider_used == "VOE"

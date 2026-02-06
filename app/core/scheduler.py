@@ -6,17 +6,16 @@ from loguru import logger
 from sqlmodel import Session
 import errno
 
-from app.config import MAX_CONCURRENCY, DOWNLOAD_DIR
+from app.config import MAX_CONCURRENCY, DOWNLOAD_DIR, STRM_PROXY_MODE
 from app.utils.strm import allocate_unique_strm_path, build_strm_content
+from app.core.strm_proxy import StrmIdentity, resolve_direct_url, build_stream_url
 from app.utils.terminal import (
     ProgressReporter,
     ProgressSnapshot,
 )
-from app.db import engine, create_job, update_job
+from app.db import engine, create_job, update_job, upsert_strm_mapping
 from app.core.downloader import (
     download_episode,
-    build_episode,
-    get_direct_url_with_fallback,
 )
 from app.utils.logger import config as configure_logger
 
@@ -188,21 +187,25 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
 
 def _run_strm(job_id: str, req: dict, stop_event: threading.Event) -> None:
     """
-    Create a `.strm` file pointing to a resolved remote media URL.
-
-    Resolves a direct URL via the AniWorld library using the same provider fallback
-    strategy as downloads, then writes a small `.strm` file to `DOWNLOAD_DIR` and
-    updates the job status accordingly.
+    Create a .strm file in the configured download directory that points to a resolved remote media URL and update the job's status and result in the database.
 
     Parameters:
-        job_id (str): Identifier of the job being run.
-        req (dict): STRM request with keys used by the resolver. Recognized keys:
-            - 'slug', 'season', 'episode' (episode identifiers)
-            - 'language' (optional)
-            - 'provider' (optional)
-            - 'title_hint' (optional, used for filename)
-            - 'site' (optional, defaults to "aniworld.to")
-        stop_event (threading.Event): Event that, when set, requests cancellation.
+        job_id (str): Identifier of the job being executed; used to update job state.
+        req (dict): STRM request containing identifiers and optional metadata. Recognized keys:
+            - 'slug' (str)
+            - 'season' (int)
+            - 'episode' (int)
+            - 'language' (str, optional)
+            - 'provider' (str, optional)
+            - 'title_hint' (str, optional) — preferred base filename for the .strm file
+            - 'site' (str, optional) — source site, defaults to "aniworld.to"
+            - 'mode' (str, optional)
+        stop_event (threading.Event): Event that, when set, requests cancellation of the operation.
+
+    Behavior:
+        - Resolves a media URL for the requested episode, writes an atomic `.strm` file pointing to that URL, and marks the job as completed with the resulting path and progress.
+        - If a proxy mode is enabled, records a mapping of the resolved URL and provider in the database and uses a proxied stream URL in the .strm.
+        - On filesystem permission errors, marks the job as failed with a directory-related message; on cancellation marks the job as cancelled; on other errors marks the job as failed with the error message.
     """
     try:
         with Session(engine) as s:
@@ -213,15 +216,24 @@ def _run_strm(job_id: str, req: dict, stop_event: threading.Event) -> None:
             raise Exception("Cancelled")
 
         site = str(req.get("site") or "aniworld.to")
-        ep = build_episode(
-            slug=req.get("slug"),
-            season=req.get("season"),
-            episode=req.get("episode"),
+        season_raw = req.get("season")
+        episode_raw = req.get("episode")
+        if season_raw is None or episode_raw is None:
+            raise ValueError("Missing season or episode for STRM request")
+        try:
+            season = int(season_raw)
+            episode = int(episode_raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Invalid season or episode for STRM request") from exc
+        identity = StrmIdentity(
             site=site,
+            slug=str(req.get("slug") or ""),
+            season=season,
+            episode=episode,
+            language=str(req.get("language") or ""),
+            provider=str(req.get("provider") or "").strip() or None,
         )
-        direct_url, provider_used = get_direct_url_with_fallback(
-            ep, preferred=req.get("provider"), language=str(req.get("language") or "")
-        )
+        direct_url, provider_used = resolve_direct_url(identity)
 
         if stop_event.is_set():
             raise Exception("Cancelled")
@@ -238,7 +250,24 @@ def _run_strm(job_id: str, req: dict, stop_event: threading.Event) -> None:
             except Exception:
                 base_name = slug
         out_path = allocate_unique_strm_path(DOWNLOAD_DIR, base_name)
-        content = build_strm_content(direct_url)
+        if STRM_PROXY_MODE == "proxy":
+            strm_url = build_stream_url(identity)
+            with Session(engine) as s:
+                upsert_strm_mapping(
+                    s,
+                    site=identity.site,
+                    slug=identity.slug,
+                    season=identity.season,
+                    episode=identity.episode,
+                    language=identity.language,
+                    provider=identity.provider,
+                    resolved_url=direct_url,
+                    provider_used=provider_used,
+                    resolved_headers=None,
+                )
+        else:
+            strm_url = direct_url
+        content = build_strm_content(strm_url)
         content_bytes = content.encode("utf-8")
         tmp_path = out_path.with_suffix(".strm.tmp")
         # Write bytes to avoid platform newline translation.
