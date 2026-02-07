@@ -24,6 +24,20 @@ Auth mode is controlled by `STRM_PROXY_AUTH`:
 - `apikey`: shared key in `apikey`
 - `none`: no auth (LAN only)
 
+## Direct Play Requirements
+
+Browser-based clients (Jellyfin, Plex, Emby) enforce mixed content rules. If your media
+server is served over HTTPS, AniBridge must also be served over HTTPS or the browser
+will block the stream and force server-side transcoding.
+
+Recommended setup:
+
+- Place AniBridge behind a reverse proxy with TLS.
+- Ensure the public URL is reachable by both the browser client and the media server.
+- Set `STRM_PUBLIC_BASE_URL` to the HTTPS URL that Jellyfin and clients use to reach AniBridge.
+  If clients can’t reach AniBridge (even over HTTPS), Direct Play will fail and the
+  server will fall back to proxying/transcoding.
+
 ## Endpoints
 
 <ApiOperations :tags="['STRM Proxy']"/>

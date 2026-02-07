@@ -43,6 +43,12 @@ AniBridge is configured via environment variables (works well with Docker). Sens
 When `STRM_PROXY_AUTH` is set to `token` or `apikey`, `STRM_PROXY_SECRET`
 must be configured.
 
+> [!IMPORTANT]
+> If your media server is served over HTTPS, AniBridge should also be served over
+> HTTPS for browser Direct Play. Set `STRM_PUBLIC_BASE_URL` to the HTTPS URL and
+> place AniBridge behind a reverse proxy with TLS. The public URL must be
+> reachable by both the media server and the client device.
+
 In STRM mode, AniBridge schedules creation of a `.strm` file (plain text,
 one HTTP(S) URL line) instead of downloading media bytes. When
 `STRM_PROXY_MODE=proxy`, the `.strm` file contains a stable AniBridge URL
