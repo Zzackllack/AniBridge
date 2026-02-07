@@ -72,5 +72,11 @@ usually happens when Sonarr’s ffprobe succeeds on the `.strm` file and reports
 use manual import or disable “Analyze video files” in Sonarr. See [Issue #50](https://github.com/zzackllack/anibridge/issues/50).
 :::
 
+::: warning
+Known limitation: STRM proxy playback can be unstable in some media players (notably Jellyfin) for certain HLS
+streams. A common symptom is `Video-Bitrate: 0 kbps`, and there is currently no reliable AniBridge-side fix that
+does not risk playback regressions (timeline/duration issues, early stop, or auto-next behavior). Track status can be monitored in [Issue #51](https://github.com/Zzackllack/anibridge/issues/51).
+:::
+
 - AniBridge never redirects STRM playback; bytes are streamed.
 - `STRM_PUBLIC_BASE_URL` must match how your media server reaches AniBridge (LAN host, reverse proxy, etc.).

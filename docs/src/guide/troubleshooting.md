@@ -62,3 +62,13 @@ outline: deep
 > reject the import. This is not an AniBridge issue. Workarounds: manual
 > import or disable "Analyze video files" in Sonarr. For details, see
 > [Issue #50](https://github.com/Zzackllack/AniBridge/issues/50).
+
+## STRM proxy playback shows "Video-Bitrate: 0 kbps" in Jellyfin
+
+> [!WARNING]
+> This is a known limitation for some STRM proxy + HLS playback paths in
+> Jellyfin and similar players. AniBridge has no reliable near-term fix that
+> avoids playback regressions (timeline/duration mismatch, early playback stop,
+> next-episode auto-jump). If you hit this, prefer direct mode or a
+> client/server-specific workaround. For details, see
+> [Issue #51](https://github.com/Zzackllack/anibridge/issues/51).

@@ -54,6 +54,12 @@ appears, use manual import or disable “Analyze video files” in Sonarr. See
 [Issue #50](https://github.com/zzackllack/anibridge/issues/50).
 :::
 
+::: warning
+Known limitation: when `STRM_PROXY_MODE=proxy`, some media players (especially Jellyfin with specific HLS sources)
+may still show `Video-Bitrate: 0 kbps` and/or exhibit unstable playback behavior. There is currently no reliable
+AniBridge-side fix planned in the near term for this class of issue. See [Issue #51](https://github.com/Zzackllack/anibridge/issues/51)
+:::
+
 ## Provider & Language
 
 - `PROVIDER_ORDER`: comma-separated providers by priority (e.g., `VOE,Filemoon,Streamtape,...`)
