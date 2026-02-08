@@ -113,21 +113,18 @@ export default defineConfig({
       include: ["vitepress-openapi/client"],
     },
   },
-  transformHead: ({ page, siteConfig }) => {
-    const rel = (page as any)?.relativePath || "index.md";
-    const url = new URL(
-      rel.replace(/(^|\/)index\.md$/, "$1").replace(/\.md$/, "/"),
-      siteUrl,
-    ).toString();
-    const baseTitle = (siteConfig as any)?.site?.title || "AniBridge Docs";
-    const pageTitle = (page as any)?.title;
-    const pageDesc = (page as any)?.description;
-    const lastUpdated = (page as any)?.lastUpdated ?? undefined;
-    const title = pageTitle ? `${pageTitle} • ${baseTitle}` : baseTitle;
-    const description =
-      pageDesc ||
-      (siteConfig as any)?.site?.description ||
-      "AniBridge documentation";
+  transformHead: ({ page, pageData, siteConfig, title, description }) => {
+    const normalizedPage = page.replace(/^\//, "");
+    const pagePath = normalizedPage
+      .replace(/(^|\/)index\.md$/, "$1")
+      .replace(/\.md$/, "")
+      .replace(/\/+$/, "");
+    const pathname = pagePath ? `/${pagePath}` : "/";
+    const url = new URL(pathname, siteUrl).toString();
+    const pageTitle = title || siteConfig.site.title || "AniBridge Docs";
+    const pageDescription =
+      description || siteConfig.site.description || "AniBridge documentation";
+    const lastUpdated = pageData.lastUpdated;
     // Build breadcrumb list from path parts
     const path = url.replace(siteUrl, "");
     const parts = path.split("/").filter(Boolean);
@@ -135,16 +132,16 @@ export default defineConfig({
       "@type": "ListItem",
       position: i + 1,
       name: p,
-      item: `${siteUrl}/${parts.slice(0, i + 1).join("/")}/`,
+      item: `${siteUrl}/${parts.slice(0, i + 1).join("/")}`,
     }));
     const tags: HeadConfig[] = [
       ["link", { rel: "canonical", href: url }],
       ["link", { rel: "alternate", hreflang: "en", href: url }],
       ["meta", { property: "og:url", content: url }],
-      ["meta", { property: "og:title", content: title }],
-      ["meta", { property: "og:description", content: description }],
-      ["meta", { name: "twitter:title", content: title }],
-      ["meta", { name: "twitter:description", content: description }],
+      ["meta", { property: "og:title", content: pageTitle }],
+      ["meta", { property: "og:description", content: pageDescription }],
+      ["meta", { name: "twitter:title", content: pageTitle }],
+      ["meta", { name: "twitter:description", content: pageDescription }],
       // Page-level structured data: TechArticle + Breadcrumbs
       [
         "script",
@@ -152,8 +149,8 @@ export default defineConfig({
         JSON.stringify({
           "@context": "https://schema.org",
           "@type": "TechArticle",
-          headline: pageTitle || baseTitle,
-          description,
+          headline: pageData.title || siteConfig.site.title || "AniBridge Docs",
+          description: pageDescription,
           inLanguage: "en",
           url,
           dateModified: lastUpdated
@@ -191,6 +188,17 @@ export default defineConfig({
       ],
     ];
     return tags;
+  },
+  transformPageData: (pageData) => {
+    if (!pageData.relativePath.startsWith("api/operations/")) return;
+    const params = pageData.params as
+      | { pageTitle?: string; pageDescription?: string }
+      | undefined;
+    if (!params) return;
+    const update: Partial<typeof pageData> = {};
+    if (params.pageTitle) update.title = params.pageTitle;
+    if (params.pageDescription) update.description = params.pageDescription;
+    return update;
   },
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
@@ -270,7 +278,8 @@ export default defineConfig({
       { icon: "github", link: "https://github.com/zzackllack/AniBridge" },
     ],
     editLink: {
-      pattern: "https://github.com/zzackllack/AniBridge/edit/main/docs/src/:path",
+      pattern:
+        "https://github.com/zzackllack/AniBridge/edit/main/docs/src/:path",
       text: "Edit this page on GitHub",
     },
     lastUpdated: { text: "Updated at" },

@@ -1,5 +1,4 @@
 ---
-title: "{{ $params.pageTitle }}"
 outline: false
 aside: false
 ---
