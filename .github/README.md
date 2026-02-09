@@ -49,10 +49,8 @@ docker compose up -d
 ```bash
 git clone https://github.com/zzackllack/AniBridge.git
 cd AniBridge
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python -m app.main
+uv sync --frozen
+uv run python -m app.main
 ```
 
 ## Endpoints

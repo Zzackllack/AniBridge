@@ -82,11 +82,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-
-      - name: Install Gemini client
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install google-genai
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
 
       - name: Call Gemini to craft release notes
         run: |
@@ -97,7 +94,7 @@ jobs:
             exit 1
           fi
 
-          python scripts/release/generate_release_notes.py \
+          uv run --with google-genai python scripts/release/generate_release_notes.py \
             --context-json release-context/commit_context.json \
             --output release-notes/release-notes.md
 
@@ -124,10 +121,10 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - name: Install build tools
-        run: python -m pip install --upgrade pip build
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
       - name: Build distributions
-        run: python -m build
+        run: uv run --with build python -m build
       - name: Create checksums
         run: |
           cd dist && sha256sum * > SHA256SUMS
@@ -152,16 +149,12 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - name: Install dependencies (linux/macos)
-        if: matrix.os != 'windows-latest'
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install pyinstaller
-
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
       - name: Build single-file binary (linux/macos)
         if: matrix.os != 'windows-latest'
         run: |
-          pyinstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge
+          uv run --with pyinstaller pyinstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge
           mkdir -p artifacts
           mv dist/anibridge artifacts/ || true
 
@@ -173,18 +166,11 @@ jobs:
           tar -czf release/anibridge-${{ matrix.os }}-${version}.tar.gz -C artifacts . || true
           ls -la release || true
 
-      - name: Install dependencies (windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install pyinstaller
-
       - name: Build single-file binary (windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          pyinstaller --additional-hooks-dir hooks --onefile app\main.py --name anibridge.exe
+          uv run --with pyinstaller pyinstaller --additional-hooks-dir hooks --onefile app\main.py --name anibridge.exe
           New-Item -ItemType Directory -Force -Path artifacts
           Move-Item -Path dist\anibridge.exe -Destination artifacts\anibridge.exe -ErrorAction SilentlyContinue
 

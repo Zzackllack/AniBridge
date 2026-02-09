@@ -49,7 +49,7 @@ ${PROJECT_TYPE == "Auto-detect" ?
 - Check for build files (pom.xml, build.gradle, settings.gradle) for Java projects
 - Identify package.json with dependencies for JavaScript/TypeScript projects
 - Look for specific framework files (angular.json, react-scripts entries, next.config.js)
-- Check for Python project identifiers (requirements.txt, setup.py, pyproject.toml)
+- Check for Python project identifiers (pyproject.toml, uv.lock, setup.py)
 - Examine mobile app identifiers (pubspec.yaml, android/ios folders)
 - Note all technology signatures found and their versions" : 
 "Focus analysis on ${PROJECT_TYPE} project structure"}

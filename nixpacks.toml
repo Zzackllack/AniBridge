@@ -8,8 +8,9 @@ PYTHONUNBUFFERED = "1"
 
 [phases.install]
 commands = [
-  "pip install --no-cache-dir -r requirements.runtime.txt"
+  "curl -LsSf https://astral.sh/uv/install.sh | sh",
+  "export PATH=$HOME/.local/bin:$PATH && uv sync --frozen --no-editable"
 ]
 
 [start]
-cmd = "python -m app.main"
+cmd = "uv run python -m app.main"

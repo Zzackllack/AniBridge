@@ -4,12 +4,11 @@
 
 - Use uv for dependency management.
 - Create a virtualenv with `uv venv` and activate it.
-- Install runtime deps: `uv pip install -r requirements.runtime.txt`.
-- Install dev deps: `uv pip install -r requirements-dev.txt`.
+- Sync dependencies: `uv sync --frozen`.
 
 ## Running the App
 
-- `python -m app.main` starts the FastAPI app.
+- `uv run python -m app.main` starts the FastAPI app.
 - `uvicorn app.main:app --reload` is supported when `ANIBRIDGE_RELOAD=true`.
 
 ## CLI and Utilities

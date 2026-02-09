@@ -38,8 +38,7 @@ if (Test-Path $venvPython) {
 Write-Host "Using python: $PYTHON"
 
 Write-Host "==> Building python distributions"
-& $PYTHON -m pip install --upgrade build | Out-Null
-& $PYTHON -m build
+uv run --with build python -m build
 
 Write-Host "==> Creating SHA256SUMS"
 $distDir = Join-Path -Path $RepoRoot -ChildPath 'dist'
@@ -56,9 +55,8 @@ $sb.ToString() | Set-Content -Path $shaFile -NoNewline
 Write-Host "SHA256SUMS written to $shaFile"
 
 Write-Host "==> Building PyInstaller single-file (current OS)"
-& $PYTHON -m pip install --upgrade pyinstaller | Out-Null
 if (Test-Path 'app\main.py') {
-    & $PYTHON -m PyInstaller --additional-hooks-dir hooks --onefile 'app/main.py' --name anibridge
+    uv run --with pyinstaller pyinstaller --additional-hooks-dir hooks --onefile 'app/main.py' --name anibridge
 
     if ($IsWindows) { $PLATFORM = 'windows' }
     elseif ($IsLinux) { $PLATFORM = 'linux' }

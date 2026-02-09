@@ -7,8 +7,8 @@ on:
     paths:
       - "Dockerfile"
       - "app/**"
-      - "requirements.runtime.txt"
-      - "requirements.txt"
+      - "pyproject.toml"
+      - "uv.lock"
   workflow_dispatch:
 
 permissions:

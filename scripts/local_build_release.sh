@@ -27,8 +27,7 @@ fi
 echo "Using python: $PYTHON"
 
 echo "==> Building python distributions"
-$PYTHON -m pip install --upgrade build >/dev/null
-$PYTHON -m build
+uv run --with build python -m build
 
 echo "==> Creating SHA256SUMS"
 $PYTHON - <<PY > dist/SHA256SUMS
@@ -40,11 +39,10 @@ for p in files:
 PY
 
 echo "==> Building PyInstaller single-file (current OS)"
-$PYTHON -m pip install --upgrade pyinstaller >/dev/null
 if [ -f app/main.py ]; then
   # Use our custom hooks directory so package data like fake_useragent's
   # browsers.jsonl get included in the bundle.
-  $PYTHON -m PyInstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge
+  uv run --with pyinstaller pyinstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge
   PLATFORM=$(uname -s | tr '[:upper:]' '[:lower:]')
   mkdir -p "release/${VERSION}/${PLATFORM}"
   if [ -f dist/anibridge ]; then

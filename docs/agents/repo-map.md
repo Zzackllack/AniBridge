@@ -8,7 +8,6 @@
 - `LICENSE` — BSD 3-Clause license.
 - `VERSION` — current project version.
 - `pyproject.toml` — Python packaging metadata.
-- `requirements.runtime.txt` / `requirements-dev.txt` — dependency sets.
 - `uv.lock` — uv dependency lock.
 - `Dockerfile` — container build.
 - `nixpacks.toml` — Nixpacks configuration.

@@ -215,11 +215,11 @@ jobs:
 - **Principle:** Cache dependencies and build outputs to significantly speed up subsequent workflow runs.
 - **Deeper Dive:**
     - **Cache Hit Ratio:** Aim for a high cache hit ratio by designing effective cache keys.
-    - **Cache Keys:** Use a unique key based on file hashes (e.g., `hashFiles('**/package-lock.json')`, `hashFiles('**/requirements.txt')`) to invalidate the cache only when dependencies change.
+    - **Cache Keys:** Use a unique key based on file hashes (e.g., `hashFiles('**/package-lock.json')`, `hashFiles('**/uv.lock')`) to invalidate the cache only when dependencies change.
     - **Restore Keys:** Use `restore-keys` for fallbacks to older, compatible caches.
     - **Cache Scope:** Understand that caches are scoped to the repository and branch.
 - **Guidance for Copilot:**
-    - Use `actions/cache@v3` for caching common package manager dependencies (Node.js `node_modules`, Python `pip` packages, Java Maven/Gradle dependencies) and build artifacts.
+    - Use `actions/cache@v3` for caching common package manager dependencies (Node.js `node_modules`, Python `uv` cache, Java Maven/Gradle dependencies) and build artifacts.
     - Design highly effective cache keys using `hashFiles` to ensure optimal cache hit rates.
     - Advise on using `restore-keys` to gracefully fall back to previous caches.
 - **Example (Advanced Caching for Monorepo):**
@@ -468,7 +468,7 @@ This checklist provides a granular set of criteria for reviewing GitHub Actions 
     - For self-hosted runners, are security hardening guidelines followed and network access restricted?
 
 - [ ] **Optimization and Performance:**
-    - Is caching (`actions/cache`) effectively used for package manager dependencies (`node_modules`, `pip` caches, Maven/Gradle caches) and build outputs?
+    - Is caching (`actions/cache`) effectively used for package manager dependencies (`node_modules`, `uv` caches, Maven/Gradle caches) and build outputs?
     - Are cache `key` and `restore-keys` designed for optimal cache hit rates (e.g., using `hashFiles`)?
     - Is `strategy.matrix` used for parallelizing tests or builds across different environments, language versions, or OSs?
     - Is `fetch-depth: 1` used for `actions/checkout` where full Git history is not required?

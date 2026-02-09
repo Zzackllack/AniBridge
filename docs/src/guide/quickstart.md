@@ -113,14 +113,8 @@ Place a `.env` file next to the binary if you need to customize paths. See [Envi
 ::: code-group
 
 ```bash [uv]
-uv venv && uv pip install -r requirements.txt
+uv sync --frozen
 uv run python -m app.main
-```
-
-```bash [pip]
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python -m app.main
 ```
 
 :::
