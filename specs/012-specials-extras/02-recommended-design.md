@@ -54,8 +54,7 @@ When direct probe for requested `season/ep` yields no available items:
 Mapping strategy order:
 
 1. Metadata-backed mapping (when identifiers available and enabled).
-2. Query-title assisted mapping (if request context has a recent special title candidate).
-3. Conservative fallback: no synthetic mapping (avoid wrong releases).
+2. Conservative fallback: no synthetic mapping (avoid wrong releases).
 
 ### 5) Release naming and magnet metadata strategy
 
@@ -89,7 +88,7 @@ Add optional resolver module (feature-flagged):
 - input: `(tvdbid|tmdbid|...) + season + ep` OR special title,
 - output: canonical episode title(s) for matching against AniWorld specials catalog.
 
-Do not hard-fail search when metadata lookup fails. Fallback to heuristic mode.
+Do not hard-fail search when metadata lookup fails. Use no-match fallback (Option C only).
 
 ## Data model additions (lightweight)
 
