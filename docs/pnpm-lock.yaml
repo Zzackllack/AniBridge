@@ -25,8 +25,8 @@ importers:
         specifier: 2.0.0-alpha.16
         version: 2.0.0-alpha.16(postcss@8.5.6)
       vitepress-openapi:
-        specifier: ^0.1.13
-        version: 0.1.13(vitepress@2.0.0-alpha.16(postcss@8.5.6))(vue@3.5.22)
+        specifier: ^0.1.14
+        version: 0.1.14(vitepress@2.0.0-alpha.16(postcss@8.5.6))(vue@3.5.22)
 
 packages:
 
@@ -243,8 +243,8 @@ packages:
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
 
-  '@internationalized/date@3.10.1':
-    resolution: {integrity: sha512-oJrXtQiAXLvT9clCf1K4kxp3eKsQhIaZqxEyowkBcsvZDdZkbWrVmnGknxs5flTD0VGsxrxKgBCZty1EzoiMzA==}
+  '@internationalized/date@3.11.0':
+    resolution: {integrity: sha512-BOx5huLAWhicM9/ZFs84CzP+V3gBW6vlpM02yzsdYC7TGlZJX1OJiEEHcSayF00Z+3jLlm4w79amvSt6RqKN3Q==}
 
   '@internationalized/number@3.6.5':
     resolution: {integrity: sha512-6hY4Kl4HPBvtfS62asS/R22JzNNy8vi/Ssev7x6EobfCp+9QIB2hKvI2EtbdJ0VSQacxVNtqhE/NmF/NZ0gm6g==}
@@ -873,8 +873,8 @@ packages:
       yaml:
         optional: true
 
-  vitepress-openapi@0.1.13:
-    resolution: {integrity: sha512-cu0d07Gn6NCtWCNWtNI91bM41OeLBX5wdKRSCxaC1wZv9RSBNZ35KKT9GW5+Eb0qDx0wBtGeXZ9fIGf5QT3xGA==}
+  vitepress-openapi@0.1.14:
+    resolution: {integrity: sha512-or1kyYcXYHPcNly1kYPShSDfTZBL1TqNIRAOQM00kJAQ6OedhG/fM78PQ9ZHb8/H3raCn2dQ0WBYXcp0LV4zSQ==}
     peerDependencies:
       vitepress: '>=1.0.0'
       vue: ^3.0.0
@@ -1060,7 +1060,7 @@ snapshots:
 
   '@iconify/types@2.0.0': {}
 
-  '@internationalized/date@3.10.1':
+  '@internationalized/date@3.11.0':
     dependencies:
       '@swc/helpers': 0.5.18
 
@@ -1603,7 +1603,7 @@ snapshots:
     dependencies:
       '@floating-ui/dom': 1.7.5
       '@floating-ui/vue': 1.1.10(vue@3.5.22)
-      '@internationalized/date': 3.10.1
+      '@internationalized/date': 3.11.0
       '@internationalized/number': 3.6.5
       '@tanstack/vue-virtual': 3.13.18(vue@3.5.22)
       '@vueuse/core': 14.2.0(vue@3.5.22)
@@ -1729,7 +1729,7 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
-  vitepress-openapi@0.1.13(vitepress@2.0.0-alpha.16(postcss@8.5.6))(vue@3.5.22):
+  vitepress-openapi@0.1.14(vitepress@2.0.0-alpha.16(postcss@8.5.6))(vue@3.5.22):
     dependencies:
       '@vueuse/core': 13.9.0(vue@3.5.22)
       class-variance-authority: 0.7.1
