@@ -114,7 +114,7 @@ def download_episode(
                 if not base_hint:
                     if is_movie:
                         base_hint = f"{slug}-{language}-{chosen}"
-                    elif slug and season and episode:
+                    elif slug and season is not None and episode is not None:
                         base_hint = (
                             f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
                         )
@@ -196,7 +196,7 @@ def download_episode(
             raise
 
     base_hint = title_hint
-    if not base_hint and slug and season and episode:
+    if not base_hint and slug and season is not None and episode is not None:
         base_hint = f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
         logger.debug("Generated base_hint for filename: {}", base_hint)
 

@@ -57,7 +57,7 @@ def build_episode(
     if link:
         logger.debug("Using direct link for episode.")
         ep = Episode(link=link, site=site_domain)
-    elif slug and season and episode:
+    elif slug and season is not None and episode is not None:
         logger.debug("Using slug/season/episode for episode.")
         if site == "s.to" and isinstance(base_url, str) and base_url:
             from app.providers.sto.v2 import build_episode_url
