@@ -84,3 +84,66 @@ def test_download_episode_generates_s00e_hint(monkeypatch, tmp_path: Path):
     assert output == tmp_path / "tmp.mp4"
     assert captured["title_hint"] is not None
     assert captured["title_hint"].startswith("kaguya-sama-love-is-war-S00E01-")
+
+
+def test_download_episode_uses_title_hint_as_release_override(
+    monkeypatch, tmp_path: Path
+):
+    import importlib
+
+    _stub_aniworld_parser()
+    dl = importlib.import_module("app.core.downloader.download")
+
+    captured: dict[str, str | None] = {"release_name_override": None}
+
+    class DummyEpisode:
+        pass
+
+    monkeypatch.setattr(
+        dl,
+        "build_episode",
+        lambda **_kwargs: DummyEpisode(),
+    )
+    monkeypatch.setattr(
+        dl,
+        "get_direct_url_with_fallback",
+        lambda _ep, preferred, language: ("https://example.test/master.m3u8", "VOE"),
+    )
+
+    def _fake_ydl_download(
+        _url,
+        dest_dir,
+        *,
+        title_hint,
+        cookiefile,
+        progress_cb,
+        stop_event,
+        force_no_proxy,
+    ):
+        del title_hint, cookiefile, progress_cb, stop_event, force_no_proxy
+        tmp_file = dest_dir / "tmp.mp4"
+        tmp_file.write_bytes(b"ok")
+        return tmp_file, {}
+
+    def _fake_rename_to_release(**kwargs):
+        captured["release_name_override"] = kwargs.get("release_name_override")
+        return kwargs["path"]
+
+    monkeypatch.setattr(dl, "_ydl_download", _fake_ydl_download)
+    monkeypatch.setattr(dl, "rename_to_release", _fake_rename_to_release)
+
+    output = dl.download_episode(
+        slug="kaguya-sama-love-is-war",
+        season=0,
+        episode=4,
+        language="German Dub",
+        dest_dir=tmp_path,
+        site="aniworld.to",
+        title_hint="Kaguya.sama.Love.is.War.S00E05.1080p.WEB.H264.GER-ANIWORLD",
+    )
+
+    assert output == tmp_path / "tmp.mp4"
+    assert (
+        captured["release_name_override"]
+        == "Kaguya.sama.Love.is.War.S00E05.1080p.WEB.H264.GER-ANIWORLD"
+    )

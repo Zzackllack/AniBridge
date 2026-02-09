@@ -89,6 +89,24 @@ Conclusion:
 - Therefore one-to-one `film-N -> S00EN` is not guaranteed.
 - This mismatch is expected and must be resolved via title/metadata mapping, not assumed equal numbering.
 
+## Import mismatch found after mapping fix (resolved)
+
+From `/Users/zacklack/Developer/Own/Repos/AniBridge/data/sonarr/config/logs/sonarr.trace.txt`:
+
+- Sonarr parsed the grabbed release as `S00E05` from title.
+- AniBridge/qBittorrent state reported torrent `name` as `...S00E05...` but `content_path` as `...S00E04...`.
+- During import, Sonarr parsed the file path (`S00E04`) and rejected with `Invalid season or episode`.
+
+Root cause in AniBridge:
+
+- Non-megakino download rename path still used source probe numbering (`aw_s/aw_e`) when building final filename.
+- Alias numbering from Sonarr-facing release title (`title_hint`/`dn`) was not forwarded as `release_name_override` in this path.
+
+Fix applied:
+
+- `download_episode` now always derives `release_override` from `title_hint` (when present) and passes it to `rename_to_release` in both megakino and non-megakino flows.
+- Result: grabbed release title numbering and final `content_path` numbering stay consistent, allowing Sonarr import to validate.
+
 ## Additional capability gap in AniBridge caps
 
 Current caps in `app/api/torznab/utils.py`:

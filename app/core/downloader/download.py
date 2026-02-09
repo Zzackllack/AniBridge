@@ -58,6 +58,9 @@ def download_episode(
         DownloadError: When URL resolution or download ultimately fails after all fallback attempts.
     """
     language = normalize_language(language)
+    release_override = None
+    if title_hint:
+        release_override = title_hint.replace(" [STRM]", "").strip()
     logger.info(
         "Starting download_episode: link={}, slug={}, season={}, episode={}, provider={}, language={}, dest_dir={}, site={}",
         link,
@@ -76,9 +79,6 @@ def download_episode(
         is_movie = bool(entry and entry.kind == "film")
         if is_movie:
             logger.debug("Megakino slug '{}' classified as movie.", slug)
-        release_override = None
-        if title_hint:
-            release_override = title_hint.replace(" [STRM]", "").strip()
         provider_candidates = []
         if provider:
             provider_candidates.append(provider)
@@ -289,6 +289,7 @@ def download_episode(
         episode=episode,
         language=language,
         site=site,
+        release_name_override=release_override,
     )
     logger.success("Final file path: {}", final_path)
     return final_path

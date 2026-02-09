@@ -23,6 +23,7 @@
 - [x] Use metadata titles to map `tvsearch` alternate numbering to AniWorld film entries.
 - [x] Add fallback chain: metadata -> no-match (Option C only; heuristic intentionally skipped).
 - [x] Add tests for mismatch scenario (`AniWorld film-4` vs Sonarr `S00E05`/scene alias).
+- [x] Ensure final downloaded filename/path preserves Sonarr alias numbering (`title_hint` override) so import parser sees the same `SxxEyy` as the grabbed release.
 
 ## Phase 3 (observability and hardening)
 
