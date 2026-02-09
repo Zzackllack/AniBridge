@@ -1,13 +1,32 @@
+def _stub_aniworld_parser() -> None:
+    import argparse
+    import sys
+    import types
+
+    stub_parser = types.ModuleType("aniworld.parser")
+    stub_parser.parse_arguments = lambda: argparse.Namespace()
+    stub_parser.arguments = argparse.Namespace()
+    sys.modules["aniworld.parser"] = stub_parser
+
+
 def test_caps_xml_parses():
     import xml.etree.ElementTree as ET
+
+    _stub_aniworld_parser()
     from app.api.torznab import _caps_xml
 
     xml = _caps_xml()
     root = ET.fromstring(xml)
     assert root.tag == "caps"
+    tvsearch = root.find("./searching/tv-search")
+    assert tvsearch is not None
+    supported = tvsearch.get("supportedParams") or ""
+    for expected in ("tvdbid", "tmdbid", "imdbid", "rid", "tvmazeid"):
+        assert expected in supported
 
 
 def test_slug_from_query_basic(monkeypatch):
+    _stub_aniworld_parser()
     from app.api.torznab import utils as torznab_utils
     from app import utils as app_utils
 
