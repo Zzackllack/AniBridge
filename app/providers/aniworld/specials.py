@@ -56,6 +56,14 @@ class AniworldSpecialEntry:
 
     @property
     def combined_title(self) -> str:
+        """
+        Combine the German and alternate titles into a single title string.
+
+        Joins `title_de` and `title_alt` with a single space, omitting any empty parts and trimming surrounding whitespace.
+
+        Returns:
+            str: The concatenated title formed from `title_de` and `title_alt`, or the non-empty title if only one is present.
+        """
         return " ".join(p for p in [self.title_de, self.title_alt] if p).strip()
 
 
@@ -77,6 +85,12 @@ class SpecialEpisodeMapping:
 
 
 def _as_int(raw: object) -> Optional[int]:
+    """
+    Convert an arbitrary value to an integer when possible.
+
+    Returns:
+        The integer parsed from `raw`, or `None` if `raw` is `None`, an empty string after stripping, or cannot be parsed as an integer.
+    """
     try:
         if raw is None:
             return None
@@ -89,6 +103,15 @@ def _as_int(raw: object) -> Optional[int]:
 
 
 def _normalize_text(value: str) -> str:
+    """
+    Normalize a text string for comparison by removing diacritics, normalizing quotes/brackets, and collapsing non-alphanumeric characters to spaces.
+
+    Parameters:
+        value (str): Input text to normalize; None or empty string is treated as empty.
+
+    Returns:
+        str: Lowercased, trimmed string with combining diacritics removed, straightened single quotes, brackets replaced with spaces, and any runs of non-alphanumeric characters replaced by single spaces.
+    """
     normalized = unicodedata.normalize("NFKD", value or "")
     normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
     normalized = normalized.replace("’", "'").replace("`", "'")
@@ -98,6 +121,12 @@ def _normalize_text(value: str) -> str:
 
 
 def _tokenize(value: str) -> List[str]:
+    """
+    Normalize the input text and return non-empty space-separated tokens.
+
+    Returns:
+        List[str]: A list of normalized, lowercase tokens extracted from the input; returns an empty list if the input is empty or produces no tokens.
+    """
     normalized = _normalize_text(value)
     if not normalized:
         return []
@@ -105,10 +134,34 @@ def _tokenize(value: str) -> List[str]:
 
 
 def _part_numbers(value: str) -> set[int]:
+    """
+    Extracts integer part numbers from a text string.
+
+    Parameters:
+        value (str): Text to scan for part indicators (e.g., "Part 2", "Teil 3").
+
+    Returns:
+        set[int]: A set of integers found in the text; empty if no part numbers are present.
+    """
     return {int(match) for match in _PART_NUMBER_RE.findall(value or "")}
 
 
 def _title_score(left: str, right: str) -> float:
+    """
+    Compute a similarity score between two title strings.
+
+    The score (clamped to the range 0.0–1.0) combines token overlap, Jaccard similarity,
+    a containment measure, and alignment of numeric "part" indicators (adds bonus
+    when part numbers match, subtracts when disjoint).
+
+    Parameters:
+        left (str): First title to compare.
+        right (str): Second title to compare.
+
+    Returns:
+        float: Similarity score in the range 0.0 to 1.0, where higher values indicate
+        greater similarity.
+    """
     left_n = _normalize_text(left)
     right_n = _normalize_text(right)
     if not left_n or not right_n:
@@ -138,6 +191,15 @@ def _title_score(left: str, right: str) -> float:
 
 
 def parse_filme_entries(html_text: str) -> List[AniworldSpecialEntry]:
+    """
+    Parse AniWorld "filme" HTML and extract special entries from the season 0 table.
+
+    Parameters:
+        html_text (str): HTML content of an AniWorld "filme" page.
+
+    Returns:
+        list[AniworldSpecialEntry]: A list of AniworldSpecialEntry objects extracted from the season 0 table, sorted by film_index. If the season 0 table is absent, returns an empty list.
+    """
     soup = BeautifulSoup(html_text, "html.parser")
     season_zero = soup.find("tbody", id="season0")
     if season_zero is None:
@@ -192,6 +254,14 @@ def parse_filme_entries(html_text: str) -> List[AniworldSpecialEntry]:
 
 
 def _get_cached_entries(slug: str) -> Optional[List[AniworldSpecialEntry]]:
+    """
+    Return the cached list of AniworldSpecialEntry objects for the given slug if a fresh cache entry exists.
+
+    If caching is disabled (TTL <= 0), no entry exists, or the stored entry has expired, this function returns None. Expired entries are removed from the cache. Access and mutation of the cache are performed in a thread-safe manner.
+
+    Returns:
+        The cached List[AniworldSpecialEntry] for `slug` if present and not expired, `None` otherwise.
+    """
     if _CACHE_TTL_SECONDS <= 0:
         return None
     now = time.time()
@@ -207,6 +277,15 @@ def _get_cached_entries(slug: str) -> Optional[List[AniworldSpecialEntry]]:
 
 
 def _set_cached_entries(slug: str, entries: List[AniworldSpecialEntry]) -> None:
+    """
+    Cache the provided AniWorld special entries for a given series slug using the module TTL.
+
+    If the cache TTL is disabled (<= 0) this is a no-op. Otherwise stores a tuple of (timestamp, entries) in the internal AniWorld specials cache under the given slug.
+
+    Parameters:
+        slug (str): AniWorld series slug used as cache key.
+        entries (List[AniworldSpecialEntry]): List of parsed special entries to cache.
+    """
     if _CACHE_TTL_SECONDS <= 0:
         return
     with _CACHE_LOCK:
@@ -219,6 +298,21 @@ def fetch_filme_entries(
     base_url: str = ANIWORLD_BASE_URL,
     timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
 ) -> List[AniworldSpecialEntry]:
+    """
+    Fetch and parse AniWorld "Filme" (specials) entries for a show slug, using an in-memory cache.
+
+    Parameters:
+        slug (str): AniWorld show slug used to build the film list URL.
+        base_url (str): Base AniWorld URL; used to construct the request endpoint.
+        timeout_seconds (float): Request timeout in seconds.
+
+    Returns:
+        List[AniworldSpecialEntry]: Parsed list of specials for the given slug; may be empty.
+
+    Raises:
+        HTTPError: If the HTTP request completes with a non-success status.
+        Exception: Propagates other network or parsing-related exceptions.
+    """
     cached = _get_cached_entries(slug)
     if cached is not None:
         return cached
@@ -232,6 +326,16 @@ def fetch_filme_entries(
 
 
 def _get_skyhook_cached_search(term: str) -> Optional[List[Dict[str, Any]]]:
+    """
+    Retrieve cached SkyHook search results for the given search term if a valid cache entry exists.
+
+    Parameters:
+        term (str): SkyHook search term used as the cache key.
+
+    Returns:
+        list[dict]: Cached list of SkyHook result payloads for the term if present and not expired.
+        `None` if caching is disabled, no entry exists, or the entry has expired.
+    """
     if _CACHE_TTL_SECONDS <= 0:
         return None
     now = time.time()
@@ -247,6 +351,13 @@ def _get_skyhook_cached_search(term: str) -> Optional[List[Dict[str, Any]]]:
 
 
 def _set_skyhook_cached_search(term: str, payload: List[Dict[str, Any]]) -> None:
+    """
+    Cache the SkyHook search results for a given search term if caching is enabled.
+
+    Parameters:
+        term (str): Normalized search term used as the cache key.
+        payload (List[Dict[str, Any]]): The search result payload to store.
+    """
     if _CACHE_TTL_SECONDS <= 0:
         return
     with _CACHE_LOCK:
@@ -254,6 +365,14 @@ def _set_skyhook_cached_search(term: str, payload: List[Dict[str, Any]]) -> None
 
 
 def _get_skyhook_cached_show(tvdb_id: int) -> Optional[Dict[str, Any]]:
+    """
+    Retrieve a cached SkyHook show payload for the given TVDB ID if present and within the cache TTL.
+
+    Checks the in-memory SkyHook show cache and returns the stored payload when it exists and has not expired; expired entries are removed.
+
+    Returns:
+        The cached show payload as a dict if present and not expired, `None` otherwise.
+    """
     if _CACHE_TTL_SECONDS <= 0:
         return None
     now = time.time()
@@ -269,6 +388,16 @@ def _get_skyhook_cached_show(tvdb_id: int) -> Optional[Dict[str, Any]]:
 
 
 def _set_skyhook_cached_show(tvdb_id: int, payload: Dict[str, Any]) -> None:
+    """
+    Store a SkyHook show payload in the in-memory cache for a given TVDB ID.
+
+    Parameters:
+        tvdb_id (int): TVDB identifier used as the cache key.
+        payload (dict): SkyHook show payload to cache.
+
+    Notes:
+        If caching is disabled via configuration (cache TTL <= 0), this function does nothing.
+    """
     if _CACHE_TTL_SECONDS <= 0:
         return
     with _CACHE_LOCK:
@@ -276,6 +405,18 @@ def _set_skyhook_cached_show(tvdb_id: int, payload: Dict[str, Any]) -> None:
 
 
 def _skyhook_search(term: str, timeout_seconds: float) -> List[Dict[str, Any]]:
+    """
+    Search SkyHook for a given term and return the raw result objects.
+
+    Performs a case-insensitive, trimmed search for `term`, uses a short-lived in-memory cache keyed by the normalized term, and returns the parsed list of result objects.
+
+    Parameters:
+        term (str): Search term to query SkyHook. Empty or whitespace-only terms yield an empty list.
+        timeout_seconds (float): Request timeout in seconds.
+
+    Returns:
+        List[Dict[str, Any]]: A list of result payload dictionaries returned by SkyHook (non-dict items are discarded).
+    """
     normalized_term = term.strip().lower()
     if not normalized_term:
         return []
@@ -296,6 +437,17 @@ def _skyhook_search(term: str, timeout_seconds: float) -> List[Dict[str, Any]]:
 
 
 def _skyhook_show(tvdb_id: int, timeout_seconds: float) -> Optional[Dict[str, Any]]:
+    """
+    Fetch the SkyHook show payload for a TVDB show ID, using an in-memory cache to avoid repeated requests.
+
+    Parameters:
+        tvdb_id (int): TVDB identifier of the show to fetch.
+        timeout_seconds (float): HTTP request timeout in seconds.
+
+    Returns:
+        dict: The SkyHook show payload when available.
+        None: If the response is not a valid mapping or no payload could be obtained.
+    """
     cached = _get_skyhook_cached_show(tvdb_id)
     if cached is not None:
         return cached
@@ -317,6 +469,20 @@ def _resolve_tvdb_id(
     query: str,
     timeout_seconds: float,
 ) -> Optional[int]:
+    """
+    Resolve a TVDB ID for a series using provided identifiers or SkyHook searches.
+
+    Attempts resolution in this order: 1) return `ids.tvdbid` if present; 2) query SkyHook by TMDB/IMDB identifiers; 3) search SkyHook by title (prefers the best title match). Title-based matches require a confidence score of at least 0.45.
+
+    Parameters:
+        ids (SpecialIds): Optional identifier inputs (tvdbid, tmdbid, imdbid, ...).
+        series_title (str): Canonical series title used for title-based matching.
+        query (str): Alternate query string (e.g., user-provided or episode query) used if title matching is needed.
+        timeout_seconds (float): HTTP timeout to use for SkyHook requests.
+
+    Returns:
+        int | None: The resolved TVDB ID if found, `None` otherwise.
+    """
     if ids.tvdbid and ids.tvdbid > 0:
         return ids.tvdbid
 
@@ -367,6 +533,15 @@ def _resolve_tvdb_id(
 
 
 def _extract_episodes(show_payload: Dict[str, Any]) -> List[SkyHookEpisode]:
+    """
+    Extracts valid episode records from a SkyHook show payload.
+
+    Parameters:
+        show_payload (dict): SkyHook show JSON payload expected to contain an "episodes" list of objects.
+
+    Returns:
+        List[SkyHookEpisode]: A list of episodes where each item has an integer `season_number`, an integer `episode_number`, and a non-empty `title`. Entries missing these fields or with invalid types are omitted.
+    """
     episodes: List[SkyHookEpisode] = []
     for item in show_payload.get("episodes", []):
         if not isinstance(item, dict):
@@ -390,6 +565,18 @@ def _pick_episode_by_query(
     query: str,
     episodes: Sequence[SkyHookEpisode],
 ) -> Optional[SkyHookEpisode]:
+    """
+    Selects the SkyHookEpisode whose title best matches the provided query using the module's title similarity metric.
+
+    Uses the internal title similarity score and requires the best score to be at least max(0.25, SPECIALS_MATCH_CONFIDENCE_THRESHOLD - 0.10) to be considered a match.
+
+    Parameters:
+        query (str): The search/query string to match against episode titles.
+        episodes (Sequence[SkyHookEpisode]): Candidate episodes to evaluate.
+
+    Returns:
+        SkyHookEpisode | None: The episode with the highest title similarity if its score meets the threshold, `None` otherwise.
+    """
     best: Optional[SkyHookEpisode] = None
     best_score = 0.0
     for episode in episodes:
@@ -410,6 +597,18 @@ def _pick_entry_for_episode(
     metadata_episode: SkyHookEpisode,
     entries: Sequence[AniworldSpecialEntry],
 ) -> Optional[AniworldSpecialEntry]:
+    """
+    Selects the AniWorld special entry that best corresponds to a SkyHook episode.
+
+    Compares the episode's title against each entry's German, alternate, and combined titles, applies a small bonus when an entry's film_index equals the episode number, and returns the entry only if its match score meets the configured confidence threshold.
+
+    Parameters:
+        metadata_episode (SkyHookEpisode): The SkyHook episode metadata to match against.
+        entries (Sequence[AniworldSpecialEntry]): Candidate AniWorld special entries.
+
+    Returns:
+        AniworldSpecialEntry or `None`: The best-matching entry if its score meets the threshold, `None` otherwise.
+    """
     best: Optional[AniworldSpecialEntry] = None
     best_score = 0.0
     for entry in entries:
@@ -441,6 +640,19 @@ def _resolve_show_payload(
     series_title: str,
     timeout_seconds: float,
 ) -> Optional[Dict[str, Any]]:
+    """
+    Resolve and fetch the SkyHook show payload for a series.
+
+    Parameters:
+        ids (SpecialIds): Known identifiers for the series (may include tvdbid, tmdbid, imdbid).
+        query (str): User-facing query or title variant used to help resolve the correct show.
+        series_title (str): Canonical series title to bias resolution and matching.
+        timeout_seconds (float): HTTP request timeout in seconds for SkyHook calls.
+
+    Returns:
+        dict: The SkyHook show payload when a tvdb id is resolved and the lookup succeeds.
+        None: If no tvdb id could be resolved or the SkyHook lookup fails.
+    """
     tvdb_id = _resolve_tvdb_id(
         ids=ids,
         series_title=series_title,
@@ -465,6 +677,21 @@ def resolve_special_mapping_from_query(
     ids: SpecialIds,
     timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
 ) -> Optional[SpecialEpisodeMapping]:
+    """
+    Map an AniWorld special (identified by slug and query) to a SkyHook/TVDB episode and return the resulting episode mapping.
+
+    Performs lookup of AniWorld film entries and resolves show/episode metadata via SkyHook; if a confident match between an AniWorld special and a SkyHook special episode is found, returns a SpecialEpisodeMapping describing the source (AniWorld) coordinates, the alias (metadata) coordinates, the metadata title, and the resolved TVDB id.
+
+    Parameters:
+        slug (str): AniWorld series slug used to fetch the specials page.
+        query (str): Query string describing the special (e.g., user search or title fragment).
+        series_title (str): Known series title to aid SkyHook resolution.
+        ids (SpecialIds): Optional identifier hints (tvdbid, tmdbid, imdbid, etc.) used to resolve the TVDB id.
+        timeout_seconds (float): Network request timeout in seconds.
+
+    Returns:
+        SpecialEpisodeMapping | None: A mapping object with source and alias episode coordinates and metadata when a confident match is found, `None` otherwise.
+    """
     if not SPECIALS_METADATA_ENABLED:
         return None
     if not slug or not query:
@@ -527,6 +754,23 @@ def resolve_special_mapping_from_episode_request(
     ids: SpecialIds,
     timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
 ) -> Optional[SpecialEpisodeMapping]:
+    """
+    Map an AniWorld special (identified by a requested season and episode) to SkyHook/TVDB metadata and the corresponding AniWorld film index.
+
+    Parameters:
+        slug (str): AniWorld series slug used to fetch the specials page.
+        request_season (int): Season number from the incoming episode request (used to locate the metadata episode).
+        request_episode (int): Episode number from the incoming episode request.
+        query (str): User or request query string used to help resolve the show on SkyHook.
+        series_title (str): Canonical or known series title to improve title-based resolution.
+        ids (SpecialIds): Optional identifiers (tvdbid, tmdbid, imdbid, etc.) to assist tvdb id resolution.
+        timeout_seconds (float): HTTP timeout for external requests; overrides the module default.
+
+    Returns:
+        SpecialEpisodeMapping or None: A mapping that links the AniWorld special (source season 0 and film index)
+        to the resolved SkyHook/TVDB episode (alias season/episode and metadata) if a confident match is found;
+        `None` when resolution or confident matching fails.
+    """
     if not SPECIALS_METADATA_ENABLED:
         return None
     if not slug:
