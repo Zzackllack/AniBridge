@@ -1,13 +1,16 @@
+from __future__ import annotations
+
 import re
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, TYPE_CHECKING
 
 from loguru import logger
-
-from aniworld.models import Episode  # type: ignore
 
 from app.config import PROVIDER_ORDER
 from .errors import DownloadError, LanguageUnavailableError
 from .language import normalize_language
+
+if TYPE_CHECKING:
+    from aniworld.models import Episode
 
 _AVAIL_RE = re.compile(r"Available languages:\s*\[([^\]]*)\]", re.IGNORECASE)
 

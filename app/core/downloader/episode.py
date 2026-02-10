@@ -1,11 +1,14 @@
-from typing import Optional
+from __future__ import annotations
+
+from typing import Optional, TYPE_CHECKING
 from urllib.parse import urlparse
 
 from loguru import logger
 
-from aniworld.models import Episode  # type: ignore
-
 from app.config import CATALOG_SITE_CONFIGS
+
+if TYPE_CHECKING:
+    from aniworld.models import Episode
 
 
 def build_episode(
@@ -42,6 +45,10 @@ def build_episode(
         episode,
         site,
     )
+    # Import lazily to avoid aniworld parser side effects during module import
+    # (e.g., PyInstaller isolated analysis importing this module).
+    from aniworld.models import Episode  # type: ignore
+
     ep: Optional[Episode] = None
     site_domain = site
     site_cfg = CATALOG_SITE_CONFIGS.get(site)
