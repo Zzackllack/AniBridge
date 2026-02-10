@@ -12,9 +12,16 @@ Supported operations via `t`:
 - `caps` — capabilities
 - `search` — generic search (connectivity test supported)
 - `tvsearch` — series episode search
+- `movie` / `movie-search` — movie-focused search
 
 > [!IMPORTANT]
 > If `INDEXER_API_KEY` is set, pass `apikey=...` on every request.
+
+## Query Parameters
+
+- Common: `t`, `apikey`, `q`, `cat`, `offset`, `limit`
+- `tvsearch`: `season`, `ep`
+- Optional ID hints for specials mapping: `tvdbid`, `tmdbid`, `imdbid`, `rid`, `tvmazeid`
 
 ## Operations
 
@@ -25,6 +32,8 @@ Supported operations via `t`:
 - When `q` is empty and `TORZNAB_RETURN_TEST_RESULT=true`, a synthetic test item is returned for connectivity checks.
 - For a query, AniBridge resolves the slug across all enabled catalogues (AniWorld + Serienstream/s.to + megakino by default) and emits preview items for S01E01 across probable languages per site. Megakino is search-only, so queries must provide a slug or a megakino URL containing one.
 - `tvsearch` emits items only for actually available languages/providers (using cached probe or live check).
+- For AniWorld specials/extras (`/filme`), AniBridge applies metadata-backed mapping to map Sonarr's requested special numbering/title to AniWorld's source `film-N` entries when they diverge.
+- Release titles always keep the Sonarr-facing alias numbering (for example `S00E05`) even when AniWorld source probe/download uses a different `film-N` index. This keeps grab-time and import-time episode parsing consistent.
 
 ## Magnet Payload
 

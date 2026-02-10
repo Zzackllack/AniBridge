@@ -63,6 +63,12 @@ outline: deep
 > import or disable "Analyze video files" in Sonarr. For details, see
 > [Issue #50](https://github.com/Zzackllack/AniBridge/issues/50).
 
+## Sonarr import error: "Invalid season or episode"
+
+- Symptom: Sonarr grabs a release like `S00E05` but import fails with `Invalid season or episode`.
+- Check AniBridge-reported `content_path` via `GET /api/v2/torrents/info`; it must contain the same `SxxEyy` token as the grabbed release title.
+- Ensure you are running a version that preserves alias numbering in final rename for specials/extras mappings. Older builds could return mismatched `content_path` numbering and fail import validation.
+
 ## STRM proxy playback shows "Video-Bitrate: 0 kbps" in Jellyfin
 
 > [!WARNING]

@@ -25,6 +25,8 @@ Point Sonarr at AniBridge’s qBittorrent-compatible API.
 
 AniBridge reports progress, save path, and final `content_path` so Sonarr can import the file when the job completes.
 
+For AniWorld specials/extras, AniBridge keeps Sonarr alias numbering in the final filename/content path (for example `S00E05`) even if AniWorld source ordering differs internally (for example `film-4`). This avoids Sonarr import failures from season/episode mismatches.
+
 If Sonarr runs in a different container with a different mount, set `QBIT_PUBLIC_SAVE_PATH` to the path Sonarr sees (inside the Sonarr container), and ensure both containers mount the same host folder to that path.
 
 ### Required Docker volume mapping
