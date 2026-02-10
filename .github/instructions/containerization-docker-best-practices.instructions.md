@@ -146,7 +146,7 @@ FROM ubuntu:20.04
 RUN apt-get update
 RUN apt-get install -y python3 curl
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-RUN ~/.local/bin/uv tool install flask
+RUN ~/.local/bin/uv pip install flask
 RUN apt-get clean
 RUN rm -rf /var/lib/apt/lists/*
 
@@ -155,7 +155,7 @@ FROM ubuntu:20.04
 RUN apt-get update && \
     apt-get install -y python3 curl && \
     curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    ~/.local/bin/uv tool install flask && \
+    ~/.local/bin/uv pip install flask && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 ```

@@ -514,7 +514,7 @@ secrets.json
 # Lock files
 *.lock
 
-# Exeception for uv lockfile
+# Exception for uv lockfile
 !uv.lock
 
 # Documentation build

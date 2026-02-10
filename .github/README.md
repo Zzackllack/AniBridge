@@ -49,6 +49,7 @@ docker compose up -d
 ```bash
 git clone https://github.com/zzackllack/AniBridge.git
 cd AniBridge
+# Install uv first if needed: https://docs.astral.sh/uv/getting-started/installation/
 uv sync --frozen
 uv run python -m app.main
 ```

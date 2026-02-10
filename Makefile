@@ -8,7 +8,7 @@ bump:
 	@echo "Usage: make patch|minor|major"
 
 patch:
-	uv tool run bump2version patch
+	uv run bump2version patch
 	# push the new commit and tag to origin so CI triggers on the pushed tag
 	@/bin/sh -c ' \
 	if [ "$(PUSH)" = "true" ]; then \
@@ -25,7 +25,7 @@ patch:
 	fi'
 
 minor:
-	uv tool run bump2version minor
+	uv run bump2version minor
 	# push the new commit and tag to origin so CI triggers on the pushed tag
 	@/bin/sh -c ' \
 	if [ "$(PUSH)" = "true" ]; then \
@@ -42,7 +42,7 @@ minor:
 	fi'
 
 major:
-	uv tool run bump2version major
+	uv run bump2version major
 	# push the new commit and tag to origin so CI triggers on the pushed tag
 	@/bin/sh -c ' \
 	if [ "$(PUSH)" = "true" ]; then \
@@ -66,10 +66,10 @@ tag:
 
 
 build:
-	uv run --with build python -m build
+	uv build
 
 wheel: build
 
 pyinstaller:
 	# build single-file for the current platform from app/main.py (adjust as needed)
-	uv run --with pyinstaller pyinstaller --onefile app/main.py --name anibridge
+	uv run pyinstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge

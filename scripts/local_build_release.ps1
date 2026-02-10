@@ -23,22 +23,8 @@ if (-not (Test-Path -Path 'VERSION')) {
 $VERSION = (Get-Content -Path 'VERSION' -Raw).Trim()
 Write-Host "Building release for version: $VERSION"
 
-# choose python: prefer .venv\Scripts\python.exe, otherwise python3 or python from PATH
-$venvPython = Join-Path -Path '.venv\Scripts' -ChildPath 'python.exe'
-if (Test-Path $venvPython) {
-    $PYTHON = $venvPython
-} else {
-    $py3 = Get-Command python3 -ErrorAction SilentlyContinue
-    $py = Get-Command python -ErrorAction SilentlyContinue
-    if ($py3 -and $py3.Path) { $PYTHON = $py3.Path }
-    elseif ($py -and $py.Path) { $PYTHON = $py.Path }
-    else { Write-Error "Python not found in .venv or PATH"; exit 1 }
-}
-
-Write-Host "Using python: $PYTHON"
-
 Write-Host "==> Building python distributions"
-uv run --with build python -m build
+uv build
 
 Write-Host "==> Creating SHA256SUMS"
 $distDir = Join-Path -Path $RepoRoot -ChildPath 'dist'
@@ -56,7 +42,7 @@ Write-Host "SHA256SUMS written to $shaFile"
 
 Write-Host "==> Building PyInstaller single-file (current OS)"
 if (Test-Path 'app\main.py') {
-    uv run --with pyinstaller pyinstaller --additional-hooks-dir hooks --onefile 'app/main.py' --name anibridge
+    uv run pyinstaller --additional-hooks-dir hooks --onefile 'app/main.py' --name anibridge
 
     if ($IsWindows) { $PLATFORM = 'windows' }
     elseif ($IsLinux) { $PLATFORM = 'linux' }

@@ -3,13 +3,16 @@
 [providers.python]
 version = "3.12"
 
+[variables]
+PATH = "$HOME/.local/bin:${PATH}"
+
 [environment]
 PYTHONUNBUFFERED = "1"
 
 [phases.install]
 commands = [
   "curl -LsSf https://astral.sh/uv/install.sh | sh",
-  "export PATH=$HOME/.local/bin:$PATH && uv sync --frozen --no-editable"
+  "uv sync --frozen --no-editable"
 ]
 
 [start]
