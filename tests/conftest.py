@@ -5,6 +5,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+@pytest.fixture
+def stub_aniworld_parser(monkeypatch):
+    """Provide a temporary stub for ``aniworld.parser`` in ``sys.modules``."""
+    import argparse
+    import types
+
+    stub_parser = types.ModuleType("aniworld.parser")
+    stub_parser.parse_arguments = lambda: argparse.Namespace()
+    stub_parser.arguments = argparse.Namespace()
+    monkeypatch.setitem(sys.modules, "aniworld.parser", stub_parser)
+    return stub_parser
+
+
 @pytest.fixture(autouse=True)
 def _fast_test_env(monkeypatch):
     """Set up a fast test environment by disabling slow operations.
@@ -32,16 +45,23 @@ def _fast_test_env(monkeypatch):
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     """
-    Provide a configured TestClient connected to a freshly initialized, isolated test application.
+    Provide a configured TestClient for an isolated test application.
 
-    This fixture prepares an isolated environment for FastAPI tests by setting DATA_DIR and DOWNLOAD_DIR to temporary locations, ensuring the repository root is on sys.path, installing a minimal stub for `aniworld.parser`, clearing SQLModel metadata, removing relevant app modules from sys.modules to force clean imports, initializing the test database schema, and patching qbittorrent scheduler calls to deterministic no-op/test values before yielding the TestClient.
+    Prepares isolated FastAPI test state by setting DATA_DIR and
+    DOWNLOAD_DIR to temporary locations, ensuring repo root is on
+    sys.path, stubbing `aniworld.parser`, clearing SQLModel metadata,
+    removing app modules from sys.modules for clean imports, creating the
+    test database schema, and patching qbittorrent scheduler calls.
 
     Parameters:
-        tmp_path (pathlib.Path): Temporary directory provided by pytest for creating per-test filesystem paths.
-        monkeypatch (pytest.MonkeyPatch): Pytest fixture used to set environment variables and patch attributes.
+        tmp_path (pathlib.Path): Temporary directory used for per-test
+            filesystem paths.
+        monkeypatch (pytest.MonkeyPatch): Fixture used to set environment
+            variables and patch attributes.
 
     Returns:
-        TestClient: A TestClient instance for the FastAPI app backed by the prepared test environment and database.
+        TestClient: Client backed by the prepared test environment and
+        database.
     """
     data_dir = tmp_path / "data"
     download_dir = tmp_path / "downloads"
@@ -60,7 +80,7 @@ def client(tmp_path, monkeypatch):
     stub_parser_any = cast(Any, stub_parser)
     stub_parser_any.parse_arguments = lambda: argparse.Namespace()
     stub_parser_any.arguments = argparse.Namespace()
-    sys.modules["aniworld.parser"] = stub_parser
+    monkeypatch.setitem(sys.modules, "aniworld.parser", stub_parser)
 
     from sqlmodel import SQLModel
 

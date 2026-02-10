@@ -12,10 +12,14 @@
 
 ## Torznab Namespace (`/torznab/api`)
 
-- Supports `t=caps`, `t=search`, `t=tvsearch`, `t=episode` patterns.
+- Supports `t=caps`, `t=search`, `t=tvsearch`, `t=movie`, `t=movie-search`.
 - Returns XML responses conforming to Torznab spec.
 - Accepts `apikey` when configured (`INDEXER_API_KEY`).
+- `tvsearch` accepts ID hints: `tvdbid`, `tmdbid`, `imdbid`, `rid`, `tvmazeid`.
 - Uses `title_resolver` and `EpisodeAvailability` cache for slug matching.
+- For AniWorld specials/extras, applies metadata-backed alias/source
+  mapping so Sonarr numbering can differ from AniWorld `film-N`
+  ordering.
 
 ## qBittorrent Shim (`/api/v2/*`)
 
