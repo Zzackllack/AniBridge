@@ -210,6 +210,7 @@ def _title_score(left: str, right: str) -> float:
         return 0.0
 
     intersection = left_tokens & right_tokens
+    # Asymmetric on purpose: we score how much of `left` is covered by `right`.
     overlap = len(intersection) / max(1, len(left_tokens))
     jaccard = len(intersection) / max(1, len(left_tokens | right_tokens))
     containment = 1.0 if (left_n in right_n or right_n in left_n) else 0.0
@@ -661,6 +662,7 @@ def _pick_entry_for_episode(
         score = max(
             _title_score(metadata_episode.title, title) for title in candidate_titles
         )
+        # `score` is clamped in _title_score, but the index bonus may exceed 1.0.
         if entry.film_index == metadata_episode.episode_number:
             score += 0.10
         if score > best_score:

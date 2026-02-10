@@ -2,14 +2,14 @@ import xml.etree.ElementTree as ET
 
 
 def _fake_release_name(
-    series_title,
-    season,
-    episode,
-    height,
-    vcodec,
-    language,
-    site="aniworld.to",
-):
+    series_title: str,
+    season: int,
+    episode: int,
+    height: int,
+    vcodec: str,
+    language: str,
+    site: str = "aniworld.to",
+) -> str:
     """
     Constructs a fake release name for a series episode using the provided season and episode numbers.
 
@@ -33,15 +33,15 @@ def _fake_release_name(
 
 
 def _fake_magnet(
-    title,
-    slug,
-    season,
-    episode,
-    language,
-    provider,
-    site="aniworld.to",
+    title: str,
+    slug: str,
+    season: int,
+    episode: int,
+    language: str,
+    provider: str | None,
+    site: str = "aniworld.to",
     **_kwargs,
-):
+) -> str:
     """
     Builds a fake magnet URI that encodes the provided slug, season, episode, and site as aw_* query parameters.
 
@@ -212,6 +212,7 @@ def test_tvsearch_reuses_resolved_special_mapping_across_languages(
     client,
     monkeypatch,
 ):
+    """Verify a resolved special mapping is reused for subsequent languages."""
     import app.api.torznab as tn
     import app.api.torznab.api as torznab_api
     from app.providers.aniworld.specials import SpecialEpisodeMapping

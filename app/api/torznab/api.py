@@ -58,6 +58,83 @@ def _default_languages_for_site(site: str) -> List[str]:
     return list(fallback)
 
 
+def _try_mapped_special_probe(
+    *,
+    tn_module,
+    session: Session,
+    slug: str,
+    lang: str,
+    site_found: str,
+    special_map,
+) -> tuple[bool, Optional[int], Optional[str], Optional[str], int, int, int, int]:
+    """
+    Probe mapped AniWorld special coordinates using cache first, then live probe.
+
+    Returns availability tuple together with resolved source/alias coordinates.
+    """
+    source_season = special_map.source_season
+    source_episode = special_map.source_episode
+    alias_season = special_map.alias_season
+    alias_episode = special_map.alias_episode
+
+    try:
+        rec_mapped = tn_module.get_availability(
+            session,
+            slug=slug,
+            season=source_season,
+            episode=source_episode,
+            language=lang,
+            site=site_found,
+        )
+    except (ValueError, RuntimeError):
+        rec_mapped = None
+    if rec_mapped and rec_mapped.available and rec_mapped.is_fresh:
+        return (
+            True,
+            rec_mapped.height,
+            rec_mapped.vcodec,
+            rec_mapped.provider,
+            source_season,
+            source_episode,
+            alias_season,
+            alias_episode,
+        )
+
+    try:
+        available, height, vcodec, prov_used, _info = tn_module.probe_episode_quality(
+            slug=slug,
+            season=source_season,
+            episode=source_episode,
+            language=lang,
+            site=site_found,
+        )
+    except (ValueError, RuntimeError) as e:
+        logger.error(
+            "Error probing mapped special quality for slug={}, S{}E{}, lang={}, site={}: {}",
+            slug,
+            source_season,
+            source_episode,
+            lang,
+            site_found,
+            e,
+        )
+        available = False
+        height = None
+        vcodec = None
+        prov_used = None
+
+    return (
+        available,
+        height,
+        vcodec,
+        prov_used,
+        source_season,
+        source_episode,
+        alias_season,
+        alias_episode,
+    )
+
+
 def _handle_preview_search(
     session: Session,
     q_str: str,
@@ -818,49 +895,23 @@ def torznab_api(
                             special_map.source_episode,
                         )
                 if special_map is not None:
-                    source_season = special_map.source_season
-                    source_episode = special_map.source_episode
-                    alias_season = special_map.alias_season
-                    alias_episode = special_map.alias_episode
-
-                    try:
-                        rec_mapped = tn.get_availability(
-                            session,
-                            slug=slug,
-                            season=source_season,
-                            episode=source_episode,
-                            language=lang,
-                            site=site_found,
-                        )
-                    except (ValueError, RuntimeError):
-                        rec_mapped = None
-                    if rec_mapped and rec_mapped.available and rec_mapped.is_fresh:
-                        available = True
-                        height = rec_mapped.height
-                        vcodec = rec_mapped.vcodec
-                        prov_used = rec_mapped.provider
-                    else:
-                        try:
-                            available, height, vcodec, prov_used, _info = (
-                                tn.probe_episode_quality(
-                                    slug=slug,
-                                    season=source_season,
-                                    episode=source_episode,
-                                    language=lang,
-                                    site=site_found,
-                                )
-                            )
-                        except (ValueError, RuntimeError) as e:
-                            logger.error(
-                                "Error probing mapped special quality for slug={}, S{}E{}, lang={}, site={}: {}",
-                                slug,
-                                source_season,
-                                source_episode,
-                                lang,
-                                site_found,
-                                e,
-                            )
-                            available = False
+                    (
+                        available,
+                        height,
+                        vcodec,
+                        prov_used,
+                        source_season,
+                        source_episode,
+                        alias_season,
+                        alias_episode,
+                    ) = _try_mapped_special_probe(
+                        tn_module=tn,
+                        session=session,
+                        slug=slug,
+                        lang=lang,
+                        site_found=site_found,
+                        special_map=special_map,
+                    )
 
             try:
                 tn.upsert_availability(
