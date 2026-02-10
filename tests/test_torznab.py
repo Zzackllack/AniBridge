@@ -44,25 +44,14 @@ def test_tvsearch_happy_path(client, monkeypatch):
     monkeypatch.setattr(
         tn,
         "build_release_name",
-        lambda series_title,
-        season,
-        episode,
-        height,
-        vcodec,
-        language,
-        site="aniworld.to": ("Title"),
+        lambda series_title, season, episode, height, vcodec, language, site="aniworld.to": (
+            "Title"
+        ),
     )
     monkeypatch.setattr(
         tn,
         "build_magnet",
-        lambda title,
-        slug,
-        season,
-        episode,
-        language,
-        provider,
-        site="aniworld.to",
-        **_kwargs: (
+        lambda title, slug, season, episode, language, provider, site="aniworld.to", **_kwargs: (
             "magnet:?xt=urn:btih:test&dn=Title&aw_slug=slug&aw_s=1&aw_e=1&aw_lang=German+Sub&aw_site=aniworld.to"
         ),
     )
