@@ -96,6 +96,18 @@ def download_episode(
             preferred_provider: Optional[str],
             force_no_proxy: bool,
         ) -> Optional[Path]:
+            """
+            Attempt to resolve a direct streaming URL from Megakino and download + rename the resulting file for a single provider/proxy combination.
+            
+            Attempts to resolve a direct URL for the given preferred provider (under an optional disabled-proxy context), downloads the content to dest_dir using yt-dlp, and renames the downloaded file to the release naming schema (respecting movie vs. episode semantics and any release name override).
+            
+            Parameters:
+                preferred_provider (Optional[str]): Provider name to prefer when resolving the direct URL; `None` lets the resolver choose.
+                force_no_proxy (bool): If True, run the resolution and download with proxy environment disabled.
+            
+            Returns:
+                Path or None: Path to the final renamed release file when a download occurs; `None` if the resolved direct URL was skipped because it was already tried or no download was performed.
+            """
             context = disabled_proxy_env() if force_no_proxy else nullcontext()
             with context:
                 direct, chosen = client.resolve_direct_url(

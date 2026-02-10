@@ -17,20 +17,20 @@ def build_episode(
     site: str = "aniworld.to",
 ) -> Episode:
     """
-    Create an Episode from either a direct URL or a slug/season/episode triple for the specified site.
-
-    If `link` is provided it takes precedence. The `site` argument is resolved against CATALOG_SITE_CONFIGS; if a configured `base_url` is present its network location (or trimmed base_url) is used as the Episode.site. If the created Episode has no `link`, attempt to run an internal `_auto_fill_basic_details()` helper (if present) to populate basic fields for compatibility with older aniworld versions.
-
+    Construct an Episode from either a direct episode URL or a (slug, season, episode) triple for a given site.
+    
+    If `link` is provided it takes precedence. The `site` value is resolved against CATALOG_SITE_CONFIGS: when a configured `base_url` exists its network location (or the trimmed `base_url`) is used as the Episode.site. If the created Episode lacks a `link`, the function will attempt to run an internal `_auto_fill_basic_details()` helper (when present) to populate basic fields for compatibility with older aniworld versions. For the special case of site "s.to", the function may build a v2 URL and attempt optional enrichment using provider helpers when a `base_url` is configured.
+    
     Parameters:
         link (Optional[str]): Direct episode URL; used when provided.
-        slug (Optional[str]): Series identifier used with `season` and `episode` when `link` is not provided.
+        slug (Optional[str]): Series slug; used together with `season` and `episode` when `link` is not provided.
         season (Optional[int]): Season number paired with `slug` and `episode`.
         episode (Optional[int]): Episode number paired with `slug` and `season`.
-        site (str): Host site identifier that will be resolved via CATALOG_SITE_CONFIGS to determine the Episode.site (default "aniworld.to").
-
+        site (str): Site identifier resolved via CATALOG_SITE_CONFIGS to determine the Episode.site (default "aniworld.to").
+    
     Returns:
         Episode: The constructed Episode instance.
-
+    
     Raises:
         ValueError: If neither `link` nor the combination of `slug`, `season`, and `episode` are supplied.
     """

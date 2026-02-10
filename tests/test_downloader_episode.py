@@ -2,6 +2,15 @@ from pathlib import Path
 
 
 def _stub_aniworld_parser() -> None:
+    """
+    Install a minimal stub module named "aniworld.parser" into sys.modules for tests.
+    
+    Creates a module with two attributes:
+    - `parse_arguments`: callable that returns an empty argparse.Namespace.
+    - `arguments`: an empty argparse.Namespace.
+    
+    This function mutates sys.modules by inserting the stub under the key "aniworld.parser" so importers expecting that module succeed in test environments.
+    """
     import argparse
     import sys
     import types
@@ -63,6 +72,18 @@ def test_download_episode_generates_s00e_hint(monkeypatch, tmp_path: Path):
         stop_event,
         force_no_proxy,
     ):
+        """
+        Test helper that simulates a youtube-dl download by writing a temporary mp4 and recording the provided title hint.
+        
+        Parameters:
+            _url: URL to download (ignored).
+            dest_dir (Path): Directory where the temporary file will be created.
+            title_hint (str): Title hint to record into the test `captured` mapping.
+            cookiefile, progress_cb, stop_event, force_no_proxy: Ignored keyword-only arguments present to match the real downloader signature.
+        
+        Returns:
+            tuple: (Path to the created "tmp.mp4" file in `dest_dir`, info_dict) where `info_dict` is an empty dict.
+        """
         del cookiefile, progress_cb, stop_event, force_no_proxy
         captured["title_hint"] = title_hint
         tmp_file = dest_dir / "tmp.mp4"
@@ -120,12 +141,32 @@ def test_download_episode_uses_title_hint_as_release_override(
         stop_event,
         force_no_proxy,
     ):
+        """
+        Create a temporary MP4 file named "tmp.mp4" inside dest_dir and return its path along with an empty info dictionary.
+        
+        Parameters:
+            dest_dir (pathlib.Path): Directory where the temporary "tmp.mp4" file will be written.
+        
+        Returns:
+            (pathlib.Path, dict): Tuple containing the Path to the written "tmp.mp4" and an empty dictionary.
+        """
         del title_hint, cookiefile, progress_cb, stop_event, force_no_proxy
         tmp_file = dest_dir / "tmp.mp4"
         tmp_file.write_bytes(b"ok")
         return tmp_file, {}
 
     def _fake_rename_to_release(**kwargs):
+        """
+        Capture the 'release_name_override' value from keyword arguments and return the supplied path.
+        
+        Parameters:
+            kwargs (dict): Keyword arguments expected to include:
+                - path (str): filesystem path to return.
+                - release_name_override (str, optional): release name override to capture.
+        
+        Returns:
+            str: The `path` value from `kwargs`.
+        """
         captured["release_name_override"] = kwargs.get("release_name_override")
         return kwargs["path"]
 
