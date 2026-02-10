@@ -425,6 +425,9 @@ venv.bak/
 profile_default/
 ipython_config.py
 
+# UV
+.uv-cache/
+
 # =============================================================================
 # BASH/SHELL
 # =============================================================================
@@ -542,19 +545,7 @@ changelog.md
 # ───── Codex overlay ─────
 
 # Ignore everything by default inside .codex
-.codex/*
-
-# Keep project prompts & commands (versioned, shared)
-!.codex/prompts/
-!.codex/prompts/**
-!.codex/commands/
-!.codex/commands/**
-
-# Ignore junk that can appear under .codex
-.codex/logs/
-.codex/cache/
-.codex/sessions/
-.codex/*.db
+.codex/
 
 # ───── Agent-specific local dirs (other tools) ─────
 

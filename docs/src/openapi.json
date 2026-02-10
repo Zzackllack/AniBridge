@@ -713,7 +713,7 @@
         "tags": [
           "Torznab"
         ],
-        "summary": "Torznab query (caps, search, tvsearch)",
+        "summary": "Torznab query (caps, search, tvsearch, movie)",
         "operationId": "torznabQuery",
         "parameters": [
           {
@@ -725,7 +725,9 @@
               "enum": [
                 "caps",
                 "search",
-                "tvsearch"
+                "tvsearch",
+                "movie",
+                "movie-search"
               ]
             },
             "description": "Operation type."
@@ -767,6 +769,80 @@
               "minimum": 0
             },
             "description": "Episode number (tvsearch)."
+          },
+          {
+            "name": "tvdbid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Optional TVDB ID hint."
+          },
+          {
+            "name": "tmdbid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Optional TMDB ID hint."
+          },
+          {
+            "name": "imdbid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional IMDb ID hint."
+          },
+          {
+            "name": "rid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Optional Rage ID hint."
+          },
+          {
+            "name": "tvmazeid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Optional TVMaze ID hint."
+          },
+          {
+            "name": "cat",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional category filter (for example 5070/2000)."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "description": "Result offset."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50
+            },
+            "description": "Maximum number of results."
           }
         ],
         "responses": {

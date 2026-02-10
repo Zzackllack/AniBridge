@@ -9,7 +9,7 @@ AniBridge exposes a simple job model with progress tracking and SSE.
 
 ## Operations
 
-<ApiOperations :tags="['Jobs']" />
+<ApiOperations :tags="['Jobs']" hide-branding />
 
 ## Enqueue Example
 

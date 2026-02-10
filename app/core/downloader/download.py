@@ -58,6 +58,10 @@ def download_episode(
         DownloadError: When URL resolution or download ultimately fails after all fallback attempts.
     """
     language = normalize_language(language)
+    release_override = None
+    if title_hint:
+        cleaned = title_hint.replace(" [STRM]", "").strip()
+        release_override = cleaned if cleaned else None
     logger.info(
         "Starting download_episode: link={}, slug={}, season={}, episode={}, provider={}, language={}, dest_dir={}, site={}",
         link,
@@ -76,9 +80,6 @@ def download_episode(
         is_movie = bool(entry and entry.kind == "film")
         if is_movie:
             logger.debug("Megakino slug '{}' classified as movie.", slug)
-        release_override = None
-        if title_hint:
-            release_override = title_hint.replace(" [STRM]", "").strip()
         provider_candidates = []
         if provider:
             provider_candidates.append(provider)
@@ -96,6 +97,23 @@ def download_episode(
             preferred_provider: Optional[str],
             force_no_proxy: bool,
         ) -> Optional[Path]:
+            """
+            Resolve Megakino direct URL and download once for one provider/proxy pair.
+
+            Resolves a direct URL for the preferred provider, optionally with
+            proxies disabled, downloads to `dest_dir` via yt-dlp, then renames
+            the file to the release schema (movie vs episode aware).
+
+            Parameters:
+                preferred_provider (Optional[str]): Preferred provider; `None`
+                    lets the resolver choose.
+                force_no_proxy (bool): If True, resolve and download with proxy
+                    environment disabled.
+
+            Returns:
+                Path or None: Final renamed path, or `None` when the resolved
+                direct URL was already tried.
+            """
             context = disabled_proxy_env() if force_no_proxy else nullcontext()
             with context:
                 direct, chosen = client.resolve_direct_url(
@@ -114,7 +132,7 @@ def download_episode(
                 if not base_hint:
                     if is_movie:
                         base_hint = f"{slug}-{language}-{chosen}"
-                    elif slug and season and episode:
+                    elif slug and season is not None and episode is not None:
                         base_hint = (
                             f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
                         )
@@ -196,7 +214,7 @@ def download_episode(
             raise
 
     base_hint = title_hint
-    if not base_hint and slug and season and episode:
+    if not base_hint and slug and season is not None and episode is not None:
         base_hint = f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
         logger.debug("Generated base_hint for filename: {}", base_hint)
 
@@ -289,6 +307,7 @@ def download_episode(
         episode=episode,
         language=language,
         site=site,
+        release_name_override=release_override,
     )
     logger.success("Final file path: {}", final_path)
     return final_path

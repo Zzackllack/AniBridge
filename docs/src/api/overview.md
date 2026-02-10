@@ -20,4 +20,4 @@ This section is organized around operation pages (one page per endpoint). Use th
 
 ## Browse Operations
 
-<ApiOperations />
+<ApiOperations hide-branding />
