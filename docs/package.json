@@ -8,9 +8,9 @@
     "preview": "vitepress preview"
   },
   "dependencies": {
-    "@vue/server-renderer": "^3.5.27",
+    "@vue/server-renderer": "^3.5.28",
     "lucide-vue-next": "^0.563.0",
-    "vue": "^3.5.20"
+    "vue": "^3.5.28"
   },
   "devDependencies": {
     "vite": "^7.3.1",
