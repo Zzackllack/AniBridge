@@ -206,3 +206,111 @@ def test_tvsearch_falls_back_to_special_mapping_when_requested_episode_missing(
     url = enclosure.get("url") or ""
     assert "aw_s=0" in url
     assert "aw_e=4" in url
+
+
+def test_tvsearch_reuses_resolved_special_mapping_across_languages(
+    client,
+    monkeypatch,
+):
+    import app.api.torznab as tn
+    import app.api.torznab.api as torznab_api
+    from app.providers.aniworld.specials import SpecialEpisodeMapping
+
+    monkeypatch.setattr(
+        tn, "_slug_from_query", lambda q, site=None: ("aniworld.to", "kaguya")
+    )
+    monkeypatch.setattr(
+        tn, "resolve_series_title", lambda slug, site="aniworld.to": "Kaguya-sama"
+    )
+    monkeypatch.setattr(
+        tn,
+        "list_available_languages_cached",
+        lambda session, slug, season, episode, site="aniworld.to": [
+            "German Sub",
+            "English Sub",
+        ],
+    )
+    monkeypatch.setattr(
+        tn,
+        "get_availability",
+        lambda session, slug, season, episode, language, site="aniworld.to": None,
+    )
+    monkeypatch.setattr(tn, "upsert_availability", lambda *args, **kwargs: None)
+    monkeypatch.setattr(tn, "build_release_name", _fake_release_name)
+    monkeypatch.setattr(tn, "build_magnet", _fake_magnet)
+    monkeypatch.setattr(
+        torznab_api,
+        "resolve_special_mapping_from_episode_request",
+        lambda **_kwargs: SpecialEpisodeMapping(
+            source_season=0,
+            source_episode=4,
+            alias_season=0,
+            alias_episode=5,
+            metadata_title="special title",
+            metadata_tvdb_id=12345,
+        ),
+    )
+
+    probe_calls: list[tuple[int, int, str]] = []
+
+    def _probe_quality(slug, season, episode, language, site="aniworld.to", **_kwargs):
+        _ = (slug, site)
+        probe_calls.append((season, episode, language))
+        if season == 0 and episode == 4:
+            return (True, 1080, "h264", "VOE", {})
+        return (False, None, None, None, None)
+
+    monkeypatch.setattr(tn, "probe_episode_quality", _probe_quality)
+
+    resp = client.get(
+        "/torznab/api",
+        params={"t": "tvsearch", "q": "Kaguya", "season": 0, "ep": 5, "cat": "5070"},
+    )
+    assert resp.status_code == 200
+    requested_calls = [c for c in probe_calls if c[0] == 0 and c[1] == 5]
+    assert len(requested_calls) == 1
+    mapped_calls = [c for c in probe_calls if c[0] == 0 and c[1] == 4]
+    assert len(mapped_calls) == 2
+
+
+def test_tvsearch_guid_alias_suffix_only_when_alias_differs(
+    client,
+    monkeypatch,
+):
+    import app.api.torznab as tn
+
+    monkeypatch.setattr(
+        tn, "_slug_from_query", lambda q, site=None: ("aniworld.to", "kaguya")
+    )
+    monkeypatch.setattr(
+        tn, "resolve_series_title", lambda slug, site="aniworld.to": "Kaguya-sama"
+    )
+    monkeypatch.setattr(
+        tn,
+        "list_available_languages_cached",
+        lambda session, slug, season, episode, site="aniworld.to": ["German Sub"],
+    )
+    monkeypatch.setattr(
+        tn,
+        "get_availability",
+        lambda session, slug, season, episode, language, site="aniworld.to": None,
+    )
+    monkeypatch.setattr(
+        tn,
+        "probe_episode_quality",
+        lambda **_kwargs: (True, 1080, "h264", "VOE", {}),
+    )
+    monkeypatch.setattr(tn, "upsert_availability", lambda *args, **kwargs: None)
+    monkeypatch.setattr(tn, "build_release_name", _fake_release_name)
+    monkeypatch.setattr(tn, "build_magnet", _fake_magnet)
+
+    resp = client.get(
+        "/torznab/api",
+        params={"t": "tvsearch", "q": "Kaguya", "season": 1, "ep": 1, "cat": "5070"},
+    )
+    assert resp.status_code == 200
+    root = ET.fromstring(resp.text)
+    item = root.find("./channel/item")
+    assert item is not None
+    guid = item.findtext("guid") or ""
+    assert ":alias-s" not in guid

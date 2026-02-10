@@ -60,7 +60,8 @@ def download_episode(
     language = normalize_language(language)
     release_override = None
     if title_hint:
-        release_override = title_hint.replace(" [STRM]", "").strip()
+        cleaned = title_hint.replace(" [STRM]", "").strip()
+        release_override = cleaned if cleaned else None
     logger.info(
         "Starting download_episode: link={}, slug={}, season={}, episode={}, provider={}, language={}, dest_dir={}, site={}",
         link,

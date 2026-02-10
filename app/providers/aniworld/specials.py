@@ -25,6 +25,19 @@ _PART_NUMBER_RE = re.compile(r"\b(?:part|teil)\s*(\d+)\b", re.IGNORECASE)
 
 _DEFAULT_TIMEOUT_SECONDS = max(1.0, float(SPECIALS_METADATA_TIMEOUT_SECONDS))
 _CACHE_TTL_SECONDS = max(0, int(SPECIALS_METADATA_CACHE_TTL_MINUTES)) * 60
+_CACHE_MAX_ENTRIES = 512
+
+# Keep title overlap as the primary signal, with Jaccard/containment as stabilizers.
+_TITLE_SCORE_WEIGHT_OVERLAP = 0.55
+_TITLE_SCORE_WEIGHT_JACCARD = 0.25
+_TITLE_SCORE_WEIGHT_CONTAINMENT = 0.20
+# Matching part numbers strongly increases confidence for multi-part specials.
+_TITLE_SCORE_PART_MATCH_BONUS = 0.30
+_TITLE_SCORE_PART_MISMATCH_PENALTY = 0.30
+
+_TVDB_RESOLVE_MIN_CONFIDENCE = 0.45
+_QUERY_EPISODE_THRESHOLD_OFFSET = 0.10
+_ENTRY_PICK_THRESHOLD_OFFSET = 0.15
 
 _CACHE_LOCK = threading.Lock()
 _SKYHOOK_SEARCH_CACHE: Dict[str, tuple[float, List[Dict[str, Any]]]] = {}
@@ -35,8 +48,30 @@ _SKYHOOK_SEARCH_URL = "https://skyhook.sonarr.tv/v1/tvdb/search/en/"
 _SKYHOOK_SHOW_URL = "https://skyhook.sonarr.tv/v1/tvdb/shows/en/{tvdb_id}"
 
 
+def _prune_ttl_cache_unlocked(cache: Dict[Any, tuple[float, Any]]) -> None:
+    """Prune expired entries and enforce max cache size for a TTL cache."""
+    if not cache:
+        return
+    now = time.time()
+    if _CACHE_TTL_SECONDS > 0:
+        expired = [
+            key
+            for key, (stored_at, _payload) in cache.items()
+            if now - stored_at > _CACHE_TTL_SECONDS
+        ]
+        for key in expired:
+            cache.pop(key, None)
+    if len(cache) <= _CACHE_MAX_ENTRIES:
+        return
+    overflow = len(cache) - _CACHE_MAX_ENTRIES
+    for key, _record in sorted(cache.items(), key=lambda item: item[1][0])[:overflow]:
+        cache.pop(key, None)
+
+
 @dataclass(frozen=True)
 class SpecialIds:
+    """Optional external identifiers used to resolve show metadata."""
+
     tvdbid: Optional[int] = None
     tmdbid: Optional[int] = None
     imdbid: Optional[str] = None
@@ -76,6 +111,8 @@ class SkyHookEpisode:
 
 @dataclass(frozen=True)
 class SpecialEpisodeMapping:
+    """Mapping between AniWorld source episode coordinates and Sonarr alias coordinates."""
+
     source_season: int
     source_episode: int
     alias_season: int
@@ -162,14 +199,14 @@ def _title_score(left: str, right: str) -> float:
         float: Similarity score in the range 0.0 to 1.0, where higher values indicate
         greater similarity.
     """
+    left_tokens = set(_tokenize(left))
+    right_tokens = set(_tokenize(right))
+    if not left_tokens or not right_tokens:
+        return 0.0
+
     left_n = _normalize_text(left)
     right_n = _normalize_text(right)
     if not left_n or not right_n:
-        return 0.0
-
-    left_tokens = set(_tokenize(left_n))
-    right_tokens = set(_tokenize(right_n))
-    if not left_tokens or not right_tokens:
         return 0.0
 
     intersection = left_tokens & right_tokens
@@ -177,15 +214,19 @@ def _title_score(left: str, right: str) -> float:
     jaccard = len(intersection) / max(1, len(left_tokens | right_tokens))
     containment = 1.0 if (left_n in right_n or right_n in left_n) else 0.0
 
-    score = (0.55 * overlap) + (0.25 * jaccard) + (0.20 * containment)
+    score = (
+        (_TITLE_SCORE_WEIGHT_OVERLAP * overlap)
+        + (_TITLE_SCORE_WEIGHT_JACCARD * jaccard)
+        + (_TITLE_SCORE_WEIGHT_CONTAINMENT * containment)
+    )
 
     left_parts = _part_numbers(left_n)
     right_parts = _part_numbers(right_n)
     if left_parts and right_parts:
         if left_parts == right_parts:
-            score += 0.30
+            score += _TITLE_SCORE_PART_MATCH_BONUS
         elif left_parts.isdisjoint(right_parts):
-            score -= 0.30
+            score -= _TITLE_SCORE_PART_MISMATCH_PENALTY
 
     return max(0.0, min(1.0, score))
 
@@ -264,15 +305,12 @@ def _get_cached_entries(slug: str) -> Optional[List[AniworldSpecialEntry]]:
     """
     if _CACHE_TTL_SECONDS <= 0:
         return None
-    now = time.time()
     with _CACHE_LOCK:
+        _prune_ttl_cache_unlocked(_ANIWORLD_SPECIALS_CACHE)
         record = _ANIWORLD_SPECIALS_CACHE.get(slug)
         if record is None:
             return None
-        stored_at, payload = record
-        if now - stored_at > _CACHE_TTL_SECONDS:
-            _ANIWORLD_SPECIALS_CACHE.pop(slug, None)
-            return None
+        _stored_at, payload = record
         return payload
 
 
@@ -290,6 +328,7 @@ def _set_cached_entries(slug: str, entries: List[AniworldSpecialEntry]) -> None:
         return
     with _CACHE_LOCK:
         _ANIWORLD_SPECIALS_CACHE[slug] = (time.time(), entries)
+        _prune_ttl_cache_unlocked(_ANIWORLD_SPECIALS_CACHE)
 
 
 def fetch_filme_entries(
@@ -319,6 +358,9 @@ def fetch_filme_entries(
 
     url = f"{base_url.rstrip('/')}/anime/stream/{slug}/filme"
     response = http_get(url, timeout=timeout_seconds)
+    if response.status_code == 404:
+        _set_cached_entries(slug, [])
+        return []
     response.raise_for_status()
     entries = parse_filme_entries(response.text)
     _set_cached_entries(slug, entries)
@@ -338,15 +380,12 @@ def _get_skyhook_cached_search(term: str) -> Optional[List[Dict[str, Any]]]:
     """
     if _CACHE_TTL_SECONDS <= 0:
         return None
-    now = time.time()
     with _CACHE_LOCK:
+        _prune_ttl_cache_unlocked(_SKYHOOK_SEARCH_CACHE)
         record = _SKYHOOK_SEARCH_CACHE.get(term)
         if record is None:
             return None
-        stored_at, payload = record
-        if now - stored_at > _CACHE_TTL_SECONDS:
-            _SKYHOOK_SEARCH_CACHE.pop(term, None)
-            return None
+        _stored_at, payload = record
         return payload
 
 
@@ -362,6 +401,7 @@ def _set_skyhook_cached_search(term: str, payload: List[Dict[str, Any]]) -> None
         return
     with _CACHE_LOCK:
         _SKYHOOK_SEARCH_CACHE[term] = (time.time(), payload)
+        _prune_ttl_cache_unlocked(_SKYHOOK_SEARCH_CACHE)
 
 
 def _get_skyhook_cached_show(tvdb_id: int) -> Optional[Dict[str, Any]]:
@@ -375,15 +415,12 @@ def _get_skyhook_cached_show(tvdb_id: int) -> Optional[Dict[str, Any]]:
     """
     if _CACHE_TTL_SECONDS <= 0:
         return None
-    now = time.time()
     with _CACHE_LOCK:
+        _prune_ttl_cache_unlocked(_SKYHOOK_SHOW_CACHE)
         record = _SKYHOOK_SHOW_CACHE.get(tvdb_id)
         if record is None:
             return None
-        stored_at, payload = record
-        if now - stored_at > _CACHE_TTL_SECONDS:
-            _SKYHOOK_SHOW_CACHE.pop(tvdb_id, None)
-            return None
+        _stored_at, payload = record
         return payload
 
 
@@ -402,6 +439,7 @@ def _set_skyhook_cached_show(tvdb_id: int, payload: Dict[str, Any]) -> None:
         return
     with _CACHE_LOCK:
         _SKYHOOK_SHOW_CACHE[tvdb_id] = (time.time(), payload)
+        _prune_ttl_cache_unlocked(_SKYHOOK_SHOW_CACHE)
 
 
 def _skyhook_search(term: str, timeout_seconds: float) -> List[Dict[str, Any]]:
@@ -527,7 +565,7 @@ def _resolve_tvdb_id(
             if score > best_score:
                 best_score = score
                 best_id = tvdb_id
-    if best_id and best_score >= 0.45:
+    if best_id and best_score >= _TVDB_RESOLVE_MIN_CONFIDENCE:
         return best_id
     return None
 
@@ -586,7 +624,10 @@ def _pick_episode_by_query(
             best = episode
     if best is None:
         return None
-    threshold = max(0.25, float(SPECIALS_MATCH_CONFIDENCE_THRESHOLD) - 0.10)
+    threshold = max(
+        0.25,
+        float(SPECIALS_MATCH_CONFIDENCE_THRESHOLD) - _QUERY_EPISODE_THRESHOLD_OFFSET,
+    )
     if best_score < threshold:
         return None
     return best
@@ -627,7 +668,10 @@ def _pick_entry_for_episode(
             best = entry
     if best is None:
         return None
-    threshold = max(0.25, float(SPECIALS_MATCH_CONFIDENCE_THRESHOLD) - 0.15)
+    threshold = max(
+        0.25,
+        float(SPECIALS_MATCH_CONFIDENCE_THRESHOLD) - _ENTRY_PICK_THRESHOLD_OFFSET,
+    )
     if best_score < threshold:
         return None
     return best
@@ -669,32 +713,18 @@ def _resolve_show_payload(
         return None
 
 
-def resolve_special_mapping_from_query(
+def _resolve_special_context(
     *,
     slug: str,
     query: str,
     series_title: str,
     ids: SpecialIds,
-    timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
-) -> Optional[SpecialEpisodeMapping]:
-    """
-    Map an AniWorld special (identified by slug and query) to a SkyHook/TVDB episode and return the resulting episode mapping.
-
-    Performs lookup of AniWorld film entries and resolves show/episode metadata via SkyHook; if a confident match between an AniWorld special and a SkyHook special episode is found, returns a SpecialEpisodeMapping describing the source (AniWorld) coordinates, the alias (metadata) coordinates, the metadata title, and the resolved TVDB id.
-
-    Parameters:
-        slug (str): AniWorld series slug used to fetch the specials page.
-        query (str): Query string describing the special (e.g., user search or title fragment).
-        series_title (str): Known series title to aid SkyHook resolution.
-        ids (SpecialIds): Optional identifier hints (tvdbid, tmdbid, imdbid, etc.) used to resolve the TVDB id.
-        timeout_seconds (float): Network request timeout in seconds.
-
-    Returns:
-        SpecialEpisodeMapping | None: A mapping object with source and alias episode coordinates and metadata when a confident match is found, `None` otherwise.
-    """
-    if not SPECIALS_METADATA_ENABLED:
-        return None
-    if not slug or not query:
+    timeout_seconds: float,
+) -> Optional[
+    tuple[List[AniworldSpecialEntry], Dict[str, Any], int, List[SkyHookEpisode]]
+]:
+    """Resolve shared AniWorld + metadata context required for specials mapping."""
+    if not SPECIALS_METADATA_ENABLED or not slug:
         return None
 
     try:
@@ -718,7 +748,45 @@ def resolve_special_mapping_from_query(
     if tvdb_id is None:
         return None
 
-    episodes = _extract_episodes(payload)
+    return entries, payload, tvdb_id, _extract_episodes(payload)
+
+
+def resolve_special_mapping_from_query(
+    *,
+    slug: str,
+    query: str,
+    series_title: str,
+    ids: SpecialIds,
+    timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+) -> Optional[SpecialEpisodeMapping]:
+    """
+    Map an AniWorld special (identified by slug and query) to a SkyHook/TVDB episode and return the resulting episode mapping.
+
+    Performs lookup of AniWorld film entries and resolves show/episode metadata via SkyHook; if a confident match between an AniWorld special and a SkyHook special episode is found, returns a SpecialEpisodeMapping describing the source (AniWorld) coordinates, the alias (metadata) coordinates, the metadata title, and the resolved TVDB id.
+
+    Parameters:
+        slug (str): AniWorld series slug used to fetch the specials page.
+        query (str): Query string describing the special (e.g., user search or title fragment).
+        series_title (str): Known series title to aid SkyHook resolution.
+        ids (SpecialIds): Optional identifier hints (tvdbid, tmdbid, imdbid, etc.) used to resolve the TVDB id.
+        timeout_seconds (float): Network request timeout in seconds.
+
+    Returns:
+        SpecialEpisodeMapping | None: A mapping object with source and alias episode coordinates and metadata when a confident match is found, `None` otherwise.
+    """
+    if not query:
+        return None
+
+    resolved = _resolve_special_context(
+        slug=slug,
+        query=query,
+        series_title=series_title,
+        ids=ids,
+        timeout_seconds=timeout_seconds,
+    )
+    if resolved is None:
+        return None
+    entries, _payload, tvdb_id, episodes = resolved
     specials = [episode for episode in episodes if episode.season_number == 0]
     if not specials:
         return None
@@ -771,34 +839,19 @@ def resolve_special_mapping_from_episode_request(
         to the resolved SkyHook/TVDB episode (alias season/episode and metadata) if a confident match is found;
         `None` when resolution or confident matching fails.
     """
-    if not SPECIALS_METADATA_ENABLED:
-        return None
-    if not slug:
-        return None
-
-    try:
-        entries = fetch_filme_entries(slug, timeout_seconds=timeout_seconds)
-    except Exception as exc:  # pragma: no cover - network resilience
-        logger.debug("AniWorld specials fetch failed for slug {}: {}", slug, exc)
-        return None
-    if not entries:
-        return None
-
-    payload = _resolve_show_payload(
-        ids=ids,
+    resolved = _resolve_special_context(
+        slug=slug,
         query=query,
         series_title=series_title,
+        ids=ids,
         timeout_seconds=timeout_seconds,
     )
-    if not payload:
+    if resolved is None:
         return None
-
-    tvdb_id = _as_int(payload.get("tvdbId"))
-    if tvdb_id is None:
-        return None
+    entries, _payload, tvdb_id, episodes = resolved
 
     metadata_episode: Optional[SkyHookEpisode] = None
-    for episode in _extract_episodes(payload):
+    for episode in episodes:
         if (
             episode.season_number == request_season
             and episode.episode_number == request_episode

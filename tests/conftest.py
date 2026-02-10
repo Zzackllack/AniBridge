@@ -5,6 +5,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+@pytest.fixture
+def stub_aniworld_parser(monkeypatch):
+    """Provide a temporary stub for ``aniworld.parser`` in ``sys.modules``."""
+    import argparse
+    import types
+
+    stub_parser = types.ModuleType("aniworld.parser")
+    stub_parser.parse_arguments = lambda: argparse.Namespace()
+    stub_parser.arguments = argparse.Namespace()
+    monkeypatch.setitem(sys.modules, "aniworld.parser", stub_parser)
+    return stub_parser
+
+
 @pytest.fixture(autouse=True)
 def _fast_test_env(monkeypatch):
     """Set up a fast test environment by disabling slow operations.
@@ -60,7 +73,7 @@ def client(tmp_path, monkeypatch):
     stub_parser_any = cast(Any, stub_parser)
     stub_parser_any.parse_arguments = lambda: argparse.Namespace()
     stub_parser_any.arguments = argparse.Namespace()
-    sys.modules["aniworld.parser"] = stub_parser
+    monkeypatch.setitem(sys.modules, "aniworld.parser", stub_parser)
 
     from sqlmodel import SQLModel
 

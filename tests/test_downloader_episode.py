@@ -1,30 +1,10 @@
 from pathlib import Path
 
 
-def _stub_aniworld_parser() -> None:
-    """
-    Install a minimal stub module named "aniworld.parser" into sys.modules for tests.
-
-    Creates a module with two attributes:
-    - `parse_arguments`: callable that returns an empty argparse.Namespace.
-    - `arguments`: an empty argparse.Namespace.
-
-    This function mutates sys.modules by inserting the stub under the key "aniworld.parser" so importers expecting that module succeed in test environments.
-    """
-    import argparse
-    import sys
-    import types
-
-    stub_parser = types.ModuleType("aniworld.parser")
-    stub_parser.parse_arguments = lambda: argparse.Namespace()
-    stub_parser.arguments = argparse.Namespace()
-    sys.modules["aniworld.parser"] = stub_parser
-
-
-def test_build_episode_accepts_season_zero_for_movies():
+def test_build_episode_accepts_season_zero_for_movies(stub_aniworld_parser):
     import importlib
 
-    _stub_aniworld_parser()
+    del stub_aniworld_parser
     build_episode = importlib.import_module("app.core.downloader.episode").build_episode
 
     episode = build_episode(
@@ -36,14 +16,17 @@ def test_build_episode_accepts_season_zero_for_movies():
 
     assert episode.season == 0
     assert episode.episode == 1
+    assert episode.slug == "kaguya-sama-love-is-war"
     assert isinstance(episode.link, str)
     assert episode.link.endswith("/anime/stream/kaguya-sama-love-is-war/filme/film-1")
 
 
-def test_download_episode_generates_s00e_hint(monkeypatch, tmp_path: Path):
+def test_download_episode_generates_s00e_hint(
+    stub_aniworld_parser, monkeypatch, tmp_path: Path
+):
     import importlib
 
-    _stub_aniworld_parser()
+    del stub_aniworld_parser
     dl = importlib.import_module("app.core.downloader.download")
 
     captured: dict[str, str | None] = {"title_hint": None}
@@ -108,11 +91,11 @@ def test_download_episode_generates_s00e_hint(monkeypatch, tmp_path: Path):
 
 
 def test_download_episode_uses_title_hint_as_release_override(
-    monkeypatch, tmp_path: Path
+    stub_aniworld_parser, monkeypatch, tmp_path: Path
 ):
     import importlib
 
-    _stub_aniworld_parser()
+    del stub_aniworld_parser
     dl = importlib.import_module("app.core.downloader.download")
 
     captured: dict[str, str | None] = {"release_name_override": None}
@@ -188,3 +171,59 @@ def test_download_episode_uses_title_hint_as_release_override(
         captured["release_name_override"]
         == "Kaguya.sama.Love.is.War.S00E05.1080p.WEB.H264.GER-ANIWORLD"
     )
+
+
+def test_download_episode_sets_release_override_to_none_when_hint_is_empty(
+    stub_aniworld_parser, monkeypatch, tmp_path: Path
+):
+    import importlib
+
+    del stub_aniworld_parser
+    dl = importlib.import_module("app.core.downloader.download")
+
+    captured: dict[str, str | None] = {"release_name_override": "sentinel"}
+
+    class DummyEpisode:
+        pass
+
+    monkeypatch.setattr(dl, "build_episode", lambda **_kwargs: DummyEpisode())
+    monkeypatch.setattr(
+        dl,
+        "get_direct_url_with_fallback",
+        lambda _ep, preferred, language: ("https://example.test/master.m3u8", "VOE"),
+    )
+
+    def _fake_ydl_download(
+        _url,
+        dest_dir,
+        *,
+        title_hint,
+        cookiefile,
+        progress_cb,
+        stop_event,
+        force_no_proxy,
+    ):
+        del title_hint, cookiefile, progress_cb, stop_event, force_no_proxy
+        tmp_file = dest_dir / "tmp.mp4"
+        tmp_file.write_bytes(b"ok")
+        return tmp_file, {}
+
+    def _fake_rename_to_release(**kwargs):
+        captured["release_name_override"] = kwargs.get("release_name_override")
+        return kwargs["path"]
+
+    monkeypatch.setattr(dl, "_ydl_download", _fake_ydl_download)
+    monkeypatch.setattr(dl, "rename_to_release", _fake_rename_to_release)
+
+    output = dl.download_episode(
+        slug="kaguya-sama-love-is-war",
+        season=0,
+        episode=4,
+        language="German Dub",
+        dest_dir=tmp_path,
+        site="aniworld.to",
+        title_hint=" [STRM] ",
+    )
+
+    assert output == tmp_path / "tmp.mp4"
+    assert captured["release_name_override"] is None

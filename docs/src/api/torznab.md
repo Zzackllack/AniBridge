@@ -21,7 +21,8 @@ Supported operations via `t`:
 
 - Common: `t`, `apikey`, `q`, `cat`, `offset`, `limit`
 - `tvsearch`: `season`, `ep`
-- Optional ID hints for specials mapping: `tvdbid`, `tmdbid`, `imdbid`, `rid`, `tvmazeid`
+- Optional ID hints for specials mapping:
+  `tvdbid`, `tmdbid`, `imdbid`, `rid`, `tvmazeid`
 
 ## Operations
 
@@ -29,11 +30,23 @@ Supported operations via `t`:
 
 ## Behavior Notes
 
-- When `q` is empty and `TORZNAB_RETURN_TEST_RESULT=true`, a synthetic test item is returned for connectivity checks.
-- For a query, AniBridge resolves the slug across all enabled catalogues (AniWorld + Serienstream/s.to + megakino by default) and emits preview items for S01E01 across probable languages per site. Megakino is search-only, so queries must provide a slug or a megakino URL containing one.
-- `tvsearch` emits items only for actually available languages/providers (using cached probe or live check).
-- For AniWorld specials/extras (`/filme`), AniBridge applies metadata-backed mapping to map Sonarr's requested special numbering/title to AniWorld's source `film-N` entries when they diverge.
-- Release titles always keep the Sonarr-facing alias numbering (for example `S00E05`) even when AniWorld source probe/download uses a different `film-N` index. This keeps grab-time and import-time episode parsing consistent.
+- When `q` is empty and `TORZNAB_RETURN_TEST_RESULT=true`, a synthetic
+  test item is returned for connectivity checks.
+- For a query, AniBridge resolves the slug across all enabled
+  catalogues (AniWorld + Serienstream/s.to + megakino by default) and
+  emits preview items for S01E01 across probable languages per site.
+  Megakino is search-only, so queries must provide a slug or a
+  megakino URL containing one.
+- `tvsearch` emits items only for actually available
+  languages/providers (using cached probe or live check).
+- For AniWorld specials/extras (`/filme`), AniBridge applies
+  metadata-backed mapping to map Sonarr's requested special
+  numbering/title to AniWorld's source `film-N` entries when they
+  diverge.
+- Release titles always keep the Sonarr-facing alias numbering (for
+  example `S00E05`) even when AniWorld source probe/download uses a
+  different `film-N` index. This keeps grab-time and import-time
+  episode parsing consistent.
 
 ## Magnet Payload
 
@@ -49,15 +62,26 @@ Optional variant field (used for STRM support):
 ...&aw_mode=strm
 ```
 
-For Serienstream releases the prefix switches to `sto_` (e.g., `sto_slug`, `sto_site=s.to`). Megakino releases still use the `aw_` prefix but include `aw_site=megakino` for routing. The qBittorrent shim parses these parameters when Sonarr posts to `/api/v2/torrents/add`.
+For Serienstream releases the prefix switches to `sto_`
+(e.g., `sto_slug`, `sto_site=s.to`). Megakino releases still use the
+`aw_` prefix but include `aw_site=megakino` for routing. The
+qBittorrent shim parses these parameters when Sonarr posts to
+`/api/v2/torrents/add`.
 
 ## STRM Variants
 
-When `STRM_FILES_MODE` is enabled (`both` or `only`), AniBridge emits additional Torznab items with a ` [STRM]` suffix. Selecting such an item causes AniBridge to create a `.strm` file (plain text, one URL line) instead of downloading the media file.
+When `STRM_FILES_MODE` is enabled (`both` or `only`), AniBridge emits
+additional Torznab items with a ` [STRM]` suffix. Selecting such an
+item causes AniBridge to create a `.strm` file (plain text, one URL
+line) instead of downloading the media file.
 
-When `STRM_PROXY_MODE=proxy`, the `.strm` file points to the AniBridge proxy endpoint (`/strm/stream`) rather than a provider/CDN URL. In `direct` mode it writes the resolved provider URL directly.
+When `STRM_PROXY_MODE=proxy`, the `.strm` file points to the AniBridge
+proxy endpoint (`/strm/stream`) rather than a provider/CDN URL. In
+`direct` mode it writes the resolved provider URL directly.
 
-STRM variants intentionally report a normal-looking size (the same heuristic sizing as non-STRM items) so they are not rejected by Arr size filters.
+STRM variants intentionally report a normal-looking size (the same
+heuristic sizing as non-STRM items) so they are not rejected by Arr
+size filters.
 
 ::: warning
 Sonarr can occasionally reject `.strm` imports with “No audio tracks detected” even when playback works. If this

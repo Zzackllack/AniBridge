@@ -1,6 +1,7 @@
 from app.providers.aniworld.specials import (
     AniworldSpecialEntry,
     SpecialIds,
+    fetch_filme_entries,
     parse_filme_entries,
     resolve_special_mapping_from_episode_request,
     resolve_special_mapping_from_query,
@@ -123,3 +124,19 @@ def test_resolve_special_mapping_from_episode_request_maps_requested_alias(
     assert mapping.source_episode == 4
     assert mapping.alias_season == 0
     assert mapping.alias_episode == 5
+
+
+def test_fetch_filme_entries_returns_empty_list_on_404(monkeypatch) -> None:
+    class DummyResponse:
+        status_code = 404
+        text = ""
+
+        def raise_for_status(self) -> None:
+            raise AssertionError("raise_for_status should not be called for 404")
+
+    monkeypatch.setattr(
+        "app.providers.aniworld.specials.http_get",
+        lambda _url, timeout: DummyResponse(),
+    )
+    entries = fetch_filme_entries("missing-show-slug")
+    assert entries == []

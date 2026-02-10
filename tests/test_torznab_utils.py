@@ -1,23 +1,7 @@
-def _stub_aniworld_parser() -> None:
-    """
-    Create and inject a minimal stub module named "aniworld.parser" into sys.modules for tests.
-
-    The stub provides a `parse_arguments()` callable that returns an empty argparse.Namespace and an `arguments` attribute set to an empty argparse.Namespace, allowing code that imports `aniworld.parser` to operate without the real package.
-    """
-    import argparse
-    import sys
-    import types
-
-    stub_parser = types.ModuleType("aniworld.parser")
-    stub_parser.parse_arguments = lambda: argparse.Namespace()
-    stub_parser.arguments = argparse.Namespace()
-    sys.modules["aniworld.parser"] = stub_parser
-
-
-def test_caps_xml_parses():
+def test_caps_xml_parses(stub_aniworld_parser):
     import xml.etree.ElementTree as ET
 
-    _stub_aniworld_parser()
+    del stub_aniworld_parser
     from app.api.torznab import _caps_xml
 
     xml = _caps_xml()
@@ -30,8 +14,8 @@ def test_caps_xml_parses():
         assert expected in supported
 
 
-def test_slug_from_query_basic(monkeypatch):
-    _stub_aniworld_parser()
+def test_slug_from_query_basic(stub_aniworld_parser, monkeypatch):
+    del stub_aniworld_parser
     from app.api.torznab import utils as torznab_utils
     from app import utils as app_utils
 

@@ -12,6 +12,7 @@ from sqlmodel import Session
 from app.config import (
     ANIBRIDGE_TEST_MODE,
     CATALOG_SITE_CONFIGS,
+    SPECIALS_METADATA_ENABLED,
     STRM_FILES_MODE,
     TORZNAB_CAT_ANIME,
     TORZNAB_CAT_MOVIE,
@@ -579,21 +580,23 @@ def torznab_api(
                         strm_suffix=strm_suffix,
                     )
             else:
-                special_count = _handle_special_search(
-                    session,
-                    q_str,
-                    channel,
-                    cat_id,
-                    ids=SpecialIds(
-                        tvdbid=tvdbid,
-                        tmdbid=tmdbid,
-                        imdbid=imdbid,
-                        rid=rid,
-                        tvmazeid=tvmazeid,
-                    ),
-                    limit=limit,
-                    strm_suffix=strm_suffix,
-                )
+                special_count = 0
+                if SPECIALS_METADATA_ENABLED:
+                    special_count = _handle_special_search(
+                        session,
+                        q_str,
+                        channel,
+                        cat_id,
+                        ids=SpecialIds(
+                            tvdbid=tvdbid,
+                            tmdbid=tmdbid,
+                            imdbid=imdbid,
+                            rid=rid,
+                            tvmazeid=tvmazeid,
+                        ),
+                        limit=limit,
+                        strm_suffix=strm_suffix,
+                    )
                 if special_count == 0:
                     _handle_preview_search(
                         session,
@@ -742,6 +745,11 @@ def torznab_api(
         source_episode = ep_i
         alias_season = season_i
         alias_episode = ep_i
+        if special_map is not None:
+            source_season = special_map.source_season
+            source_episode = special_map.source_episode
+            alias_season = special_map.alias_season
+            alias_episode = special_map.alias_episode
 
         # check cache per language
         try:
@@ -914,10 +922,9 @@ def torznab_api(
 
         # Use site-appropriate prefix for GUID
         prefix = _site_prefix(site_found)
-        guid_base = (
-            f"{prefix}:{slug}:s{source_season}e{source_episode}:{lang}"
-            f":alias-s{alias_season}e{alias_episode}"
-        )
+        guid_base = f"{prefix}:{slug}:s{source_season}e{source_episode}:{lang}"
+        if (alias_season, alias_episode) != (source_season, source_episode):
+            guid_base = f"{guid_base}:alias-s{alias_season}e{alias_episode}"
 
         try:
             if STRM_FILES_MODE in ("no", "both"):
