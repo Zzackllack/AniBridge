@@ -35,6 +35,7 @@ AniBridge implements a minimal subset that Sonarr/Prowlarr use. Authentication i
     'qBittorrent Transfer',
     'qBittorrent App'
   ]"
+  hide-branding
 />
 
 ## Behavior Notes

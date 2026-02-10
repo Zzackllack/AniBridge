@@ -25,7 +25,7 @@ Supported operations via `t`:
 
 ## Operations
 
-<ApiOperations :tags="['Torznab']" />
+<ApiOperations :tags="['Torznab']" hide-branding />
 
 ## Behavior Notes
 

@@ -40,7 +40,7 @@ Recommended setup:
 
 ## Endpoints
 
-<ApiOperations :tags="['STRM Proxy']"/>
+<ApiOperations :tags="['STRM Proxy']" hide-branding />
 
 ## HLS Rewriting
 

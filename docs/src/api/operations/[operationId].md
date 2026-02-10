@@ -10,4 +10,8 @@ const { params } = useData()
 </script>
 
 <!-- Provided globally by vitepress-openapi via OpenAPITheme.enhanceApp -->
-<OAOperation :operationId="params.operationId" :prefix-headings="true" />
+<OAOperation
+  :operationId="params.operationId"
+  :prefix-headings="true"
+  hide-branding
+/>
