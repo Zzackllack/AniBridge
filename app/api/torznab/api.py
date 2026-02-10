@@ -69,14 +69,14 @@ def _handle_preview_search(
 ) -> int:
     """
     Populate the RSS channel with preview (S01E01) search results for the given query.
-    
+
     Resolves the query to a series slug (optionally constrained by site), determines candidate languages, probes and upserts preview availability per language, constructs magnet (and optional STRM) links according to STRM_FILES_MODE, and adds corresponding RSS items to the provided channel.
-    
+
     Parameters:
         site (Optional[str]): Optional site identifier to constrain slug resolution and source-specific behavior.
         limit (Optional[int]): Maximum number of items to add; None means no explicit limit.
         strm_suffix (str): Suffix appended to release titles for STRM entries (default: " [STRM]").
-    
+
     Returns:
         int: Number of items added to the channel.
     """
@@ -232,9 +232,9 @@ def _handle_special_search(
 ) -> int:
     """
     Generate RSS items for title-only searches that map to AniWorld "special" episodes using metadata-backed aliasing.
-    
+
     When the query resolves to an aniworld.to slug and a special mapping exists, this will add episode-specific RSS items whose displayed release title uses the Sonarr-facing alias season/episode (SxxEyy) while the magnet payload targets the AniWorld source season/episode. For each candidate language it probes availability, upserts availability with alias metadata, and creates magnet and optional STRM items according to STRM_FILES_MODE. Processing stops when the optional limit is reached.
-    
+
     Parameters:
         session (Session): Database/session object used for cached lookups and upserts.
         q_str (str): Title-only query string to resolve.
@@ -243,7 +243,7 @@ def _handle_special_search(
         ids (SpecialIds): Identifiers (tvdb/tmdb/imdb/rid/tvmaze) used to assist special-mapping resolution.
         limit (Optional[int]): Maximum number of RSS items to add; None means no explicit limit.
         strm_suffix (str): Suffix appended to release titles for STRM-mode items.
-    
+
     Returns:
         int: Number of RSS items added to the provided channel.
     """

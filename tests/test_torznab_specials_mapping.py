@@ -12,7 +12,7 @@ def _fake_release_name(
 ):
     """
     Constructs a fake release name for a series episode using the provided season and episode numbers.
-    
+
     Parameters:
         series_title (str): Ignored; present for signature compatibility.
         season (int): Season number; used and zero-padded to two digits in the result.
@@ -21,7 +21,7 @@ def _fake_release_name(
         vcodec (str): Ignored; present for signature compatibility.
         language (str): Ignored; present for signature compatibility.
         site (str): Ignored; present for signature compatibility.
-    
+
     Returns:
         str: A release-name string in the form "Kaguya.SXXEYY.1080p.WEB.H264.GER.SUB-ANIWORLD"
              where XX is the zero-padded season and YY is the zero-padded episode.
@@ -44,13 +44,13 @@ def _fake_magnet(
 ):
     """
     Builds a fake magnet URI that encodes the provided slug, season, episode, and site as aw_* query parameters.
-    
+
     Parameters:
         slug (str): Series slug to include as the `aw_slug` query parameter.
         season (int): Season index to include as the `aw_s` query parameter.
         episode (int): Episode index to include as the `aw_e` query parameter.
         site (str): Site identifier to include as the `aw_site` query parameter (default "aniworld.to").
-    
+
     Returns:
         str: A magnet URI string containing `aw_slug`, `aw_s`, `aw_e`, and `aw_site` set to the provided values.
     """
@@ -64,7 +64,7 @@ def _fake_magnet(
 def test_search_uses_special_mapping_alias_in_title(client, monkeypatch):
     """
     Verify that a torznab search result applies a special episode mapping alias to the item title and enclosure parameters.
-    
+
     Performs a search request and asserts a 200 response, that an item exists whose title contains "S00E05", and that the enclosure URL includes "aw_s=0" and "aw_e=4".
     """
     import app.api.torznab as tn
@@ -127,7 +127,7 @@ def test_tvsearch_falls_back_to_special_mapping_when_requested_episode_missing(
 ):
     """
     Verifies that a tvsearch request falls back to a SpecialEpisodeMapping when the requested episode is unavailable and that the resulting item reflects the alias episode and mapped source.
-    
+
     Asserts the response contains an item whose title includes "S00E05" (the alias episode) and whose enclosure URL includes the mapped source parameters `aw_s=0` and `aw_e=4`.
     """
     import app.api.torznab as tn
@@ -154,20 +154,20 @@ def test_tvsearch_falls_back_to_special_mapping_when_requested_episode_missing(
     def _probe_quality(slug, season, episode, language, site="aniworld.to", **_kwargs):
         """
         Determine if the specified episode is available as a 1080p H.264 release and provide its metadata.
-        
+
         Parameters:
-        	slug (str): Series identifier (ignored by this probe).
-        	season (int): Season number to probe.
-        	episode (int): Episode number to probe.
-        	language (str): Language tag (ignored by this probe).
-        	site (str): Site identifier (ignored by this probe).
-        
+                slug (str): Series identifier (ignored by this probe).
+                season (int): Season number to probe.
+                episode (int): Episode number to probe.
+                language (str): Language tag (ignored by this probe).
+                site (str): Site identifier (ignored by this probe).
+
         Returns:
-        	available (bool): `True` if the probe found a matching 1080p H.264 release, `False` otherwise.
-        	height (int or None): Video height in pixels when available (1080), otherwise `None`.
-        	vcodec (str or None): Video codec string when available ("h264"), otherwise `None`.
-        	release_language (str or None): Release language tag when available ("VOE"), otherwise `None`.
-        	extra (dict or None): Additional metadata (empty dict when available), otherwise `None`.
+                available (bool): `True` if the probe found a matching 1080p H.264 release, `False` otherwise.
+                height (int or None): Video height in pixels when available (1080), otherwise `None`.
+                vcodec (str or None): Video codec string when available ("h264"), otherwise `None`.
+                release_language (str or None): Release language tag when available ("VOE"), otherwise `None`.
+                extra (dict or None): Additional metadata (empty dict when available), otherwise `None`.
         """
         _ = (slug, language, site)
         if season == 0 and episode == 4:

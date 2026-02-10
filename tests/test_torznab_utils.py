@@ -1,7 +1,7 @@
 def _stub_aniworld_parser() -> None:
     """
     Create and inject a minimal stub module named "aniworld.parser" into sys.modules for tests.
-    
+
     The stub provides a `parse_arguments()` callable that returns an empty argparse.Namespace and an `arguments` attribute set to an empty argparse.Namespace, allowing code that imports `aniworld.parser` to operate without the real package.
     """
     import argparse
