@@ -6,24 +6,30 @@ echo "--------------------------------------------"
 
 # Check Python
 if ! command -v python3 >/dev/null 2>&1; then
-    echo "❌ Python3 not found. Please install Python 3.10+"
+    echo "❌ Python3 not found. Please install Python 3.11+"
+    exit 1
+fi
+if ! command -v uv >/dev/null 2>&1; then
+    echo "❌ uv not found. Install it first: https://docs.astral.sh/uv/getting-started/installation/"
     exit 1
 fi
 
 echo "✅ Python3 detected: $(python3 --version)"
 
+# Ensure Python version is >= 3.11 to match pyproject.toml requires-python.
+PYTHON_VERSION_OK=$(python3 -c 'import sys; print(int(sys.version_info >= (3, 11)))' || echo "0")
+if [ "$PYTHON_VERSION_OK" != "1" ]; then
+    echo "❌ Python 3.11+ is required, but found: $(python3 --version 2>&1 || echo "unknown version")"
+    exit 1
+fi
+
 # Create virtual environment
 echo "📦 Creating virtual environment..."
-python3 -m venv .venv
-source .venv/bin/activate
-
-echo "✅ Virtual environment activated."
-echo "📦 Upgrading pip..."
-pip install --upgrade pip
+uv venv
 
 # Install dependencies
 echo "📦 Installing dependencies..."
-pip install -r requirements.txt
+uv sync --frozen
 
 echo "✅ Dependencies installed."
 
@@ -45,4 +51,4 @@ echo "💡 You can now start the AniBridge FastAPI server."
 
 # Start FastAPI
 echo "🚀 Launching AniBridge..."
-python -m app.main
+uv run python -m app.main

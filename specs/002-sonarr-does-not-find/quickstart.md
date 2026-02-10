@@ -7,7 +7,7 @@
 
 2. **Install dependencies** (Python 3.12 environment assumed)  
    ```bash
-   pip install -r requirements-dev.txt
+   uv sync --frozen
    ```
 
 3. **Run baseline tests** to confirm clean slate  

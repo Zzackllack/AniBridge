@@ -3,13 +3,17 @@
 [providers.python]
 version = "3.12"
 
+[variables]
+PATH = "$HOME/.local/bin:${PATH}"
+
 [environment]
 PYTHONUNBUFFERED = "1"
 
 [phases.install]
 commands = [
-  "pip install --no-cache-dir -r requirements.runtime.txt"
+  "curl -LsSf https://astral.sh/uv/install.sh | sh",
+  "uv sync --frozen --no-editable"
 ]
 
 [start]
-cmd = "python -m app.main"
+cmd = "uv run python -m app.main"

@@ -12,7 +12,7 @@
 - Version source: `VERSION` file.
 - `Makefile` provides `patch`, `minor`, `major` targets using `bump2version`.
 - Version bumps also update `docs/src/openapi.json` (`info.version`) and `docs/package.json` (`version`) for the docs API reference.
-- Python distributions built via `python -m build`.
+- Python distributions built via `uv run --with build python -m build`.
 - PyInstaller builds use `anibridge.spec` and `hooks/hook-fake_useragent.py`.
 - Releases publish artifacts and SHA256 checksums via GitHub Actions on tag push.
 
@@ -34,7 +34,7 @@ Cloudflare uses `npm ci` for docs builds. Because this repo uses `vitepress@2.0.
 
 ## CI/CD Workflows
 
-- `tests.yml`: installs `requirements-dev.txt` and runs pytest.
+- `tests.yml`: runs `uv sync --frozen` and executes pytest.
 - `format-and-run.yml`: runs `ruff format app` and auto-commits formatting changes.
 - `publish.yml`: builds and pushes GHCR images.
 - `release-on-tag.yml`: builds Python dists and PyInstaller artifacts on `v*` tags.

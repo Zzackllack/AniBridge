@@ -41,7 +41,7 @@ Just run this command to install the tool!
 (Make sure you have python installed!)
 
 ```shell
-pip install megakino
+uv tool install megakino
 ```
 
 To start the menu type:

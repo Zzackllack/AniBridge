@@ -18,20 +18,11 @@ fi
 VERSION=$(cat VERSION)
 echo "Building release for version: $VERSION"
 
-# choose python
-if [ -x ".venv/bin/python" ]; then
-  PYTHON=.venv/bin/python
-else
-  PYTHON=$(command -v python3 || command -v python)
-fi
-echo "Using python: $PYTHON"
-
 echo "==> Building python distributions"
-$PYTHON -m pip install --upgrade build >/dev/null
-$PYTHON -m build
+uv build
 
 echo "==> Creating SHA256SUMS"
-$PYTHON - <<PY > dist/SHA256SUMS
+uv run python - <<PY > dist/SHA256SUMS
 import hashlib,glob,os
 files=sorted([f for f in glob.glob('dist/*') if os.path.isfile(f)])
 for p in files:
@@ -40,11 +31,10 @@ for p in files:
 PY
 
 echo "==> Building PyInstaller single-file (current OS)"
-$PYTHON -m pip install --upgrade pyinstaller >/dev/null
 if [ -f app/main.py ]; then
   # Use our custom hooks directory so package data like fake_useragent's
   # browsers.jsonl get included in the bundle.
-  $PYTHON -m PyInstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge
+  uv run pyinstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge
   PLATFORM=$(uname -s | tr '[:upper:]' '[:lower:]')
   mkdir -p "release/${VERSION}/${PLATFORM}"
   if [ -f dist/anibridge ]; then

@@ -13,9 +13,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # --- Stage 2: Install Python dependencies ---
 FROM base AS deps
-COPY requirements.runtime.txt ./
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.runtime.txt
+COPY --from=ghcr.io/astral-sh/uv:0.10.0 /uv /usr/local/bin/uv
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project
+COPY app/ ./app/
+COPY VERSION ./
+COPY alembic.ini ./
+RUN uv sync --frozen --no-editable
 
 # --- Stage 3: Copy source and create non-root user ---
 FROM base AS final
@@ -24,10 +28,10 @@ WORKDIR /app
 # Create default non-root user/group (IDs will be adjusted at runtime via entrypoint)
 RUN addgroup --system appgroup && adduser --system --group appuser
 
-COPY --from=deps /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
+ENV PATH="/app/.venv/bin:${PATH}"
+COPY --from=deps /app/.venv /app/.venv
 COPY app/ ./app/
 COPY VERSION ./
-COPY requirements.runtime.txt ./
 COPY alembic.ini ./
 
 # Prepare writable data directory for runtime mounts (ownership finalized at runtime)

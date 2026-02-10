@@ -9,6 +9,7 @@ Essentials
 - Repo-wide: do not commit artifacts under `data/`.
 - Database: SQLite with Alembic migrations in `app/db/migrations`.
 - Use of Context7 for up-to-date external documentation.
+- On change of any environment variable, update `.env.example`.
 
 Non-standard commands
 

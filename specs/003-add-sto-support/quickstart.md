@@ -7,8 +7,8 @@
 
 2. **Install dependencies**
    - Existing stack remains FastAPI/Python/SQLite.
-   - If new Python packages are required (e.g., for HTTP resilience), add them to `requirements.runtime.txt` and regenerate lock files.
-   - Re-run `pip install -r requirements-dev.txt` for development environments.
+   - If new Python packages are required (e.g., for HTTP resilience), add them with `uv add ...` and refresh `uv.lock`.
+   - Re-run `uv sync --frozen` for development environments.
 
 3. **Run migrations / data prep**
    - Execute a lightweight migration adding `source_site` columns to job/availability tables (SQLModel migration script TBD).

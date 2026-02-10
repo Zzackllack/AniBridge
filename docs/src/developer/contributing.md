@@ -45,15 +45,13 @@ winget install --id=astral-sh.uv  -e
 ```bash
 git clone https://github.com/zzackllack/AniBridge.git
 cd AniBridge
-uv venv
-source .venv/bin/activate
-uv pip install -r requirements-dev.txt
+uv sync --frozen
 ```
 
 Run the application locally with:
 
 ```bash
-uv run -m app.main
+uv run python -m app.main
 ```
 
 Or directly with Python:

@@ -144,16 +144,18 @@ CMD ["node", "dist/main.js"]
 # BAD: Multiple layers, inefficient caching
 FROM ubuntu:20.04
 RUN apt-get update
-RUN apt-get install -y python3 python3-pip
-RUN pip3 install flask
+RUN apt-get install -y python3 curl
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+RUN ~/.local/bin/uv pip install flask
 RUN apt-get clean
 RUN rm -rf /var/lib/apt/lists/*
 
 # GOOD: Optimized layers with proper cleanup
 FROM ubuntu:20.04
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
-    pip3 install flask && \
+    apt-get install -y python3 curl && \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    ~/.local/bin/uv pip install flask && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 ```
@@ -222,7 +224,7 @@ __tests__/
     - **Security:** Be careful not to copy sensitive files or unnecessary configuration files.
 - **Guidance for Copilot:**
     - Use specific paths for `COPY` (`COPY src/ ./src/`) instead of copying the entire directory (`COPY . .`) if only a subset is needed.
-    - Copy dependency files (like `package.json`, `requirements.txt`) before copying source code to leverage layer caching.
+    - Copy dependency files (like `package.json`, `pyproject.toml`, `uv.lock`) before copying source code to leverage layer caching.
     - Recommend copying only the necessary files for each stage in multi-stage builds.
     - Suggest using `.dockerignore` to exclude files that shouldn't be copied.
 - **Example (Optimized COPY Strategy):**
