@@ -63,3 +63,19 @@
       drop-shadow(0 0 6.5rem rgba(50, 69, 86));
   }
 }
+
+.vp-doc pre.mermaid {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  background: var(--vp-c-bg-soft);
+  overflow-x: auto;
+}
+
+.vp-doc pre.mermaid svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}

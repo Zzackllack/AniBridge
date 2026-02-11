@@ -93,6 +93,23 @@ export default defineConfig({
     ],
   ],
   srcDir: "src",
+  markdown: {
+    config: (md) => {
+      // Render ```mermaid fences as raw Mermaid blocks that are hydrated
+      // client-side from the custom theme hook.
+      const defaultFence = md.renderer.rules.fence;
+      md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+        const token = tokens[idx];
+        const info = (token.info || "").trim().split(/\s+/)[0]?.toLowerCase();
+        if (info === "mermaid") {
+          const graph = md.utils.escapeHtml(token.content.trim());
+          return `<pre class="mermaid">${graph}</pre>\n`;
+        }
+        if (defaultFence) return defaultFence(tokens, idx, options, env, self);
+        return self.renderToken(tokens, idx, options);
+      };
+    },
+  },
 
   title: "AniBridge Documentation",
   description:
@@ -209,7 +226,7 @@ export default defineConfig({
       { text: "Guide", link: "/guide/overview" },
       { text: "API", link: "/api/overview" },
       { text: "Integrations", link: "/integrations/prowlarr" },
-      { text: "Developer", link: "/developer/running" },
+      { text: "Developer", link: "/developer/architecture" },
       { text: "Legal", link: "/legal" },
       {
         text: "Changelog",
@@ -264,6 +281,7 @@ export default defineConfig({
         {
           text: "Developer Guide",
           items: [
+            { text: "Architecture Deep Dive", link: "/developer/architecture" },
             { text: "Running Locally", link: "/developer/running" },
             { text: "Testing", link: "/developer/testing" },
             { text: "Contributing", link: "/developer/contributing" },

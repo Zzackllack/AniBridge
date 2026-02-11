@@ -25,6 +25,9 @@
 - Edit Markdown under `docs/src/*`.
 - Update navigation/sidebar in `docs/.vitepress/config.mts` for new pages.
 - Custom components live under `docs/.vitepress/theme`.
+- Mermaid diagrams (` ```mermaid ` fences) are transformed in
+  `docs/.vitepress/config.mts` and rendered client-side from
+  `docs/.vitepress/theme/index.ts` via Mermaid ESM from jsDelivr.
 - Preview with `pnpm --prefix docs run dev`; build with `pnpm --prefix docs run build`.
 - Update `wrangler.toml` if deployment structure changes.
 - Document config changes in `docs/src/guide/configuration.md`.

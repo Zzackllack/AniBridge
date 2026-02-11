@@ -7,6 +7,78 @@ import VideoPlayer from './components/VideoPlayer.vue'
 import ApiOperations from './components/ApiOperations.vue'
 import spec from '../../src/openapi.json'
 
+const MERMAID_MODULE_URL =
+  'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'
+
+let mermaidModulePromise: Promise<any> | null = null
+let mermaidRenderScheduled = false
+let mermaidObserverAttached = false
+
+function currentMermaidTheme() {
+  if (typeof document === 'undefined') return 'default'
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'default'
+}
+
+async function getMermaid() {
+  if (!mermaidModulePromise) {
+    mermaidModulePromise = import(/* @vite-ignore */ MERMAID_MODULE_URL).then(
+      (mod: any) => mod.default ?? mod
+    )
+  }
+  return mermaidModulePromise
+}
+
+async function renderMermaidDiagrams() {
+  if (typeof window === 'undefined') return
+  const nodes = Array.from(
+    document.querySelectorAll<HTMLElement>('pre.mermaid')
+  )
+  if (!nodes.length) return
+
+  const mermaid = await getMermaid()
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'strict',
+    theme: currentMermaidTheme(),
+  })
+
+  for (const node of nodes) {
+    node.removeAttribute('data-processed')
+  }
+
+  await mermaid.run({ nodes })
+}
+
+function scheduleMermaidRender() {
+  if (typeof window === 'undefined') return
+  if (mermaidRenderScheduled) return
+  mermaidRenderScheduled = true
+  window.requestAnimationFrame(() => {
+    mermaidRenderScheduled = false
+    renderMermaidDiagrams().catch((error) => {
+      console.warn('Mermaid render failed:', error)
+    })
+  })
+}
+
+function attachMermaidThemeObserver() {
+  if (typeof window === 'undefined') return
+  if (mermaidObserverAttached) return
+  mermaidObserverAttached = true
+  let previous = currentMermaidTheme()
+  const observer = new MutationObserver(() => {
+    const next = currentMermaidTheme()
+    if (next !== previous) {
+      previous = next
+      scheduleMermaidRender()
+    }
+  })
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class'],
+  })
+}
+
 function sameOrigin(url: string) {
   try {
     const u = new URL(url, window.location.href)
@@ -81,6 +153,8 @@ const theme: Theme = {
       setTimeout(() => {
         attachOutboundTracking()
         attachHeroCtaTracking()
+        attachMermaidThemeObserver()
+        scheduleMermaidRender()
       }, 0)
       // Track SPA navigations and re-bind outbound tracking
       router.onAfterRouteChange = () => {
@@ -93,6 +167,7 @@ const theme: Theme = {
         }
         attachOutboundTracking()
         attachHeroCtaTracking()
+        scheduleMermaidRender()
       }
     }
   },
