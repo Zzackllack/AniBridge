@@ -80,3 +80,64 @@ def test_tvsearch_empty(client):
     assert resp.status_code == 200
     root = ET.fromstring(resp.text)
     assert root.find("./channel/item") is None
+
+
+def test_tvsearch_uses_id_resolved_query_when_q_missing(client, monkeypatch):
+    import app.api.torznab as tn
+    import app.api.torznab.api as torznab_api_mod
+
+    class Rec:
+        available = True
+        is_fresh = True
+        height = 1080
+        vcodec = "h264"
+        provider = "prov"
+
+    seen = {"query": None}
+
+    def _slug_from_query(query, site=None):
+        seen["query"] = query
+        return ("aniworld.to", "slug")
+
+    monkeypatch.setattr(
+        torznab_api_mod,
+        "_resolve_tvsearch_query_from_ids",
+        lambda **_kwargs: "The Rookie",
+    )
+    monkeypatch.setattr(tn, "_slug_from_query", _slug_from_query)
+    monkeypatch.setattr(
+        tn, "resolve_series_title", lambda slug, site="aniworld.to": "Series"
+    )
+    monkeypatch.setattr(
+        tn,
+        "list_available_languages_cached",
+        lambda session, slug, season, episode, site="aniworld.to": ["German Sub"],
+    )
+    monkeypatch.setattr(
+        tn,
+        "get_availability",
+        lambda session, slug, season, episode, language, site="aniworld.to": Rec(),
+    )
+    monkeypatch.setattr(
+        tn,
+        "build_release_name",
+        lambda series_title, season, episode, height, vcodec, language, site="aniworld.to": (
+            "Title"
+        ),
+    )
+    monkeypatch.setattr(
+        tn,
+        "build_magnet",
+        lambda title, slug, season, episode, language, provider, site="aniworld.to", **_kwargs: (
+            "magnet:?xt=urn:btih:test&dn=Title&aw_slug=slug&aw_s=1&aw_e=1&aw_lang=German+Sub&aw_site=aniworld.to"
+        ),
+    )
+
+    resp = client.get(
+        "/torznab/api",
+        params={"t": "tvsearch", "season": 1, "ep": 1, "tvdbid": 350665},
+    )
+    assert resp.status_code == 200
+    root = ET.fromstring(resp.text)
+    assert root.find("./channel/item") is not None
+    assert seen["query"] == "The Rookie"

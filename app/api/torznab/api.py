@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import List, Optional
 import xml.etree.ElementTree as ET
+from urllib.parse import urlencode
 
 from fastapi import Depends, Query, Request, Response
 from fastapi.responses import Response as FastAPIResponse
@@ -31,9 +32,13 @@ from app.providers.aniworld.specials import (
 )
 from app.utils.magnet import _site_prefix
 from app.utils.movie_year import get_movie_year
+from app.utils.http_client import get as http_get
 
 from . import router
 from .utils import _build_item, _caps_xml, _require_apikey, _rss_root
+
+_SKYHOOK_SEARCH_URL = "https://skyhook.sonarr.tv/v1/tvdb/search/en/"
+_SKYHOOK_SHOW_URL = "https://skyhook.sonarr.tv/v1/tvdb/shows/en/{tvdb_id}"
 
 
 def _default_languages_for_site(site: str) -> List[str]:
@@ -56,6 +61,83 @@ def _default_languages_for_site(site: str) -> List[str]:
         "default_languages", ["German Dub", "German Sub", "English Sub"]
     )
     return list(fallback)
+
+
+def _coerce_positive_int(value: object) -> Optional[int]:
+    """
+    Parse an input value into a positive integer.
+
+    Returns None when parsing fails or value is <= 0.
+    """
+    try:
+        parsed = int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
+def _resolve_tvsearch_query_from_ids(
+    *,
+    tvdbid: Optional[int],
+    tmdbid: Optional[int],
+    imdbid: Optional[str],
+) -> Optional[str]:
+    """
+    Resolve a canonical series title from Torznab identifier parameters.
+
+    Uses SkyHook in this order:
+    1) direct show lookup by tvdbid
+    2) tvdb resolution via tmdb/imdb id search, then show lookup
+    """
+    tvdb_id = _coerce_positive_int(tvdbid)
+    if tvdb_id is None:
+        lookup_terms: List[str] = []
+        tmdb = _coerce_positive_int(tmdbid)
+        imdb = (imdbid or "").strip()
+        if tmdb is not None:
+            lookup_terms.append(f"tmdb:{tmdb}")
+        if imdb:
+            lookup_terms.append(f"imdb:{imdb}")
+
+        for term in lookup_terms:
+            try:
+                query = urlencode({"term": term})
+                response = http_get(
+                    f"{_SKYHOOK_SEARCH_URL}?{query}",
+                    timeout=8.0,
+                )
+                response.raise_for_status()
+                payload = response.json()
+            except Exception as exc:
+                logger.debug("SkyHook ID search failed for '{}': {}", term, exc)
+                continue
+            if not isinstance(payload, list):
+                continue
+            for item in payload:
+                if not isinstance(item, dict):
+                    continue
+                candidate = _coerce_positive_int(item.get("tvdbId"))
+                if candidate is not None:
+                    tvdb_id = candidate
+                    break
+            if tvdb_id is not None:
+                break
+
+    if tvdb_id is None:
+        return None
+
+    try:
+        response = http_get(_SKYHOOK_SHOW_URL.format(tvdb_id=tvdb_id), timeout=8.0)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as exc:
+        logger.debug("SkyHook show lookup failed for tvdb {}: {}", tvdb_id, exc)
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+    title = str(payload.get("title") or "").strip()
+    return title or None
 
 
 def _try_mapped_special_probe(
@@ -757,10 +839,10 @@ def torznab_api(
 
         raise HTTPException(status_code=400, detail="invalid t")
 
-    # require at least q, and either both season+ep or only season (we'll default ep=1)
+    # require season and either query text or resolvable identifier hints.
     import app.api.torznab as tn
 
-    if q is None or season is None:
+    if season is None:
         rss, _channel = _rss_root()
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
         logger.debug("Returning empty RSS feed due to missing parameters.")
@@ -770,10 +852,29 @@ def torznab_api(
         ep = 1
 
     # from here on, non-None
-    assert season is not None and ep is not None and q is not None
+    assert season is not None and ep is not None
     season_i = int(season)
     ep_i = int(ep)
-    q_str = str(q)
+    q_str = (q or "").strip()
+    if not q_str:
+        q_str = (
+            _resolve_tvsearch_query_from_ids(
+                tvdbid=tvdbid,
+                tmdbid=tmdbid,
+                imdbid=imdbid,
+            )
+            or ""
+        ).strip()
+        if q_str:
+            logger.debug(
+                "tvsearch: resolved missing q from identifiers to '{}'",
+                q_str,
+            )
+    if not q_str:
+        rss, _channel = _rss_root()
+        xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
+        logger.debug("Returning empty RSS feed due to unresolved query.")
+        return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
 
     logger.debug(
         f"Searching for slug for query '{q_str}' (season={season_i}, ep={ep_i})"

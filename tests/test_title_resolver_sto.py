@@ -69,3 +69,50 @@ def test_search_sto_slug_handles_malformed_payload(monkeypatch) -> None:
 
     monkeypatch.setattr(tr, "http_get", _fake_malformed_first)
     assert tr._search_sto_slug("911") == "9-1-1"
+
+
+def test_slug_from_query_prefers_precise_title_over_shared_token(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(tr, "CATALOG_SITES_LIST", ["aniworld.to", "s.to"])
+
+    index_by_site = {
+        "aniworld.to": {
+            "the-ossan-newbie-adventurer": (
+                "The Ossan Newbie Adventurer, Trained to Death by the Most "
+                "Powerful Party, Became Invincible"
+            ),
+            "rick-and-morty-the-anime": "Rick and Morty: The Anime",
+        },
+        "s.to": {
+            "the-rookie": "The Rookie",
+            "rick-and-morty": "Rick and Morty",
+        },
+    }
+    monkeypatch.setattr(tr, "load_or_refresh_index", lambda site: index_by_site[site])
+    monkeypatch.setattr(tr, "load_or_refresh_alternatives", lambda _site: {})
+    monkeypatch.setattr(tr, "_search_sto_slug", lambda _query: None)
+
+    assert tr.slug_from_query("Rookie Le flic de Los Angeles") == (
+        "s.to",
+        "the-rookie",
+    )
+    assert tr.slug_from_query("Rick and Morty") == ("s.to", "rick-and-morty")
+
+
+def test_slug_from_query_rejects_low_confidence_overlap(monkeypatch) -> None:
+    monkeypatch.setattr(tr, "CATALOG_SITES_LIST", ["aniworld.to"])
+    monkeypatch.setattr(
+        tr,
+        "load_or_refresh_index",
+        lambda _site: {
+            "the-ossan-newbie-adventurer": (
+                "The Ossan Newbie Adventurer, Trained to Death by the Most "
+                "Powerful Party, Became Invincible"
+            )
+        },
+    )
+    monkeypatch.setattr(tr, "load_or_refresh_alternatives", lambda _site: {})
+    monkeypatch.setattr(tr, "_search_sto_slug", lambda _query: None)
+
+    assert tr.slug_from_query("Rookie Le flic de Los Angeles") is None
