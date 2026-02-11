@@ -65,9 +65,13 @@ def _default_languages_for_site(site: str) -> List[str]:
 
 def _coerce_positive_int(value: object) -> Optional[int]:
     """
-    Parse an input value into a positive integer.
-
-    Returns None when parsing fails or value is <= 0.
+    Coerce an arbitrary value into a positive integer.
+    
+    Parameters:
+        value (object): Value to convert to an integer.
+    
+    Returns:
+        The parsed positive integer if conversion succeeds and is greater than zero, `None` otherwise.
     """
     try:
         parsed = int(value)  # type: ignore[arg-type]
@@ -83,11 +87,15 @@ def _resolve_tvsearch_query_from_ids(
     imdbid: Optional[str],
 ) -> Optional[str]:
     """
-    Resolve a canonical series title from Torznab identifier parameters.
-
-    Uses SkyHook in this order:
-    1) direct show lookup by tvdbid
-    2) tvdb resolution via tmdb/imdb id search, then show lookup
+    Resolve a canonical TV series title from provided Torznab identifiers.
+    
+    If a positive `tvdbid` is supplied, the function looks up the show title for that ID.
+    If not, it attempts to resolve a `tvdbid` by querying SkyHook using `tmdbid` and/or `imdbid`,
+    then looks up the show title for the resolved `tvdbid`.
+    
+    Returns:
+        title (str): The resolved show title when found.
+        None: If no title could be resolved.
     """
     tvdb_id = _coerce_positive_int(tvdbid)
     if tvdb_id is None:
@@ -150,9 +158,27 @@ def _try_mapped_special_probe(
     special_map,
 ) -> tuple[bool, Optional[int], Optional[str], Optional[str], int, int, int, int]:
     """
-    Probe mapped AniWorld special coordinates using cache first, then live probe.
-
-    Returns availability tuple together with resolved source/alias coordinates.
+    Probe availability and quality for an AniWorld special that maps to a different source episode, using cached availability when possible.
+    
+    Parameters:
+        tn_module: Provider module exposing `get_availability` and `probe_episode_quality` used to fetch cached availability or probe live quality.
+        session (Session): Database/session object used by `get_availability`.
+        slug (str): Show identifier used for probing.
+        lang (str): Language to probe (e.g., "German Dub").
+        site_found (str): Catalogue site name where the source episode is hosted.
+        special_map: Mapping object containing `source_season`, `source_episode`, `alias_season`, and `alias_episode` that describe the source coordinates and their alias.
+    
+    Returns:
+        tuple: (
+            available (bool): `True` if the source episode is available, `False` otherwise,
+            height (Optional[int]): video height in pixels if known, otherwise `None`,
+            vcodec (Optional[str]): video codec identifier if known, otherwise `None`,
+            provider (Optional[str]): provider name that supplied the quality info if known, otherwise `None`,
+            source_season (int): season number of the mapped source episode,
+            source_episode (int): episode number of the mapped source episode,
+            alias_season (int): alias season number requested,
+            alias_episode (int): alias episode number requested
+        )
     """
     source_season = special_map.source_season
     source_episode = special_map.source_episode
