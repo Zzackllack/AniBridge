@@ -7,7 +7,7 @@ AniBridge centralizes configuration in `app/config.py`. Values are derived from 
 - Paths: `DATA_DIR`, `DOWNLOAD_DIR`, `QBIT_PUBLIC_SAVE_PATH`
 - Migrations: `DB_MIGRATE_ON_STARTUP`
 - Torznab: `INDEXER_NAME`, `INDEXER_API_KEY`, `TORZNAB_*`
-- Downloader: `PROVIDER_ORDER`, `MAX_CONCURRENCY`, `DOWNLOADS_TTL_HOURS`, `CLEANUP_SCAN_INTERVAL_MIN`
+- Downloader: `PROVIDER_ORDER`, `MAX_CONCURRENCY`, `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC`, `DOWNLOADS_TTL_HOURS`, `CLEANUP_SCAN_INTERVAL_MIN`
 - Proxy: `PROXY_*`, protocol overrides, certificate toggles, IP monitoring
 - Provider order default: `VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza`
 - Update notifier: `ANIBRIDGE_UPDATE_CHECK`, GitHub owner/repo/token, GHCR image reference
@@ -82,3 +82,4 @@ AniBridge centralizes configuration in `app/config.py`. Values are derived from 
 65. `PYTHONUNBUFFERED` — Set to `1` in Docker to keep logs flush.
 66. `ANIBRIDGE_DOCS_BASE_URL` — Docs base URL (if introduced).
 67. `SONARR_*`, `PROWLARR_*` — Integration values documented in `docs/src/integrations`.
+68. `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC` — Per-download yt-dlp rate cap in bytes/second (`0` disables limiting).

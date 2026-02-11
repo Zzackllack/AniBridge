@@ -6,6 +6,7 @@ import yt_dlp
 from loguru import logger
 from yt_dlp.utils import DownloadError as YTDLPDownloadError
 
+from app.config import DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC
 from app.infrastructure.network import yt_dlp_proxy
 from .errors import DownloadError
 from .utils import sanitize_filename
@@ -65,6 +66,12 @@ def _ydl_download(
         "hls_use_mpegts": True,
         "socket_timeout": 20,
     }
+    if DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC > 0:
+        ydl_opts["ratelimit"] = DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC
+        logger.info(
+            "yt-dlp download rate limit enabled: {} bytes/s",
+            DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC,
+        )
 
     try:
         if not force_no_proxy:
