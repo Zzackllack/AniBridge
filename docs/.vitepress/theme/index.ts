@@ -13,6 +13,7 @@ const MERMAID_MODULE_URL =
 let mermaidModulePromise: Promise<any> | null = null
 let mermaidRenderScheduled = false
 let mermaidObserverAttached = false
+let lastRoutePathKey = ''
 
 function currentMermaidTheme() {
   if (typeof document === 'undefined') return 'default'
@@ -42,11 +43,25 @@ async function renderMermaidDiagrams() {
     theme: currentMermaidTheme(),
   })
 
+  const renderNodes: HTMLElement[] = []
   for (const node of nodes) {
-    node.removeAttribute('data-processed')
-  }
+    const cachedSource = node.dataset.mermaidSource?.trim()
+    const source = cachedSource || (node.textContent || '').trim()
+    if (!source) continue
 
-  await mermaid.run({ nodes })
+    // Preserve the original source once; Mermaid mutates node contents to SVG.
+    if (!cachedSource) {
+      node.dataset.mermaidSource = source
+    }
+
+    // Always restore source text before rendering to avoid parsing previous SVG.
+    node.textContent = node.dataset.mermaidSource || source
+    node.removeAttribute('data-processed')
+    renderNodes.push(node)
+  }
+  if (!renderNodes.length) return
+
+  await mermaid.run({ nodes: renderNodes })
 }
 
 function scheduleMermaidRender() {
@@ -149,6 +164,7 @@ const theme: Theme = {
     app.component('VideoPlayer', VideoPlayer)
     app.component('ApiOperations', ApiOperations)
     if (typeof window !== 'undefined') {
+      lastRoutePathKey = window.location.pathname + window.location.search
       // Attach initial listeners after hydration
       setTimeout(() => {
         attachOutboundTracking()
@@ -159,7 +175,10 @@ const theme: Theme = {
       // Track SPA navigations and re-bind outbound tracking
       router.onAfterRouteChange = () => {
         const w = window as any
-        const url = window.location.pathname + window.location.search + window.location.hash
+        const routePathKey = window.location.pathname + window.location.search
+        const isHashOnlyNavigation = routePathKey === lastRoutePathKey
+        lastRoutePathKey = routePathKey
+        const url = routePathKey + window.location.hash
         if (w.umami?.trackView) {
           w.umami.trackView(url, document.referrer)
         } else if (w.umami?.track) {
@@ -167,7 +186,9 @@ const theme: Theme = {
         }
         attachOutboundTracking()
         attachHeroCtaTracking()
-        scheduleMermaidRender()
+        if (!isHashOnlyNavigation) {
+          scheduleMermaidRender()
+        }
       }
     }
   },

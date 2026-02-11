@@ -76,12 +76,12 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  API["API Layer\napp/api/*"]
-  CORE["Core Services\napp/core/*"]
-  UTIL["Utility Layer\napp/utils/*"]
-  PROV["Provider Layer\napp/providers/*"]
-  DB["Persistence Layer\napp/db/*"]
-  INFRA["Infra Layer\napp/infrastructure/*"]
+  API["API Layer<br/>app/api/*"]
+  CORE["Core Services<br/>app/core/*"]
+  UTIL["Utility Layer<br/>app/utils/*"]
+  PROV["Provider Layer<br/>app/providers/*"]
+  DB["Persistence Layer<br/>app/db/*"]
+  INFRA["Infra Layer<br/>app/infrastructure/*"]
 
   API --> CORE
   API --> UTIL
@@ -175,9 +175,9 @@ flowchart TD
   A["Input query q"] --> B["Normalize tokens + alnum form"]
   B --> C["Iterate candidate sites"]
   C --> D{"Site has index sources?"}
-  D -- "No" --> E["Search-only resolver\n(site-specific)"]
+  D -- "No" --> E["Search-only resolver<br/>(site-specific)"]
   D -- "Yes" --> F["Load/refresh index + alt titles"]
-  F --> G["Score each slug candidate\n(score_title_candidate)"]
+  F --> G["Score each slug candidate<br/>(score_title_candidate)"]
   G --> H["Track best site/slug/score"]
   E --> H
   H --> I{"best_score >= 3.5 ?"}
@@ -214,11 +214,11 @@ flowchart TD
   A["Need special mapping?"] --> B["Fetch AniWorld /filme entries"]
   B --> C["Resolve TVDB ID from hints/query via SkyHook"]
   C --> D["Fetch SkyHook show payload + episodes"]
-  D --> E["Pick metadata episode\n(query or requested S/E)"]
+  D --> E["Pick metadata episode<br/>(query or requested S/E)"]
   E --> F["Match best AniWorld filme entry by title score"]
   F --> G{"score >= threshold?"}
   G -- "No" --> H["No mapping"]
-  G -- "Yes" --> I["Return SpecialEpisodeMapping\nsource S0E(film-index) + alias S/E"]
+  G -- "Yes" --> I["Return SpecialEpisodeMapping<br/>source S0E(film-index) + alias S/E"]
 ```
 
 When a mapping exists:
@@ -330,11 +330,11 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-  A["Incoming /strm/stream"] --> B["Auth check\nnone/token/apikey"]
+  A["Incoming /strm/stream"] --> B["Auth check<br/>none/token/apikey"]
   B --> C["Parse identity"]
-  C --> D["Resolve via memory/db cache\nor fresh resolver"]
+  C --> D["Resolve via memory/db cache<br/>or fresh resolver"]
   D --> E["Open upstream request"]
-  E --> F{"Status in refresh set\n403/404/410/451/429?"}
+  E --> F{"Status in refresh set<br/>403/404/410/451/429?"}
   F -- "Yes (first attempt)" --> G["Invalidate cache + re-resolve once"]
   G --> E
   F -- "No" --> H{"HLS playlist?"}
