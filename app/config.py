@@ -26,6 +26,7 @@ def _as_bool(val: str | None, default: bool) -> bool:
 
 
 def _as_non_negative_int(val: str | None, default: int) -> int:
+    """Parse *val* as a non-negative integer, returning *default* on failure."""
     if val is None:
         return default
     try:
