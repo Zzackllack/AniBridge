@@ -66,6 +66,7 @@ _MATCH_STOPWORDS = {
 
 # Minimum confidence to accept an index-based title match.
 _MIN_TITLE_MATCH_SCORE = 3.5
+_SIMILARITY_MIN_F1 = 0.2
 
 # suppress repetitive logging from _extract_slug by emitting each message only once
 _extracted_any: bool = False
@@ -583,17 +584,13 @@ def _score_title_candidate(
         if (precision + recall) > 0
         else 0.0
     )
-    ratio = (
-        SequenceMatcher(None, query_norm, title_norm).ratio()
-        if query_norm and title_norm
-        else 0.0
-    )
+    ratio = 0.0
+    if query_norm and title_norm and f1 >= _SIMILARITY_MIN_F1:
+        ratio = SequenceMatcher(None, query_norm, title_norm).ratio()
     exact = 1.0 if query_norm and query_norm == title_norm else 0.0
     contains = (
         1.0
-        if query_norm
-        and intersection > 0
-        and (query_norm in title_norm or title_norm in query_norm)
+        if query_norm and (query_norm in title_norm or title_norm in query_norm)
         else 0.0
     )
 
@@ -726,11 +723,17 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
             alts = load_or_refresh_alternatives(search_site)  # slug -> [titles]
 
             for slug, main_title in index.items():
-                # Start with main title tokens
-                titles_for_slug: List[str] = [main_title]
+                titles_for_slug: List[str] = []
+                seen_titles: Set[str] = set()
+                if main_title:
+                    titles_for_slug.append(main_title)
+                    seen_titles.add(main_title)
                 alt_list = alts.get(slug)
                 if alt_list:
-                    titles_for_slug.extend(alt_list)
+                    for alt_title in alt_list:
+                        if alt_title and alt_title not in seen_titles:
+                            titles_for_slug.append(alt_title)
+                            seen_titles.add(alt_title)
 
                 # Evaluate best overlap score across all candidate titles
                 local_best = 0.0

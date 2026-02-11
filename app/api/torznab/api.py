@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import List, Optional
 import xml.etree.ElementTree as ET
+import threading
+import time
 from urllib.parse import urlencode
 
 from fastapi import Depends, Query, Request, Response
@@ -39,6 +41,11 @@ from .utils import _build_item, _caps_xml, _require_apikey, _rss_root
 
 _SKYHOOK_SEARCH_URL = "https://skyhook.sonarr.tv/v1/tvdb/search/en/"
 _SKYHOOK_SHOW_URL = "https://skyhook.sonarr.tv/v1/tvdb/shows/en/{tvdb_id}"
+_TVSEARCH_ID_CACHE_TTL_SECONDS = 300.0
+_TVSEARCH_ID_CACHE_MAX_ENTRIES = 512
+_TVSEARCH_SKYHOOK_CACHE_LOCK = threading.Lock()
+_TVSEARCH_TERM_TO_TVDB_CACHE: dict[str, tuple[float, int]] = {}
+_TVSEARCH_TVDB_TO_TITLE_CACHE: dict[int, tuple[float, str]] = {}
 
 
 def _default_languages_for_site(site: str) -> List[str]:
@@ -80,6 +87,56 @@ def _coerce_positive_int(value: object) -> Optional[int]:
     return parsed if parsed > 0 else None
 
 
+def _cache_get_term_tvdb(term: str) -> Optional[int]:
+    """Return cached tvdb id for a SkyHook search term when entry is fresh."""
+    now = time.time()
+    with _TVSEARCH_SKYHOOK_CACHE_LOCK:
+        entry = _TVSEARCH_TERM_TO_TVDB_CACHE.get(term)
+        if not entry:
+            return None
+        cached_at, cached_tvdb = entry
+        if now - cached_at > _TVSEARCH_ID_CACHE_TTL_SECONDS:
+            _TVSEARCH_TERM_TO_TVDB_CACHE.pop(term, None)
+            return None
+        return cached_tvdb
+
+
+def _cache_set_term_tvdb(term: str, tvdb_id: int) -> None:
+    """Cache tvdb id for a SkyHook search term with TTL."""
+    with _TVSEARCH_SKYHOOK_CACHE_LOCK:
+        _TVSEARCH_TERM_TO_TVDB_CACHE[term] = (time.time(), tvdb_id)
+        if len(_TVSEARCH_TERM_TO_TVDB_CACHE) > _TVSEARCH_ID_CACHE_MAX_ENTRIES:
+            oldest = min(
+                _TVSEARCH_TERM_TO_TVDB_CACHE.items(), key=lambda item: item[1][0]
+            )[0]
+            _TVSEARCH_TERM_TO_TVDB_CACHE.pop(oldest, None)
+
+
+def _cache_get_tvdb_title(tvdb_id: int) -> Optional[str]:
+    """Return cached SkyHook show title for tvdb id when entry is fresh."""
+    now = time.time()
+    with _TVSEARCH_SKYHOOK_CACHE_LOCK:
+        entry = _TVSEARCH_TVDB_TO_TITLE_CACHE.get(tvdb_id)
+        if not entry:
+            return None
+        cached_at, cached_title = entry
+        if now - cached_at > _TVSEARCH_ID_CACHE_TTL_SECONDS:
+            _TVSEARCH_TVDB_TO_TITLE_CACHE.pop(tvdb_id, None)
+            return None
+        return cached_title
+
+
+def _cache_set_tvdb_title(tvdb_id: int, title: str) -> None:
+    """Cache SkyHook show title for tvdb id with TTL."""
+    with _TVSEARCH_SKYHOOK_CACHE_LOCK:
+        _TVSEARCH_TVDB_TO_TITLE_CACHE[tvdb_id] = (time.time(), title)
+        if len(_TVSEARCH_TVDB_TO_TITLE_CACHE) > _TVSEARCH_ID_CACHE_MAX_ENTRIES:
+            oldest = min(
+                _TVSEARCH_TVDB_TO_TITLE_CACHE.items(), key=lambda item: item[1][0]
+            )[0]
+            _TVSEARCH_TVDB_TO_TITLE_CACHE.pop(oldest, None)
+
+
 def _resolve_tvsearch_query_from_ids(
     *,
     tvdbid: Optional[int],
@@ -108,6 +165,10 @@ def _resolve_tvsearch_query_from_ids(
             lookup_terms.append(f"imdb:{imdb}")
 
         for term in lookup_terms:
+            cached_tvdb = _cache_get_term_tvdb(term)
+            if cached_tvdb is not None:
+                tvdb_id = cached_tvdb
+                break
             try:
                 query = urlencode({"term": term})
                 response = http_get(
@@ -127,12 +188,17 @@ def _resolve_tvsearch_query_from_ids(
                 candidate = _coerce_positive_int(item.get("tvdbId"))
                 if candidate is not None:
                     tvdb_id = candidate
+                    _cache_set_term_tvdb(term, candidate)
                     break
             if tvdb_id is not None:
                 break
 
     if tvdb_id is None:
         return None
+
+    cached_title = _cache_get_tvdb_title(tvdb_id)
+    if cached_title is not None:
+        return cached_title
 
     try:
         response = http_get(_SKYHOOK_SHOW_URL.format(tvdb_id=tvdb_id), timeout=8.0)
@@ -145,6 +211,8 @@ def _resolve_tvsearch_query_from_ids(
     if not isinstance(payload, dict):
         return None
     title = str(payload.get("title") or "").strip()
+    if title:
+        _cache_set_tvdb_title(tvdb_id, title)
     return title or None
 
 
