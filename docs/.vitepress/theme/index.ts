@@ -7,6 +7,93 @@ import VideoPlayer from './components/VideoPlayer.vue'
 import ApiOperations from './components/ApiOperations.vue'
 import spec from '../../src/openapi.json'
 
+const MERMAID_MODULE_URL =
+  'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'
+
+let mermaidModulePromise: Promise<any> | null = null
+let mermaidRenderScheduled = false
+let mermaidObserverAttached = false
+let lastRoutePathKey = ''
+
+function currentMermaidTheme() {
+  if (typeof document === 'undefined') return 'default'
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'default'
+}
+
+async function getMermaid() {
+  if (!mermaidModulePromise) {
+    mermaidModulePromise = import(/* @vite-ignore */ MERMAID_MODULE_URL).then(
+      (mod: any) => mod.default ?? mod
+    )
+  }
+  return mermaidModulePromise
+}
+
+async function renderMermaidDiagrams() {
+  if (typeof window === 'undefined') return
+  const nodes = Array.from(
+    document.querySelectorAll<HTMLElement>('pre.mermaid')
+  )
+  if (!nodes.length) return
+
+  const mermaid = await getMermaid()
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'strict',
+    theme: currentMermaidTheme(),
+  })
+
+  const renderNodes: HTMLElement[] = []
+  for (const node of nodes) {
+    const cachedSource = node.dataset.mermaidSource?.trim()
+    const source = cachedSource || (node.textContent || '').trim()
+    if (!source) continue
+
+    // Preserve the original source once; Mermaid mutates node contents to SVG.
+    if (!cachedSource) {
+      node.dataset.mermaidSource = source
+    }
+
+    // Always restore source text before rendering to avoid parsing previous SVG.
+    node.textContent = node.dataset.mermaidSource || source
+    node.removeAttribute('data-processed')
+    renderNodes.push(node)
+  }
+  if (!renderNodes.length) return
+
+  await mermaid.run({ nodes: renderNodes })
+}
+
+function scheduleMermaidRender() {
+  if (typeof window === 'undefined') return
+  if (mermaidRenderScheduled) return
+  mermaidRenderScheduled = true
+  window.requestAnimationFrame(() => {
+    mermaidRenderScheduled = false
+    renderMermaidDiagrams().catch((error) => {
+      console.warn('Mermaid render failed:', error)
+    })
+  })
+}
+
+function attachMermaidThemeObserver() {
+  if (typeof window === 'undefined') return
+  if (mermaidObserverAttached) return
+  mermaidObserverAttached = true
+  let previous = currentMermaidTheme()
+  const observer = new MutationObserver(() => {
+    const next = currentMermaidTheme()
+    if (next !== previous) {
+      previous = next
+      scheduleMermaidRender()
+    }
+  })
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class'],
+  })
+}
+
 function sameOrigin(url: string) {
   try {
     const u = new URL(url, window.location.href)
@@ -77,15 +164,21 @@ const theme: Theme = {
     app.component('VideoPlayer', VideoPlayer)
     app.component('ApiOperations', ApiOperations)
     if (typeof window !== 'undefined') {
+      lastRoutePathKey = window.location.pathname + window.location.search
       // Attach initial listeners after hydration
       setTimeout(() => {
         attachOutboundTracking()
         attachHeroCtaTracking()
+        attachMermaidThemeObserver()
+        scheduleMermaidRender()
       }, 0)
       // Track SPA navigations and re-bind outbound tracking
       router.onAfterRouteChange = () => {
         const w = window as any
-        const url = window.location.pathname + window.location.search + window.location.hash
+        const routePathKey = window.location.pathname + window.location.search
+        const isHashOnlyNavigation = routePathKey === lastRoutePathKey
+        lastRoutePathKey = routePathKey
+        const url = routePathKey + window.location.hash
         if (w.umami?.trackView) {
           w.umami.trackView(url, document.referrer)
         } else if (w.umami?.track) {
@@ -93,6 +186,9 @@ const theme: Theme = {
         }
         attachOutboundTracking()
         attachHeroCtaTracking()
+        if (!isHashOnlyNavigation) {
+          scheduleMermaidRender()
+        }
       }
     }
   },
