@@ -533,7 +533,7 @@ def _normalize_tokens(s: str) -> Set[str]:
 def _normalize_alnum(s: str) -> str:
     """
     Produce a lowercase string containing only the alphanumeric characters from the input.
-    
+
     Returns:
         str: The input lowercased with all non-alphanumeric characters removed.
     """
@@ -543,9 +543,9 @@ def _normalize_alnum(s: str) -> str:
 def _match_tokens(s: str) -> Set[str]:
     """
     Produce a set of query/title tokens suitable for matching by removing common stopwords.
-    
+
     If removing stopwords would remove every token, returns the original normalized token set.
-    
+
     Returns:
         Set[str]: Tokens lowercased and split on non-alphanumeric boundaries with common stopwords removed; if that yields an empty set, the unfiltered normalized tokens are returned.
     """
@@ -561,9 +561,9 @@ def _score_title_candidate(
 ) -> float:
     """
     Assigns a numeric relevance score indicating how well `candidate_title` matches the query.
-    
+
     The score increases with token overlap and balance between precision and recall (F1), and is boosted for exact or substring matches and for higher normalized string similarity.
-    
+
     Returns:
         float: Relevance score (higher is better). Returns 0.0 when there is no meaningful match.
     """
@@ -610,7 +610,7 @@ def _score_title_candidate(
 def _build_sto_search_terms(query: str) -> List[str]:
     """
     Builds ordered search variants for S.to from a raw query.
-    
+
     Returns:
         terms (List[str]): Ordered, de-duplicated list of non-empty search variants including the original trimmed query, a compact alphanumeric-only variant when different, and a dashed numeric variant when the compact form is all digits of length >= 3.
     """
@@ -685,11 +685,11 @@ def _search_sto_slug(query: str) -> Optional[str]:
 def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, str]]:
     """
     Determine the best matching catalog site and slug for a free-text series query.
-    
+
     Parameters:
         q (str): Free-text query to match against site indexes and alternative titles.
         site (Optional[str]): If provided, restrict search to this site; otherwise searches configured catalog sites and applies site-specific fallbacks.
-    
+
     Returns:
         Optional[Tuple[str, str]]: Tuple `(site, slug)` for the best match, or `None` if the query is empty or no acceptable match is found.
     """
@@ -699,12 +699,12 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
     def _search_sites(sites: List[str]) -> Optional[Tuple[str, str]]:
         """
         Finds the best matching (site, slug) for the current free-text query across the given sites.
-        
+
         Evaluates each site's cached index and alternative titles using the module's title-scoring logic, returning the site and slug with the highest score that meets the minimum match threshold. For sites without an index, attempts a search-only slug derivation; if no indexed match is found and "s.to" is among the sites, queries the S.to suggest API as a fallback.
-        
+
         Parameters:
             sites (List[str]): Ordered list of site identifiers to search.
-        
+
         Returns:
             Optional[Tuple[str, str]]: `(site, slug)` of the best match if a candidate meets the minimum score, otherwise `None`.
         """
