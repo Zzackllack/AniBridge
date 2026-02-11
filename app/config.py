@@ -25,6 +25,22 @@ def _as_bool(val: str | None, default: bool) -> bool:
     return v in ("1", "true", "yes", "on")
 
 
+def _as_non_negative_int(val: str | None, default: int) -> int:
+    if val is None:
+        return default
+    try:
+        parsed = int(val.strip())
+    except (TypeError, ValueError):
+        logger.warning(
+            "Invalid non-negative integer value {!r}; using {}", val, default
+        )
+        return default
+    if parsed < 0:
+        logger.warning("Negative value {} is not allowed; using {}", parsed, default)
+        return default
+    return parsed
+
+
 """Proxy configuration
 
 We support either a full URL with embedded credentials (PROXY_URL) or a split
@@ -390,6 +406,12 @@ MAX_CONCURRENCY = int(os.getenv("MAX_CONCURRENCY", "3"))
 if MAX_CONCURRENCY < 1:
     MAX_CONCURRENCY = 1
 logger.debug(f"MAX_CONCURRENCY={MAX_CONCURRENCY}")
+
+# Per-download bandwidth cap for yt-dlp in bytes/second. 0 = unlimited.
+DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC = _as_non_negative_int(
+    os.getenv("DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC"), 0
+)
+logger.debug("DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC={}", DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC)
 
 # ---- Torznab / Indexer-Konfiguration ----
 INDEXER_NAME = os.getenv("INDEXER_NAME", "AniBridge Torznab")
