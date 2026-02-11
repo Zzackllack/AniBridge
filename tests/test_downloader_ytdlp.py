@@ -41,9 +41,7 @@ def test_ydl_download_applies_rate_limit(monkeypatch, tmp_path: Path):
     assert captured["opts"]["ratelimit"] == 5242880
 
 
-def test_ydl_download_scales_rate_limit_for_hls_fragments(
-    monkeypatch, tmp_path: Path
-):
+def test_ydl_download_scales_rate_limit_for_hls_fragments(monkeypatch, tmp_path: Path):
     import importlib
 
     mod = importlib.import_module("app.core.downloader.ytdlp")

@@ -79,10 +79,7 @@ def _ydl_download(
     }
     if DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC > 0:
         effective_ratelimit = DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC
-        if (
-            concurrent_fragment_downloads > 1
-            and _looks_like_hls_url(direct_url)
-        ):
+        if concurrent_fragment_downloads > 1 and _looks_like_hls_url(direct_url):
             # yt-dlp applies ratelimit per concurrent fragment stream.
             effective_ratelimit = max(
                 1, DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC // concurrent_fragment_downloads

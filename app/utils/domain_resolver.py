@@ -29,6 +29,8 @@ MEGAKINO_DOMAIN_CANDIDATES = [
 ]
 MEGAKINO_MIRRORS_PATH = "/mirrors.txt"
 USER_AGENT = "Mozilla/5.0 (AniBridge; +https://github.com/Zzackllack/AniBridge)"
+MEGAKINO_RESOLVER_TIMEOUT_SECONDS = 6
+MEGAKINO_RESOLVER_MAX_WORKERS = 12
 
 _resolved_megakino_base_url: Optional[str] = None
 _resolved_megakino_source: Optional[str] = None
@@ -62,6 +64,55 @@ def _get_max_workers() -> int:
         return max(1, int(MAX_CONCURRENCY))
     except Exception:
         return 3
+
+
+def _resolver_max_workers(candidate_count: int) -> int:
+    """
+    Resolve worker count for Megakino domain/mirror probing.
+
+    Uses a dedicated cap for resolver probes to avoid startup stalls caused by
+    batching too many slow network checks behind the download concurrency limit.
+    """
+    if candidate_count <= 0:
+        return 1
+    return max(
+        1,
+        min(candidate_count, max(_get_max_workers(), MEGAKINO_RESOLVER_MAX_WORKERS)),
+    )
+
+
+def _resolver_http_get(
+    url: str, *, timeout: float | int, allow_redirects: bool, headers: dict[str, str]
+):
+    """
+    Execute `http_get` behind a hard wall-time limit.
+
+    Python DNS resolution can ignore requests' socket timeout and block for a long
+    time on dead domains. Running the request in a daemon helper thread lets the
+    resolver continue startup even when a probe gets stuck in DNS.
+    """
+    result: dict[str, object] = {}
+    err: dict[str, Exception] = {}
+
+    def _run() -> None:
+        try:
+            result["resp"] = http_get(
+                url,
+                timeout=timeout,
+                allow_redirects=allow_redirects,
+                headers=headers,
+            )
+        except Exception as exc:
+            err["exc"] = exc
+
+    t = threading.Thread(target=_run, name="megakino-http-probe", daemon=True)
+    t.start()
+    t.join(float(timeout) + 0.25)
+    if t.is_alive():
+        raise RequestException(f"resolver wall-time exceeded for {url}")
+    if "exc" in err:
+        raise err["exc"]
+    return result["resp"]
 
 
 def _build_base_url(value: str) -> str:
@@ -140,7 +191,7 @@ def _looks_like_html(text: str) -> bool:
 
 def _probe_megakino_sitemap(
     base_url: str,
-    timeout: float | int = 15,
+    timeout: float | int = MEGAKINO_RESOLVER_TIMEOUT_SECONDS,
 ) -> Optional[str]:
     """
     Probe a Megakino base URL by fetching its /sitemap.xml and return the resolved domain when the sitemap is valid.
@@ -158,7 +209,7 @@ def _probe_megakino_sitemap(
         return None
     probe_url = f"{base_url.rstrip('/')}/sitemap.xml"
     try:
-        resp = http_get(
+        resp = _resolver_http_get(
             probe_url,
             timeout=timeout,
             allow_redirects=True,
@@ -178,7 +229,9 @@ def _probe_megakino_sitemap(
         return None
 
 
-def check_megakino_domain_validity(base_url: str, timeout: float | int = 15) -> bool:
+def check_megakino_domain_validity(
+    base_url: str, timeout: float | int = MEGAKINO_RESOLVER_TIMEOUT_SECONDS
+) -> bool:
     """
     Determine whether the given Megakino base URL serves a valid sitemap and does not redirect to a different domain.
 
@@ -233,7 +286,11 @@ def _parse_mirror_domains(text: str) -> list[str]:
     return domains
 
 
-def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
+def fetch_megakino_mirror_domains(
+    timeout: float | int = MEGAKINO_RESOLVER_TIMEOUT_SECONDS,
+    *,
+    include_sitemap_fallback: bool = True,
+) -> list[str]:
     """
     Attempt to retrieve Megakino mirror domains from candidate mirrors files.
 
@@ -253,7 +310,7 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
             return (idx, None)
         mirrors_url = f"{base_url.rstrip('/')}{MEGAKINO_MIRRORS_PATH}"
         try:
-            resp = http_get(
+            resp = _resolver_http_get(
                 mirrors_url,
                 timeout=timeout,
                 allow_redirects=True,
@@ -284,7 +341,7 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
 
     candidates = list(MEGAKINO_DOMAIN_CANDIDATES)
     if candidates:
-        max_workers = _get_max_workers()
+        max_workers = _resolver_max_workers(len(candidates))
 
         mirror_results: dict[int, list[str]] = {}
         with ThreadPoolExecutor(max_workers=min(max_workers, len(candidates))) as ex:
@@ -299,6 +356,9 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
         for idx in range(len(candidates)):
             if idx in mirror_results:
                 return mirror_results[idx]
+
+    if not include_sitemap_fallback:
+        return []
 
     logger.info(
         "Megakino mirrors unavailable; falling back to sitemap probes for {} candidates.",
@@ -316,7 +376,7 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
         domain = _probe_megakino_sitemap(base_url, timeout=timeout)
         return (idx, domain)
 
-    max_workers = _get_max_workers()
+    max_workers = _resolver_max_workers(len(candidates))
 
     probe_results: dict[int, str] = {}
     with ThreadPoolExecutor(max_workers=min(max_workers, len(candidates))) as ex:
@@ -338,7 +398,9 @@ def fetch_megakino_mirror_domains(timeout: float | int = 15) -> list[str]:
     return resolved
 
 
-def fetch_megakino_domain(timeout: float | int = 15) -> Optional[str]:
+def fetch_megakino_domain(
+    timeout: float | int = MEGAKINO_RESOLVER_TIMEOUT_SECONDS,
+) -> Optional[str]:
     """
     Resolve the active Megakino domain by probing candidate and mirror hosts' sitemap.xml files.
 
@@ -350,26 +412,61 @@ def fetch_megakino_domain(timeout: float | int = 15) -> Optional[str]:
     """
     logger.info("Resolving megakino domain via sitemap checks.")
     seen: set[str] = set()
-    candidates: list[str] = []
+    ordered_candidates: list[str] = []
     mirror_timeout = min(timeout, 8)
-    mirror_domains = fetch_megakino_mirror_domains(timeout=mirror_timeout)
+    mirror_domains = fetch_megakino_mirror_domains(
+        timeout=mirror_timeout, include_sitemap_fallback=False
+    )
     if mirror_domains:
-        candidates.extend(mirror_domains)
-    candidates.extend(MEGAKINO_DOMAIN_CANDIDATES)
-    for candidate in candidates:
+        ordered_candidates.extend(mirror_domains)
+    ordered_candidates.extend(MEGAKINO_DOMAIN_CANDIDATES)
+    normalized_candidates: list[str] = []
+    for candidate in ordered_candidates:
         domain = _normalize_domain(candidate)
         if not domain or domain in seen:
             continue
         seen.add(domain)
+        normalized_candidates.append(domain)
+
+    if not normalized_candidates:
+        logger.warning("Megakino domain resolution failed; no candidate succeeded.")
+        return None
+
+    max_workers = _resolver_max_workers(len(normalized_candidates))
+    logger.info(
+        "Probing {} megakino candidates (workers={}, timeout={}s).",
+        len(normalized_candidates),
+        max_workers,
+        timeout,
+    )
+
+    def _probe_candidate(idx: int, domain: str) -> tuple[int, Optional[str]]:
         base_url = _build_base_url(domain)
         try:
-            final_domain = _probe_megakino_sitemap(base_url, timeout=timeout)
-            if final_domain:
-                logger.success("Megakino domain resolved: {}", final_domain)
-                return final_domain
-            logger.warning("Megakino candidate failed validation: {}", domain)
+            return (idx, _probe_megakino_sitemap(base_url, timeout=timeout))
         except Exception as exc:
             logger.warning("Megakino candidate check failed for {}: {}", base_url, exc)
+            return (idx, None)
+
+    probe_results: dict[int, str] = {}
+    with ThreadPoolExecutor(
+        max_workers=min(max_workers, len(normalized_candidates))
+    ) as ex:
+        futures = [
+            ex.submit(_probe_candidate, idx, domain)
+            for idx, domain in enumerate(normalized_candidates)
+        ]
+        for fut in as_completed(futures):
+            idx, resolved = fut.result()
+            if resolved:
+                probe_results[idx] = resolved
+
+    for idx, domain in enumerate(normalized_candidates):
+        resolved = probe_results.get(idx)
+        if resolved:
+            logger.success("Megakino domain resolved: {}", resolved)
+            return resolved
+        logger.warning("Megakino candidate failed validation: {}", domain)
     logger.warning("Megakino domain resolution failed; no candidate succeeded.")
     return None
 
