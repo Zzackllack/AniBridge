@@ -3,6 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import List, Optional
 import xml.etree.ElementTree as ET
+import threading
+import time
+from urllib.parse import urlencode
 
 from fastapi import Depends, Query, Request, Response
 from fastapi.responses import Response as FastAPIResponse
@@ -31,9 +34,18 @@ from app.providers.aniworld.specials import (
 )
 from app.utils.magnet import _site_prefix
 from app.utils.movie_year import get_movie_year
+from app.utils.http_client import get as http_get
 
 from . import router
 from .utils import _build_item, _caps_xml, _require_apikey, _rss_root
+
+_SKYHOOK_SEARCH_URL = "https://skyhook.sonarr.tv/v1/tvdb/search/en/"
+_SKYHOOK_SHOW_URL = "https://skyhook.sonarr.tv/v1/tvdb/shows/en/{tvdb_id}"
+_TVSEARCH_ID_CACHE_TTL_SECONDS = 300.0
+_TVSEARCH_ID_CACHE_MAX_ENTRIES = 512
+_TVSEARCH_SKYHOOK_CACHE_LOCK = threading.Lock()
+_TVSEARCH_TERM_TO_TVDB_CACHE: dict[str, tuple[float, int]] = {}
+_TVSEARCH_TVDB_TO_TITLE_CACHE: dict[int, tuple[float, str]] = {}
 
 
 def _default_languages_for_site(site: str) -> List[str]:
@@ -58,6 +70,152 @@ def _default_languages_for_site(site: str) -> List[str]:
     return list(fallback)
 
 
+def _coerce_positive_int(value: object) -> Optional[int]:
+    """
+    Coerce an arbitrary value into a positive integer.
+
+    Parameters:
+        value (object): Value to convert to an integer.
+
+    Returns:
+        The parsed positive integer if conversion succeeds and is greater than zero, `None` otherwise.
+    """
+    try:
+        parsed = int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
+def _cache_get_term_tvdb(term: str) -> Optional[int]:
+    """Return cached tvdb id for a SkyHook search term when entry is fresh."""
+    now = time.time()
+    with _TVSEARCH_SKYHOOK_CACHE_LOCK:
+        entry = _TVSEARCH_TERM_TO_TVDB_CACHE.get(term)
+        if not entry:
+            return None
+        cached_at, cached_tvdb = entry
+        if now - cached_at > _TVSEARCH_ID_CACHE_TTL_SECONDS:
+            _TVSEARCH_TERM_TO_TVDB_CACHE.pop(term, None)
+            return None
+        return cached_tvdb
+
+
+def _cache_set_term_tvdb(term: str, tvdb_id: int) -> None:
+    """Cache tvdb id for a SkyHook search term with TTL."""
+    with _TVSEARCH_SKYHOOK_CACHE_LOCK:
+        _TVSEARCH_TERM_TO_TVDB_CACHE[term] = (time.time(), tvdb_id)
+        if len(_TVSEARCH_TERM_TO_TVDB_CACHE) > _TVSEARCH_ID_CACHE_MAX_ENTRIES:
+            oldest = min(
+                _TVSEARCH_TERM_TO_TVDB_CACHE.items(), key=lambda item: item[1][0]
+            )[0]
+            _TVSEARCH_TERM_TO_TVDB_CACHE.pop(oldest, None)
+
+
+def _cache_get_tvdb_title(tvdb_id: int) -> Optional[str]:
+    """Return cached SkyHook show title for tvdb id when entry is fresh."""
+    now = time.time()
+    with _TVSEARCH_SKYHOOK_CACHE_LOCK:
+        entry = _TVSEARCH_TVDB_TO_TITLE_CACHE.get(tvdb_id)
+        if not entry:
+            return None
+        cached_at, cached_title = entry
+        if now - cached_at > _TVSEARCH_ID_CACHE_TTL_SECONDS:
+            _TVSEARCH_TVDB_TO_TITLE_CACHE.pop(tvdb_id, None)
+            return None
+        return cached_title
+
+
+def _cache_set_tvdb_title(tvdb_id: int, title: str) -> None:
+    """Cache SkyHook show title for tvdb id with TTL."""
+    with _TVSEARCH_SKYHOOK_CACHE_LOCK:
+        _TVSEARCH_TVDB_TO_TITLE_CACHE[tvdb_id] = (time.time(), title)
+        if len(_TVSEARCH_TVDB_TO_TITLE_CACHE) > _TVSEARCH_ID_CACHE_MAX_ENTRIES:
+            oldest = min(
+                _TVSEARCH_TVDB_TO_TITLE_CACHE.items(), key=lambda item: item[1][0]
+            )[0]
+            _TVSEARCH_TVDB_TO_TITLE_CACHE.pop(oldest, None)
+
+
+def _resolve_tvsearch_query_from_ids(
+    *,
+    tvdbid: Optional[int],
+    tmdbid: Optional[int],
+    imdbid: Optional[str],
+) -> Optional[str]:
+    """
+    Resolve a canonical TV series title from provided Torznab identifiers.
+
+    If a positive `tvdbid` is supplied, the function looks up the show title for that ID.
+    If not, it attempts to resolve a `tvdbid` by querying SkyHook using `tmdbid` and/or `imdbid`,
+    then looks up the show title for the resolved `tvdbid`.
+
+    Returns:
+        title (str): The resolved show title when found.
+        None: If no title could be resolved.
+    """
+    tvdb_id = _coerce_positive_int(tvdbid)
+    if tvdb_id is None:
+        lookup_terms: List[str] = []
+        tmdb = _coerce_positive_int(tmdbid)
+        imdb = (imdbid or "").strip()
+        if tmdb is not None:
+            lookup_terms.append(f"tmdb:{tmdb}")
+        if imdb:
+            lookup_terms.append(f"imdb:{imdb}")
+
+        for term in lookup_terms:
+            cached_tvdb = _cache_get_term_tvdb(term)
+            if cached_tvdb is not None:
+                tvdb_id = cached_tvdb
+                break
+            try:
+                query = urlencode({"term": term})
+                response = http_get(
+                    f"{_SKYHOOK_SEARCH_URL}?{query}",
+                    timeout=8.0,
+                )
+                response.raise_for_status()
+                payload = response.json()
+            except Exception as exc:
+                logger.debug("SkyHook ID search failed for '{}': {}", term, exc)
+                continue
+            if not isinstance(payload, list):
+                continue
+            for item in payload:
+                if not isinstance(item, dict):
+                    continue
+                candidate = _coerce_positive_int(item.get("tvdbId"))
+                if candidate is not None:
+                    tvdb_id = candidate
+                    _cache_set_term_tvdb(term, candidate)
+                    break
+            if tvdb_id is not None:
+                break
+
+    if tvdb_id is None:
+        return None
+
+    cached_title = _cache_get_tvdb_title(tvdb_id)
+    if cached_title is not None:
+        return cached_title
+
+    try:
+        response = http_get(_SKYHOOK_SHOW_URL.format(tvdb_id=tvdb_id), timeout=8.0)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as exc:
+        logger.debug("SkyHook show lookup failed for tvdb {}: {}", tvdb_id, exc)
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+    title = str(payload.get("title") or "").strip()
+    if title:
+        _cache_set_tvdb_title(tvdb_id, title)
+    return title or None
+
+
 def _try_mapped_special_probe(
     *,
     tn_module,
@@ -68,9 +226,27 @@ def _try_mapped_special_probe(
     special_map,
 ) -> tuple[bool, Optional[int], Optional[str], Optional[str], int, int, int, int]:
     """
-    Probe mapped AniWorld special coordinates using cache first, then live probe.
+    Probe availability and quality for an AniWorld special that maps to a different source episode, using cached availability when possible.
 
-    Returns availability tuple together with resolved source/alias coordinates.
+    Parameters:
+        tn_module: Provider module exposing `get_availability` and `probe_episode_quality` used to fetch cached availability or probe live quality.
+        session (Session): Database/session object used by `get_availability`.
+        slug (str): Show identifier used for probing.
+        lang (str): Language to probe (e.g., "German Dub").
+        site_found (str): Catalogue site name where the source episode is hosted.
+        special_map: Mapping object containing `source_season`, `source_episode`, `alias_season`, and `alias_episode` that describe the source coordinates and their alias.
+
+    Returns:
+        tuple: (
+            available (bool): `True` if the source episode is available, `False` otherwise,
+            height (Optional[int]): video height in pixels if known, otherwise `None`,
+            vcodec (Optional[str]): video codec identifier if known, otherwise `None`,
+            provider (Optional[str]): provider name that supplied the quality info if known, otherwise `None`,
+            source_season (int): season number of the mapped source episode,
+            source_episode (int): episode number of the mapped source episode,
+            alias_season (int): alias season number requested,
+            alias_episode (int): alias episode number requested
+        )
     """
     source_season = special_map.source_season
     source_episode = special_map.source_episode
@@ -757,10 +933,10 @@ def torznab_api(
 
         raise HTTPException(status_code=400, detail="invalid t")
 
-    # require at least q, and either both season+ep or only season (we'll default ep=1)
+    # require season and either query text or resolvable identifier hints.
     import app.api.torznab as tn
 
-    if q is None or season is None:
+    if season is None:
         rss, _channel = _rss_root()
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
         logger.debug("Returning empty RSS feed due to missing parameters.")
@@ -770,10 +946,29 @@ def torznab_api(
         ep = 1
 
     # from here on, non-None
-    assert season is not None and ep is not None and q is not None
+    assert season is not None and ep is not None
     season_i = int(season)
     ep_i = int(ep)
-    q_str = str(q)
+    q_str = (q or "").strip()
+    if not q_str:
+        q_str = (
+            _resolve_tvsearch_query_from_ids(
+                tvdbid=tvdbid,
+                tmdbid=tmdbid,
+                imdbid=imdbid,
+            )
+            or ""
+        ).strip()
+        if q_str:
+            logger.debug(
+                "tvsearch: resolved missing q from identifiers to '{}'",
+                q_str,
+            )
+    if not q_str:
+        rss, _channel = _rss_root()
+        xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
+        logger.debug("Returning empty RSS feed due to unresolved query.")
+        return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
 
     logger.debug(
         f"Searching for slug for query '{q_str}' (season={season_i}, ep={ep_i})"

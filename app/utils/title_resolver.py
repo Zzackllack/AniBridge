@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from difflib import SequenceMatcher
 from pathlib import Path
 from urllib.parse import quote
 from typing import Dict, List, Optional, Set, Tuple
@@ -38,6 +39,34 @@ HREF_RE = HREF_PATTERNS["aniworld.to"]
 _PROVIDER_CACHE: Dict[str, CatalogProvider | None] = {
     "megakino": get_provider("megakino"),
 }
+
+# Common stop words across EN/DE/FR/ES used to reduce noisy token overlap.
+_MATCH_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "das",
+    "de",
+    "del",
+    "der",
+    "die",
+    "du",
+    "el",
+    "en",
+    "et",
+    "la",
+    "le",
+    "les",
+    "los",
+    "of",
+    "the",
+    "und",
+    "y",
+}
+
+# Minimum confidence to accept an index-based title match.
+_MIN_TITLE_MATCH_SCORE = 3.5
+_SIMILARITY_MIN_F1 = 0.2
 
 # suppress repetitive logging from _extract_slug by emitting each message only once
 _extracted_any: bool = False
@@ -503,16 +532,84 @@ def _normalize_tokens(s: str) -> Set[str]:
 
 
 def _normalize_alnum(s: str) -> str:
-    """Lowercase and filter to alphanumeric characters."""
+    """
+    Produce a lowercase string containing only the alphanumeric characters from the input.
+
+    Returns:
+        str: The input lowercased with all non-alphanumeric characters removed.
+    """
     return "".join(ch.lower() for ch in s if ch.isalnum())
 
 
-def _build_sto_search_terms(query: str) -> List[str]:
-    """Build ordered S.to search variants from a raw query.
+def _match_tokens(s: str) -> Set[str]:
+    """
+    Produce a set of query/title tokens suitable for matching by removing common stopwords.
 
-    Returns the raw query, a compact alphanumeric-only variant, and a dashed
-    variant when the compact form is numeric with length >= 3. Empty values are
-    filtered and the list is de-duplicated while preserving order.
+    If removing stopwords would remove every token, returns the original normalized token set.
+
+    Returns:
+        Set[str]: Tokens lowercased and split on non-alphanumeric boundaries with common stopwords removed; if that yields an empty set, the unfiltered normalized tokens are returned.
+    """
+    tokens = _normalize_tokens(s)
+    if not tokens:
+        return set()
+    filtered = {token for token in tokens if token not in _MATCH_STOPWORDS}
+    return filtered or tokens
+
+
+def _score_title_candidate(
+    query_tokens: Set[str], query_norm: str, candidate_title: str
+) -> float:
+    """
+    Assigns a numeric relevance score indicating how well `candidate_title` matches the query.
+
+    The score increases with token overlap and balance between precision and recall (F1), and is boosted for exact or substring matches and for higher normalized string similarity.
+
+    Returns:
+        float: Relevance score (higher is better). Returns 0.0 when there is no meaningful match.
+    """
+    title_tokens = _match_tokens(candidate_title)
+    title_norm = _normalize_alnum(candidate_title)
+    if not query_tokens or not title_tokens or not title_norm:
+        return 0.0
+
+    intersection = len(query_tokens & title_tokens)
+    if intersection <= 0:
+        return 0.0
+
+    precision = intersection / max(1, len(title_tokens))
+    recall = intersection / max(1, len(query_tokens))
+    f1 = (
+        (2.0 * precision * recall / (precision + recall))
+        if (precision + recall) > 0
+        else 0.0
+    )
+    ratio = 0.0
+    if query_norm and title_norm and f1 >= _SIMILARITY_MIN_F1:
+        ratio = SequenceMatcher(None, query_norm, title_norm).ratio()
+    exact = 1.0 if query_norm and query_norm == title_norm else 0.0
+    contains = (
+        1.0
+        if query_norm and (query_norm in title_norm or title_norm in query_norm)
+        else 0.0
+    )
+
+    return (
+        (8.0 * exact)
+        + (1.5 * contains)
+        + (3.0 * f1)
+        + (2.0 * precision)
+        + (1.0 * recall)
+        + ratio
+    )
+
+
+def _build_sto_search_terms(query: str) -> List[str]:
+    """
+    Builds ordered search variants for S.to from a raw query.
+
+    Returns:
+        terms (List[str]): Ordered, de-duplicated list of non-empty search variants including the original trimmed query, a compact alphanumeric-only variant when different, and a dashed numeric variant when the compact form is all digits of length >= 3.
     """
     raw = (query or "").strip()
     if not raw:
@@ -584,23 +681,35 @@ def _search_sto_slug(query: str) -> Optional[str]:
 
 def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, str]]:
     """
-    Find the best-matching site and slug for a free-text query by comparing token overlap with titles and alternative titles.
+    Determine the best matching catalog site and slug for a free-text series query.
 
     Parameters:
-        q (str): Free-text query used to match against series titles.
-        site (Optional[str]): If provided, restricts the search to this site; otherwise searches all configured sites.
+        q (str): Free-text query to match against site indexes and alternative titles.
+        site (Optional[str]): If provided, restrict search to this site; otherwise searches configured catalog sites and applies site-specific fallbacks.
 
     Returns:
-        Optional[Tuple[str, str]]: `(site, slug)` of the best match, `None` if the query is empty or no match is found.
+        Optional[Tuple[str, str]]: Tuple `(site, slug)` for the best match, or `None` if the query is empty or no acceptable match is found.
     """
     if not q:
         return None
 
     def _search_sites(sites: List[str]) -> Optional[Tuple[str, str]]:
-        q_tokens = _normalize_tokens(q)
+        """
+        Finds the best matching (site, slug) for the current free-text query across the given sites.
+
+        Evaluates each site's cached index and alternative titles using the module's title-scoring logic, returning the site and slug with the highest score that meets the minimum match threshold. For sites without an index, attempts a search-only slug derivation; if no indexed match is found and "s.to" is among the sites, queries the S.to suggest API as a fallback.
+
+        Parameters:
+            sites (List[str]): Ordered list of site identifiers to search.
+
+        Returns:
+            Optional[Tuple[str, str]]: `(site, slug)` of the best match if a candidate meets the minimum score, otherwise `None`.
+        """
+        q_tokens = _match_tokens(q)
+        q_norm = _normalize_alnum(q)
         best_slug: Optional[str] = None
         best_site: Optional[str] = None
-        best_score = 0
+        best_score = 0.0
 
         for search_site in sites:
             index = load_or_refresh_index(search_site)  # slug -> display title
@@ -614,32 +723,36 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
             alts = load_or_refresh_alternatives(search_site)  # slug -> [titles]
 
             for slug, main_title in index.items():
-                # Start with main title tokens
-                titles_for_slug: List[str] = [main_title]
+                titles_for_slug: List[str] = []
+                seen_titles: Set[str] = set()
+                if main_title:
+                    titles_for_slug.append(main_title)
+                    seen_titles.add(main_title)
                 alt_list = alts.get(slug)
                 if alt_list:
-                    titles_for_slug.extend(alt_list)
+                    for alt_title in alt_list:
+                        if alt_title and alt_title not in seen_titles:
+                            titles_for_slug.append(alt_title)
+                            seen_titles.add(alt_title)
 
                 # Evaluate best overlap score across all candidate titles
-                local_best = 0
+                local_best = 0.0
                 for candidate in titles_for_slug:
-                    t_tokens = _normalize_tokens(candidate)
-                    inter = len(q_tokens & t_tokens)
-                    if inter > local_best:
-                        local_best = inter
+                    score = _score_title_candidate(q_tokens, q_norm, candidate)
+                    if score > local_best:
+                        local_best = score
 
                 if local_best > best_score:
                     best_score = local_best
                     best_slug = slug
                     best_site = search_site
 
-        if best_slug and best_site:
+        if best_slug and best_site and best_score >= _MIN_TITLE_MATCH_SCORE:
             return (best_site, best_slug)
-        for search_site in sites:
-            if search_site == "s.to":
-                api_slug = _search_sto_slug(q)
-                if api_slug:
-                    return (search_site, api_slug)
+        if "s.to" in sites:
+            api_slug = _search_sto_slug(q)
+            if api_slug:
+                return ("s.to", api_slug)
         return None
 
     if site:
