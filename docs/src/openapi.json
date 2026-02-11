@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "AniBridge API",
-    "version": "2.4.1",
+    "version": "2.4.2",
     "description": "AniBridge exposes a Torznab feed and a qBittorrent-compatible API shim for *arr automation. This specification documents the public HTTP endpoints."
   },
   "servers": [
