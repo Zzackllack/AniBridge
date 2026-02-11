@@ -96,6 +96,19 @@ def test_tvsearch_uses_id_resolved_query_when_q_missing(client, monkeypatch):
     seen = {"query": None}
 
     def _slug_from_query(query, site=None):
+        """
+        Record the provided query in the shared `seen` mapping and return a fixed (site, slug) pair.
+        
+        Parameters:
+            query (str): The query string to record.
+            site (str | None): Optional site hint (unused by this stub).
+        
+        Returns:
+            tuple: A two-element tuple (site, slug) where `site` is `"aniworld.to"` and `slug` is `"slug"`.
+        
+        Side effects:
+            Mutates the `seen` mapping by setting `seen["query"] = query`.
+        """
         seen["query"] = query
         return ("aniworld.to", "slug")
 
