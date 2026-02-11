@@ -1,6 +1,7 @@
 import threading
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, cast
+from urllib.parse import urlsplit
 
 import yt_dlp
 from loguru import logger
@@ -11,6 +12,15 @@ from app.infrastructure.network import yt_dlp_proxy
 from .errors import DownloadError
 from .utils import sanitize_filename
 from .types import ProgressCb
+
+
+def _looks_like_hls_url(url: str) -> bool:
+    """Return True when `url` appears to target an HLS playlist."""
+    try:
+        path = urlsplit(url).path.lower()
+    except Exception:
+        path = url.lower()
+    return path.endswith(".m3u8") or ".m3u8" in path
 
 
 def _ydl_download(
@@ -53,12 +63,13 @@ def _ydl_download(
         dest_dir / (sanitize_filename(title_hint or "%(title)s") + ".%(ext)s")
     )
     logger.debug("yt-dlp output template: {}", outtmpl)
+    concurrent_fragment_downloads = 4
     ydl_opts: Dict[str, Any] = {
         "outtmpl": outtmpl,
         "retries": 3,
         "fragment_retries": 3,
         "continuedl": True,
-        "concurrent_fragment_downloads": 4,
+        "concurrent_fragment_downloads": concurrent_fragment_downloads,
         "quiet": True,
         "noprogress": True,
         "merge_output_format": "mkv",
@@ -67,10 +78,28 @@ def _ydl_download(
         "socket_timeout": 20,
     }
     if DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC > 0:
-        ydl_opts["ratelimit"] = DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC
+        effective_ratelimit = DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC
+        if (
+            concurrent_fragment_downloads > 1
+            and _looks_like_hls_url(direct_url)
+        ):
+            # yt-dlp applies ratelimit per concurrent fragment stream.
+            effective_ratelimit = max(
+                1, DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC // concurrent_fragment_downloads
+            )
+            logger.info(
+                "yt-dlp HLS rate limit normalized: target={} bytes/s, "
+                "fragments={}, per_fragment={} bytes/s",
+                DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC,
+                concurrent_fragment_downloads,
+                effective_ratelimit,
+            )
+        ydl_opts["ratelimit"] = effective_ratelimit
         logger.info(
-            "yt-dlp download rate limit enabled: {} bytes/s",
+            "yt-dlp download rate limit enabled: configured={} bytes/s, "
+            "effective={} bytes/s",
             DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC,
+            effective_ratelimit,
         )
 
     try:

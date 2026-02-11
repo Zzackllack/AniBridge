@@ -35,10 +35,30 @@ def test_ydl_download_applies_rate_limit(monkeypatch, tmp_path: Path):
 
     monkeypatch.setattr(mod.yt_dlp, "YoutubeDL", DummyYDL)
 
-    path, _info = mod._ydl_download("https://example.test/video", tmp_path)
+    path, _info = mod._ydl_download("https://example.test/video.mp4", tmp_path)
 
     assert path == tmp_path / "demo.mp4"
     assert captured["opts"]["ratelimit"] == 5242880
+
+
+def test_ydl_download_scales_rate_limit_for_hls_fragments(
+    monkeypatch, tmp_path: Path
+):
+    import importlib
+
+    mod = importlib.import_module("app.core.downloader.ytdlp")
+    monkeypatch.setattr(mod, "DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC", 5242880)
+    monkeypatch.setattr(mod, "yt_dlp_proxy", lambda: None)
+
+    captured: dict[str, object] = {}
+    DummyYDL = _make_dummy_ydl(captured, str(tmp_path / "demo.mp4"))
+    monkeypatch.setattr(mod.yt_dlp, "YoutubeDL", DummyYDL)
+
+    path, _info = mod._ydl_download("https://example.test/master.m3u8", tmp_path)
+
+    assert path == tmp_path / "demo.mp4"
+    assert captured["opts"]["concurrent_fragment_downloads"] == 4
+    assert captured["opts"]["ratelimit"] == 1310720
 
 
 def test_ydl_download_omits_rate_limit_when_disabled(monkeypatch, tmp_path: Path):
