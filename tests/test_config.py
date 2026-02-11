@@ -63,5 +63,10 @@ def test_download_rate_limit_invalid_or_negative_defaults_to_zero(monkeypatch):
     assert cfg.DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC == 0
 
     monkeypatch.setenv("DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC", "not-a-number")
+    if "app.config" in sys.modules:
+        del sys.modules["app.config"]
+    if hasattr(app, "config"):
+        delattr(app, "config")
+    cfg = importlib.import_module("app.config")
     cfg = importlib.reload(cfg)
     assert cfg.DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC == 0
