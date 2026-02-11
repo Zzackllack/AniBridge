@@ -66,10 +66,10 @@ def _default_languages_for_site(site: str) -> List[str]:
 def _coerce_positive_int(value: object) -> Optional[int]:
     """
     Coerce an arbitrary value into a positive integer.
-    
+
     Parameters:
         value (object): Value to convert to an integer.
-    
+
     Returns:
         The parsed positive integer if conversion succeeds and is greater than zero, `None` otherwise.
     """
@@ -88,11 +88,11 @@ def _resolve_tvsearch_query_from_ids(
 ) -> Optional[str]:
     """
     Resolve a canonical TV series title from provided Torznab identifiers.
-    
+
     If a positive `tvdbid` is supplied, the function looks up the show title for that ID.
     If not, it attempts to resolve a `tvdbid` by querying SkyHook using `tmdbid` and/or `imdbid`,
     then looks up the show title for the resolved `tvdbid`.
-    
+
     Returns:
         title (str): The resolved show title when found.
         None: If no title could be resolved.
@@ -159,7 +159,7 @@ def _try_mapped_special_probe(
 ) -> tuple[bool, Optional[int], Optional[str], Optional[str], int, int, int, int]:
     """
     Probe availability and quality for an AniWorld special that maps to a different source episode, using cached availability when possible.
-    
+
     Parameters:
         tn_module: Provider module exposing `get_availability` and `probe_episode_quality` used to fetch cached availability or probe live quality.
         session (Session): Database/session object used by `get_availability`.
@@ -167,7 +167,7 @@ def _try_mapped_special_probe(
         lang (str): Language to probe (e.g., "German Dub").
         site_found (str): Catalogue site name where the source episode is hosted.
         special_map: Mapping object containing `source_season`, `source_episode`, `alias_season`, and `alias_episode` that describe the source coordinates and their alias.
-    
+
     Returns:
         tuple: (
             available (bool): `True` if the source episode is available, `False` otherwise,
