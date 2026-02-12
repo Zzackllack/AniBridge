@@ -115,13 +115,74 @@ Examples:
 
 Operational implication: technical reachability is not legal permission, and domain availability is not legal legitimacy.
 
-## 7. Rights-Holder Notices and Takedown Scope
+## 7. Third-Party Video Hoster Layer and Control Limitations
+
+Many upstream catalog/index services referenced by users (including AniWorld, s.to/SerienStream, and megakino ecosystems) generally do not represent themselves as the final storage layer for all video assets. In many workflows, they expose links, embeds, or player frames that route to separate video hosters or delivery networks.
+
+Non-exhaustive hoster/domain labels that may appear in provider ecosystems include:
+
+- `VOE`
+- `Filemoon`
+- `Streamtape` / `streamta.pe`
+- `Vidmoly`
+- `SpeedFiles`
+- `Doodstream` / `d0000d`
+- `LoadX`
+- `Luluvdo`
+- `Vidoza`
+- `GXPlayer`
+
+These names are included solely for identification and risk-allocation clarity. They are not endorsements, representations of ownership, or assertions of legal status.
+
+### 7.1 Layered Responsibility Model
+
+For legal and operational analysis, users should treat this ecosystem as a multi-layer chain:
+
+- `Index/Portal Layer`: surfaces metadata, embeds, and outbound references.
+- `Hoster/Delivery Layer`: may store, stream, or relay the underlying file/media segments.
+- `User Automation Layer` (AniBridge + client stack): resolves references and performs user-initiated retrieval according to local configuration.
+
+Liability, notice handling, and rights enforcement often differ by layer. A request directed to the wrong layer may be ineffective.
+
+### 7.2 No Editorial, Custodial, or Takedown Authority by AniBridge
+
+AniBridge maintainers do not control third-party catalogs, third-party hoster infrastructure, or their CDN edge systems. Accordingly, AniBridge has no unilateral legal or technical ability to:
+
+- remove, delist, geo-block, or disable third-party hosted media;
+- compel hosters to de-publish or preserve content;
+- validate chain-of-title or license provenance for referenced media;
+- guarantee persistence, deletion timing, or notice compliance by third parties.
+
+AniBridge can only govern repository-controlled assets and software behavior within the AniBridge codebase itself.
+
+### 7.3 Rights-Holder and Abuse Routing Implications
+
+Where a rights-holder seeks content removal, de-indexing, or account-level enforcement, notices should be directed to the entity controlling the relevant layer:
+
+- the upstream portal/index operator, if the complaint concerns indexing/embedding surfaces;
+- the video hoster or delivery operator, if the complaint concerns hosted or streamed media;
+- network intermediaries (as applicable under local law), where host-level escalation is required.
+
+Notices sent exclusively to AniBridge cannot effect third-party content removal when AniBridge does not own or operate the target infrastructure.
+
+### 7.4 User-Side Consequences
+
+Because hoster control lies outside AniBridge:
+
+- link availability may change without warning;
+- provider pages may rotate hosters and mirrors;
+- legal actions against portals/hosters may alter routing behavior abruptly;
+- removal at hoster level may invalidate previously functional AniBridge workflows.
+
+These outcomes are external-service effects, not a representation that AniBridge has assumed operational control over third-party media.
+
+## 8. Rights-Holder Notices and Takedown Scope
 
 AniBridge maintainers can address repository-contained material only (code/docs/repo assets). They cannot remove media hosted on third-party infrastructures and cannot execute takedowns for external services.
 
 Rights holders must direct third-party content complaints to the relevant upstream platform or host and use the legal channels designated by those entities.
 
-## 8. Privacy, Logs, and Data Governance
+## 9. Privacy, Logs, and Data Governance
 
 AniBridge may process and store operational metadata (job identifiers, paths, URLs, language/provider metadata, and diagnostics). Depending on deployment context, this can constitute personal data or commercially sensitive information.
 
@@ -132,7 +193,7 @@ The User is solely responsible for:
 - breach handling and disclosure obligations,
 - redaction before publication of logs or diagnostics.
 
-## 9. Warranty Disclaimer, Liability Exclusion, and Indemnity
+## 10. Warranty Disclaimer, Liability Exclusion, and Indemnity
 
 THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT EXPRESS OR IMPLIED WARRANTIES, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, CONTINUITY, OR REGULATORY FITNESS.
 
@@ -145,11 +206,11 @@ The User agrees, to the maximum extent permitted by law, to indemnify and hold h
 - violation of third-party terms;
 - unauthorized access, data misuse, or circumvention conduct.
 
-## 10. Export Controls, Sanctions, and Trade Restrictions
+## 11. Export Controls, Sanctions, and Trade Restrictions
 
 Users are responsible for compliance with applicable export-control, sanctions, embargo, and trade-restriction regimes in all relevant jurisdictions. AniBridge may not be used where such laws prohibit software transfer, access, technical assistance, or related services.
 
-## 11. Contribution and Redistribution Conditions
+## 12. Contribution and Redistribution Conditions
 
 Contributors and redistributors must not:
 
@@ -159,19 +220,19 @@ Contributors and redistributors must not:
 
 Downstream redistributions should preserve prominent non-affiliation and lawful-use notices.
 
-## 12. Severability, No Waiver, and Interpretive Priority
+## 13. Severability, No Waiver, and Interpretive Priority
 
 If any provision of this notice is unenforceable, the remainder remains in effect to the fullest extent permitted by law. Failure to enforce any part is not a waiver. If conflicts arise, mandatory law controls over this notice.
 
-## 13. Amendments and Temporal Validity
+## 14. Amendments and Temporal Validity
 
 This notice may be revised without prior notice to reflect legal, technical, provider, or enforcement changes. Users are responsible for reviewing the current version before continued operation.
 
-## 14. No Legal Advice; Counsel Requirement for High-Risk Use
+## 15. No Legal Advice; Counsel Requirement for High-Risk Use
 
 Nothing in AniBridge code, docs, issues, chats, or community channels is legal advice. For any potentially contentious workflow, consult qualified counsel licensed in your jurisdiction and familiar with copyright, platform liability, and anti-circumvention doctrine.
 
-## 15. Selected Authorities and External Materials (Non-Exhaustive)
+## 16. Selected Authorities and External Materials (Non-Exhaustive)
 
 - [AniWorld Terms / Rules](https://aniworld.to/support/regeln)
 - [AniWorld DMCA Contact Surface](https://aniworld.to/dmca)
