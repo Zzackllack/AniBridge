@@ -5,6 +5,10 @@ outline: deep
 
 # Prowlarr Integration
 
+::: danger Legal Disclaimer
+Read the [Legal Disclaimer](/legal) before using clients. You are responsible for ensuring lawful use.
+:::
+
 Configure AniBridge as a Torznab indexer in Prowlarr.
 
 ## Add Indexer
