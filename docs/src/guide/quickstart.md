@@ -126,4 +126,4 @@ The API listens on `http://localhost:8000`.
 - Configure Prowlarr (Torznab): `http://localhost:8000/torznab/api`
 - Configure Sonarr (qBittorrent): `http://localhost:8000/`
 - Browse [Environment](/api/environment) for available settings
-- See [Integrations → Sonarr](/integrations/sonarr), [Integrations → Radarr](/integrations/radarr ) and [Integrations → Prowlarr](/integrations/prowlarr) for setup guides
+- See [Integrations → Sonarr](/integrations/clients/sonarr), [Integrations → Radarr](/integrations/clients/radarr ) and [Integrations → Prowlarr](/integrations/clients/prowlarr) for setup guides

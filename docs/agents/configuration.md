@@ -81,5 +81,5 @@ AniBridge centralizes configuration in `app/config.py`. Values are derived from 
 64. `PUBLIC_IP_CHECK_INTERVAL_MIN` — Override for IP check interval (defaults to proxy interval).
 65. `PYTHONUNBUFFERED` — Set to `1` in Docker to keep logs flush.
 66. `ANIBRIDGE_DOCS_BASE_URL` — Docs base URL (if introduced).
-67. `SONARR_*`, `PROWLARR_*` — Integration values documented in `docs/src/integrations`.
+67. `SONARR_*`, `PROWLARR_*` — Integration values documented in `docs/src/integrations/clients`.
 68. `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC` — Per-download yt-dlp rate cap in bytes/second (`0` disables limiting).
