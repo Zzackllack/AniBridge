@@ -56,7 +56,7 @@ Use a browser or curl:
 - `GET /api/v2/sync/maindata` → per torrent: `save_path` is `/downloads`
 - `GET /api/v2/torrents/properties?hash=<btih>` → `save_path` is `/downloads`
 
-## What Sonarr Calls
+## What Radarr Calls
 
 - `POST /api/v2/torrents/add` (magnet from Prowlarr)
 - `GET /api/v2/sync/maindata`

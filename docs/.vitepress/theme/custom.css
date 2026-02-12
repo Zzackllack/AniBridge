@@ -33,7 +33,7 @@
 }
 
 /* Medium screens: increase glow */
-@media (min-width: 640px) {
+@media (width >= 640px) {
   .VPHomeHero .image .image-container img.VPImage.image-src {
     filter: drop-shadow(0 0 2rem rgba(50, 69, 86, 0.95))
       drop-shadow(0 0 2.75rem rgba(50, 69, 86, 0.9))
@@ -49,7 +49,7 @@
 }
 
 /* Desktop/large screens: full-strength glow (original values) */
-@media (min-width: 1024px) {
+@media (width >= 1024px) {
   .VPHomeHero .image .image-container img.VPImage.image-src {
     filter: drop-shadow(0 0 3.75rem rgba(50, 69, 86))
       drop-shadow(0 0 4.5rem rgba(50, 69, 86))
@@ -98,7 +98,7 @@
   object-position: top center;
 }
 
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .vp-doc .provider-banner {
     aspect-ratio: 2.4 / 1;
   }

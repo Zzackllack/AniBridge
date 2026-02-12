@@ -23,7 +23,7 @@ S.to is the short-domain branding of SerienStream and is widely used as a German
 ## Background And History
 
 - **19 Jan 2015** – The project launches under the domain `SerienStream.to`, offering a dedicated index for TV series to separate itself from movie-focused portals. [Wikipedia (DE)](https://de.wikipedia.org/wiki/SerienStream.to)
-- **22 Mar 2018** – The primary domain is switched to the short URL `s.to`. This rebrand becomes the site's permanent identity, though the original long domain remains active as a redirect. [Tarnkappe.info](https://tarnkappe.info/)
+- **22 Mar 2018** – The primary domain is switched to the short URL `s.to`. This rebrand becomes the site's permanent identity, though the original long domain remains active as a redirect.
 - **Dec 2018** – First major ISP blocks occur in Austria (specifically T-Mobile Austria), marking the start of regulator-backed DNS blocking in the DACH region.
 - **11 Mar 2021** – Operators publish the "DNS Zensur" support article, confirming that German ISPs (Telekom, Vodafone, 1&1) have begun blocking the domain following a **CUII** (Clearingstelle Urheberrecht im Internet) recommendation from Feb 2021.
 - **31 Jan 2026** – Official announcement of **"Version2"**, a complete infrastructure rewrite. The update modernizes the backend while preserving user watchlists and accounts, securing the platform for the next decade.
