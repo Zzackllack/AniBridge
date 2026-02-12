@@ -5,6 +5,10 @@ outline: deep
 
 # S.to Provider
 
+<div class="provider-banner">
+  <img src="./img/sto.png" alt="S.to banner image" />
+</div>
+
 ::: danger Legal And Jurisdiction Notice
 Before enabling this provider, read the [Legal Disclaimer](/legal).  
 You are responsible for ensuring that access, automation, and downloads are legal in your jurisdiction and allowed by the third-party service terms.

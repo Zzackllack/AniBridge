@@ -5,6 +5,10 @@ outline: deep
 
 # AniWorld Provider
 
+<div class="provider-banner">
+  <img src="./img/aniworld.png" alt="AniWorld banner image" />
+</div>
+
 ::: danger Legal And Jurisdiction Notice
 Before enabling this provider, read the [Legal Disclaimer](/legal).  
 You are responsible for ensuring that access, automation, and downloads are legal in your jurisdiction and allowed by the third-party service terms.
