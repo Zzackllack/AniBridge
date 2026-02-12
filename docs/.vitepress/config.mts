@@ -225,7 +225,7 @@ export default defineConfig({
     nav: [
       { text: "Guide", link: "/guide/overview" },
       { text: "API", link: "/api/overview" },
-      { text: "Integrations", link: "/integrations/prowlarr" },
+      { text: "Integrations", link: "/integrations/clients/prowlarr" },
       { text: "Developer", link: "/developer/architecture" },
       { text: "Legal", link: "/legal" },
       {
@@ -269,11 +269,19 @@ export default defineConfig({
       ],
       "/integrations/": [
         {
-          text: "Integrations",
+          text: "Clients",
           items: [
-            { text: "Prowlarr", link: "/integrations/prowlarr" },
-            { text: "Sonarr", link: "/integrations/sonarr" },
-            { text: "Radarr", link: "/integrations/radarr" },
+            { text: "Prowlarr", link: "/integrations/clients/prowlarr" },
+            { text: "Sonarr", link: "/integrations/clients/sonarr" },
+            { text: "Radarr", link: "/integrations/clients/radarr" },
+          ],
+        },
+        {
+          text: "Providers",
+          items: [
+            { text: "AniWorld", link: "/integrations/providers/aniworld" },
+            { text: "S.to", link: "/integrations/providers/sto" },
+            { text: "Megakino", link: "/integrations/providers/megakino" },
           ],
         },
       ],
