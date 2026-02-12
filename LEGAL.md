@@ -1,111 +1,191 @@
-# AniBridge — Legal Notice and Global Disclaimer
+---
+title: Legal Disclaimer
+outline: deep
+---
 
-Version: 2025-08-24
+# AniBridge Legal Notice, Risk Allocation, and Use Restrictions
 
-Important: Please read this entire notice carefully before installing, running, contributing to, or interacting with the AniBridge project and any related artifacts (source code, binaries, Docker images, configuration, documentation). By using this software you acknowledge and agree to the terms below. If you do not agree, do not use the software.
+Version: 2026-02-12  
+Status: Recast and superseding prior documentation notice text
 
-1) No Hosting, No Content Provision, No Endorsement
+This document is a comprehensive legal-risk notice for AniBridge users, operators, deployers, contributors, and redistributors. It is intentionally formal and should be read in full before installation, configuration, network exposure, or operational use.
 
-- AniBridge is an automation bridge and API compatibility layer built on FastAPI. It exposes synthetic Torznab and qBittorrent-compatible endpoints to integrate with automation tools (e.g., Prowlarr, Sonarr). It does not host, store, seed, mirror, upload, or otherwise provide any audiovisual works or copyrighted content.
-- The project’s “magnet-like” identifiers are synthetic metadata for internal job routing. They are not links to BitTorrent swarms and do not initiate peer-to-peer distribution. The qBittorrent “shim” exists solely to satisfy client APIs and does not join or seed any BitTorrent network.
-- AniBridge may programmatically request data or files from third-party websites or file hosts only at the explicit direction of the end user and subject to the user’s configuration. The maintainers neither curate nor supply any catalog of content, links, or sources.
-- This project is not affiliated with, endorsed by, or sponsored by any third-party service, including “AniWorld,” its operators, or any hosting providers referenced by configuration or code (e.g., VOE, Doodstream, Filemoon, Streamtape, etc.). All names and trademarks belong to their respective owners and are used solely for identification and interoperability discussion.
+No disclaimer can legalize unlawful conduct, immunize users against enforcement, or override mandatory law. If your use case implicates copyrighted works, automated extraction, circumvention controls, or cross-border data transfer, obtain jurisdiction-specific legal advice before use.
 
-2) User Responsibility and Compliance
+## 1. Scope, Parties, and Defined Terms
 
-- You are solely responsible for how you use AniBridge. You must ensure that your use is lawful in your jurisdiction and complies with all applicable laws, regulations, and court orders, as well as the terms of service and acceptable use policies of any third-party sites or services you access through this software.
-- Many jurisdictions prohibit the unauthorized reproduction, communication, public performance, making available, or distribution of copyrighted works. Some jurisdictions also prohibit downloading from obviously unlawful sources, and/or the circumvention of technical protection measures (DRM/TPMs). You must not use AniBridge for any unlawful purpose.
-- If you use this software to access or download from third-party services, you must have a valid legal basis (e.g., your own licensed copy, public domain, explicit permission from the rights holder). Personal-use, educational, or “private copy” concepts are not universal and often very limited. Do not assume that “streaming” implies a right to download.
-- Respect robots.txt, rate limits, CAPTCHAs, and access controls. Do not attempt to bypass paywalls, digital rights management, or other technical protection measures. Do not scrape where terms of service prohibit it. Your configuration and actions determine compliance.
+For this notice:
 
-3) No Legal Advice; Consult Counsel
+- `Software` means the AniBridge codebase, built artifacts, containers, documentation, and configuration surfaces.
+- `Service Interfaces` means AniBridge endpoints and compatibility layers, including Torznab-style and qBittorrent-compatible APIs.
+- `Synthetic Magnet Descriptor` means AniBridge-generated `magnet:?` identifiers used for internal routing metadata, not as a representation of a public BitTorrent swarm.
+- `Upstream Services` means all external sites, hosts, mirrors, indexes, and delivery endpoints accessed by user configuration (including AniWorld, SerienStream/s.to, megakino, and hosters referenced by those services).
+- `User` means any person or entity installing, running, exposing, querying, integrating, or redistributing the Software.
 
-- Nothing in this repository, its documentation, or community communications constitutes legal advice. Laws vary significantly by country/state and change over time. If you are unsure about the legality of your use case, consult a qualified attorney licensed in your jurisdiction.
+Use of the Software constitutes acknowledgement of this notice and assumption of the risks allocated to the User herein, to the maximum extent permitted by applicable law.
 
-4) Jurisdiction-Specific, Non-Exhaustive Notes
+## 2. Technical Characterization and Operational Boundaries
 
-- United States (US): Unauthorized reproduction, distribution, or public performance of copyrighted works may violate Title 17 of the U.S. Code. Anti-circumvention prohibitions under the DMCA (17 U.S.C. § 1201) may apply even where an underlying use might otherwise be fair. “Fair use” is a narrow, fact-specific defense and not a general permission.
-- European Union (EU): The Infosoc Directive and related national implementations protect rightholders and prohibit circumvention of technological measures. Limited private-copy exceptions may exist but typically exclude copies made from obviously unlawful sources and do not authorize circumvention.
-- Germany (DE): Private copies are narrowly permitted under the German Urheberrechtsgesetz (UrhG) subject to strict conditions (e.g., no copy from an obviously unlawful source, no circumvention). Do not rely on “Privatkopie” for content obtained from untrusted sources or via technical measure bypass.
-- United Kingdom (UK): A general private-copy exception has been curtailed or repealed; private copying without permission is typically not permitted. Anti-circumvention and rightholder protections remain robust under UK law.
-- Other Jurisdictions: Local copyright, communications, and computer misuse laws may impose additional obligations or prohibitions (including criminal liability). It is your duty to know and comply with the laws applicable to you.
+AniBridge is an interoperability and automation layer. It is not, in its designed operation, a public torrent index, a BitTorrent peer, or a content-hosting platform.
 
-5) Third-Party Services, Terms, and “AniWorld” Disclaimer
+Current implementation characteristics include:
 
-- AniBridge can be configured to interact with third-party sites and hosting providers. Each such service has its own terms, policies, and rights-management practices. The availability or technical possibility to download content does not imply permission.
-- “AniWorld” and similar platforms may operate in legal gray areas or jurisdictions with inconsistent enforcement. AniBridge does not operate, partner with, or endorse such services. References in the codebase exist solely for technical interoperability by end users who accept full responsibility for compliance.
-- If a third-party service’s terms prohibit automated access, scraping, or downloading, you must not configure AniBridge to do so. This project does not provide or condone any means to defeat paywalls, authentication gates, or DRM.
+- Torznab-compatible feed generation.
+- qBittorrent-compatible API emulation for *arr interoperability.
+- internally generated descriptor identifiers (`xt=urn:btih:<hash>`) derived from metadata fields.
+- direct upstream retrieval workflows (HTTP(S) and provider-resolution paths) rather than swarm participation.
+- optional STRM artifact generation and optional proxy-mode streaming for playback workflows.
 
-5.1) AniWorld Terms (“Nutzungsbedingungen”) and DMCA
+Accordingly:
 
-- AniWorld publishes site rules/terms at https://aniworld.to/support/regeln. Among other things, those terms state that automated scraping, automated extraction or manipulation of content and datasets is not permitted, and that AniWorld may seek damages and take further measures against violations. Do not configure or use AniBridge in any way that would violate those terms.
-- AniWorld provides a DMCA takedown process at https://aniworld.to/dmca and a contact/support channel at https://aniworld.to/account/support/new. If you are a rights holder and request removal of content from AniWorld or its hosts, you must contact AniWorld or the relevant hosting provider directly. AniBridge does not host or control third-party content and cannot remove materials from external services.
-- AniWorld’s own terms include warranty and liability disclaimers and indicate a governing law outside of many users’ jurisdictions (reportedly Belize). Regardless of AniWorld’s internal terms, your obligations arise under the laws applicable to you, and you must comply with both the law and any third-party terms you accept.
+- AniBridge does not represent that any referenced media is licensed, authorized, or lawfully distributable.
+- AniBridge does not convey rights in any work.
+- AniBridge does not assume custody or control of third-party legal entitlements.
 
-5.2) Alignment with AniWorld-Downloader Library Disclaimer
+## 3. Non-Affiliation, Trademark Separation, and No Endorsement
 
-- The community-maintained AniWorld Downloader library states that it is intended to access content already publicly available online, does not promote piracy or copyright violations, and that the developer is not responsible for how the tool is used or for external content. AniBridge adopts a similarly strict stance: it hosts nothing, promotes no infringement, and relies on user configuration. Legality depends on your specific use case, jurisdiction, and the terms of the services you access.
-- The AniWorld-Downloader README further notes that the tool does not control the accuracy, legality, or availability of third-party websites. The same applies here: interoperability references in AniBridge do not imply control over, or endorsement of, third-party sites or their content.
+AniBridge is not affiliated with, endorsed by, sponsored by, or operated by any referenced upstream platform or host. Names, marks, and domains are used solely for identification, interoperability description, and user-initiated routing context. All third-party marks remain property of their respective owners.
 
-6) Intellectual Property; No Infringement Intent
+## 4. User Compliance Obligations
 
-- This project is provided for interoperability, research, and automation workflows with lawful content only. It must not be used to infringe any copyright, trademark, or other intellectual property rights.
-- Contributors must not submit code primarily designed to enable or facilitate infringement, evasion of access controls, or circumvention of technological protection measures.
+The User bears exclusive responsibility for lawful operation, including but not limited to:
 
-7) Data Handling, Privacy, and Logging
+- ensuring a valid legal basis for access, copying, streaming, downloading, or storage;
+- complying with copyright, neighboring-rights, anti-circumvention, computer misuse, and telecom regulations;
+- complying with contractual restrictions (terms of service, robots policies, anti-automation clauses, and access controls);
+- ensuring organizational compliance (employment policy, institutional policy, and internal controls);
+- implementing safeguards against unauthorized access, abuse, or redistribution.
 
-- By default, AniBridge can log operational events to local files under the `data/` directory (e.g., terminal logs). Logs may include file names, titles, URLs, or other identifiers provided by your configuration or third-party services.
-- You are responsible for handling any logged or cached data in compliance with applicable privacy and data-protection laws (e.g., GDPR, CCPA) and with your own security policies. If you process personal data, define a lawful basis and implement appropriate safeguards.
-- Do not share logs publicly if they may reveal personal data, credentials, or links to protected works.
+Prohibited use includes, without limitation:
 
-8) No Warranty; Limitation of Liability
+- infringing reproduction, communication to the public, distribution, or making available;
+- circumvention of DRM/TPMs or facilitation thereof;
+- automated extraction where prohibited by upstream terms;
+- operation for unlawful indexing, mass-exfiltration, or evasion workflows.
 
-- THE SOFTWARE IS PROVIDED “AS IS” AND “AS AVAILABLE,” WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. USE IS AT YOUR OWN RISK.
-- TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE AUTHORS, MAINTAINERS, CONTRIBUTORS, OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT, STRICT LIABILITY, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OF, MISUSE OF, OR INABILITY TO USE THE SOFTWARE.
-- WITHOUT LIMITATION, WE DISCLAIM LIABILITY FOR: (a) ANY COPYRIGHT OR OTHER IP INFRINGEMENT RESULTING FROM USER ACTIONS; (b) ANY VIOLATION OF THIRD-PARTY TERMS OF SERVICE; (c) ANY DATA LOSS, SERVICE INTERRUPTION, OR SECURITY INCIDENT; (d) ANY ADMINISTRATIVE, CIVIL, OR CRIMINAL PENALTIES INCURRED BY USERS.
+## 5. Multi-Jurisdiction Compliance Baseline (Non-Exhaustive)
 
-9) Indemnification
+The following references are provided as orientation only; they are not a complete legal map and do not replace counsel.
 
-- To the extent permitted by law, you agree to indemnify, defend, and hold harmless the authors, maintainers, contributors, and copyright holders from and against any and all claims, liabilities, damages, losses, and expenses (including reasonable attorneys’ fees) arising out of or in any way connected with: (a) your access to or use of the software; (b) your violation of this notice; (c) your infringement or alleged infringement of any intellectual property or other right of any person or entity; or (d) your breach of any applicable law or third-party terms.
+### 5.1 United States
 
-10) Distribution, Forks, and Derivative Works
+Relevant U.S. framework includes:
 
-- If you distribute, fork, or build upon this project, you are responsible for ensuring that your distribution includes clear, prominent disclaimers of non-affiliation, non-endorsement, and non-hosting similar to those in this document, and that your distribution complies with all applicable laws and third-party terms.
-- You may not represent your distribution as affiliated with or endorsed by this project’s maintainers or any referenced third party (including “AniWorld”) without express written permission from the relevant party.
+- exclusive rights (17 U.S.C. § 106),
+- fair use defense factors (17 U.S.C. § 107),
+- anti-circumvention and trafficking prohibitions (17 U.S.C. § 1201),
+- online service-provider safe harbor structure (17 U.S.C. § 512).
 
-11) Takedown and Abuse Reports (Repository Content Only)
+Users should not treat interoperability tooling as a blanket defense. Fair use is fact-intensive and post hoc; anti-circumvention can apply even where infringement is separately disputed.
 
-- This project does not host third-party media. If you believe that material within this repository (e.g., code or documentation) infringes rights you own, please submit a report with sufficient detail to identify the allegedly infringing repository content. Do not send requests to remove or block third-party media located elsewhere; we have no control over external sites.
-- Security or abuse concerns unrelated to intellectual property may be reported per the repository’s security policy. We reserve the right—but not the obligation—to remove or modify repository content at our discretion.
-- For materials available on or through AniWorld or its file hosts, submit takedown requests via AniWorld’s DMCA channel at https://aniworld.to/dmca and/or to the relevant host. AniBridge cannot process or effectuate removals on third-party platforms.
+### 5.2 European Union
 
-12) Technical Protection Measures and Circumvention
+Relevant EU framework includes:
 
-- Do not use AniBridge to defeat or bypass DRM or any technical protection measures. Anti-circumvention laws (e.g., DMCA § 1201 in the US; EU anti-circumvention rules; similar provisions in many countries) may impose liability regardless of whether the underlying use might otherwise be permitted.
-- The presence of libraries such as yt-dlp or references to third-party hosts in the codebase does not authorize circumvention or any prohibited access. You are responsible for configuring and using such tools only in lawful ways.
+- Directive 2001/29/EC (InfoSoc), including rights architecture and limits/exceptions regime;
+- Article 6 anti-circumvention provisions in Directive 2001/29/EC;
+- Directive (EU) 2019/790 (DSM), including platform-liability architecture;
+- Regulation (EU) 2022/2065 (Digital Services Act), where applicable to intermediary-service roles.
 
-13) Operational Boundaries and Intended Behavior
+The existence of technical access does not imply legal authorization. National implementations and enforcement practice remain decisive.
 
-- AniBridge’s Torznab feed and qBittorrent APIs are compatibility shims that surface metadata and job status for lawful automation workflows. They are not a public indexer or torrent client and do not provide a peer-to-peer transport.
-- Downloads—if any—occur only via direct HTTP(S) requests to third-party hosts as directed by the user’s configuration and may be subject to those hosts’ terms, availability, and technical constraints.
-- The project does not guarantee availability, reliability, or continued interoperability with any third-party service. Third-party sites may change without notice or block automated access.
+### 5.3 Germany
 
-14) Export Control and Sanctions
+Users operating in or targeting Germany should review, at minimum:
 
-- You are responsible for ensuring that your use, distribution, and export of this software complies with all applicable export-control, sanctions, and embargo laws and regulations in your jurisdiction and in any jurisdiction from which you make the software available.
+- UrhG § 53 (private copies; restricted scope),
+- UrhG § 95a (protection of technical measures),
+- UrhG § 106 (criminally relevant unauthorized exploitation).
 
-15) Community Conduct and Contributions
+Do not presume that a private-copy theory validates copies from clearly unlawful sources or circumvention-enabled flows.
 
-- All participation is subject to the project’s Code of Conduct. By contributing, you certify that your contributions do not include code primarily intended to infringe IP rights, evade access controls, or facilitate unlawful access to third-party content.
-- Contributors should avoid embedding direct links to copyrighted materials and must not include credentials, cookies, or instructions for bypassing authentication, paywalls, or DRM.
+### 5.4 United Kingdom
 
-16) Reservation of Rights; Changes to This Notice
+Users operating in or targeting the UK should review, at minimum, the Copyright, Designs and Patents Act 1988 framework (including restricted acts and anti-circumvention-related provisions).
 
-- All rights not expressly granted are reserved. We may update or replace this notice from time to time. Material changes will be reflected by updating the version/date above. Your continued use after an update constitutes acceptance of the revised terms.
+## 6. Upstream Terms and Provider-Specific Legal Friction
 
-17) Contact and Attribution
+Provider-side legal constraints and platform terms are independently binding on Users.
 
-- For security matters, see SECURITY.md for the current process. For general technical issues, use the repository’s issue tracker. We cannot assist with requests about external sites or third-party content.
-- Acknowledgment: This project may interoperate with third-party libraries such as the community-maintained AniWorld Downloader library. Such interoperability does not imply any partnership, affiliation, or endorsement.
+Examples:
 
-Summary (Non-Controlling): AniBridge is a developer tool and compatibility layer. It hosts nothing, seeds nothing, and offers no content. You are entirely responsible for your configuration and actions. Use only with content and sources you are legally permitted to access. No warranties. No liability. No affiliation with “AniWorld” or any third-party host.
+- AniWorld publishes platform terms/rules and a separate rights-holder/DMCA contact surface.
+- s.to and related ecosystems have documented blocking/enforcement history in German-speaking markets.
+- megakino and mirror ecosystems have documented domain-churn and enforcement pressure patterns.
+
+Operational implication: technical reachability is not legal permission, and domain availability is not legal legitimacy.
+
+## 7. Rights-Holder Notices and Takedown Scope
+
+AniBridge maintainers can address repository-contained material only (code/docs/repo assets). They cannot remove media hosted on third-party infrastructures and cannot execute takedowns for external services.
+
+Rights holders must direct third-party content complaints to the relevant upstream platform or host and use the legal channels designated by those entities.
+
+## 8. Privacy, Logs, and Data Governance
+
+AniBridge may process and store operational metadata (job identifiers, paths, URLs, language/provider metadata, and diagnostics). Depending on deployment context, this can constitute personal data or commercially sensitive information.
+
+The User is solely responsible for:
+
+- lawful processing basis (e.g., GDPR/CCPA or local equivalent),
+- retention controls and secure disposal,
+- breach handling and disclosure obligations,
+- redaction before publication of logs or diagnostics.
+
+## 9. Warranty Disclaimer, Liability Exclusion, and Indemnity
+
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT EXPRESS OR IMPLIED WARRANTIES, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, CONTINUITY, OR REGULATORY FITNESS.
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, AUTHORS, MAINTAINERS, CONTRIBUTORS, AND COPYRIGHT HOLDERS SHALL NOT BE LIABLE FOR DIRECT, INDIRECT, INCIDENTAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE LOSS, INCLUDING REGULATORY PENALTIES, BUSINESS INTERRUPTION, DATA LOSS, OR THIRD-PARTY CLAIMS ARISING FROM USE OR MISUSE.
+
+The User agrees, to the maximum extent permitted by law, to indemnify and hold harmless maintainers and contributors from claims arising out of:
+
+- unlawful operation;
+- infringement allegations tied to user configuration or activity;
+- violation of third-party terms;
+- unauthorized access, data misuse, or circumvention conduct.
+
+## 10. Export Controls, Sanctions, and Trade Restrictions
+
+Users are responsible for compliance with applicable export-control, sanctions, embargo, and trade-restriction regimes in all relevant jurisdictions. AniBridge may not be used where such laws prohibit software transfer, access, technical assistance, or related services.
+
+## 11. Contribution and Redistribution Conditions
+
+Contributors and redistributors must not:
+
+- market AniBridge as endorsed by third-party providers;
+- package instructions primarily designed to bypass legal controls;
+- remove or materially dilute legal-risk disclosures in downstream distributions.
+
+Downstream redistributions should preserve prominent non-affiliation and lawful-use notices.
+
+## 12. Severability, No Waiver, and Interpretive Priority
+
+If any provision of this notice is unenforceable, the remainder remains in effect to the fullest extent permitted by law. Failure to enforce any part is not a waiver. If conflicts arise, mandatory law controls over this notice.
+
+## 13. Amendments and Temporal Validity
+
+This notice may be revised without prior notice to reflect legal, technical, provider, or enforcement changes. Users are responsible for reviewing the current version before continued operation.
+
+## 14. No Legal Advice; Counsel Requirement for High-Risk Use
+
+Nothing in AniBridge code, docs, issues, chats, or community channels is legal advice. For any potentially contentious workflow, consult qualified counsel licensed in your jurisdiction and familiar with copyright, platform liability, and anti-circumvention doctrine.
+
+## 15. Selected Authorities and External Materials (Non-Exhaustive)
+
+- [AniWorld Terms / Rules](https://aniworld.to/support/regeln)
+- [AniWorld DMCA Contact Surface](https://aniworld.to/dmca)
+- [CUII Public Recommendations](https://cuii.info/empfehlungen/)
+- [17 U.S.C. § 106 (Cornell LII)](https://www.law.cornell.edu/uscode/text/17/106)
+- [17 U.S.C. § 107 (Cornell LII)](https://www.law.cornell.edu/uscode/text/17/107)
+- [17 U.S.C. § 1201 (Cornell LII)](https://www.law.cornell.edu/uscode/text/17/1201)
+- [17 U.S.C. § 512 (Cornell LII)](https://www.law.cornell.edu/uscode/text/17/512)
+- [Directive 2001/29/EC (EUR-Lex)](https://eur-lex.europa.eu/eli/dir/2001/29/oj/eng)
+- [Directive (EU) 2019/790 (EUR-Lex)](https://eur-lex.europa.eu/eli/dir/2019/790/oj/eng)
+- [Regulation (EU) 2022/2065 (DSA) (EUR-Lex)](https://eur-lex.europa.eu/eli/reg/2022/2065/oj/eng)
+- [UrhG § 53 (gesetze-im-internet)](https://www.gesetze-im-internet.de/urhg/__53.html)
+- [UrhG § 95a (gesetze-im-internet)](https://www.gesetze-im-internet.de/urhg/__95a.html)
+- [UrhG § 106 (gesetze-im-internet)](https://www.gesetze-im-internet.de/urhg/__106.html)
+- [UK Copyright, Designs and Patents Act 1988 (WIPO Lex)](https://www.wipo.int/wipolex/en/legislation/details/24241)
+
+Accessed: 2026-02-12.
