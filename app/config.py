@@ -235,9 +235,7 @@ env_data_path = _str_to_path(env_data.strip() if env_data else None)
 
 # Default candidates differ for Docker vs local
 default_download = (
-    Path("/data/downloads/anime")
-    if IN_DOCKER
-    else (Path.cwd() / "data" / "downloads" / "anime")
+    Path("/data/downloads") if IN_DOCKER else (Path.cwd() / "data" / "downloads")
 )
 default_data = Path("/data") if IN_DOCKER else (Path.cwd() / "data")
 
@@ -254,9 +252,9 @@ if env_download_path:
 download_candidates.extend(
     [
         default_download,
-        Path("/app/data/downloads/anime"),
-        Path.cwd() / "data" / "downloads" / "anime",
-        Path("/tmp/anibridge/downloads/anime"),
+        Path("/app/data/downloads"),
+        Path.cwd() / "data" / "downloads",
+        Path("/tmp/anibridge/downloads"),
     ]
 )
 

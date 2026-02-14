@@ -28,7 +28,7 @@ outline: deep
 
 - Symptom: Sonarr error “You are using Docker; download client places downloads in `<host path>` but this directory does not appear to exist inside the container.”
 - Set `QBIT_PUBLIC_SAVE_PATH` to the path Sonarr sees (e.g., `/downloads`).
-- Mount the same host folder into both containers (`-v /host/downloads:/downloads` for Sonarr; `-v /host/downloads:/data/downloads/anime` for AniBridge).
+- Mount the same host folder into both containers (`-v /host/downloads:/downloads` for Sonarr; `-v /host/downloads:/data/downloads` for AniBridge).
 - Verify via `GET /api/v2/app/preferences` that `save_path` is `/downloads`.
 
 ## Progress bar looks odd or spams the log

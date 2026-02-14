@@ -33,13 +33,13 @@ If Radarr runs in a different container with a different mount, set `QBIT_PUBLIC
 
 ### Required Docker volume mapping
 
-- AniBridge container: mount your host downloads folder to `/data/downloads/anime` (default) or any path you prefer.
+- AniBridge container: mount your host downloads folder to `/data/downloads` (default) or any path you prefer.
 - Radarr container: mount the same host folder to the exact path you choose for `QBIT_PUBLIC_SAVE_PATH` (e.g. `/downloads`).
 
-Example (host path shown as `/path/to/downloads/anime`):
+Example (host path shown as `/path/to/downloads`):
 
-- AniBridge: `-v /path/to/downloads/anime:/data/downloads/anime`
-- Radarr: `-v /path/to/downloads/anime:/downloads`
+- AniBridge: `-v /path/to/downloads:/data/downloads`
+- Radarr: `-v /path/to/downloads:/downloads`
 - AniBridge env: `QBIT_PUBLIC_SAVE_PATH=/downloads`
 
 AniBridge’s qBittorrent shim will now publish:
@@ -73,5 +73,5 @@ Radarr error:
 Fix:
 
 - Ensure `QBIT_PUBLIC_SAVE_PATH` is set to the path inside the Radarr container (e.g. `/downloads`).
-- Ensure both containers mount the same host folder to that path (`-v /host/downloads:/downloads` for radarr; `-v /host/downloads:/data/downloads/anime` for AniBridge).
+- Ensure both containers mount the same host folder to that path (`-v /host/downloads:/downloads` for radarr; `-v /host/downloads:/data/downloads` for AniBridge).
 - Verify via the API endpoints above that AniBridge publishes `/downloads`.

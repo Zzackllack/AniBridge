@@ -121,7 +121,7 @@ See the dedicated [Networking & Proxies](/guide/networking) guide for examples a
 
 ```ini
 CATALOG_SITES=aniworld.to,s.to,megakino
-DOWNLOAD_DIR=./data/downloads/anime
+DOWNLOAD_DIR=./data/downloads
 DATA_DIR=./data
 ANIWORLD_BASE_URL=https://aniworld.to
 STO_BASE_URL=https://s.to

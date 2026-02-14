@@ -33,7 +33,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DOWNLOAD_DIR=/data/downloads/anime
+      - DOWNLOAD_DIR=/data/downloads
       - DATA_DIR=/data
       - MAX_CONCURRENCY=3
     volumes:
@@ -72,7 +72,7 @@ services:
     environment:
       - ANIBRIDGE_PORT=8083
       - ANIBRIDGE_HOST=0.0.0.0
-      - DOWNLOAD_DIR=/data/downloads/anime
+      - DOWNLOAD_DIR=/data/downloads
       - DATA_DIR=/data
     volumes:
       - ./data:/data
