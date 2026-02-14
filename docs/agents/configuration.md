@@ -8,7 +8,8 @@ AniBridge centralizes configuration in `app/config.py`. Values are derived from 
 - Migrations: `DB_MIGRATE_ON_STARTUP`
 - Torznab: `INDEXER_NAME`, `INDEXER_API_KEY`, `TORZNAB_*`
 - Downloader: `PROVIDER_ORDER`, `MAX_CONCURRENCY`, `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC`, `DOWNLOADS_TTL_HOURS`, `CLEANUP_SCAN_INTERVAL_MIN`
-- Proxy: `PROXY_*`, protocol overrides, certificate toggles, IP monitoring
+- STRM: `STRM_FILES_MODE`, `STRM_PROXY_*`
+- Networking policy: external VPN/VPN-sidecar routing only + `PUBLIC_IP_CHECK_*`
 - Provider order default: `VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza`
 - Update notifier: `ANIBRIDGE_UPDATE_CHECK`, GitHub owner/repo/token, GHCR image reference
 - Logging: `LOG_LEVEL`, progress toggles
@@ -17,7 +18,7 @@ AniBridge centralizes configuration in `app/config.py`. Values are derived from 
 
 1. `LOG_LEVEL` — Loguru logging level (default `INFO`).
 2. `DATA_DIR` — Root data directory (default `./data`).
-3. `DOWNLOAD_DIR` — Download location (default `${DATA_DIR}/downloads/anime`).
+3. `DOWNLOAD_DIR` — Download location.
 4. `QBIT_PUBLIC_SAVE_PATH` — Public path seen by qBittorrent clients (default empty).
 5. `DB_MIGRATE_ON_STARTUP` — Run Alembic migrations on startup (default `true`).
 6. `ANIBRIDGE_RELOAD` — Enable reload server mode (`false` by default).
@@ -27,59 +28,67 @@ AniBridge centralizes configuration in `app/config.py`. Values are derived from 
 10. `ANIWORLD_ALPHABET_HTML` — Override local HTML (default empty, triggers remote fetch).
 11. `ANIWORLD_ALPHABET_URL` — AniWorld alphabet page (default `https://aniworld.to/animes-alphabet`).
 12. `ANIWORLD_TITLES_REFRESH_HOURS` — Title refresh interval (default `24`).
-13. `SOURCE_TAG` — Release source tag (default `WEB`).
-14. `RELEASE_GROUP` — Release group label (default `aniworld`).
-15. `PROVIDER_ORDER` — Comma-separated provider priority list.
-16. `MAX_CONCURRENCY` — Thread pool size (default `3`).
-17. `INDEXER_NAME` — Torznab display name (default `AniBridge Torznab`).
-18. `INDEXER_API_KEY` — Optional Torznab API key.
-19. `TORZNAB_CAT_ANIME` — Category mapping (default `5070`).
-20. `AVAILABILITY_TTL_HOURS` — Availability cache TTL (default `24`).
-21. `TORZNAB_FAKE_SEEDERS` — Seeders in results (default `999`).
-22. `TORZNAB_FAKE_LEECHERS` — Leechers in results (default `787`).
-23. `TORZNAB_RETURN_TEST_RESULT` — Return test item (default `true`).
-24. `TORZNAB_TEST_TITLE` — Test item title.
-25. `TORZNAB_TEST_SLUG` — Test item slug.
-26. `TORZNAB_TEST_SEASON` — Test season number.
-27. `TORZNAB_TEST_EPISODE` — Test episode number.
-28. `TORZNAB_TEST_LANGUAGE` — Test language label.
-29. `DELETE_FILES_ON_TORRENT_DELETE` — Remove files on delete (default `true`).
-30. `DOWNLOADS_TTL_HOURS` — TTL cleanup threshold (default `0`, disabled).
-31. `CLEANUP_SCAN_INTERVAL_MIN` — Cleanup interval (default `30`).
-32. `STRM_FILES_MODE` — STRM mode (`no`, `both`, `only`, default `no`).
-33. `STRM_PROXY_MODE` — STRM proxy mode (`direct`, `proxy`, `redirect`, default `direct`).
-34. `STRM_PUBLIC_BASE_URL` — Public base URL for STRM proxy URLs.
-35. `STRM_PROXY_AUTH` — STRM proxy auth mode (`none`, `token`, `apikey`).
-36. `STRM_PROXY_SECRET` — Shared secret for STRM proxy auth (required when auth is not `none`).
-37. `STRM_PROXY_UPSTREAM_ALLOWLIST` — Comma-separated upstream host allowlist for proxying.
-38. `STRM_PROXY_CACHE_TTL_SECONDS` — STRM URL cache TTL in seconds (default `0`).
-39. `STRM_PROXY_TOKEN_TTL_SECONDS` — STRM proxy token TTL in seconds (default `900`).
-40. `PROGRESS_FORCE_BAR` — Force progress bar (default `false`).
-41. `PROGRESS_STEP_PERCENT` — Progress logging step (default `5`).
-42. `ANIBRIDGE_UPDATE_CHECK` — Enable release polling (default `true`).
-43. `ANIBRIDGE_GITHUB_TOKEN` — GitHub API token.
-44. `ANIBRIDGE_GITHUB_OWNER` — GitHub owner (default `zzackllack`).
-45. `ANIBRIDGE_GITHUB_REPO` — Repo name (default `AniBridge`).
-46. `ANIBRIDGE_GHCR_IMAGE` — GHCR image slug (default `zzackllack/anibridge`).
-47. `PROXY_ENABLED` — Enable proxy (default `false`).
-48. `PROXY_URL` — Full proxy URL with optional credentials.
-49. `PROXY_HOST` — Proxy host when building URL from parts.
-50. `PROXY_PORT` — Proxy port.
-51. `PROXY_SCHEME` — Proxy scheme (default `socks5`).
-52. `PROXY_USERNAME` — Proxy auth username.
-53. `PROXY_PASSWORD` — Proxy auth password.
-54. `HTTP_PROXY_URL` — Protocol-specific override.
-55. `HTTPS_PROXY_URL` — Protocol-specific override.
-56. `ALL_PROXY_URL` — Generic override for all protocols.
-57. `NO_PROXY` — Domains bypassing proxy.
-58. `PROXY_FORCE_REMOTE_DNS` — Force remote DNS for SOCKS proxies (default `true`).
-59. `PROXY_DISABLE_CERT_VERIFY` — Disable TLS verification (default `false`).
-60. `PROXY_APPLY_ENV` — Apply proxies to process env (default `true`).
-61. `PROXY_IP_CHECK_INTERVAL_MIN` — IP check interval minutes (default `30`).
-62. `PROXY_SCOPE` — Scope of proxy usage (`all`, `requests`, `ytdlp`).
-63. `PUBLIC_IP_CHECK_ENABLED` — Run IP monitor even when proxy disabled (default `false`).
-64. `PUBLIC_IP_CHECK_INTERVAL_MIN` — Override for IP check interval (defaults to proxy interval).
+13. `STO_ALPHABET_HTML` — Override local s.to HTML.
+14. `STO_ALPHABET_URL` — s.to alphabet page.
+15. `STO_TITLES_REFRESH_HOURS` — Title refresh interval for s.to (default `24`).
+16. `MEGAKINO_BASE_URL` — Megakino base URL override.
+17. `MEGAKINO_TITLES_REFRESH_HOURS` — Megakino refresh interval.
+18. `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN` — Megakino domain checker interval.
+19. `CATALOG_SITES` — Enabled catalogue sites.
+20. `SOURCE_TAG` — Release source tag (default `WEB`).
+21. `RELEASE_GROUP` — Release group label (default `aniworld`).
+22. `RELEASE_GROUP_ANIWORLD` — AniWorld release group override.
+23. `RELEASE_GROUP_STO` — s.to release group override.
+24. `PROVIDER_ORDER` — Comma-separated provider priority list.
+25. `MAX_CONCURRENCY` — Thread pool size (default `3`).
+26. `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC` — Per-download yt-dlp rate cap (`0` disables).
+27. `INDEXER_NAME` — Torznab display name (default `AniBridge Torznab`).
+28. `INDEXER_API_KEY` — Optional Torznab API key.
+29. `TORZNAB_CAT_ANIME` — Category mapping (default `5070`).
+30. `TORZNAB_CAT_MOVIE` — Movie category mapping (default `2000`).
+31. `AVAILABILITY_TTL_HOURS` — Availability cache TTL (default `24`).
+32. `TORZNAB_FAKE_SEEDERS` — Seeders in results (default `999`).
+33. `TORZNAB_FAKE_LEECHERS` — Leechers in results (default `787`).
+34. `TORZNAB_RETURN_TEST_RESULT` — Return test item (default `true`).
+35. `TORZNAB_TEST_TITLE` — Test item title.
+36. `TORZNAB_TEST_SLUG` — Test item slug.
+37. `TORZNAB_TEST_SEASON` — Test season number.
+38. `TORZNAB_TEST_EPISODE` — Test episode number.
+39. `TORZNAB_TEST_LANGUAGE` — Test language label.
+40. `DELETE_FILES_ON_TORRENT_DELETE` — Remove files on delete (default `true`).
+41. `DOWNLOADS_TTL_HOURS` — TTL cleanup threshold (default `0`, disabled).
+42. `CLEANUP_SCAN_INTERVAL_MIN` — Cleanup interval (default `30`).
+43. `STRM_FILES_MODE` — STRM mode (`no`, `both`, `only`, default `no`).
+44. `STRM_PROXY_MODE` — STRM proxy mode (`direct`, `proxy`, `redirect`, default `direct`).
+45. `STRM_PUBLIC_BASE_URL` — Public base URL for STRM proxy URLs.
+46. `STRM_PROXY_AUTH` — STRM proxy auth mode (`none`, `token`, `apikey`).
+47. `STRM_PROXY_SECRET` — Shared secret for STRM proxy auth.
+48. `STRM_PROXY_UPSTREAM_ALLOWLIST` — Comma-separated upstream host allowlist.
+49. `STRM_PROXY_CACHE_TTL_SECONDS` — STRM URL cache TTL in seconds (default `0`).
+50. `STRM_PROXY_TOKEN_TTL_SECONDS` — STRM proxy token TTL in seconds (default `900`).
+51. `PROGRESS_FORCE_BAR` — Force progress bar (default `false`).
+52. `PROGRESS_STEP_PERCENT` — Progress logging step (default `5`).
+53. `ANIBRIDGE_UPDATE_CHECK` — Enable release polling (default `true`).
+54. `ANIBRIDGE_GITHUB_TOKEN` — GitHub API token.
+55. `ANIBRIDGE_GITHUB_OWNER` — GitHub owner (default `zzackllack`).
+56. `ANIBRIDGE_GITHUB_REPO` — Repo name (default `AniBridge`).
+57. `ANIBRIDGE_GHCR_IMAGE` — GHCR image slug (default `zzackllack/anibridge`).
+58. `PUBLIC_IP_CHECK_ENABLED` — Enable periodic public IP logging (default `false`).
+59. `PUBLIC_IP_CHECK_INTERVAL_MIN` — Public IP check interval minutes (default `30`).
+60. `ANIBRIDGE_HOST` — Bind host.
+61. `ANIBRIDGE_PORT` — Bind port.
+62. `ANIBRIDGE_CORS_ORIGINS` — CORS origins.
+63. `ANIBRIDGE_CORS_ALLOW_CREDENTIALS` — CORS credentials behavior.
+64. `ANIBRIDGE_TEST_MODE` — Test-mode runtime toggle.
 65. `PYTHONUNBUFFERED` — Set to `1` in Docker to keep logs flush.
-66. `ANIBRIDGE_DOCS_BASE_URL` — Docs base URL (if introduced).
-67. `SONARR_*`, `PROWLARR_*` — Integration values documented in `docs/src/integrations/clients`.
-68. `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC` — Per-download yt-dlp rate cap in bytes/second (`0` disables limiting).
+66. `SONARR_*`, `PROWLARR_*` — Integration values documented in `docs/src/integrations/clients`.
+
+## Removed Legacy Proxy Variables
+
+The in-app outbound proxy feature was removed. These settings are intentionally
+unsupported and ignored if still present in runtime env:
+
+- `PROXY_ENABLED`, `PROXY_URL`, `HTTP_PROXY_URL`, `HTTPS_PROXY_URL`, `ALL_PROXY_URL`
+- `PROXY_HOST`, `PROXY_PORT`, `PROXY_SCHEME`, `PROXY_USERNAME`, `PROXY_PASSWORD`
+- `NO_PROXY`, `PROXY_FORCE_REMOTE_DNS`, `PROXY_DISABLE_CERT_VERIFY`, `PROXY_APPLY_ENV`
+- `PROXY_IP_CHECK_INTERVAL_MIN`, `PROXY_SCOPE`

@@ -6,14 +6,14 @@
   1. `app/main.py` calls bootstrap to load env vars and configure logging.
   2. FastAPI app created with custom lifespan (`app/core/lifespan.py`).
   3. Routers for Torznab, qBittorrent, health, and legacy downloader attached.
-  4. Lifespan initializes DB, scheduler, cleanup threads, proxy env, and update notifier.
+  4. Lifespan initializes DB, scheduler, cleanup threads, public IP monitor, and update notifier.
 
 - Layered structure:
   - API layer: `app/api` exposes HTTP endpoints and validation.
   - Core services: `app/core` manages bootstrap, scheduler, downloads.
   - Domain models: `app/domain` defines domain data classes.
   - Persistence: `app/db` manages SQLModel models and CRUD.
-  - Infrastructure: `app/infrastructure` handles logging, proxy env, system reports.
+  - Infrastructure: `app/infrastructure` handles logging, network diagnostics, system reports.
   - Utilities: `app/utils` contains shared helpers.
 
 ## Request Lifecycle Example (Torznab Search)
@@ -42,7 +42,7 @@
 
 - Thread pool size controlled by `MAX_CONCURRENCY` (default 3).
 - Cleanup thread deletes downloads older than `DOWNLOADS_TTL_HOURS`.
-- Public IP monitor runs when proxy is enabled or `PUBLIC_IP_CHECK_ENABLED`.
+- Public IP monitor runs only when `PUBLIC_IP_CHECK_ENABLED=true`.
 - Lifespan ensures graceful shutdown of scheduler, DB engine, and background threads.
 
 ## Logging & Observability

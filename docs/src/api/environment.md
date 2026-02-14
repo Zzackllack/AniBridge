@@ -85,25 +85,17 @@ appears, use manual import or disable “Analyze video files” in Sonarr. See
 
 - `MAX_CONCURRENCY` (default: `3`)
 
-## Networking / Proxy
+## Networking / VPN Policy
 
-- `PROXY_ENABLED` (default: `false`)
-- `PROXY_URL` (common proxy URL used when protocol-specific vars are empty)
-- `HTTP_PROXY_URL` (override HTTP proxy URL)
-- `HTTPS_PROXY_URL` (override HTTPS proxy URL)
-- `ALL_PROXY_URL` (alternative fallback for both protocols)
-- `PROXY_HOST`, `PROXY_PORT`, `PROXY_SCHEME` (split fields to build `PROXY_URL` when it’s empty)
-- `PROXY_USERNAME`, `PROXY_PASSWORD` (credentials injected into URLs when missing)
-- `NO_PROXY` (comma-separated list of hosts to bypass proxy)
-- `PROXY_FORCE_REMOTE_DNS` (true: upgrade `socks5://` to `socks5h://`)
-- `PROXY_DISABLE_CERT_VERIFY` (true: disable TLS verification for requests)
-- `PROXY_APPLY_ENV` (true: set HTTP(S)_PROXY/NO_PROXY in process env)
-- `PROXY_IP_CHECK_INTERVAL_MIN` (minutes; log current public IP periodically)
+AniBridge does not provide an in-app outbound proxy anymore. Route traffic
+externally using a host VPN, VPN sidecar, or network policy outside AniBridge.
 
 ## Public IP Monitor
 
-- `PUBLIC_IP_CHECK_ENABLED` (default: `false`) — enable periodic public IP logging even when proxy is disabled (useful behind VPN/Gluetun).
-- `PUBLIC_IP_CHECK_INTERVAL_MIN` (default: inherits `PROXY_IP_CHECK_INTERVAL_MIN`) — minutes between checks when `PUBLIC_IP_CHECK_ENABLED=true`.
+- `PUBLIC_IP_CHECK_ENABLED` (default: `false`) — enable periodic public IP
+  logging.
+- `PUBLIC_IP_CHECK_INTERVAL_MIN` (default: `30`) — minutes between checks when
+  `PUBLIC_IP_CHECK_ENABLED=true`.
 
 ## Server Bind / Dev
 
@@ -116,5 +108,6 @@ appears, use manual import or disable “Analyze video files” in Sonarr. See
   - `off`/`none`: disable CORS middleware entirely.
 - `ANIBRIDGE_CORS_ALLOW_CREDENTIALS` (default: `true`) — whether to include `Access-Control-Allow-Credentials: true` when CORS is enabled with non-wildcard origins. Ignored when `ANIBRIDGE_CORS_ORIGINS=*` (credentials are always disabled for wildcard origins).
 
-> [!WARNING]
-> Proxy support is experimental. Use a full VPN (or a Gluetun sidecar in Docker) for stable production operation.
+> [!IMPORTANT]
+> Use external VPN routing for privacy and stable provider access (for example
+> a system VPN or Gluetun sidecar).

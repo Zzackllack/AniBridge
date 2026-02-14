@@ -17,4 +17,4 @@
 ## Legal Considerations
 
 - `LEGAL.md` documents jurisdictional risks and usage restrictions.
-- Proxy features are experimental; not a substitute for VPN compliance.
+- In-app outbound proxying was removed; use external VPN routing for compliance.

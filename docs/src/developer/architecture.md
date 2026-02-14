@@ -276,20 +276,17 @@ flowchart TD
   D --> E["Try preferred provider then PROVIDER_ORDER"]
   E --> F["Resolve direct URL + yt-dlp download"]
   F --> G{"Success?"}
-  G -- "No" --> H["Retry next provider / no-proxy attempt"]
+  G -- "No" --> H["Retry next provider"]
   H --> F
   G -- "Yes" --> Z["rename_to_release -> completed"]
 
   C -- "No" --> I["build_episode(...)"]
   I --> J["get_direct_url_with_fallback(...)"]
-  J --> K{"direct URL found?"}
-  K -- "No + proxy active" --> L["Retry resolution without proxy"]
-  L --> J
-  K -- "Yes" --> M["yt-dlp download"]
-  M --> N{"download failed?"}
-  N -- "Yes" --> O["Retry no-proxy / alternate providers"]
-  O --> M
+  J --> K["yt-dlp download"]
+  K --> N{"download failed?"}
   N -- "No" --> Z
+  N -- "Yes" --> O["Retry alternate providers"]
+  O --> K
 ```
 
 ### Provider Resolution Rules
@@ -474,6 +471,6 @@ When debugging cross-module behavior, start in this order:
 2. `app/utils/title_resolver.py` for slug matching and site fallback.
 3. `app/api/qbittorrent/torrents.py` for magnet intake and job enqueue.
 4. `app/core/scheduler.py` for runner selection (`download` vs `strm`).
-5. `app/core/downloader/download.py` for provider/proxy fallback.
+5. `app/core/downloader/download.py` for provider fallback behavior.
 6. `app/api/strm.py` + `app/core/strm_proxy/*` for playback proxy behavior.
 7. `app/db/models.py` for persisted state and cache freshness rules.

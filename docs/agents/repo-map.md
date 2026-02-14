@@ -28,7 +28,7 @@
 - `core/` — bootstrap, scheduler, downloader, lifespan.
 - `db/` — SQLModel definitions and helpers.
 - `domain/` — domain-level models.
-- `infrastructure/` — logging, network, system diagnostics.
+- `infrastructure/` — logging, networking helpers, system diagnostics.
 - `utils/` — shared helpers.
 - `cli.py` — CLI entrypoint.
 - `_version.py` — version helper.
@@ -63,6 +63,6 @@
 - `app/db/models.py` — SQLModel definitions and CRUD.
 - `app/domain/models.py` — domain models.
 - `app/utils/*` — shared utilities.
-- `app/infrastructure/*` — logging, proxy, system info.
+- `app/infrastructure/*` — logging, public-IP/network helpers, system info.
 - `docs/.vitepress/config.mts` — docs site config.
 - `src/worker.ts` — Cloudflare Worker entry.
