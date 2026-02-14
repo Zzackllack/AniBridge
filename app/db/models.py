@@ -22,19 +22,19 @@ JobStatus = Literal["queued", "downloading", "completed", "failed", "cancelled"]
 
 # ---- Datetime Helpers
 def utcnow() -> datetime:
-    logger.debug("utcnow() called.")
+    logger.trace("utcnow() called.")
     return datetime.now(timezone.utc)
 
 
 def as_aware_utc(dt: Optional[datetime]) -> datetime:
     logger.debug(f"as_aware_utc() called with dt={dt}")
     if dt is None:
-        logger.info("Datetime is None, returning utcnow().")
+        logger.debug("Datetime is None, returning utcnow().")
         return utcnow()
     if dt.tzinfo is None:
-        logger.info("Datetime is naive, setting tzinfo to UTC.")
+        logger.debug("Datetime is naive, setting tzinfo to UTC.")
         return dt.replace(tzinfo=timezone.utc)
-    logger.info("Datetime is aware, converting to UTC.")
+    logger.debug("Datetime is aware, converting to UTC.")
     return dt.astimezone(timezone.utc)
 
 
@@ -325,13 +325,13 @@ def get_job(session: Session, job_id: str) -> Optional[Job]:
 
 
 def update_job(session: Session, job_id: str, **fields: Any) -> Optional[Job]:
-    logger.debug(f"Updating job {job_id} with fields {fields}")
+    logger.trace(f"Updating job {job_id} with fields {fields}")
     job = session.get(Job, job_id)
     if not job:
         logger.warning(f"Job {job_id} not found for update.")
         return None
     for k, v in fields.items():
-        logger.debug(f"Setting {k} to {v} for job {job_id}")
+        logger.trace(f"Setting {k} to {v} for job {job_id}")
         setattr(job, k, v)
     job.updated_at = utcnow()
     session.add(job)
@@ -339,7 +339,7 @@ def update_job(session: Session, job_id: str, **fields: Any) -> Optional[Job]:
         session.commit()
         session.refresh(job)
         # Avoid console spam on frequent progress updates
-        logger.debug(f"Updated job {job_id}")
+        logger.trace(f"Updated job {job_id}")
     except Exception as e:
         logger.error(f"Failed to update job {job_id}: {e}")
         raise
