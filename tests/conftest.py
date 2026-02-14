@@ -34,7 +34,6 @@ def _fast_test_env(monkeypatch):
     monkeypatch.setenv("ANIWORLD_ALPHABET_HTML", "")
     monkeypatch.setenv("STO_ALPHABET_HTML", "")
     monkeypatch.setenv("PUBLIC_IP_CHECK_ENABLED", "0")
-    monkeypatch.setenv("PROXY_ENABLED", "0")
     monkeypatch.setenv("MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN", "0")
     monkeypatch.setenv("DB_MIGRATE_ON_STARTUP", "0")
     monkeypatch.setenv("STRM_PROXY_AUTH", "none")

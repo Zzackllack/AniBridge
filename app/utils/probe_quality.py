@@ -7,7 +7,6 @@ from app.core.downloader import get_direct_url_with_fallback, build_episode
 from app.utils.naming import quality_from_info
 from app.config import PROVIDER_ORDER, CATALOG_SITE_CONFIGS
 from app.utils.logger import config as configure_logger
-from app.infrastructure.network import yt_dlp_proxy
 from app.providers.megakino.client import get_default_client
 
 configure_logger()
@@ -33,13 +32,6 @@ def probe_episode_quality_once(
         "noprogress": True,
         "socket_timeout": timeout,
     }
-    try:
-        proxy_url = yt_dlp_proxy()
-        if proxy_url:
-            ydl_opts["proxy"] = proxy_url
-            logger.debug(f"yt-dlp probe proxy enabled: {proxy_url}")
-    except Exception as e:
-        logger.debug(f"yt-dlp probe proxy configuration failed: {e}")
     try:
         with yt_dlp.YoutubeDL(cast(Any, ydl_opts)) as ydl:
             info = ydl.extract_info(direct_url, download=False)

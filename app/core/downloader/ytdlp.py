@@ -8,7 +8,6 @@ from loguru import logger
 from yt_dlp.utils import DownloadError as YTDLPDownloadError
 
 from app.config import DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC
-from app.infrastructure.network import yt_dlp_proxy
 from .errors import DownloadError
 from .utils import sanitize_filename
 from .types import ProgressCb
@@ -31,7 +30,6 @@ def _ydl_download(
     cookiefile: Optional[Path] = None,
     progress_cb: Optional[ProgressCb] = None,
     stop_event: Optional[threading.Event] = None,
-    force_no_proxy: bool = False,
 ) -> Tuple[Path, Dict[str, Any]]:
     """
     Download a media resource with yt-dlp into the given directory and return the downloaded file path and metadata.
@@ -43,8 +41,6 @@ def _ydl_download(
         cookiefile (Optional[Path]): Path to a cookies file to supply to yt-dlp for authenticated requests.
         progress_cb (Optional[callable]): Callback invoked with yt-dlp progress dictionaries as they arrive.
         stop_event (Optional[threading.Event]): If set during download, the operation is cancelled and a DownloadError("Cancelled") is raised.
-        force_no_proxy (bool): When true, disable any configured proxy for this yt-dlp invocation.
-
     Returns:
         Tuple[Path, Dict[str, Any]]: The final downloaded file path and the yt-dlp info dictionary.
 
@@ -98,17 +94,6 @@ def _ydl_download(
             DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC,
             effective_ratelimit,
         )
-
-    try:
-        if not force_no_proxy:
-            proxy_url = yt_dlp_proxy()
-            if proxy_url:
-                ydl_opts["proxy"] = proxy_url
-                logger.info("yt-dlp proxy enabled: {}", proxy_url)
-        else:
-            logger.info("yt-dlp proxy disabled by fallback policy")
-    except Exception as exc:
-        logger.debug("yt-dlp proxy configuration failed: {}", exc)
 
     def _compound_hook(progress: dict) -> None:
         """

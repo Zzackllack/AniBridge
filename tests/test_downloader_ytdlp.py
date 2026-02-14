@@ -28,7 +28,6 @@ def test_ydl_download_applies_rate_limit(monkeypatch, tmp_path: Path):
 
     mod = importlib.import_module("app.core.downloader.ytdlp")
     monkeypatch.setattr(mod, "DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC", 5242880)
-    monkeypatch.setattr(mod, "yt_dlp_proxy", lambda: None)
 
     captured: dict[str, object] = {}
     DummyYDL = _make_dummy_ydl(captured, str(tmp_path / "demo.mp4"))
@@ -46,7 +45,6 @@ def test_ydl_download_scales_rate_limit_for_hls_fragments(monkeypatch, tmp_path:
 
     mod = importlib.import_module("app.core.downloader.ytdlp")
     monkeypatch.setattr(mod, "DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC", 5242880)
-    monkeypatch.setattr(mod, "yt_dlp_proxy", lambda: None)
 
     captured: dict[str, object] = {}
     DummyYDL = _make_dummy_ydl(captured, str(tmp_path / "demo.mp4"))
@@ -64,7 +62,6 @@ def test_ydl_download_omits_rate_limit_when_disabled(monkeypatch, tmp_path: Path
 
     mod = importlib.import_module("app.core.downloader.ytdlp")
     monkeypatch.setattr(mod, "DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC", 0)
-    monkeypatch.setattr(mod, "yt_dlp_proxy", lambda: None)
 
     captured: dict[str, object] = {}
     DummyYDL = _make_dummy_ydl(captured, str(tmp_path / "demo.mp4"))

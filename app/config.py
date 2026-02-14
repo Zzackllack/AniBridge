@@ -17,7 +17,11 @@ IN_DOCKER = Path("/.dockerenv").exists()
 logger.debug(f"IN_DOCKER={IN_DOCKER}")
 
 
-# --- Networking / Proxy configuration ---
+# --- Networking / transport policy ---
+# Legacy in-app outbound proxy support has been removed on purpose.
+# AniBridge now expects traffic shaping/anonymization to happen externally
+# (for example via host VPN, container VPN sidecar, or network namespace).
+# STRM proxying is a separate feature and remains supported.
 def _as_bool(val: str | None, default: bool) -> bool:
     if val is None:
         return default
@@ -42,148 +46,38 @@ def _as_non_negative_int(val: str | None, default: int) -> int:
     return parsed
 
 
-"""Proxy configuration
-
-We support either a full URL with embedded credentials (PROXY_URL) or a split
-form via PROXY_HOST/PROXY_PORT/PROXY_SCHEME and optional PROXY_USERNAME/
-PROXY_PASSWORD. Per-protocol overrides (HTTP_PROXY_URL/HTTPS_PROXY_URL/
-ALL_PROXY_URL) are also supported and will inherit global credentials if they
-lack their own.
-"""
-
-# Top-level toggle to enable proxying outbound requests and downloads.
-PROXY_ENABLED = _as_bool(os.getenv("PROXY_ENABLED", None), False)
-
-# Split fields (optional builders)
-PROXY_HOST = os.getenv("PROXY_HOST", "").strip()
-PROXY_PORT = os.getenv("PROXY_PORT", "").strip()
-PROXY_SCHEME = os.getenv(
-    "PROXY_SCHEME", "socks5"
-).strip()  # socks5 / socks5h / http / https
-PROXY_USERNAME = os.getenv("PROXY_USERNAME", "").strip()
-PROXY_PASSWORD = os.getenv("PROXY_PASSWORD", "").strip()
-
-# A single URL to apply to all protocols unless overridden below.
-# Examples:
-#  - http://user:pass@127.0.0.1:8080
-#  - socks5://127.0.0.1:1080  (use socks5h for remote DNS)
-PROXY_URL = os.getenv("PROXY_URL", "").strip()
-
-# Per-protocol overrides. If empty, falls back to PROXY_URL when PROXY_ENABLED.
-HTTP_PROXY_URL = os.getenv("HTTP_PROXY_URL", "").strip()
-HTTPS_PROXY_URL = os.getenv("HTTPS_PROXY_URL", "").strip()
-ALL_PROXY_URL = os.getenv("ALL_PROXY_URL", "").strip()
-NO_PROXY = os.getenv("NO_PROXY", "").strip()
-
-# Force remote DNS resolution for SOCKS5 by switching to socks5h scheme.
-# Default to remote DNS for SOCKS to maximize compatibility with blocked DNS
-PROXY_FORCE_REMOTE_DNS = _as_bool(os.getenv("PROXY_FORCE_REMOTE_DNS", None), True)
-
-# Requests TLS certificate verification (set false to allow corporate MITM proxies).
-PROXY_DISABLE_CERT_VERIFY = _as_bool(
-    os.getenv("PROXY_DISABLE_CERT_VERIFY", None), False
-)
-
-# Apply to process environment so libraries (including 3rd-party) respect proxies.
-PROXY_APPLY_ENV = _as_bool(os.getenv("PROXY_APPLY_ENV", None), True)
-
-# Interval for periodic public IP checks when proxy is enabled (minutes). 0 disables.
-PROXY_IP_CHECK_INTERVAL_MIN = int(os.getenv("PROXY_IP_CHECK_INTERVAL_MIN", "30") or 0)
-
-# Scope of proxying: 'all' (default), 'requests' (HTTP clients only), 'ytdlp' (downloads only)
-PROXY_SCOPE = os.getenv("PROXY_SCOPE", "all").strip().lower()
-if PROXY_SCOPE not in ("all", "requests", "ytdlp"):
-    PROXY_SCOPE = "all"
-
-# Always-on public IP monitor (even when proxy is disabled)
+# Always-on public IP monitor.
 PUBLIC_IP_CHECK_ENABLED = _as_bool(os.getenv("PUBLIC_IP_CHECK_ENABLED", None), False)
-PUBLIC_IP_CHECK_INTERVAL_MIN = int(
-    os.getenv("PUBLIC_IP_CHECK_INTERVAL_MIN", str(PROXY_IP_CHECK_INTERVAL_MIN)) or 0
+PUBLIC_IP_CHECK_INTERVAL_MIN = int(os.getenv("PUBLIC_IP_CHECK_INTERVAL_MIN", "30") or 0)
+
+# Hard deprecation warnings for removed in-app proxy settings.
+# We keep explicit logging so operators immediately know why these values are
+# ignored after upgrading.
+_REMOVED_PROXY_ENV_VARS = (
+    "PROXY_ENABLED",
+    "PROXY_URL",
+    "HTTP_PROXY_URL",
+    "HTTPS_PROXY_URL",
+    "ALL_PROXY_URL",
+    "PROXY_HOST",
+    "PROXY_PORT",
+    "PROXY_SCHEME",
+    "PROXY_USERNAME",
+    "PROXY_PASSWORD",
+    "NO_PROXY",
+    "PROXY_FORCE_REMOTE_DNS",
+    "PROXY_DISABLE_CERT_VERIFY",
+    "PROXY_APPLY_ENV",
+    "PROXY_IP_CHECK_INTERVAL_MIN",
+    "PROXY_SCOPE",
 )
-
-
-# Internal helper to promote socks5 → socks5h when remote DNS is requested.
-def _normalize_proxy_scheme(url: str | None) -> str | None:
-    if not url:
-        return None
-    try:
-        u = url.strip()
-        ul = u.lower()
-        if ul.startswith("socks5://"):
-            # Prefer remote DNS when downloads may hit geo/CDN rules.
-            # Force socks5h for scopes that affect downloads unless explicitly disabled.
-            if PROXY_FORCE_REMOTE_DNS or PROXY_SCOPE in ("all", "ytdlp"):
-                return "socks5h://" + u[9:]
-        return url
-    except Exception:
-        return url
-
-
-def _effective_proxy_url(explicit: str | None, fallback: str | None) -> str | None:
-    return _normalize_proxy_scheme(explicit.strip() if explicit else fallback)
-
-
-# Build base PROXY_URL from split fields if not provided
-def _build_from_parts() -> str | None:
-    if PROXY_URL:
-        return PROXY_URL
-    if not (PROXY_HOST and PROXY_PORT):
-        return None
-    scheme = PROXY_SCHEME or "socks5"
-    auth = ""
-    if PROXY_USERNAME:
-        auth = PROXY_USERNAME
-        if PROXY_PASSWORD:
-            auth += f":{PROXY_PASSWORD}"
-        auth += "@"
-    return f"{scheme}://{auth}{PROXY_HOST}:{PROXY_PORT}"
-
-
-def _inject_auth(url: str | None, username: str, password: str) -> str | None:
-    """Insert credentials into a proxy URL if not already present.
-
-    Keeps host/port/scheme intact. Returns the same URL when no change needed.
-    """
-    if not url:
-        return None
-    try:
-        from urllib.parse import urlsplit, urlunsplit
-
-        p = urlsplit(url)
-        if "@" in (p.netloc or ""):
-            return url  # credentials already present
-        netloc = p.netloc
-        if not netloc:
-            return url
-        if username:
-            creds = username
-            if password:
-                creds += f":{password}"
-            netloc = f"{creds}@{netloc}"
-        p2 = (p.scheme, netloc, p.path or "", p.query or "", p.fragment or "")
-        return urlunsplit(p2)
-    except Exception:
-        return url
-
-
-# Resolve the base PROXY_URL including optional credentials and scheme normalization
-_base_proxy_url = _build_from_parts() or PROXY_URL
-if PROXY_USERNAME or PROXY_PASSWORD:
-    _base_proxy_url = (
-        _inject_auth(_base_proxy_url, PROXY_USERNAME, PROXY_PASSWORD) or _base_proxy_url
-    )
-
-# Normalized effective values used throughout the app.
-EFFECTIVE_HTTP_PROXY = _effective_proxy_url(
-    _inject_auth(HTTP_PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD), _base_proxy_url
-)
-EFFECTIVE_HTTPS_PROXY = _effective_proxy_url(
-    _inject_auth(HTTPS_PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD), _base_proxy_url
-)
-EFFECTIVE_ALL_PROXY = _effective_proxy_url(
-    _inject_auth(ALL_PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD), _base_proxy_url
-)
-EFFECTIVE_NO_PROXY = NO_PROXY or None
+for _env_name in _REMOVED_PROXY_ENV_VARS:
+    if _env_name in os.environ:
+        logger.warning(
+            "{} is set but ignored: outbound in-app proxy support was removed. "
+            "Use an external VPN tunnel or VPN sidecar instead.",
+            _env_name,
+        )
 
 
 def _str_to_path(val: str | os.PathLike[str] | None) -> Path | None:
@@ -331,9 +225,6 @@ ANIWORLD_TITLES_REFRESH_HOURS = float(os.getenv("ANIWORLD_TITLES_REFRESH_HOURS",
 STO_TITLES_REFRESH_HOURS = float(os.getenv("STO_TITLES_REFRESH_HOURS", "24"))
 logger.debug(f"ANIWORLD_TITLES_REFRESH_HOURS={ANIWORLD_TITLES_REFRESH_HOURS}")
 logger.debug(f"STO_TITLES_REFRESH_HOURS={STO_TITLES_REFRESH_HOURS}")
-
-# (Removed) Built-in VPN control has been removed. Use an external VPN
-# (e.g., system-level or Gluetun) instead. See README for guidance.
 
 # Quelle/Source-Tag im Release-Namen (typisch: WEB, WEB-DL)
 SOURCE_TAG = os.getenv("SOURCE_TAG", "WEB")

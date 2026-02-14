@@ -11,8 +11,6 @@ from fastapi import FastAPI
 from sqlmodel import Session
 
 from app.infrastructure.network import (
-    apply_global_proxy_env,
-    log_proxy_config_summary,
     start_ip_check_thread,
 )
 from app.infrastructure.system_info import log_full_system_report
@@ -95,26 +93,21 @@ def _start_ttl_cleanup_thread(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Apply proxy env before any outbound network calls (e.g., update check)
     """
     Manage application startup and shutdown tasks for the given FastAPI application.
 
-    On startup this function performs best-effort initialization: applies global proxy settings, logs proxy and system reports, sends a startup notification, runs database migrations when `DB_MIGRATE_ON_STARTUP` is true (otherwise creates tables directly), resets dangling jobs, initializes the executor, resolves Megakino domain configuration when present, and starts background worker threads (TTL cleanup, IP check, and optional Megakino domain checker).
+    On startup this function performs best-effort initialization: logs system
+    reports, sends a startup notification, runs database migrations when
+    `DB_MIGRATE_ON_STARTUP` is true (otherwise creates tables directly), resets
+    dangling jobs, initializes the executor, resolves Megakino domain
+    configuration when present, and starts background worker threads (TTL
+    cleanup, IP check, and optional Megakino domain checker).
 
     On shutdown it gracefully stops the executor, disposes the DB engine, and signals background threads to stop by setting their respective stop events.
 
     Parameters:
         app (FastAPI): The FastAPI application instance whose lifespan is being managed.
     """
-    try:
-        apply_global_proxy_env()
-    except Exception as e:
-        logger.warning(f"apply_global_proxy_env failed: {e}")
-    try:
-        log_proxy_config_summary()
-    except Exception as e:
-        logger.warning(f"log_proxy_config_summary failed: {e}")
-
     # System report and update notifier (best effort)
     if not ANIBRIDGE_TEST_MODE:
         try:

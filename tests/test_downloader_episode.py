@@ -53,7 +53,6 @@ def test_download_episode_generates_s00e_hint(
         cookiefile,
         progress_cb,
         stop_event,
-        force_no_proxy,
     ):
         """
         Test helper that simulates a youtube-dl download by writing a temporary mp4 and recording the provided title hint.
@@ -62,12 +61,12 @@ def test_download_episode_generates_s00e_hint(
             _url: URL to download (ignored).
             dest_dir (Path): Directory where the temporary file will be created.
             title_hint (str): Title hint to record into the test `captured` mapping.
-            cookiefile, progress_cb, stop_event, force_no_proxy: Ignored keyword-only arguments present to match the real downloader signature.
+            cookiefile, progress_cb, stop_event: Ignored keyword-only arguments present to match the real downloader signature.
 
         Returns:
             tuple: (Path to the created "tmp.mp4" file in `dest_dir`, info_dict) where `info_dict` is an empty dict.
         """
-        del cookiefile, progress_cb, stop_event, force_no_proxy
+        del cookiefile, progress_cb, stop_event
         captured["title_hint"] = title_hint
         tmp_file = dest_dir / "tmp.mp4"
         tmp_file.write_bytes(b"ok")
@@ -122,7 +121,6 @@ def test_download_episode_uses_title_hint_as_release_override(
         cookiefile,
         progress_cb,
         stop_event,
-        force_no_proxy,
     ):
         """
         Create a temporary MP4 file named "tmp.mp4" inside dest_dir and return its path along with an empty info dictionary.
@@ -133,7 +131,7 @@ def test_download_episode_uses_title_hint_as_release_override(
         Returns:
             (pathlib.Path, dict): Tuple containing the Path to the written "tmp.mp4" and an empty dictionary.
         """
-        del title_hint, cookiefile, progress_cb, stop_event, force_no_proxy
+        del title_hint, cookiefile, progress_cb, stop_event
         tmp_file = dest_dir / "tmp.mp4"
         tmp_file.write_bytes(b"ok")
         return tmp_file, {}
@@ -201,9 +199,8 @@ def test_download_episode_sets_release_override_to_none_when_hint_is_empty(
         cookiefile,
         progress_cb,
         stop_event,
-        force_no_proxy,
     ):
-        del title_hint, cookiefile, progress_cb, stop_event, force_no_proxy
+        del title_hint, cookiefile, progress_cb, stop_event
         tmp_file = dest_dir / "tmp.mp4"
         tmp_file.write_bytes(b"ok")
         return tmp_file, {}

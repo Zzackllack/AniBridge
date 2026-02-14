@@ -1,12 +1,10 @@
 import threading
-from contextlib import nullcontext
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from loguru import logger
 
-from app.config import PROVIDER_ORDER, PROXY_ENABLED, PROXY_SCOPE
-from app.infrastructure.network import disabled_proxy_env
+from app.config import PROVIDER_ORDER
 from app.utils.naming import rename_to_release
 from app.providers.megakino.client import get_default_client
 from .errors import DownloadError
@@ -33,9 +31,14 @@ def download_episode(
     site: str = "aniworld.to",
 ) -> Path:
     """
-    Download an episode to the specified directory, resolving a direct stream URL with provider fallback and proxy-aware retry logic.
+    Download an episode to the specified directory, resolving a direct stream URL with provider fallback logic.
 
-    This function builds an Episode from the provided identifiers, attempts to resolve a direct download URL (optionally preferring a provider), downloads the media via yt-dlp with progress callbacks and cancellation support, and renames the downloaded file into the repository's release naming schema. If extraction or download fails, controlled fallback attempts are performed (no-proxy re-resolution and alternate providers) before failing.
+    This function builds an Episode from the provided identifiers, attempts to
+    resolve a direct download URL (optionally preferring a provider), downloads
+    the media via yt-dlp with progress callbacks and cancellation support, and
+    renames the downloaded file into the repository's release naming schema. If
+    extraction or download fails, controlled fallback attempts are performed
+    across alternate providers before failing.
 
     Parameters:
         link (Optional[str]): Direct episode page URL; if provided, used instead of slug/season/episode.
@@ -95,123 +98,83 @@ def download_episode(
         def _attempt_download(
             *,
             preferred_provider: Optional[str],
-            force_no_proxy: bool,
         ) -> Optional[Path]:
             """
-            Resolve Megakino direct URL and download once for one provider/proxy pair.
+            Resolve Megakino direct URL and download once for one provider.
 
-            Resolves a direct URL for the preferred provider, optionally with
-            proxies disabled, downloads to `dest_dir` via yt-dlp, then renames
-            the file to the release schema (movie vs episode aware).
+            Resolves a direct URL for the preferred provider, downloads to
+            `dest_dir` via yt-dlp, then renames the file to the release schema
+            (movie vs episode aware).
 
             Parameters:
                 preferred_provider (Optional[str]): Preferred provider; `None`
                     lets the resolver choose.
-                force_no_proxy (bool): If True, resolve and download with proxy
-                    environment disabled.
 
             Returns:
                 Path or None: Final renamed path, or `None` when the resolved
                 direct URL was already tried.
             """
-            context = disabled_proxy_env() if force_no_proxy else nullcontext()
-            with context:
-                direct, chosen = client.resolve_direct_url(
-                    slug=slug, preferred_provider=preferred_provider
-                )
-                if direct in tried_direct:
-                    logger.debug(
-                        "Megakino direct URL already tried; skipping: {}", direct
+            direct, chosen = client.resolve_direct_url(
+                slug=slug, preferred_provider=preferred_provider
+            )
+            if direct in tried_direct:
+                logger.debug("Megakino direct URL already tried; skipping: {}", direct)
+                return None
+            tried_direct.add(direct)
+            logger.debug(
+                "Megakino download direct URL: provider={} url={}", chosen, direct
+            )
+            base_hint = title_hint
+            if not base_hint:
+                if is_movie:
+                    base_hint = f"{slug}-{language}-{chosen}"
+                elif slug and season is not None and episode is not None:
+                    base_hint = (
+                        f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
                     )
-                    return None
-                tried_direct.add(direct)
-                logger.debug(
-                    "Megakino download direct URL: provider={} url={}", chosen, direct
-                )
-                base_hint = title_hint
-                if not base_hint:
-                    if is_movie:
-                        base_hint = f"{slug}-{language}-{chosen}"
-                    elif slug and season is not None and episode is not None:
-                        base_hint = (
-                            f"{slug}-S{season:02d}E{episode:02d}-{language}-{chosen}"
-                        )
-                temp_path, info = _ydl_download(
-                    direct,
-                    dest_dir,
-                    title_hint=base_hint,
-                    cookiefile=cookiefile,
-                    progress_cb=progress_cb,
-                    stop_event=stop_event,
-                    force_no_proxy=force_no_proxy,
-                )
-                final_path = rename_to_release(
-                    path=temp_path,
-                    info=info,
-                    slug=slug,
-                    season=None if is_movie else season,
-                    episode=None if is_movie else episode,
-                    language=language,
-                    site=site,
-                    release_name_override=release_override,
-                )
-                logger.success("Final file path: {}", final_path)
-                return final_path
+            temp_path, info = _ydl_download(
+                direct,
+                dest_dir,
+                title_hint=base_hint,
+                cookiefile=cookiefile,
+                progress_cb=progress_cb,
+                stop_event=stop_event,
+            )
+            final_path = rename_to_release(
+                path=temp_path,
+                info=info,
+                slug=slug,
+                season=None if is_movie else season,
+                episode=None if is_movie else episode,
+                language=language,
+                site=site,
+                release_name_override=release_override,
+            )
+            logger.success("Final file path: {}", final_path)
+            return final_path
 
-        proxy_attempts = [False]
-        if PROXY_ENABLED and PROXY_SCOPE in ("all", "ytdlp"):
-            proxy_attempts.append(True)
-
-        for force_no_proxy in proxy_attempts:
-            for preferred_provider in provider_candidates:
-                try:
-                    result = _attempt_download(
-                        preferred_provider=preferred_provider,
-                        force_no_proxy=force_no_proxy,
-                    )
-                    if result is not None:
-                        return result
-                except Exception as exc:
-                    last_error = exc
-                    logger.warning(
-                        "Megakino download attempt failed (provider={}, no_proxy={}): {}",
-                        preferred_provider,
-                        force_no_proxy,
-                        exc,
-                    )
+        for preferred_provider in provider_candidates:
+            try:
+                result = _attempt_download(preferred_provider=preferred_provider)
+                if result is not None:
+                    return result
+            except Exception as exc:
+                last_error = exc
+                logger.warning(
+                    "Megakino download attempt failed (provider={}): {}",
+                    preferred_provider,
+                    exc,
+                )
 
         raise DownloadError(
             f"Megakino download failed after retries: {last_error}"
         ) from last_error
     ep = build_episode(link=link, slug=slug, season=season, episode=episode, site=site)
 
-    force_no_proxy = False
-    try:
-        direct, chosen = get_direct_url_with_fallback(
-            ep, preferred=provider, language=language
-        )
-        logger.info("Chosen provider: {}, direct URL: {}", chosen, direct)
-    except DownloadError as exc:
-        if PROXY_ENABLED and PROXY_SCOPE in ("all", "ytdlp"):
-            logger.warning(
-                "Direct link not found under proxy ({}). Attempting direct fallback without proxy.",
-                exc,
-            )
-            with disabled_proxy_env():
-                ep2 = build_episode(
-                    link=link, slug=slug, season=season, episode=episode, site=site
-                )
-                direct, chosen = get_direct_url_with_fallback(
-                    ep2, preferred=provider, language=language
-                )
-                logger.info(
-                    "Fallback (no proxy) chose provider: {}, direct URL: {}",
-                    chosen,
-                    direct,
-                )
-                force_no_proxy = True
-        else:
-            raise
+    direct, chosen = get_direct_url_with_fallback(
+        ep, preferred=provider, language=language
+    )
+    logger.info("Chosen provider: {}, direct URL: {}", chosen, direct)
 
     base_hint = title_hint
     if not base_hint and slug and season is not None and episode is not None:
@@ -229,67 +192,39 @@ def download_episode(
             cookiefile=cookiefile,
             progress_cb=progress_cb,
             stop_event=stop_event,
-            force_no_proxy=force_no_proxy,
         )
     except Exception as exc:
         msg = str(exc)
         logger.warning("Primary download failed: {}", msg)
 
         tried_alt = False
-        if PROXY_ENABLED and not force_no_proxy and PROXY_SCOPE in ("all", "ytdlp"):
+        providers_left = [
+            provider_name
+            for provider_name in PROVIDER_ORDER
+            if provider_name != (provider or "")
+        ]
+        for provider_name in providers_left:
             try:
-                with disabled_proxy_env():
-                    ep2 = build_episode(
-                        link=link, slug=slug, season=season, episode=episode, site=site
-                    )
-                    direct2, chosen2 = get_direct_url_with_fallback(
-                        ep2, preferred=provider, language=language
-                    )
-                    logger.info(
-                        "Retrying download without proxy using provider {}", chosen2
-                    )
-                    temp_path, info = _ydl_download(
-                        direct2,
-                        dest_dir,
-                        title_hint=base_hint,
-                        cookiefile=cookiefile,
-                        progress_cb=progress_cb,
-                        stop_event=stop_event,
-                        force_no_proxy=True,
-                    )
-                    tried_alt = True
-            except Exception as exc2:
-                logger.error("No-proxy fallback download failed: {}", exc2)
-
-        if not tried_alt:
-            providers_left = [
-                provider_name
-                for provider_name in PROVIDER_ORDER
-                if provider_name != (provider or "")
-            ]
-            for provider_name in providers_left:
-                try:
-                    direct3, chosen3 = get_direct_url_with_fallback(
-                        ep, preferred=provider_name, language=language
-                    )
-                    logger.info("Retrying download via alternate provider {}", chosen3)
-                    temp_path, info = _ydl_download(
-                        direct3,
-                        dest_dir,
-                        title_hint=base_hint,
-                        cookiefile=cookiefile,
-                        progress_cb=progress_cb,
-                        stop_event=stop_event,
-                        force_no_proxy=force_no_proxy,
-                    )
-                    tried_alt = True
-                    break
-                except Exception as exc3:
-                    logger.warning(
-                        "Alternate provider {} failed to download: {}",
-                        provider_name,
-                        exc3,
-                    )
+                direct3, chosen3 = get_direct_url_with_fallback(
+                    ep, preferred=provider_name, language=language
+                )
+                logger.info("Retrying download via alternate provider {}", chosen3)
+                temp_path, info = _ydl_download(
+                    direct3,
+                    dest_dir,
+                    title_hint=base_hint,
+                    cookiefile=cookiefile,
+                    progress_cb=progress_cb,
+                    stop_event=stop_event,
+                )
+                tried_alt = True
+                break
+            except Exception as exc3:
+                logger.warning(
+                    "Alternate provider {} failed to download: {}",
+                    provider_name,
+                    exc3,
+                )
 
         if not tried_alt:
             raise

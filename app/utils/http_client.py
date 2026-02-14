@@ -6,8 +6,6 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from loguru import logger
 
-from app.infrastructure.network import proxies_mapping, requests_verify
-from app.config import PROXY_ENABLED
 from app.utils.logger import config as configure_logger
 
 configure_logger()
@@ -17,18 +15,6 @@ _SESSION: Optional[requests.Session] = None
 
 def _build_session() -> requests.Session:
     s = requests.Session()
-    proxies = proxies_mapping()
-    if proxies:
-        s.proxies.update(proxies)
-        try:
-            from app.infrastructure.network import _mask  # type: ignore
-
-            logger.info(
-                f"HTTP client proxies set: http={_mask(proxies.get('http'))} "
-                f"https={_mask(proxies.get('https'))}"
-            )
-        except Exception:
-            logger.debug(f"HTTP session proxies set: {proxies}")
 
     # Conservative retry policy for transient network hiccups
     retry = Retry(
@@ -43,12 +29,7 @@ def _build_session() -> requests.Session:
     adapter = HTTPAdapter(max_retries=retry, pool_connections=10, pool_maxsize=20)
     s.mount("http://", adapter)
     s.mount("https://", adapter)
-    s.verify = requests_verify()
-    # Some proxies (especially SOCKS relays) mangle compressed responses.
-    # Force identity encoding when proxying to avoid ContentDecodingError like "2 bytes missing".
-    if PROXY_ENABLED:
-        s.headers.update({"Accept-Encoding": "identity"})
-        logger.info("HTTP client: forcing Accept-Encoding=identity behind proxy")
+    s.verify = True
     logger.info(f"HTTP client TLS verify: {'on' if s.verify else 'off'}")
     return s
 
