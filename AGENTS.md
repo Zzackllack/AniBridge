@@ -13,7 +13,7 @@ Essentials
 
 Common pitfalls
 
-- The README of this repository is not at ./README.md but at ./.github/README.md. 
+- The README of this repository is not at ./README.md but at ./.github/README.md.
 
 Non-standard commands
 
