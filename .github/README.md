@@ -60,8 +60,8 @@ uv run python -m app.main
 - qBittorrent API: `http://localhost:8000/api/v2`
 - Health check: `http://localhost:8000/health`
 
-Configure Prowlarr or other automation tools to point at the Torznab feed. Downloads are placed in
-`DOWNLOAD_DIR` as defined in the configuration.
+Configure Prowlarr/Sonarr/Radarr to point at the Torznab feed. Downloads are placed in
+`DOWNLOAD_DIR` as defined in the configuration. For further details see the [quickstart guide in the documentation.](https://anibridge-docs.zacklack.de/guide/quickstart)
 
 ## Networking Policy (Important)
 
