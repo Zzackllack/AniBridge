@@ -8,7 +8,7 @@ AniBridge is a minimal FastAPI service that bridges anime and series streaming c
 
 > [!CAUTION]
 > ⚖️ Before using this software, please read the  
-> [Legal Disclaimer](./LEGAL.md).
+> [Legal Disclaimer](/docs/src/legal.md).
 
 ## Features
 
@@ -63,14 +63,17 @@ uv run python -m app.main
 Configure Prowlarr or other automation tools to point at the Torznab feed. Downloads are placed in
 `DOWNLOAD_DIR` as defined in the configuration.
 
-## Networking & Proxy (Important)
+## Networking Policy (Important)
 
 > [!WARNING]
-> Proxy support is experimental and may be unreliable with some providers/CDNs. For production use, prefer running AniBridge behind a full VPN tunnel (system‑level) or inside a container attached to a VPN sidecar like Gluetun. Do not rely on the in‑app proxy for consistent operation.
+> Legacy in-app outbound proxy support was deprecated and removed. Route outbound traffic
+> externally using a host VPN or a VPN sidecar (for example Gluetun).
 
-- Recommended: Run in Docker with a VPN container (e.g., Gluetun) and attach AniBridge to the same network so all HTTP requests and downloads egress through the VPN.
-- Alternative: Use a system‑level VPN on the host where AniBridge runs.
-- The built‑in proxy toggles are in active development and can fail to extract links or be blocked by hosters/CDNs.
+- Recommended: Run in Docker with a VPN sidecar (e.g., Gluetun) and attach
+  AniBridge to the same network namespace so all requests and downloads egress
+  through the VPN.
+- Alternative: Use a system-level VPN on the host where AniBridge runs.
+- STRM proxy functionality (`/strm/*`) is unchanged and still supported.
 
 ## Contributing
 

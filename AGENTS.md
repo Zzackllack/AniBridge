@@ -11,6 +11,10 @@ Essentials
 - Use of Context7 for up-to-date external documentation.
 - On change of any environment variable, update `.env.example`.
 
+Common pitfalls
+
+- The README of this repository is not at ./README.md but at ./.github/README.md. 
+
 Non-standard commands
 
 - Tests: `pytest`
