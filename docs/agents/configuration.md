@@ -55,33 +55,35 @@ AniBridge centralizes configuration in `app/config.py`. Values are derived from 
 37. `TORZNAB_TEST_SEASON` — Test season number.
 38. `TORZNAB_TEST_EPISODE` — Test episode number.
 39. `TORZNAB_TEST_LANGUAGE` — Test language label.
-40. `DELETE_FILES_ON_TORRENT_DELETE` — Remove files on delete (default `true`).
-41. `DOWNLOADS_TTL_HOURS` — TTL cleanup threshold (default `0`, disabled).
-42. `CLEANUP_SCAN_INTERVAL_MIN` — Cleanup interval (default `30`).
-43. `STRM_FILES_MODE` — STRM mode (`no`, `both`, `only`, default `no`).
-44. `STRM_PROXY_MODE` — STRM proxy mode (`direct`, `proxy`, `redirect`, default `direct`).
-45. `STRM_PUBLIC_BASE_URL` — Public base URL for STRM proxy URLs.
-46. `STRM_PROXY_AUTH` — STRM proxy auth mode (`none`, `token`, `apikey`).
-47. `STRM_PROXY_SECRET` — Shared secret for STRM proxy auth.
-48. `STRM_PROXY_UPSTREAM_ALLOWLIST` — Comma-separated upstream host allowlist.
-49. `STRM_PROXY_CACHE_TTL_SECONDS` — STRM URL cache TTL in seconds (default `0`).
-50. `STRM_PROXY_TOKEN_TTL_SECONDS` — STRM proxy token TTL in seconds (default `900`).
-51. `PROGRESS_FORCE_BAR` — Force progress bar (default `false`).
-52. `PROGRESS_STEP_PERCENT` — Progress logging step (default `5`).
-53. `ANIBRIDGE_UPDATE_CHECK` — Enable release polling (default `true`).
-54. `ANIBRIDGE_GITHUB_TOKEN` — GitHub API token.
-55. `ANIBRIDGE_GITHUB_OWNER` — GitHub owner (default `zzackllack`).
-56. `ANIBRIDGE_GITHUB_REPO` — Repo name (default `AniBridge`).
-57. `ANIBRIDGE_GHCR_IMAGE` — GHCR image slug (default `zzackllack/anibridge`).
-58. `PUBLIC_IP_CHECK_ENABLED` — Enable periodic public IP logging (default `false`).
-59. `PUBLIC_IP_CHECK_INTERVAL_MIN` — Public IP check interval minutes (default `30`).
-60. `ANIBRIDGE_HOST` — Bind host.
-61. `ANIBRIDGE_PORT` — Bind port.
-62. `ANIBRIDGE_CORS_ORIGINS` — CORS origins.
-63. `ANIBRIDGE_CORS_ALLOW_CREDENTIALS` — CORS credentials behavior.
-64. `ANIBRIDGE_TEST_MODE` — Test-mode runtime toggle.
-65. `PYTHONUNBUFFERED` — Set to `1` in Docker to keep logs flush.
-66. `SONARR_*`, `PROWLARR_*` — Integration values documented in `docs/src/integrations/clients`.
+40. `TORZNAB_SEASON_SEARCH_MAX_EPISODES` — Season-search fallback probe ceiling (default `60`).
+41. `TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES` — Season-search fallback stop threshold (default `3`).
+42. `DELETE_FILES_ON_TORRENT_DELETE` — Remove files on delete (default `true`).
+43. `DOWNLOADS_TTL_HOURS` — TTL cleanup threshold (default `0`, disabled).
+44. `CLEANUP_SCAN_INTERVAL_MIN` — Cleanup interval (default `30`).
+45. `STRM_FILES_MODE` — STRM mode (`no`, `both`, `only`, default `no`).
+46. `STRM_PROXY_MODE` — STRM proxy mode (`direct`, `proxy`, `redirect`, default `direct`).
+47. `STRM_PUBLIC_BASE_URL` — Public base URL for STRM proxy URLs.
+48. `STRM_PROXY_AUTH` — STRM proxy auth mode (`none`, `token`, `apikey`).
+49. `STRM_PROXY_SECRET` — Shared secret for STRM proxy auth.
+50. `STRM_PROXY_UPSTREAM_ALLOWLIST` — Comma-separated upstream host allowlist.
+51. `STRM_PROXY_CACHE_TTL_SECONDS` — STRM URL cache TTL in seconds (default `0`).
+52. `STRM_PROXY_TOKEN_TTL_SECONDS` — STRM proxy token TTL in seconds (default `900`).
+53. `PROGRESS_FORCE_BAR` — Force progress bar (default `false`).
+54. `PROGRESS_STEP_PERCENT` — Progress logging step (default `5`).
+55. `ANIBRIDGE_UPDATE_CHECK` — Enable release polling (default `true`).
+56. `ANIBRIDGE_GITHUB_TOKEN` — GitHub API token.
+57. `ANIBRIDGE_GITHUB_OWNER` — GitHub owner (default `zzackllack`).
+58. `ANIBRIDGE_GITHUB_REPO` — Repo name (default `AniBridge`).
+59. `ANIBRIDGE_GHCR_IMAGE` — GHCR image slug (default `zzackllack/anibridge`).
+60. `PUBLIC_IP_CHECK_ENABLED` — Enable periodic public IP logging (default `false`).
+61. `PUBLIC_IP_CHECK_INTERVAL_MIN` — Public IP check interval minutes (default `30`).
+62. `ANIBRIDGE_HOST` — Bind host.
+63. `ANIBRIDGE_PORT` — Bind port.
+64. `ANIBRIDGE_CORS_ORIGINS` — CORS origins.
+65. `ANIBRIDGE_CORS_ALLOW_CREDENTIALS` — CORS credentials behavior.
+66. `ANIBRIDGE_TEST_MODE` — Test-mode runtime toggle.
+67. `PYTHONUNBUFFERED` — Set to `1` in Docker to keep logs flush.
+68. `SONARR_*`, `PROWLARR_*` — Integration values documented in `docs/src/integrations/clients`.
 
 ## Removed Legacy Proxy Variables
 

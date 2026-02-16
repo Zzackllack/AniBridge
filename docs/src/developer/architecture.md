@@ -105,6 +105,13 @@ flowchart TB
 - `t=movie` / `t=movie-search`
 - `t=tvsearch`
 
+`tvsearch` runs in two request modes:
+
+- Episode-search: `season` and `ep` are provided.
+- Season-search: `season` is provided and `ep` is omitted; AniBridge discovers
+  season episode numbers (metadata/cache/fallback probe) and then executes the
+  same per-episode emission pipeline for each discovered episode.
+
 ### `tvsearch` Runtime Flow
 
 ```mermaid

@@ -27,6 +27,10 @@ Comprehensive list of env vars read in `app/config.py`.
 - `TORZNAB_TEST_SEASON` (default: `1`)
 - `TORZNAB_TEST_EPISODE` (default: `1`)
 - `TORZNAB_TEST_LANGUAGE` (default: `German Dub`)
+- `TORZNAB_SEASON_SEARCH_MAX_EPISODES` (default: `60`) — fallback probe
+  ceiling for season-search when metadata/cache discovery has no episode list.
+- `TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES` (default: `3`) — fallback
+  probe stop threshold for back-to-back missing episodes.
 
 ## STRM Files
 

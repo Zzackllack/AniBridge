@@ -7,7 +7,7 @@ outline: deep
 
 ## Torznab shows no results
 
-- Confirm `t`, `q`, `season`, and `ep` parameters for `/torznab/api`
+- Confirm `t`, `q`, and `season` parameters for `/torznab/api` (`ep` is optional for season-search mode)
 - Try `t=search` with empty `q` to get the connectivity test item when `TORZNAB_RETURN_TEST_RESULT=true`
 - Ensure `INDEXER_API_KEY` is provided as `apikey` if configured
 - Inspect `data/terminal-*.log` for parsing/probe errors

@@ -20,7 +20,7 @@ Supported operations via `t`:
 ## Query Parameters
 
 - Common: `t`, `apikey`, `q`, `cat`, `offset`, `limit`
-- `tvsearch`: `season`, `ep`
+- `tvsearch`: `season`, optional `ep`
 - Optional ID hints for specials mapping:
   `tvdbid`, `tmdbid`, `imdbid`, `rid`, `tvmazeid`
 
@@ -37,8 +37,16 @@ Supported operations via `t`:
   emits preview items for S01E01 across probable languages per site.
   Megakino is search-only, so queries must provide a slug or a
   megakino URL containing one.
-- `tvsearch` emits items only for actually available
-  languages/providers (using cached probe or live check).
+- `tvsearch` has two explicit modes:
+  - `season` + `ep`: episode-search mode (single requested episode path).
+  - `season` without `ep`: season-search mode (enumerates episodes and emits
+    one or more items per discovered episode).
+- Season-search episode discovery is metadata-first, then merges cached episode
+  hints, then falls back to bounded sequential probing when needed.
+- `limit` is a hard cap on emitted `<item>` elements. For multi-language or
+  STRM dual-item seasons, increase `limit` if you want more complete results.
+- `tvsearch` emits items only for actually available languages/providers
+  (using cached probe or live check).
 - For AniWorld specials/extras (`/filme`), AniBridge applies
   metadata-backed mapping to map Sonarr's requested special
   numbering/title to AniWorld's source `film-N` entries when they

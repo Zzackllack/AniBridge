@@ -25,6 +25,9 @@ AniBridge is configured via environment variables (works well with Docker). Sens
 - Fake peers for connectivity: `TORZNAB_FAKE_SEEDERS` / `TORZNAB_FAKE_LEECHERS`
 - Connectivity test result: `TORZNAB_RETURN_TEST_RESULT` (`true|false`)
 - Test release fields: `TORZNAB_TEST_TITLE`, `TORZNAB_TEST_SLUG`, `TORZNAB_TEST_SEASON`, `TORZNAB_TEST_EPISODE`, `TORZNAB_TEST_LANGUAGE`
+- Season-search fallback guardrails:
+  - `TORZNAB_SEASON_SEARCH_MAX_EPISODES` (default: `60`)
+  - `TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES` (default: `3`)
 
 ## STRM Files
 
