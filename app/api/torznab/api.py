@@ -20,6 +20,8 @@ from app.config import (
     TORZNAB_CAT_ANIME,
     TORZNAB_CAT_MOVIE,
     TORZNAB_RETURN_TEST_RESULT,
+    TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES,
+    TORZNAB_SEASON_SEARCH_MAX_EPISODES,
     TORZNAB_TEST_EPISODE,
     TORZNAB_TEST_LANGUAGE,
     TORZNAB_TEST_SEASON,
@@ -85,6 +87,15 @@ def _coerce_positive_int(value: object) -> Optional[int]:
     except (TypeError, ValueError):
         return None
     return parsed if parsed > 0 else None
+
+
+def _coerce_non_negative_int(value: object) -> Optional[int]:
+    """Coerce an arbitrary value into a non-negative integer."""
+    try:
+        parsed = int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed >= 0 else None
 
 
 def _cache_get_term_tvdb(term: str) -> Optional[int]:
@@ -216,6 +227,270 @@ def _resolve_tvsearch_query_from_ids(
     return title or None
 
 
+def _resolve_tvdb_id_for_tvsearch(
+    *,
+    q_str: str,
+    tvdbid: Optional[int],
+    tmdbid: Optional[int],
+    imdbid: Optional[str],
+) -> Optional[int]:
+    """
+    Resolve a tvdb id for tvsearch using explicit ids first, then SkyHook lookup terms.
+    """
+    tvdb_id = _coerce_positive_int(tvdbid)
+    if tvdb_id is not None:
+        return tvdb_id
+    if ANIBRIDGE_TEST_MODE:
+        return None
+
+    lookup_terms: List[str] = []
+    tmdb = _coerce_positive_int(tmdbid)
+    imdb = (imdbid or "").strip()
+    query = (q_str or "").strip()
+    if tmdb is not None:
+        lookup_terms.append(f"tmdb:{tmdb}")
+    if imdb:
+        lookup_terms.append(f"imdb:{imdb}")
+    if query:
+        lookup_terms.append(query)
+
+    for term in lookup_terms:
+        cached_tvdb = _cache_get_term_tvdb(term)
+        if cached_tvdb is not None:
+            return cached_tvdb
+        try:
+            query_params = urlencode({"term": term})
+            response = http_get(
+                f"{_SKYHOOK_SEARCH_URL}?{query_params}",
+                timeout=8.0,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except Exception as exc:
+            logger.debug("SkyHook ID search failed for '{}': {}", term, exc)
+            continue
+        if not isinstance(payload, list):
+            continue
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            candidate = _coerce_positive_int(item.get("tvdbId"))
+            if candidate is None:
+                continue
+            _cache_set_term_tvdb(term, candidate)
+            return candidate
+    return None
+
+
+def _metadata_episode_numbers_for_season(
+    *,
+    q_str: str,
+    season_i: int,
+    ids: SpecialIds,
+) -> List[int]:
+    """
+    Resolve episode numbers for one season from SkyHook metadata.
+    """
+    tvdb_id = _resolve_tvdb_id_for_tvsearch(
+        q_str=q_str,
+        tvdbid=ids.tvdbid,
+        tmdbid=ids.tmdbid,
+        imdbid=ids.imdbid,
+    )
+    if tvdb_id is None:
+        return []
+
+    try:
+        response = http_get(_SKYHOOK_SHOW_URL.format(tvdb_id=tvdb_id), timeout=8.0)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as exc:
+        logger.debug("SkyHook show lookup failed for tvdb {}: {}", tvdb_id, exc)
+        return []
+
+    if not isinstance(payload, dict):
+        return []
+    raw_episodes = payload.get("episodes")
+    if not isinstance(raw_episodes, list):
+        return []
+
+    episode_numbers: List[int] = []
+    for item in raw_episodes:
+        if not isinstance(item, dict):
+            continue
+        item_season = _coerce_non_negative_int(item.get("seasonNumber"))
+        item_episode = _coerce_positive_int(item.get("episodeNumber"))
+        if item_season != season_i or item_episode is None:
+            continue
+        episode_numbers.append(item_episode)
+    return sorted(set(episode_numbers))
+
+
+def _probe_episode_available_for_discovery(
+    *,
+    tn_module,
+    session: Session,
+    slug: str,
+    season_i: int,
+    episode_i: int,
+    site_found: str,
+) -> bool:
+    """
+    Probe whether an episode is available in at least one candidate language.
+    """
+    cached_langs = tn_module.list_available_languages_cached(
+        session,
+        slug=slug,
+        season=season_i,
+        episode=episode_i,
+        site=site_found,
+    )
+    default_langs = _default_languages_for_site(site_found)
+    candidate_langs: List[str] = cached_langs if cached_langs else default_langs
+    for lang in candidate_langs:
+        try:
+            rec = tn_module.get_availability(
+                session,
+                slug=slug,
+                season=season_i,
+                episode=episode_i,
+                language=lang,
+                site=site_found,
+            )
+        except (ValueError, RuntimeError):
+            rec = None
+
+        if rec and rec.available and rec.is_fresh:
+            return True
+
+        try:
+            available, height, vcodec, prov_used, _info = (
+                tn_module.probe_episode_quality(
+                    slug=slug,
+                    season=season_i,
+                    episode=episode_i,
+                    language=lang,
+                    site=site_found,
+                )
+            )
+        except (ValueError, RuntimeError):
+            available = False
+            height = None
+            vcodec = None
+            prov_used = None
+
+        try:
+            tn_module.upsert_availability(
+                session,
+                slug=slug,
+                season=season_i,
+                episode=episode_i,
+                language=lang,
+                available=available,
+                height=height,
+                vcodec=vcodec,
+                provider=prov_used,
+                extra=None,
+                site=site_found,
+            )
+        except (ValueError, RuntimeError):
+            pass
+        if available:
+            return True
+    return False
+
+
+def resolve_season_episode_numbers(
+    *,
+    tn_module,
+    session: Session,
+    slug: str,
+    season_i: int,
+    site_found: str,
+    q_str: str,
+    ids: SpecialIds,
+) -> List[int]:
+    """
+    Resolve episode numbers for tvsearch season mode via metadata, cache, and fallback probing.
+    """
+    metadata_episodes = _metadata_episode_numbers_for_season(
+        q_str=q_str,
+        season_i=season_i,
+        ids=ids,
+    )
+    if metadata_episodes:
+        logger.debug(
+            "tvsearch season discovery source=metadata slug={} season={} episodes={}",
+            slug,
+            season_i,
+            metadata_episodes,
+        )
+
+    cached_episodes = tn_module.list_cached_episode_numbers_for_season(
+        session,
+        slug=slug,
+        season=season_i,
+        site=site_found,
+    )
+    if cached_episodes:
+        logger.debug(
+            "tvsearch season discovery source=cache slug={} season={} episodes={}",
+            slug,
+            season_i,
+            cached_episodes,
+        )
+
+    merged = sorted(set(metadata_episodes + cached_episodes))
+    if merged:
+        discovery_sources: List[str] = []
+        if metadata_episodes:
+            discovery_sources.append("metadata")
+        if cached_episodes:
+            discovery_sources.append("cache")
+        logger.info(
+            "tvsearch season discovery slug={} season={} episodes={} sources={}",
+            slug,
+            season_i,
+            len(merged),
+            "+".join(discovery_sources),
+        )
+        return merged
+
+    discovered: List[int] = []
+    consecutive_misses = 0
+    termination = "max episodes"
+    for episode_i in range(1, TORZNAB_SEASON_SEARCH_MAX_EPISODES + 1):
+        if _probe_episode_available_for_discovery(
+            tn_module=tn_module,
+            session=session,
+            slug=slug,
+            season_i=season_i,
+            episode_i=episode_i,
+            site_found=site_found,
+        ):
+            discovered.append(episode_i)
+            consecutive_misses = 0
+            continue
+        consecutive_misses += 1
+        if consecutive_misses >= TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES:
+            termination = "consecutive misses"
+            break
+
+    logger.info(
+        (
+            "tvsearch season discovery source=fallback-probe slug={} season={} "
+            "episodes={} termination={} max_episodes={} max_consecutive_misses={}"
+        ),
+        slug,
+        season_i,
+        len(discovered),
+        termination,
+        TORZNAB_SEASON_SEARCH_MAX_EPISODES,
+        TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES,
+    )
+    return discovered
+
+
 def _try_mapped_special_probe(
     *,
     tn_module,
@@ -309,6 +584,308 @@ def _try_mapped_special_probe(
         alias_season,
         alias_episode,
     )
+
+
+def emit_tvsearch_episode_items(
+    *,
+    tn_module,
+    session: Session,
+    channel: ET.Element,
+    slug: str,
+    site_found: str,
+    display_title: str,
+    q_str: str,
+    request_season: int,
+    request_episode: int,
+    ids: SpecialIds,
+    now: datetime,
+    strm_suffix: str,
+    max_items: Optional[int],
+) -> tuple[int, bool]:
+    """
+    Emit tvsearch RSS items for one requested season/episode pair.
+
+    Returns:
+        tuple[int, bool]:
+            - Number of emitted RSS items.
+            - Whether emission stopped because the provided `max_items` was reached.
+    """
+    cached_langs = tn_module.list_available_languages_cached(
+        session,
+        slug=slug,
+        season=request_season,
+        episode=request_episode,
+        site=site_found,
+    )
+    default_langs = _default_languages_for_site(site_found)
+    candidate_langs: List[str] = cached_langs if cached_langs else default_langs
+    logger.debug(
+        ("Candidate languages for slug='{}' season={} episode={} site='{}': {}"),
+        slug,
+        request_season,
+        request_episode,
+        site_found,
+        candidate_langs,
+    )
+
+    count = 0
+    special_map_attempted = False
+    special_map = None
+
+    for lang in candidate_langs:
+        if max_items is not None and count >= max_items:
+            return count, True
+
+        logger.debug("Checking availability for language '{}'", lang)
+        source_season = request_season
+        source_episode = request_episode
+        alias_season = request_season
+        alias_episode = request_episode
+        if special_map is not None:
+            source_season = special_map.source_season
+            source_episode = special_map.source_episode
+            alias_season = special_map.alias_season
+            alias_episode = special_map.alias_episode
+
+        try:
+            rec = tn_module.get_availability(
+                session,
+                slug=slug,
+                season=source_season,
+                episode=source_episode,
+                language=lang,
+                site=site_found,
+            )
+        except (ValueError, RuntimeError) as e:
+            logger.error(
+                "Error reading availability cache for slug={}, S{}E{}, lang={}, site={}: {}",
+                slug,
+                source_season,
+                source_episode,
+                lang,
+                site_found,
+                e,
+            )
+            rec = None
+
+        available = False
+        height = None
+        vcodec = None
+        prov_used = None
+
+        if rec and rec.available and rec.is_fresh:
+            available = True
+            height = rec.height
+            vcodec = rec.vcodec
+            prov_used = rec.provider
+            logger.debug(
+                (
+                    "Using cached availability for {} S{}E{} {} on {}: "
+                    "h={}, vcodec={}, prov={}"
+                ),
+                slug,
+                source_season,
+                source_episode,
+                lang,
+                site_found,
+                height,
+                vcodec,
+                prov_used,
+            )
+        else:
+            try:
+                available, height, vcodec, prov_used, _info = (
+                    tn_module.probe_episode_quality(
+                        slug=slug,
+                        season=source_season,
+                        episode=source_episode,
+                        language=lang,
+                        site=site_found,
+                    )
+                )
+            except (ValueError, RuntimeError) as e:
+                logger.error(
+                    "Error probing quality for slug={}, S{}E{}, lang={}, site={}: {}",
+                    slug,
+                    source_season,
+                    source_episode,
+                    lang,
+                    site_found,
+                    e,
+                )
+                available = False
+
+            if (
+                not available
+                and SPECIALS_METADATA_ENABLED
+                and site_found == "aniworld.to"
+            ):
+                if not special_map_attempted:
+                    special_map_attempted = True
+                    special_map = resolve_special_mapping_from_episode_request(
+                        slug=slug,
+                        request_season=request_season,
+                        request_episode=request_episode,
+                        query=q_str,
+                        series_title=display_title,
+                        ids=ids,
+                    )
+                    if special_map is not None:
+                        logger.info(
+                            (
+                                "Special mapping (tvsearch) resolved: slug={} "
+                                "requested=S{}E{} target=S{}E{}"
+                            ),
+                            slug,
+                            request_season,
+                            request_episode,
+                            special_map.source_season,
+                            special_map.source_episode,
+                        )
+                if special_map is not None:
+                    (
+                        available,
+                        height,
+                        vcodec,
+                        prov_used,
+                        source_season,
+                        source_episode,
+                        alias_season,
+                        alias_episode,
+                    ) = _try_mapped_special_probe(
+                        tn_module=tn_module,
+                        session=session,
+                        slug=slug,
+                        lang=lang,
+                        site_found=site_found,
+                        special_map=special_map,
+                    )
+
+            try:
+                tn_module.upsert_availability(
+                    session,
+                    slug=slug,
+                    season=source_season,
+                    episode=source_episode,
+                    language=lang,
+                    available=available,
+                    height=height,
+                    vcodec=vcodec,
+                    provider=prov_used,
+                    extra=(
+                        {
+                            "special_alias_season": alias_season,
+                            "special_alias_episode": alias_episode,
+                        }
+                        if special_map is not None
+                        else None
+                    ),
+                    site=site_found,
+                )
+            except (ValueError, RuntimeError) as e:
+                logger.error(
+                    "Error upserting availability for slug={}, S{}E{}, lang={}, site={}: {}",
+                    slug,
+                    source_season,
+                    source_episode,
+                    lang,
+                    site_found,
+                    e,
+                )
+
+        if not available:
+            logger.debug(
+                "Language '{}' currently not available for {} S{}E{} on {}. Skipping.",
+                lang,
+                slug,
+                source_season,
+                source_episode,
+                site_found,
+            )
+            continue
+
+        release_title = tn_module.build_release_name(
+            series_title=display_title,
+            season=alias_season,
+            episode=alias_episode,
+            height=height,
+            vcodec=vcodec,
+            language=lang,
+            site=site_found,
+        )
+        logger.debug("Built release title: '{}'", release_title)
+
+        try:
+            magnet = tn_module.build_magnet(
+                title=release_title,
+                slug=slug,
+                season=source_season,
+                episode=source_episode,
+                language=lang,
+                provider=prov_used,
+                site=site_found,
+            )
+        except Exception as e:
+            logger.error("Error building magnet for release '{}': {}", release_title, e)
+            continue
+
+        prefix = _site_prefix(site_found)
+        guid_base = f"{prefix}:{slug}:s{source_season}e{source_episode}:{lang}"
+        if (alias_season, alias_episode) != (source_season, source_episode):
+            guid_base = f"{guid_base}:alias-s{alias_season}e{alias_episode}"
+
+        try:
+            if STRM_FILES_MODE in ("no", "both"):
+                if max_items is not None and count >= max_items:
+                    return count, True
+                _build_item(
+                    channel=channel,
+                    title=release_title,
+                    magnet=magnet,
+                    pubdate=now,
+                    cat_id=TORZNAB_CAT_ANIME,
+                    guid_str=guid_base,
+                    language=lang,
+                )
+                count += 1
+            if STRM_FILES_MODE in ("only", "both"):
+                if max_items is not None and count >= max_items:
+                    return count, True
+                magnet_strm = tn_module.build_magnet(
+                    title=release_title + strm_suffix,
+                    slug=slug,
+                    season=source_season,
+                    episode=source_episode,
+                    language=lang,
+                    provider=prov_used,
+                    site=site_found,
+                    mode="strm",
+                )
+                _build_item(
+                    channel=channel,
+                    title=release_title + strm_suffix,
+                    magnet=magnet_strm,
+                    pubdate=now,
+                    cat_id=TORZNAB_CAT_ANIME,
+                    guid_str=f"{guid_base}:strm",
+                    language=lang,
+                )
+                count += 1
+        except (ValueError, RuntimeError, KeyError) as e:
+            logger.error(
+                "Error building RSS item for release '{}': {}", release_title, e
+            )
+            continue
+
+        logger.debug(
+            "Added tvsearch item(s) for S{}E{} lang='{}'. Episode item count now {}.",
+            request_season,
+            request_episode,
+            lang,
+            count,
+        )
+
+    return count, False
 
 
 def _handle_preview_search(
@@ -699,14 +1276,14 @@ def torznab_api(
     """
     Handle Torznab API requests and return the corresponding XML or RSS feed.
 
-    Processes four modes selected by `t`: "caps" (returns Torznab capability XML), "search" (generic preview/search across series or movies), "movie" / "movie-search" (movie-focused search and preview), and "tvsearch" (episode search). For search modes it builds RSS items per available language and respects STRM_FILES_MODE, category hints, paging via `offset`/`limit`, and cached availability probes.
+    Processes four modes selected by `t`: "caps" (returns Torznab capability XML), "search" (generic preview/search across series or movies), "movie" / "movie-search" (movie-focused search and preview), and "tvsearch" (episode/season search). For search modes it builds RSS items per available language and respects STRM_FILES_MODE, category hints, paging via `offset`/`limit`, and cached availability probes.
 
     Parameters:
         t (str): Mode selector; one of "caps", "search", "tvsearch", "movie", or "movie-search".
         apikey (Optional[str]): API key supplied by the client; validated by the endpoint.
         q (Optional[str]): Query string for slug/title resolution or preview searches.
         season (Optional[int]): Season number for TV searches; required for "tvsearch".
-        ep (Optional[int]): Episode number for TV searches; defaults to 1 for preview behavior.
+        ep (Optional[int]): Episode number for TV searches; omit for season-search mode.
         cat (Optional[str]): Optional category filter (comma-separated); used to prefer movie handling when movie category is present.
         offset (int): Result offset for paging (unused for caps).
         limit (int): Maximum number of RSS items to include.
@@ -941,14 +1518,11 @@ def torznab_api(
         xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
         logger.debug("Returning empty RSS feed due to missing parameters.")
         return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
-    if season is not None and ep is None:
-        logger.debug("tvsearch: ep missing; defaulting ep=1 for preview")
-        ep = 1
 
-    # from here on, non-None
-    assert season is not None and ep is not None
+    search_mode = "episode-search" if ep is not None else "season-search"
+    logger.debug("tvsearch mode={}", search_mode)
     season_i = int(season)
-    ep_i = int(ep)
+    ep_i = int(ep) if ep is not None else None
     q_str = (q or "").strip()
     if not q_str:
         q_str = (
@@ -970,9 +1544,7 @@ def torznab_api(
         logger.debug("Returning empty RSS feed due to unresolved query.")
         return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
 
-    logger.debug(
-        f"Searching for slug for query '{q_str}' (season={season_i}, ep={ep_i})"
-    )
+    logger.debug("Searching for slug for query '{}' (season={})", q_str, season_i)
     result = tn._slug_from_query(q_str)
     if not result:
         logger.warning(f"No slug found for query '{q_str}'. Returning empty RSS feed.")
@@ -986,19 +1558,9 @@ def torznab_api(
         f"Resolved display title: '{display_title}' for slug '{slug}' on site '{site_found}'"
     )
 
-    # language candidates from cache or defaults
-    cached_langs = tn.list_available_languages_cached(
-        session, slug=slug, season=season_i, episode=ep_i, site=site_found
-    )
-
-    default_langs = _default_languages_for_site(site_found)
-    candidate_langs: List[str] = cached_langs if cached_langs else default_langs
-    logger.debug(
-        f"Candidate languages for slug '{slug}', season {season_i}, episode {ep_i}, site '{site_found}': {candidate_langs}"
-    )
-
     rss, channel = _rss_root()
     count = 0
+    limit_i = max(1, int(limit))
     now = datetime.now(timezone.utc)
     strm_suffix = " [STRM]"
     ids = SpecialIds(
@@ -1008,210 +1570,80 @@ def torznab_api(
         rid=rid,
         tvmazeid=tvmazeid,
     )
-    special_map_attempted = False
-    special_map = None
-
-    for lang in candidate_langs:
-        logger.debug(f"Checking availability for language '{lang}'")
-        source_season = season_i
-        source_episode = ep_i
-        alias_season = season_i
-        alias_episode = ep_i
-        if special_map is not None:
-            source_season = special_map.source_season
-            source_episode = special_map.source_episode
-            alias_season = special_map.alias_season
-            alias_episode = special_map.alias_episode
-
-        # check cache per language
-        try:
-            rec = tn.get_availability(
-                session,
-                slug=slug,
-                season=source_season,
-                episode=source_episode,
-                language=lang,
-                site=site_found,
-            )
-        except (ValueError, RuntimeError) as e:
-            logger.error(
-                "Error reading availability cache for slug={}, S{}E{}, lang={}, site={}: {}".format(
-                    slug, source_season, source_episode, lang, site_found, e
-                )
-            )
-            rec = None
-
-        available = False
-        height = None
-        vcodec = None
-        prov_used = None
-
-        if rec and rec.available and rec.is_fresh:
-            available = True
-            height = rec.height
-            vcodec = rec.vcodec
-            prov_used = rec.provider
-            logger.debug(
-                f"Using cached availability for {slug} S{source_season}E{source_episode} {lang} on {site_found}: h={height}, vcodec={vcodec}, prov={prov_used}"
-            )
-        else:
-            try:
-                available, height, vcodec, prov_used, _info = tn.probe_episode_quality(
-                    slug=slug,
-                    season=source_season,
-                    episode=source_episode,
-                    language=lang,
-                    site=site_found,
-                )
-            except (ValueError, RuntimeError) as e:
-                logger.error(
-                    f"Error probing quality for slug={slug}, S{source_season}E{source_episode}, lang={lang}, site={site_found}: {e}"
-                )
-                available = False
-
-            if not available and site_found == "aniworld.to":
-                if not special_map_attempted:
-                    special_map_attempted = True
-                    special_map = resolve_special_mapping_from_episode_request(
-                        slug=slug,
-                        request_season=season_i,
-                        request_episode=ep_i,
-                        query=q_str,
-                        series_title=display_title,
-                        ids=ids,
-                    )
-                    if special_map is not None:
-                        logger.info(
-                            "Special mapping (tvsearch) resolved: slug={} requested=S{}E{} target=S{}E{}",
-                            slug,
-                            season_i,
-                            ep_i,
-                            special_map.source_season,
-                            special_map.source_episode,
-                        )
-                if special_map is not None:
-                    (
-                        available,
-                        height,
-                        vcodec,
-                        prov_used,
-                        source_season,
-                        source_episode,
-                        alias_season,
-                        alias_episode,
-                    ) = _try_mapped_special_probe(
-                        tn_module=tn,
-                        session=session,
-                        slug=slug,
-                        lang=lang,
-                        site_found=site_found,
-                        special_map=special_map,
-                    )
-
-            try:
-                tn.upsert_availability(
-                    session,
-                    slug=slug,
-                    season=source_season,
-                    episode=source_episode,
-                    language=lang,
-                    available=available,
-                    height=height,
-                    vcodec=vcodec,
-                    provider=prov_used,
-                    extra=(
-                        {
-                            "special_alias_season": alias_season,
-                            "special_alias_episode": alias_episode,
-                        }
-                        if special_map is not None
-                        else None
-                    ),
-                    site=site_found,
-                )
-            except (ValueError, RuntimeError) as e:
-                logger.error(
-                    f"Error upserting availability for slug={slug}, S{source_season}E{source_episode}, lang={lang}, site={site_found}: {e}"
-                )
-
-        if not available:
-            logger.debug(
-                f"Language '{lang}' currently not available for {slug} S{source_season}E{source_episode} on {site_found}. Skipping."
-            )
-            continue
-
-        # build release name
-        release_title = tn.build_release_name(
-            series_title=display_title,
-            season=alias_season,
-            episode=alias_episode,
-            height=height,
-            vcodec=vcodec,
-            language=lang,
-            site=site_found,
+    if search_mode == "episode-search":
+        assert ep_i is not None
+        emitted, limit_hit = emit_tvsearch_episode_items(
+            tn_module=tn,
+            session=session,
+            channel=channel,
+            slug=slug,
+            site_found=site_found,
+            display_title=display_title,
+            q_str=q_str,
+            request_season=season_i,
+            request_episode=ep_i,
+            ids=ids,
+            now=now,
+            strm_suffix=strm_suffix,
+            max_items=limit_i,
         )
-        logger.debug(f"Built release title: '{release_title}'")
-
-        try:
-            magnet = tn.build_magnet(
-                title=release_title,
-                slug=slug,
-                season=source_season,
-                episode=source_episode,
-                language=lang,
-                provider=prov_used,
-                site=site_found,
+        count += emitted
+        if limit_hit:
+            logger.info(
+                "tvsearch episode-search terminated due to limit hit (limit={})",
+                limit_i,
             )
-        except Exception as e:
-            logger.error(f"Error building magnet for release '{release_title}': {e}")
-            continue
-
-        # Use site-appropriate prefix for GUID
-        prefix = _site_prefix(site_found)
-        guid_base = f"{prefix}:{slug}:s{source_season}e{source_episode}:{lang}"
-        if (alias_season, alias_episode) != (source_season, source_episode):
-            guid_base = f"{guid_base}:alias-s{alias_season}e{alias_episode}"
-
-        try:
-            if STRM_FILES_MODE in ("no", "both"):
-                _build_item(
-                    channel=channel,
-                    title=release_title,
-                    magnet=magnet,
-                    pubdate=now,
-                    cat_id=TORZNAB_CAT_ANIME,
-                    guid_str=guid_base,
-                    language=lang,
+    else:
+        episode_numbers = resolve_season_episode_numbers(
+            tn_module=tn,
+            session=session,
+            slug=slug,
+            season_i=season_i,
+            site_found=site_found,
+            q_str=q_str,
+            ids=ids,
+        )
+        logger.info(
+            "tvsearch season-search discovered {} episodes for slug={} season={}",
+            len(episode_numbers),
+            slug,
+            season_i,
+        )
+        for episode_i in episode_numbers:
+            remaining = limit_i - count
+            if remaining <= 0:
+                logger.info(
+                    "tvsearch season-search termination reason=limit hit limit={}",
+                    limit_i,
                 )
-            if STRM_FILES_MODE in ("only", "both"):
-                magnet_strm = tn.build_magnet(
-                    title=release_title + strm_suffix,
-                    slug=slug,
-                    season=source_season,
-                    episode=source_episode,
-                    language=lang,
-                    provider=prov_used,
-                    site=site_found,
-                    mode="strm",
-                )
-                _build_item(
-                    channel=channel,
-                    title=release_title + strm_suffix,
-                    magnet=magnet_strm,
-                    pubdate=now,
-                    cat_id=TORZNAB_CAT_ANIME,
-                    guid_str=f"{guid_base}:strm",
-                    language=lang,
-                )
-        except (ValueError, RuntimeError, KeyError) as e:
-            logger.error(f"Error building RSS item for release '{release_title}': {e}")
-            continue
+                break
 
-        count += 1
-        logger.debug(f"Added item for language '{lang}'. Total count: {count}")
-        if count >= max(1, int(limit)):
-            logger.info(f"Reached limit ({limit}). Stopping item generation.")
-            break
+            emitted, limit_hit = emit_tvsearch_episode_items(
+                tn_module=tn,
+                session=session,
+                channel=channel,
+                slug=slug,
+                site_found=site_found,
+                display_title=display_title,
+                q_str=q_str,
+                request_season=season_i,
+                request_episode=episode_i,
+                ids=ids,
+                now=now,
+                strm_suffix=strm_suffix,
+                max_items=remaining,
+            )
+            count += emitted
+            if limit_hit:
+                logger.info(
+                    (
+                        "tvsearch season-search termination reason=limit hit "
+                        "limit={} emitted_items={}"
+                    ),
+                    limit_i,
+                    count,
+                )
+                break
 
     xml = ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")
     logger.info(f"Returning RSS feed with {count} items.")

@@ -331,6 +331,18 @@ TORZNAB_TEST_SLUG = os.getenv("TORZNAB_TEST_SLUG", "connectivity-test")
 TORZNAB_TEST_SEASON = int(os.getenv("TORZNAB_TEST_SEASON", "1"))
 TORZNAB_TEST_EPISODE = int(os.getenv("TORZNAB_TEST_EPISODE", "1"))
 TORZNAB_TEST_LANGUAGE = os.getenv("TORZNAB_TEST_LANGUAGE", "German Dub")
+TORZNAB_SEASON_SEARCH_MAX_EPISODES = max(
+    1, _as_non_negative_int(os.getenv("TORZNAB_SEASON_SEARCH_MAX_EPISODES"), 60)
+)
+TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES = max(
+    1,
+    _as_non_negative_int(os.getenv("TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES"), 3),
+)
+logger.debug(
+    "Torznab season-search guardrails: max_episodes={} max_consecutive_misses={}",
+    TORZNAB_SEASON_SEARCH_MAX_EPISODES,
+    TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES,
+)
 
 # Metadata-backed specials mapping (Option C)
 SPECIALS_METADATA_ENABLED = _as_bool(
