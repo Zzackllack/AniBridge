@@ -5,3 +5,6 @@
 - `02-recommended-design.md` - selected design and behavior spec
 - `03-test-plan.md` - validation strategy
 - `04-implementation-checklist.md` - execution checklist and acceptance criteria
+- `05-performance-recovery-plan.md` - latency regression analysis and fast-path recovery plan
+- `06-approach-first-episode-assumption.md` - evaluate first-episode extrapolation strategy
+- `07-approach-season-pack-emission.md` - evaluate season-pack response strategy
