@@ -42,4 +42,6 @@
 - Build command (Wrangler):
   - `npm --prefix docs ci --no-audit --no-fund && npm --prefix docs run build`
 - Assets directory: `docs/.vitepress/dist` (binding `ASSETS`).
-- Worker entry: `src/worker.ts`.
+- Static assets are configured with `run_worker_first = true` so canonical/SEO middleware in the Worker runs on every request.
+- Worker entry: `docs/worker.ts`.
+- Worker enforces permanent canonical redirects (`.html`, `/index.html`, trailing slash -> clean URL) and sets SEO headers (`X-Robots-Tag`, sitemap `Link`) for crawl/index consistency.

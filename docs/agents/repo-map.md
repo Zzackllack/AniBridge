@@ -16,7 +16,6 @@
 - `app/` — Python application package.
 - `docs/` — VitePress documentation source.
 - `specs/` — specifications and planning artifacts.
-- `src/` — Cloudflare Worker TypeScript source.
 - `tests/` — pytest suite.
 - `scripts/` — helper scripts.
 - `hooks/` — PyInstaller hooks.
@@ -38,6 +37,7 @@
 
 - `.vitepress/` — VitePress config and theme.
 - `src/` — Markdown and Vue content.
+- `worker.ts` — Cloudflare Worker entry for docs hosting.
 - `package.json`, lockfiles — docs dependencies.
 
 ## `scripts/` Directory
@@ -65,4 +65,4 @@
 - `app/utils/*` — shared utilities.
 - `app/infrastructure/*` — logging, public-IP/network helpers, system info.
 - `docs/.vitepress/config.mts` — docs site config.
-- `src/worker.ts` — Cloudflare Worker entry.
+- `docs/worker.ts` — Cloudflare Worker entry.
