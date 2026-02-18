@@ -1,7 +1,7 @@
 # Cloudflare Workers config for serving the VitePress docs site
 
 name = "anibridge-docs"
-main = "src/worker.ts"
+main = "docs/worker.ts"
 compatibility_date = "2025-08-15"
 routes = [
   { pattern = "anibridge-docs.zacklack.de", zone_name = "zacklack.de" }
@@ -23,6 +23,9 @@ watch_dir = [
 directory = "docs/.vitepress/dist"
 # binding defaults to "ASSETS"; set explicitly for clarity
 binding = "ASSETS"
+# Ensure Worker logic runs for every request so canonical redirects/SEO headers
+# are applied before static assets are returned.
+run_worker_first = true
 
 # By default this deploys to <name>.<your-account>.workers.dev
 # To use a custom domain or route, uncomment and set your zone and pattern:

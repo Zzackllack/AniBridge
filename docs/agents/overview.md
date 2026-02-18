@@ -30,7 +30,7 @@ AniBridge is a FastAPI service that bridges anime/series streaming catalogs (Ani
 | Logging | Loguru | Structured logs and file mirroring | `app/utils/logger.py`, `app/infrastructure/terminal_logger.py` |
 | Configuration | dotenv + env vars | Centralized config resolution | `app/config.py` |
 | Docs Site | VitePress | Static documentation | `docs/.vitepress/*`, `docs/src/*` |
-| Docs Hosting | Cloudflare Workers + Wrangler | Serve docs build output | `wrangler.toml`, `src/worker.ts` |
+| Docs Hosting | Cloudflare Workers + Wrangler | Serve docs build output | `wrangler.toml`, `docs/worker.ts` |
 | Packaging | setuptools + build + PyInstaller | Python package distribution and binaries | `pyproject.toml`, `anibridge.spec` |
 | Containerization | Docker, docker-compose | Images and local orchestration | `Dockerfile`, `docker-compose*.yaml` |
 | Automation | GitHub Actions | CI/CD pipelines | `.github/workflows/*` |
