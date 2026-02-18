@@ -6,5 +6,11 @@
     "strict": true,
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["worker.ts"]
+  "include": [
+    "worker.ts",
+    ".vitepress/**/*.ts",
+    ".vitepress/**/*.mts",
+    "src/**/*.ts",
+    "src/**/*.mts"
+  ]
 }
