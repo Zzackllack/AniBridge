@@ -24,12 +24,13 @@ function getCanonicalPath(pathname: string): string | null {
 function applySeoHeaders(response: Response, requestUrl: URL): Response {
   const headers = new Headers(response.headers);
 
-  headers.set("Link", `<${requestUrl.origin}/sitemap.xml>; rel="sitemap"`);
-
   const contentType = headers.get("content-type") ?? "";
   if (response.status >= 400) {
     headers.set("X-Robots-Tag", "noindex, nofollow");
   } else if (contentType.startsWith(HTML_CONTENT_TYPE)) {
+    headers.set("X-Robots-Tag", "index, follow");
+    headers.set("Link", `<${requestUrl.origin}/sitemap.xml>; rel="sitemap"`);
+  } else {
     headers.set("X-Robots-Tag", "index, follow");
   }
 

@@ -18,6 +18,9 @@ importers:
         specifier: ^3.5.28
         version: 3.5.28
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^4.20260211.0
+        version: 4.20260218.0
       vite:
         specifier: ^7.3.1
         version: 7.3.1
@@ -46,6 +49,9 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@cloudflare/workers-types@4.20260218.0':
+    resolution: {integrity: sha512-E28uJNJb9J9pca3RaxjXm1JxAjp8td9/cudkY+IT8rio71NlshN7NKMe2Cr/6GN+RufbSnp+N3ZKP74xgUaL0A==}
 
   '@docsearch/css@4.5.3':
     resolution: {integrity: sha512-kUpHaxn0AgI3LQfyzTYkNUuaFY4uEz/Ym9/N/FvyDE+PzSgZsCyDH9jE49B6N6f1eLCm9Yp64J9wENd6vypdxA==}
@@ -881,6 +887,8 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@cloudflare/workers-types@4.20260218.0': {}
 
   '@docsearch/css@4.5.3': {}
 
