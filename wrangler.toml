@@ -3,6 +3,8 @@
 name = "anibridge-docs"
 main = "docs/worker.ts"
 compatibility_date = "2025-08-15"
+# Enable temporary Workers preview URLs for non-production deployments.
+preview_urls = true
 routes = [
   { pattern = "anibridge-docs.zacklack.de", zone_name = "zacklack.de" }
 ]

@@ -20,6 +20,10 @@
 
 Cloudflare uses `npm ci` for docs builds. Because this repo uses `vitepress@2.0.0-alpha.*`, npm may treat it as not satisfying peer ranges unless peer checks are relaxed. We ship `docs/.npmrc` with `legacy-peer-deps=true` to make CI installs deterministic.
 
+For Pull Request preview links in Cloudflare's native PR status comment, use
+`npx wrangler versions upload` as the Cloudflare Builds deploy command and keep
+`preview_urls = true` in `wrangler.toml`.
+
 ## Release Playbook
 
 1. Run tests: `pytest`.

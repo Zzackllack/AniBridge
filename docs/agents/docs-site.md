@@ -39,6 +39,8 @@
 - Worker name: `anibridge-docs`.
 - Routes: `anibridge-docs.zacklack.de`.
 - Compatibility date: `2025-08-15`.
+- Preview URLs: `preview_urls = true` in `wrangler.toml` (required for temporary
+  preview links).
 - Build command (Wrangler):
   - `npm --prefix docs ci --no-audit --no-fund && npm --prefix docs run build`
 - Assets directory: `docs/.vitepress/dist` (binding `ASSETS`).
@@ -48,3 +50,6 @@
 - Worker enforces permanent canonical redirects (`.html`, `/index.html`,
   trailing slash -> clean URL) and sets SEO headers (`X-Robots-Tag`,
   sitemap `Link`) for crawl/index consistency.
+- Cloudflare PR comments are managed by the Cloudflare GitHub app/integration.
+  To include preview links in those comments, configure the Cloudflare Builds
+  deploy command to `npx wrangler versions upload` (instead of `wrangler deploy`).
