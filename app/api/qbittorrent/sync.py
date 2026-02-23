@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from fastapi import Depends
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -10,6 +11,14 @@ from app.db import get_session, get_job
 from . import router
 from .common import CATEGORIES, public_save_path
 from app.config import DOWNLOAD_DIR, QBIT_PUBLIC_SAVE_PATH
+
+
+def _to_utc_timestamp(dt: datetime) -> int:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return int(dt.timestamp())
 
 
 @router.get("/sync/maindata")
@@ -50,7 +59,7 @@ def sync_maindata(session: Session = Depends(get_session)):
             except Exception:
                 pass
 
-        completion_ts = int((r.completion_on or r.added_on).timestamp())
+        completion_ts = _to_utc_timestamp(r.completion_on or r.added_on)
         if job and job.status == "completed":
             if job.result_path and os.path.exists(job.result_path):
                 try:
@@ -64,7 +73,7 @@ def sync_maindata(session: Session = Depends(get_session)):
                     session.commit()
                 except Exception:
                     session.rollback()
-                completion_ts = int(r.completion_on.timestamp())
+                completion_ts = _to_utc_timestamp(r.completion_on)
 
         dlspeed_val = int(job.speed or 0) if job else 0
         if job and job.status == "completed":
@@ -79,7 +88,7 @@ def sync_maindata(session: Session = Depends(get_session)):
             "category": r.category or "",
             "save_path": save_path_val,
             "size": size_val,
-            "added_on": int(r.added_on.timestamp()),
+            "added_on": _to_utc_timestamp(r.added_on),
             "completion_on": completion_ts,
         }
 
@@ -94,7 +103,3 @@ def sync_maindata(session: Session = Depends(get_session)):
             "categories": CATEGORIES,
         }
     )
-
-
-# Required imports for datetime after function since we used it above
-from datetime import datetime, timezone  # noqa: E402

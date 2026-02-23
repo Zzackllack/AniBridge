@@ -699,6 +699,7 @@ def upsert_client_task(
     job_id: Optional[str],
     state: str = "queued",
     site: str = "aniworld.to",
+    added_on: Optional[datetime] = None,
 ) -> ClientTask:
     """
     Insert or update a ClientTask record identified by its hash.
@@ -706,6 +707,7 @@ def upsert_client_task(
     Parameters:
         hash (str): Unique identifier for the client task (primary key).
         site (str): Site identifier to store on the record; defaults to "aniworld.to".
+        added_on (Optional[datetime]): Optional timestamp override used for the synthetic torrent's creation/add date.
 
     Returns:
         ClientTask: The persisted ClientTask instance refreshed from the database.
@@ -726,6 +728,7 @@ def upsert_client_task(
             category=category,
             job_id=job_id,
             state=state,
+            added_on=as_aware_utc(added_on) if added_on is not None else utcnow(),
         )
         session.add(rec)
     else:
@@ -740,6 +743,8 @@ def upsert_client_task(
         rec.category = category
         rec.job_id = job_id
         rec.state = state
+        if added_on is not None:
+            rec.added_on = as_aware_utc(added_on)
         session.add(rec)
     try:
         session.commit()
