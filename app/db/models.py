@@ -511,6 +511,53 @@ def list_available_languages_cached(
     return fresh_langs
 
 
+def list_cached_episode_numbers_for_season(
+    session: Session, *, slug: str, season: int, site: str = "aniworld.to"
+) -> List[int]:
+    """
+    List distinct episode numbers with positive cached availability for a season.
+
+    Parameters:
+        slug (str): Episode/series identifier used to look up availability rows.
+        season (int): Season number to scan.
+        site (str): Site identifier to scope records (defaults to "aniworld.to").
+
+    Returns:
+        List[int]: Sorted distinct episode numbers that have `available=True`.
+    """
+    logger.debug(
+        "Listing cached episode numbers for slug={} season={} site={}",
+        slug,
+        season,
+        site,
+    )
+    rows = session.exec(
+        select(EpisodeAvailability.episode).where(
+            (EpisodeAvailability.slug == slug)
+            & (EpisodeAvailability.season == season)
+            & (EpisodeAvailability.site == site)
+            & EpisodeAvailability.available
+        )
+    ).all()
+    unique_episode_numbers: set[int] = set()
+    for episode_no in rows:
+        try:
+            parsed = int(episode_no)
+        except (TypeError, ValueError):
+            continue
+        if parsed > 0:
+            unique_episode_numbers.add(parsed)
+    episodes = sorted(unique_episode_numbers)
+    logger.debug(
+        "Cached episode numbers for slug={} season={} site={}: {}",
+        slug,
+        season,
+        site,
+        episodes,
+    )
+    return episodes
+
+
 # --- STRM URL Mapping CRUD
 def get_strm_mapping(
     session: Session,

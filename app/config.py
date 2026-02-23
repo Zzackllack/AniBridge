@@ -331,6 +331,60 @@ TORZNAB_TEST_SLUG = os.getenv("TORZNAB_TEST_SLUG", "connectivity-test")
 TORZNAB_TEST_SEASON = int(os.getenv("TORZNAB_TEST_SEASON", "1"))
 TORZNAB_TEST_EPISODE = int(os.getenv("TORZNAB_TEST_EPISODE", "1"))
 TORZNAB_TEST_LANGUAGE = os.getenv("TORZNAB_TEST_LANGUAGE", "German Dub")
+TORZNAB_SEASON_SEARCH_MODE = (
+    os.getenv("TORZNAB_SEASON_SEARCH_MODE", "fast").strip().lower()
+)
+if TORZNAB_SEASON_SEARCH_MODE not in {"fast", "strict"}:
+    logger.warning(
+        "Invalid TORZNAB_SEASON_SEARCH_MODE='{}', defaulting to 'fast'",
+        TORZNAB_SEASON_SEARCH_MODE,
+    )
+    TORZNAB_SEASON_SEARCH_MODE = "fast"
+_torznab_season_search_max_episodes_raw = os.getenv(
+    "TORZNAB_SEASON_SEARCH_MAX_EPISODES"
+)
+_torznab_season_search_max_episodes_parsed = _as_non_negative_int(
+    _torznab_season_search_max_episodes_raw, 60
+)
+if (
+    _torznab_season_search_max_episodes_raw is not None
+    and _torznab_season_search_max_episodes_raw.strip() == "0"
+    and _torznab_season_search_max_episodes_parsed == 0
+):
+    logger.warning(
+        "TORZNAB_SEASON_SEARCH_MAX_EPISODES='0' is promoted to 1 by max(1, ...)"
+    )
+TORZNAB_SEASON_SEARCH_MAX_EPISODES = max(
+    1,
+    _torznab_season_search_max_episodes_parsed,
+)
+_torznab_season_search_max_consecutive_misses_raw = os.getenv(
+    "TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES"
+)
+_torznab_season_search_max_consecutive_misses_parsed = _as_non_negative_int(
+    _torznab_season_search_max_consecutive_misses_raw, 3
+)
+if (
+    _torznab_season_search_max_consecutive_misses_raw is not None
+    and _torznab_season_search_max_consecutive_misses_raw.strip() == "0"
+    and _torznab_season_search_max_consecutive_misses_parsed == 0
+):
+    logger.warning(
+        "TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES='0' is promoted to 1 by max(1, ...)"
+    )
+TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES = max(
+    1,
+    _torznab_season_search_max_consecutive_misses_parsed,
+)
+logger.debug(
+    (
+        "Torznab season-search mode={} guardrails: max_episodes={} "
+        "max_consecutive_misses={}"
+    ),
+    TORZNAB_SEASON_SEARCH_MODE,
+    TORZNAB_SEASON_SEARCH_MAX_EPISODES,
+    TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES,
+)
 
 # Metadata-backed specials mapping (Option C)
 SPECIALS_METADATA_ENABLED = _as_bool(

@@ -16,6 +16,10 @@
 - Returns XML responses conforming to Torznab spec.
 - Accepts `apikey` when configured (`INDEXER_API_KEY`).
 - `tvsearch` accepts ID hints: `tvdbid`, `tmdbid`, `imdbid`, `rid`, `tvmazeid`.
+- `tvsearch` supports both episode mode (`season` + `ep`) and season mode
+  (`season` without `ep`, or `ep<=0`) with per-episode item emission.
+- Season mode defaults to fast execution (`TORZNAB_SEASON_SEARCH_MODE=fast`)
+  to avoid live per-episode quality probes and reduce Sonarr timeouts.
 - Uses `title_resolver` and `EpisodeAvailability` cache for slug matching.
 - For AniWorld specials/extras, applies metadata-backed alias/source
   mapping so Sonarr numbering can differ from AniWorld `film-N`

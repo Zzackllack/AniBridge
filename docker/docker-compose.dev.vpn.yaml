@@ -18,7 +18,10 @@ services:
       - vpn
     healthcheck:
       test:
-        ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+        [
+          "CMD-SHELL",
+          "curl --fail --silent \"http://localhost:${ANIBRIDGE_PORT:-8000}/health\" >/dev/null && curl --fail --silent https://1.1.1.1 >/dev/null",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3

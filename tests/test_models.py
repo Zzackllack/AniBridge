@@ -22,6 +22,7 @@ def test_availability_and_clienttask_crud(client):
         upsert_availability,
         get_availability,
         list_available_languages_cached,
+        list_cached_episode_numbers_for_season,
         upsert_strm_mapping,
         get_strm_mapping,
         delete_strm_mapping,
@@ -50,6 +51,34 @@ def test_availability_and_clienttask_crud(client):
         assert got and got.available and got.height == 1080
         langs = list_available_languages_cached(s, slug="slug", season=1, episode=1)
         assert "German Dub" in langs
+        upsert_availability(
+            s,
+            slug="slug",
+            season=1,
+            episode=2,
+            language="German Dub",
+            available=True,
+            height=1080,
+            vcodec="h264",
+            provider="prov",
+            extra=None,
+        )
+        upsert_availability(
+            s,
+            slug="slug",
+            season=1,
+            episode=3,
+            language="German Dub",
+            available=False,
+            height=None,
+            vcodec=None,
+            provider=None,
+            extra=None,
+        )
+        episodes = list_cached_episode_numbers_for_season(
+            s, slug="slug", season=1, site="aniworld.to"
+        )
+        assert episodes == [1, 2]
 
         upsert_strm_mapping(
             s,

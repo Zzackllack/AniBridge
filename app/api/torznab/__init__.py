@@ -40,6 +40,7 @@ from app.db import (  # noqa: E402
     get_session,
     get_availability,
     list_available_languages_cached,
+    list_cached_episode_numbers_for_season,
     upsert_availability,
 )
 
@@ -66,5 +67,6 @@ __all__ = [
     "get_session",
     "get_availability",
     "list_available_languages_cached",
+    "list_cached_episode_numbers_for_season",
     "upsert_availability",
 ]
