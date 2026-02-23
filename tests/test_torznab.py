@@ -156,7 +156,8 @@ def test_tvsearch_uses_id_resolved_query_when_q_missing(client, monkeypatch):
     assert seen["query"] == "The Rookie"
 
 
-def test_tvsearch_season_search_emits_multiple_episodes(client, monkeypatch):
+def test_tvsearch_season_search_emits_multiple_episodes(client, monkeypatch) -> None:
+    """Emit one item per discovered season episode in season-search mode."""
     import app.api.torznab as tn
     import app.api.torznab.api as torznab_api_mod
 
@@ -231,7 +232,8 @@ def test_tvsearch_season_search_emits_multiple_episodes(client, monkeypatch):
 
 def test_tvsearch_season_search_fallback_stops_on_consecutive_misses(
     client, monkeypatch
-):
+) -> None:
+    """Stop strict fallback probing after configured consecutive misses."""
     import app.api.torznab as tn
     import app.api.torznab.api as torznab_api_mod
 
@@ -333,7 +335,8 @@ def test_tvsearch_season_search_fallback_stops_on_consecutive_misses(
     assert probe_calls == [1, 2, 3, 4]
 
 
-def test_tvsearch_ep_zero_is_treated_as_season_search(client, monkeypatch):
+def test_tvsearch_ep_zero_is_treated_as_season_search(client, monkeypatch) -> None:
+    """Treat ep=0 as season-search and emit multiple season episode items."""
     import app.api.torznab as tn
     import app.api.torznab.api as torznab_api_mod
 
@@ -353,7 +356,9 @@ def test_tvsearch_ep_zero_is_treated_as_season_search(client, monkeypatch):
     monkeypatch.setattr(torznab_api_mod, "TORZNAB_SEASON_SEARCH_MODE", "fast")
     monkeypatch.setattr(torznab_api_mod, "STRM_FILES_MODE", "no")
     monkeypatch.setattr(
-        torznab_api_mod, "_metadata_episode_numbers_for_season", lambda **_kwargs: [1, 2]
+        torznab_api_mod,
+        "_metadata_episode_numbers_for_season",
+        lambda **_kwargs: [1, 2],
     )
     monkeypatch.setattr(
         tn,
@@ -405,7 +410,8 @@ def test_tvsearch_ep_zero_is_treated_as_season_search(client, monkeypatch):
     assert any("aw_e=2" in url for url in urls)
 
 
-def test_tvsearch_fast_season_mode_avoids_live_probe(client, monkeypatch):
+def test_tvsearch_fast_season_mode_avoids_live_probe(client, monkeypatch) -> None:
+    """Avoid live quality probing when fast season-search mode is enabled."""
     import app.api.torznab as tn
     import app.api.torznab.api as torznab_api_mod
 
@@ -418,7 +424,9 @@ def test_tvsearch_fast_season_mode_avoids_live_probe(client, monkeypatch):
     monkeypatch.setattr(torznab_api_mod, "TORZNAB_SEASON_SEARCH_MODE", "fast")
     monkeypatch.setattr(torznab_api_mod, "STRM_FILES_MODE", "no")
     monkeypatch.setattr(
-        torznab_api_mod, "_metadata_episode_numbers_for_season", lambda **_kwargs: [1, 2]
+        torznab_api_mod,
+        "_metadata_episode_numbers_for_season",
+        lambda **_kwargs: [1, 2],
     )
     monkeypatch.setattr(
         tn,
@@ -476,7 +484,8 @@ def test_tvsearch_fast_season_mode_avoids_live_probe(client, monkeypatch):
     assert probe_calls == []
 
 
-def test_tvsearch_season_search_limit_is_hard_item_cap(client, monkeypatch):
+def test_tvsearch_season_search_limit_is_hard_item_cap(client, monkeypatch) -> None:
+    """Cap season-search output by item limit across episode/language variants."""
     import app.api.torznab as tn
     import app.api.torznab.api as torznab_api_mod
 

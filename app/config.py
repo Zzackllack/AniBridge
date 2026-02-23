@@ -340,12 +340,41 @@ if TORZNAB_SEASON_SEARCH_MODE not in {"fast", "strict"}:
         TORZNAB_SEASON_SEARCH_MODE,
     )
     TORZNAB_SEASON_SEARCH_MODE = "fast"
-TORZNAB_SEASON_SEARCH_MAX_EPISODES = max(
-    1, _as_non_negative_int(os.getenv("TORZNAB_SEASON_SEARCH_MAX_EPISODES"), 60)
+_torznab_season_search_max_episodes_raw = os.getenv(
+    "TORZNAB_SEASON_SEARCH_MAX_EPISODES"
 )
+_torznab_season_search_max_episodes_parsed = _as_non_negative_int(
+    _torznab_season_search_max_episodes_raw, 60
+)
+if (
+    _torznab_season_search_max_episodes_raw is not None
+    and _torznab_season_search_max_episodes_raw.strip() == "0"
+    and _torznab_season_search_max_episodes_parsed == 0
+):
+    logger.warning(
+        "TORZNAB_SEASON_SEARCH_MAX_EPISODES='0' is promoted to 1 by max(1, ...)"
+    )
+TORZNAB_SEASON_SEARCH_MAX_EPISODES = max(
+    1,
+    _torznab_season_search_max_episodes_parsed,
+)
+_torznab_season_search_max_consecutive_misses_raw = os.getenv(
+    "TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES"
+)
+_torznab_season_search_max_consecutive_misses_parsed = _as_non_negative_int(
+    _torznab_season_search_max_consecutive_misses_raw, 3
+)
+if (
+    _torznab_season_search_max_consecutive_misses_raw is not None
+    and _torznab_season_search_max_consecutive_misses_raw.strip() == "0"
+    and _torznab_season_search_max_consecutive_misses_parsed == 0
+):
+    logger.warning(
+        "TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES='0' is promoted to 1 by max(1, ...)"
+    )
 TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES = max(
     1,
-    _as_non_negative_int(os.getenv("TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES"), 3),
+    _torznab_season_search_max_consecutive_misses_parsed,
 )
 logger.debug(
     (

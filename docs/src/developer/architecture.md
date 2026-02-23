@@ -127,30 +127,45 @@ sequenceDiagram
   C->>T: GET /torznab/api?t=tvsearch&q=...&season=...&ep=...
   T->>R: slug_from_query(q)
   R-->>T: (site, slug) or None
-  T->>A: list_available_languages_cached(...)
-  alt fresh cache exists
-    A-->>T: candidate languages
-  else cache miss/stale
-    T->>T: use default site language order
+
+  alt season-search mode (tvsearch without ep / ep<=0)
+    T->>A: list_cached_episode_numbers_for_season(slug,S,site)
+    A-->>T: known episode numbers (maybe empty)
+    opt TORZNAB_SEASON_SEARCH_MODE=strict and cache empty
+      loop bounded fallback probe (MAX_EPISODES / MAX_CONSECUTIVE_MISSES)
+        T->>P: probe_episode_quality(slug,S,E,lang,site)
+        P-->>T: available / unavailable
+      end
+    end
+  else episode-search mode
+    T->>T: use requested episode E
   end
 
-  loop each candidate language
-    T->>A: get_availability(slug,S,E,lang,site)
-    alt fresh + available
-      A-->>T: cached quality/provider
-    else probe needed
-      T->>P: probe_episode_quality(...)
-      P-->>T: available,height,codec,provider
-      T->>A: upsert_availability(...)
+  loop each discovered/requested episode E
+    T->>A: list_available_languages_cached(slug,S,E,site)
+    alt fresh cache exists
+      A-->>T: candidate languages
+    else cache miss/stale
+      T->>T: use default site language order
     end
-    alt unavailable on AniWorld + specials enabled
-      T->>S: resolve_special_mapping_from_episode_request(...)
-      S-->>T: source/alias mapping
-      T->>P: probe mapped source episode
-      T->>A: upsert mapped availability
+    loop each candidate language
+      T->>A: get_availability(slug,S,E,lang,site)
+      alt fresh + available
+        A-->>T: cached quality/provider
+      else probe needed
+        T->>P: probe_episode_quality(...)
+        P-->>T: available,height,codec,provider
+        T->>A: upsert_availability(...)
+      end
+      alt unavailable on AniWorld + specials enabled
+        T->>S: resolve_special_mapping_from_episode_request(...)
+        S-->>T: source/alias mapping
+        T->>P: probe mapped source episode
+        T->>A: upsert mapped availability
+      end
+      T->>T: build_release_name + build_magnet
+      T->>T: emit RSS item(s) (+ STRM variant if enabled)
     end
-    T->>T: build_release_name + build_magnet
-    T->>T: emit RSS item(s) (+ STRM variant if enabled)
   end
   T-->>C: RSS XML
 ```
