@@ -38,6 +38,12 @@ from app.providers.aniworld.specials import (
 from app.utils.magnet import _site_prefix
 from app.utils.movie_year import get_movie_year
 from app.utils.http_client import get as http_get
+from app.utils.release_dates import (
+    PROBE_INFO_RELEASE_AT_KEY,
+    merge_extra_with_release_at,
+    release_at_from_extra,
+    release_at_from_probe_info,
+)
 
 from . import router
 from .utils import _build_item, _caps_xml, _require_apikey, _rss_root
@@ -110,6 +116,37 @@ def _ordered_unique(values: List[str]) -> List[str]:
         seen.add(item)
         out.append(item)
     return out
+
+
+def _resolve_release_at(
+    *,
+    rec_extra: object = None,
+    probe_info: object = None,
+) -> Optional[datetime]:
+    return release_at_from_probe_info(probe_info) or release_at_from_extra(rec_extra)
+
+
+def _resolve_pubdate(
+    *,
+    default_now: datetime,
+    rec_extra: object = None,
+    probe_info: object = None,
+) -> datetime:
+    return (
+        _resolve_release_at(rec_extra=rec_extra, probe_info=probe_info) or default_now
+    )
+
+
+def _merge_extra_with_release(
+    *,
+    base_extra: Optional[dict],
+    rec_extra: object = None,
+    probe_info: object = None,
+) -> Optional[dict]:
+    return merge_extra_with_release_at(
+        base_extra=base_extra,
+        release_at=_resolve_release_at(rec_extra=rec_extra, probe_info=probe_info),
+    )
 
 
 def _cache_get_term_tvdb(term: str) -> Optional[int]:
@@ -468,7 +505,7 @@ def _probe_episode_available_for_discovery(
             return True
 
         try:
-            available, height, vcodec, prov_used, _info = (
+            available, height, vcodec, prov_used, info = (
                 tn_module.probe_episode_quality(
                     slug=slug,
                     season=season_i,
@@ -482,6 +519,7 @@ def _probe_episode_available_for_discovery(
             height = None
             vcodec = None
             prov_used = None
+            info = None
 
         try:
             tn_module.upsert_availability(
@@ -494,7 +532,11 @@ def _probe_episode_available_for_discovery(
                 height=height,
                 vcodec=vcodec,
                 provider=prov_used,
-                extra=None,
+                extra=_merge_extra_with_release(
+                    base_extra=None,
+                    rec_extra=getattr(rec, "extra", None),
+                    probe_info=info,
+                ),
                 site=site_found,
             )
         except (ValueError, RuntimeError):
@@ -615,7 +657,17 @@ def _try_mapped_special_probe(
     lang: str,
     site_found: str,
     special_map,
-) -> tuple[bool, Optional[int], Optional[str], Optional[str], int, int, int, int]:
+) -> tuple[
+    bool,
+    Optional[int],
+    Optional[str],
+    Optional[str],
+    int,
+    int,
+    int,
+    int,
+    Optional[datetime],
+]:
     """
     Probe availability and quality for an AniWorld special that maps to a different source episode, using cached availability when possible.
 
@@ -636,7 +688,8 @@ def _try_mapped_special_probe(
             source_season (int): season number of the mapped source episode,
             source_episode (int): episode number of the mapped source episode,
             alias_season (int): alias season number requested,
-            alias_episode (int): alias episode number requested
+            alias_episode (int): alias episode number requested,
+            release_at (Optional[datetime]): parsed release timestamp in UTC when available
         )
     """
     source_season = special_map.source_season
@@ -665,10 +718,11 @@ def _try_mapped_special_probe(
             source_episode,
             alias_season,
             alias_episode,
+            release_at_from_extra(rec_mapped.extra),
         )
 
     try:
-        available, height, vcodec, prov_used, _info = tn_module.probe_episode_quality(
+        available, height, vcodec, prov_used, info = tn_module.probe_episode_quality(
             slug=slug,
             season=source_season,
             episode=source_episode,
@@ -689,6 +743,7 @@ def _try_mapped_special_probe(
         height = None
         vcodec = None
         prov_used = None
+        info = None
 
     return (
         available,
@@ -699,6 +754,7 @@ def _try_mapped_special_probe(
         source_episode,
         alias_season,
         alias_episode,
+        release_at_from_probe_info(info),
     )
 
 
@@ -801,12 +857,18 @@ def emit_tvsearch_episode_items(
         height = None
         vcodec = None
         prov_used = None
+        info = None
+        item_pubdate = now
 
         if rec and rec.available and rec.is_fresh:
             available = True
             height = rec.height
             vcodec = rec.vcodec
             prov_used = rec.provider
+            item_pubdate = _resolve_pubdate(
+                default_now=now,
+                rec_extra=getattr(rec, "extra", None),
+            )
             logger.debug(
                 (
                     "Using cached availability for {} S{}E{} {} on {}: "
@@ -828,6 +890,10 @@ def emit_tvsearch_episode_items(
                     height = rec.height
                     vcodec = rec.vcodec
                     prov_used = rec.provider
+                    item_pubdate = _resolve_pubdate(
+                        default_now=now,
+                        rec_extra=getattr(rec, "extra", None),
+                    )
                 elif discovered_fast_languages and lang in discovered_fast_languages:
                     available = True
                     height = None
@@ -837,7 +903,7 @@ def emit_tvsearch_episode_items(
                     available = False
             else:
                 try:
-                    available, height, vcodec, prov_used, _info = (
+                    available, height, vcodec, prov_used, info = (
                         tn_module.probe_episode_quality(
                             slug=slug,
                             season=source_season,
@@ -857,6 +923,13 @@ def emit_tvsearch_episode_items(
                         e,
                     )
                     available = False
+                    info = None
+
+                item_pubdate = _resolve_pubdate(
+                    default_now=now,
+                    rec_extra=getattr(rec, "extra", None),
+                    probe_info=info,
+                )
 
                 if (
                     not available
@@ -895,6 +968,7 @@ def emit_tvsearch_episode_items(
                             source_episode,
                             alias_season,
                             alias_episode,
+                            mapped_release_at,
                         ) = _try_mapped_special_probe(
                             tn_module=tn_module,
                             session=session,
@@ -903,6 +977,11 @@ def emit_tvsearch_episode_items(
                             site_found=site_found,
                             special_map=special_map,
                         )
+                        if mapped_release_at is not None:
+                            item_pubdate = mapped_release_at
+                            info = {
+                                PROBE_INFO_RELEASE_AT_KEY: mapped_release_at.isoformat()
+                            }
 
                 try:
                     tn_module.upsert_availability(
@@ -915,13 +994,17 @@ def emit_tvsearch_episode_items(
                         height=height,
                         vcodec=vcodec,
                         provider=prov_used,
-                        extra=(
-                            {
-                                "special_alias_season": alias_season,
-                                "special_alias_episode": alias_episode,
-                            }
-                            if special_map is not None
-                            else None
+                        extra=_merge_extra_with_release(
+                            base_extra=(
+                                {
+                                    "special_alias_season": alias_season,
+                                    "special_alias_episode": alias_episode,
+                                }
+                                if special_map is not None
+                                else None
+                            ),
+                            rec_extra=getattr(rec, "extra", None),
+                            probe_info=info,
                         ),
                         site=site_found,
                     )
@@ -1010,7 +1093,7 @@ def emit_tvsearch_episode_items(
                     channel=channel,
                     title=release_title,
                     magnet=magnet,
-                    pubdate=now,
+                    pubdate=item_pubdate,
                     cat_id=TORZNAB_CAT_ANIME,
                     guid_str=guid_base,
                     language=lang,
@@ -1033,7 +1116,7 @@ def emit_tvsearch_episode_items(
                     channel=channel,
                     title=release_title + strm_suffix,
                     magnet=magnet_strm,
-                    pubdate=now,
+                    pubdate=item_pubdate,
                     cat_id=TORZNAB_CAT_ANIME,
                     guid_str=f"{guid_base}:strm",
                     language=lang,
@@ -1113,7 +1196,7 @@ def _handle_preview_search(
 
     for lang in candidate_langs:
         try:
-            available, h, vc, prov, _info = tn.probe_episode_quality(
+            available, h, vc, prov, info = tn.probe_episode_quality(
                 slug=slug,
                 season=season_i,
                 episode=ep_i,
@@ -1138,7 +1221,10 @@ def _handle_preview_search(
                 height=h,
                 vcodec=vc,
                 provider=prov,
-                extra=None,
+                extra=_merge_extra_with_release(
+                    base_extra=None,
+                    probe_info=info,
+                ),
                 site=site_found,
             )
         except (ValueError, RuntimeError) as e:
@@ -1149,6 +1235,7 @@ def _handle_preview_search(
             )
         if not available:
             continue
+        item_pubdate = _resolve_pubdate(default_now=now, probe_info=info)
 
         # Preview results omit SxxEyy in the release title, but we keep S01E01
         # placeholders in the magnet metadata for backward compatibility.
@@ -1183,7 +1270,7 @@ def _handle_preview_search(
                     channel=channel,
                     title=release_title,
                     magnet=magnet,
-                    pubdate=now,
+                    pubdate=item_pubdate,
                     cat_id=cat_id,
                     guid_str=guid_base,
                     language=lang,
@@ -1203,7 +1290,7 @@ def _handle_preview_search(
                     channel=channel,
                     title=release_title + strm_suffix,
                     magnet=magnet_strm,
-                    pubdate=now,
+                    pubdate=item_pubdate,
                     cat_id=cat_id,
                     guid_str=f"{guid_base}:strm",
                     language=lang,
@@ -1300,7 +1387,7 @@ def _handle_special_search(
 
     for lang in candidate_langs:
         try:
-            available, h, vc, prov, _info = tn.probe_episode_quality(
+            available, h, vc, prov, info = tn.probe_episode_quality(
                 slug=slug,
                 season=target_season,
                 episode=target_episode,
@@ -1329,10 +1416,13 @@ def _handle_special_search(
                 height=h,
                 vcodec=vc,
                 provider=prov,
-                extra={
-                    "special_alias_season": alias_season,
-                    "special_alias_episode": alias_episode,
-                },
+                extra=_merge_extra_with_release(
+                    base_extra={
+                        "special_alias_season": alias_season,
+                        "special_alias_episode": alias_episode,
+                    },
+                    probe_info=info,
+                ),
                 site=site_found,
             )
         except (ValueError, RuntimeError) as e:
@@ -1347,6 +1437,7 @@ def _handle_special_search(
             )
         if not available:
             continue
+        item_pubdate = _resolve_pubdate(default_now=now, probe_info=info)
 
         release_title = tn.build_release_name(
             series_title=display_title,
@@ -1385,7 +1476,7 @@ def _handle_special_search(
                     channel=channel,
                     title=release_title,
                     magnet=magnet,
-                    pubdate=now,
+                    pubdate=item_pubdate,
                     cat_id=cat_id,
                     guid_str=guid_base,
                     language=lang,
@@ -1405,7 +1496,7 @@ def _handle_special_search(
                     channel=channel,
                     title=release_title + strm_suffix,
                     magnet=magnet_strm,
-                    pubdate=now,
+                    pubdate=item_pubdate,
                     cat_id=cat_id,
                     guid_str=f"{guid_base}:strm",
                     language=lang,

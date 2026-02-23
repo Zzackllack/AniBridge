@@ -1,15 +1,41 @@
 from __future__ import annotations
+from datetime import datetime
 from typing import Optional, Dict, Any, List, cast
 from loguru import logger
 import yt_dlp
 
 from app.core.downloader import get_direct_url_with_fallback, build_episode
 from app.utils.naming import quality_from_info
+from app.utils.release_dates import (
+    add_release_at_to_probe_info,
+    parse_release_at_from_html,
+)
 from app.config import PROVIDER_ORDER, CATALOG_SITE_CONFIGS
 from app.utils.logger import config as configure_logger
 from app.providers.megakino.client import get_default_client
 
 configure_logger()
+
+
+def _extract_release_at_from_episode(*, ep: object) -> Optional[datetime]:
+    cached_release = getattr(ep, "_anibridge_release_at", None)
+    if cached_release is not None:
+        return cached_release
+
+    html_text = getattr(ep, "_anibridge_sto_v2_html", None)
+    if not isinstance(html_text, str):
+        response = getattr(ep, "_html_cache", None)
+        html_text = getattr(response, "text", None)
+        if not isinstance(html_text, str):
+            html_text = None
+
+    if not html_text:
+        return None
+
+    release_at = parse_release_at_from_html(html_text)
+    if release_at is not None:
+        setattr(ep, "_anibridge_release_at", release_at)
+    return release_at
 
 
 def probe_episode_quality_once(
@@ -126,6 +152,8 @@ def probe_episode_quality(
             )
             logger.debug(f"Got direct URL: {direct} (chosen provider: {chosen})")
             h, vc, info = probe_episode_quality_once(direct, timeout=timeout)
+            release_at = _extract_release_at_from_episode(ep=ep)
+            info = add_release_at_to_probe_info(info, release_at)
             logger.info(
                 f"Provider '{chosen}' succeeded: available=True, height={h}, vcodec={vc}"
             )

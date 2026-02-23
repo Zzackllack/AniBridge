@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup  # type: ignore
 from loguru import logger
 
 from app.utils.http_client import get as http_get
+from app.utils.release_dates import parse_release_at_from_html
 
 if TYPE_CHECKING:
     from aniworld.models import Episode
@@ -134,6 +135,16 @@ def parse_episode_providers(
     return providers, languages, language_names
 
 
+def parse_release_at_from_sto_html(html_text: str):
+    """
+    Parse the published timestamp from S.to v2 episode HTML, if present.
+
+    Returns:
+        datetime | None: Parsed UTC timestamp, or None when unavailable.
+    """
+    return parse_release_at_from_html(html_text)
+
+
 def enrich_episode_from_v2_html(
     *,
     episode: "Episode",
@@ -160,6 +171,11 @@ def enrich_episode_from_v2_html(
         episode.language = languages
     if language_names:
         episode.language_name = language_names
+
+    release_at = parse_release_at_from_sto_html(html_text)
+    if release_at is not None:
+        setattr(episode, "_anibridge_release_at", release_at)
+    setattr(episode, "_anibridge_sto_v2_html", html_text)
 
 
 def enrich_episode_from_v2_url(*, episode: "Episode", base_url: str) -> None:
