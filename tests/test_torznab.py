@@ -353,7 +353,9 @@ def test_tvsearch_ep_zero_is_treated_as_season_search(client, monkeypatch):
     monkeypatch.setattr(torznab_api_mod, "TORZNAB_SEASON_SEARCH_MODE", "fast")
     monkeypatch.setattr(torznab_api_mod, "STRM_FILES_MODE", "no")
     monkeypatch.setattr(
-        torznab_api_mod, "_metadata_episode_numbers_for_season", lambda **_kwargs: [1, 2]
+        torznab_api_mod,
+        "_metadata_episode_numbers_for_season",
+        lambda **_kwargs: [1, 2],
     )
     monkeypatch.setattr(
         tn,
@@ -418,7 +420,9 @@ def test_tvsearch_fast_season_mode_avoids_live_probe(client, monkeypatch):
     monkeypatch.setattr(torznab_api_mod, "TORZNAB_SEASON_SEARCH_MODE", "fast")
     monkeypatch.setattr(torznab_api_mod, "STRM_FILES_MODE", "no")
     monkeypatch.setattr(
-        torznab_api_mod, "_metadata_episode_numbers_for_season", lambda **_kwargs: [1, 2]
+        torznab_api_mod,
+        "_metadata_episode_numbers_for_season",
+        lambda **_kwargs: [1, 2],
     )
     monkeypatch.setattr(
         tn,
