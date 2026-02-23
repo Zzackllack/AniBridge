@@ -16,6 +16,7 @@ def test_job_crud_and_cleanup(client):
 
 
 def test_availability_and_clienttask_crud(client):
+    from datetime import datetime, timezone
     from sqlmodel import Session
     from app.db import (
         engine,
@@ -136,7 +137,12 @@ def test_availability_and_clienttask_crud(client):
             category="anime",
             job_id="job-1",
             state="downloading",
+            added_on=datetime(2026, 2, 23, 19, 47, tzinfo=timezone.utc),
         )
-        assert get_client_task(s, "abc")
+        task = get_client_task(s, "abc")
+        assert task
+        assert task.added_on.replace(tzinfo=timezone.utc) == datetime(
+            2026, 2, 23, 19, 47, tzinfo=timezone.utc
+        )
         delete_client_task(s, "abc")
         assert get_client_task(s, "abc") is None

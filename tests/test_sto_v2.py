@@ -3,6 +3,7 @@ from pathlib import Path
 from app.providers.sto.v2 import (
     build_episode_url,
     parse_episode_providers,
+    parse_release_at_from_sto_html,
     parse_language_id,
 )
 
@@ -57,3 +58,18 @@ def test_parse_episode_providers_from_fixture() -> None:
     assert 2 in languages
     assert "German Dub" in language_names
     assert "English Dub" in language_names
+
+
+def test_parse_release_at_from_sto_html_prefers_title_timestamp() -> None:
+    html_text = """
+    <span class="flex-grow-1">
+      <span title="Feb 23, 2026 20:47 Uhr">
+        Veröffentlicht am February 23, 2026
+      </span>
+    </span>
+    """
+
+    parsed = parse_release_at_from_sto_html(html_text)
+
+    assert parsed is not None
+    assert parsed.isoformat() == "2026-02-23T19:47:00+00:00"
