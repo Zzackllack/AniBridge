@@ -12,15 +12,15 @@ importers:
         specifier: ^3.5.28
         version: 3.5.28(vue@3.5.28)
       lucide-vue-next:
-        specifier: ^0.564.0
-        version: 0.564.0(vue@3.5.28)
+        specifier: ^0.575.0
+        version: 0.575.0(vue@3.5.28)
       vue:
         specifier: ^3.5.28
         version: 3.5.28
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^4.20260211.0
-        version: 4.20260218.0
+        specifier: ^4.20260302.0
+        version: 4.20260302.0
       vite:
         specifier: ^7.3.1
         version: 7.3.1
@@ -50,8 +50,8 @@ packages:
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
 
-  '@cloudflare/workers-types@4.20260218.0':
-    resolution: {integrity: sha512-E28uJNJb9J9pca3RaxjXm1JxAjp8td9/cudkY+IT8rio71NlshN7NKMe2Cr/6GN+RufbSnp+N3ZKP74xgUaL0A==}
+  '@cloudflare/workers-types@4.20260302.0':
+    resolution: {integrity: sha512-mbFRnlu1lNCScMpXZk/X/uBPufYx5OSbq+euGonGRcY+DgOwm2kczGdK401rUh52NB0fFMEcOy/zqwxv7CdDNA==}
 
   '@docsearch/css@4.5.3':
     resolution: {integrity: sha512-kUpHaxn0AgI3LQfyzTYkNUuaFY4uEz/Ym9/N/FvyDE+PzSgZsCyDH9jE49B6N6f1eLCm9Yp64J9wENd6vypdxA==}
@@ -644,8 +644,8 @@ packages:
     peerDependencies:
       vue: '>=3.0.1'
 
-  lucide-vue-next@0.564.0:
-    resolution: {integrity: sha512-Zf51QMPVsRPpAmlVdzzp3vUofPMgxxRd/33O+7YsTCC2Aw9J5bSnJg2ZToMZ7SHkXkeDfvpWRZuRSU0+nK2okQ==}
+  lucide-vue-next@0.575.0:
+    resolution: {integrity: sha512-UHzA3cYMCgBLyGay5R9IQaidwV0NLocx7cIBnFt8vJ9Xhl6IM/oKD0fUhoCUuouFta15SX1rLXVoko9s3TzWMA==}
     peerDependencies:
       vue: '>=3.0.1'
 
@@ -888,7 +888,7 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
-  '@cloudflare/workers-types@4.20260218.0': {}
+  '@cloudflare/workers-types@4.20260302.0': {}
 
   '@docsearch/css@4.5.3': {}
 
@@ -1381,7 +1381,7 @@ snapshots:
     dependencies:
       vue: 3.5.28
 
-  lucide-vue-next@0.564.0(vue@3.5.28):
+  lucide-vue-next@0.575.0(vue@3.5.28):
     dependencies:
       vue: 3.5.28
 
