@@ -32,10 +32,10 @@ from .common import public_save_path
 def _to_utc_timestamp(dt: datetime) -> int:
     """
     Convert a datetime to a UTC Unix timestamp.
-    
+
     Parameters:
         dt (datetime): A naive or timezone-aware datetime. If naive, it is treated as UTC; if timezone-aware, it is converted to UTC.
-    
+
     Returns:
         int: Unix timestamp in seconds since the UTC epoch.
     """
@@ -181,11 +181,11 @@ def torrents_info(
 ):
     """
     Produce a qBittorrent-compatible list of client tasks and their current status.
-    
+
     Parameters:
         filter (Optional[str]): Optional filter string (currently unused).
         category (Optional[str]): If provided, include only tasks whose category exactly matches this value.
-    
+
     Returns:
         JSONResponse: A JSON array of objects describing each torrent. Each object contains:
             hash, name, state, progress, dlspeed, upspeed, eta, category, save_path,
@@ -318,16 +318,16 @@ def torrents_files(session: Session = Depends(get_session), hash: str = ""):
 def torrents_properties(session: Session = Depends(get_session), hash: str = ""):
     """
     Return torrent property information expected by Sonarr for a completed or in-progress torrent.
-    
+
     Parameters:
         hash (str): Torrent info-hash (case-insensitive); required.
-    
+
     Returns:
         dict: JSON-serializable mapping of torrent properties (e.g., save_path, creation_date, piece_size, total_downloaded, time_elapsed, seeding_time, addition_date, completion_date, created_by).
-    
+
     Raises:
         HTTPException: 400 if `hash` is missing or empty; 404 if no matching client task is found.
-    
+
     Notes:
         - `creation_date`, `addition_date`, and `completion_date` are UTC Unix timestamps.
     """

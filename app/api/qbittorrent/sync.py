@@ -16,10 +16,10 @@ from app.config import DOWNLOAD_DIR, QBIT_PUBLIC_SAVE_PATH
 def _to_utc_timestamp(dt: datetime) -> int:
     """
     Normalize a datetime to UTC and return its Unix timestamp in seconds.
-    
+
     Parameters:
         dt (datetime): The datetime to normalize. If `dt` has no timezone information it is treated as UTC; if it has a timezone it is converted to UTC.
-    
+
     Returns:
         int: Unix timestamp (seconds since the Unix epoch) of the UTC-normalized datetime.
     """
@@ -34,9 +34,9 @@ def _to_utc_timestamp(dt: datetime) -> int:
 def sync_maindata(session: Session = Depends(get_session)):
     """
     Produce a minimal maindata payload compatible with Sonarr containing torrents and categories.
-    
+
     Builds a torrents mapping from database ClientTask rows (augmented with related job information when available) and returns a JSONResponse structured to match Sonarr's expected maindata format.
-    
+
     Returns:
         JSONResponse: A response with keys:
             - rid: request id (int)

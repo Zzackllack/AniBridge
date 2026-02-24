@@ -94,11 +94,11 @@ def parse_episode_providers(
 ) -> Tuple[Dict[str, Dict[int, str]], List[int], List[str]]:
     """
     Extract provider redirect URLs and language metadata from an S.to v2 episode HTML page.
-    
+
     Parameters:
         html_text (str): Raw HTML of the episode page.
         base_url (str): Base S.to URL used to resolve relative provider/play URLs.
-    
+
     Returns:
         providers (Dict[str, Dict[int, str]]): Mapping from provider name to a mapping of language ID to resolved redirect URL.
         language_ids (List[int]): Ordered list of language IDs found on the page.
@@ -137,10 +137,10 @@ def parse_episode_providers(
 def parse_release_at_from_sto_html(html_text: str):
     """
     Extract the UTC release timestamp from S.to v2 episode HTML, if present.
-    
+
     Parameters:
         html_text (str): Raw HTML of the episode page.
-    
+
     Returns:
         datetime | None: UTC datetime of the episode's release, or None if no timestamp is found.
     """
@@ -155,14 +155,14 @@ def enrich_episode_from_v2_html(
 ) -> None:
     """
     Enrich an Episode object with provider, language, and release metadata extracted from S.to v2 HTML.
-    
+
     If no providers are found, logs a warning (including the episode link when available) and returns without modifying the episode.
-    
+
     Parameters:
         episode (Episode): Episode instance to enrich; this function mutates the object.
         html_text (str): HTML content of the S.to v2 episode page.
         base_url (str): Base S.to URL used to resolve provider redirect URLs and other relative links.
-    
+
     Side effects:
         - Sets episode.provider to a mapping of providers to language -> redirect URL.
         - Sets episode.provider_name to the list of provider names.
@@ -194,9 +194,9 @@ def enrich_episode_from_v2_html(
 def enrich_episode_from_v2_url(*, episode: "Episode", base_url: str) -> None:
     """
     Enriches an Episode with provider, language, and release information by fetching and parsing its S.to v2 page.
-    
+
     If the episode has no link, the function returns without modifying the episode. On successful fetch and parse, the function updates the episode's provider-related attributes (e.g., `provider`, `provider_name`, `language`, `language_name`) and may set `_anibridge_release_at` (datetime or None) and `_anibridge_sto_v2_html` (raw HTML string).
-    
+
     Parameters:
         episode (Episode): Episode instance to enrich; must have a `link` attribute to perform fetching.
         base_url (str): Base S.to URL used to resolve provider redirect URLs.

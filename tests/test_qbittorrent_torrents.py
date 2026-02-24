@@ -76,7 +76,7 @@ def test_torrents_add_aw_and_sto_prefixes(client):
 def test_torrents_add_uses_cached_release_timestamp_for_added_on(client):
     """
     Verify that adding a torrent uses a cached release timestamp for the torrent's added_on field.
-    
+
     Sets an availability record with a release_at timestamp, adds a torrent for that release, and asserts the torrent's `added_on` equals the integer Unix timestamp of the cached `release_at`.
     """
     from datetime import datetime, timezone

@@ -83,10 +83,10 @@ _DAY_FIRST_MONTH_NAME_RE = re.compile(
 def _coerce_month_name(raw: str) -> Optional[int]:
     """
     Normalize a month-name string and map it to its numeric month value.
-    
+
     Parameters:
         raw (str): Month name or abbreviation (may include punctuation or mixed case).
-    
+
     Returns:
         Optional[int]: Integer month number (1–12) if the input is recognized, otherwise `None`.
     """
@@ -104,9 +104,9 @@ def _to_utc(
 ) -> Optional[datetime]:
     """
     Convert a local Europe/Berlin date and time to a UTC datetime.
-    
+
     Validates that the year is at least 1900 and that the provided date/time components form a valid datetime; returns None for invalid inputs.
-    
+
     Returns:
         A UTC-aware datetime corresponding to the given Berlin-local date and time, or `None` if the inputs are invalid.
     """
@@ -122,14 +122,14 @@ def _to_utc(
 def parse_release_datetime_text(raw_text: str) -> Optional[datetime]:
     """
     Parse a human-readable release date/time string and return it as a UTC datetime.
-    
+
     Accepts strings containing German or English date representations (e.g. D.M.YYYY, "Month day, year", "day Month year")
     with optional time (HH:MM). Common publish prefixes (like "veröffentlicht" / "published"), weekday prefixes, and the
     token "Uhr" are ignored during parsing. If parsing succeeds the resulting datetime is returned normalized to UTC.
-    
+
     Parameters:
         raw_text (str): Input text that may contain a release date/time.
-    
+
     Returns:
         Optional[datetime]: The parsed datetime converted to UTC, or `None` if the text does not contain a parseable date/time.
     """
@@ -188,12 +188,12 @@ def parse_release_datetime_text(raw_text: str) -> Optional[datetime]:
 def parse_release_at_from_html(html_text: str) -> Optional[datetime]:
     """
     Extract a release datetime from HTML containing "veröffentlicht" or "published" annotations.
-    
+
     Parses the provided HTML and examines nearby text and title attributes for candidate strings that indicate a release timestamp, preferring candidates that include an explicit time. If a parseable date/time is found, returns it as a UTC-aware datetime.
-    
+
     Parameters:
         html_text (str): HTML source to scan for release date/time information.
-    
+
     Returns:
         Optional[datetime]: The parsed release datetime in UTC if found, `None` otherwise.
     """
@@ -236,10 +236,10 @@ def parse_release_at_from_html(html_text: str) -> Optional[datetime]:
 def release_at_from_extra(extra: object) -> Optional[datetime]:
     """
     Parse and return the release datetime stored under the "release_at" key in an extra mapping.
-    
+
     Parameters:
         extra (object): Metadata container that may contain a "release_at" ISO datetime string; non-dict inputs are ignored.
-    
+
     Returns:
         Optional[datetime]: The parsed datetime converted to UTC, or None if the key is absent, the input is not a dict, or parsing fails.
     """
@@ -251,10 +251,10 @@ def release_at_from_extra(extra: object) -> Optional[datetime]:
 def parse_release_datetime_iso(raw: object) -> Optional[datetime]:
     """
     Parse an ISO 8601 datetime string into a UTC-aware datetime.
-    
+
     Parameters:
         raw (object): The input expected to be an ISO 8601 datetime string (may end with 'Z' or include an offset). Non-string or empty inputs are treated as invalid.
-    
+
     Returns:
         datetime | None: A timezone-aware `datetime` converted to UTC, or `None` if parsing fails or the input is not a valid ISO 8601 string.
     """
@@ -277,12 +277,12 @@ def parse_release_datetime_iso(raw: object) -> Optional[datetime]:
 def release_at_from_probe_info(info: object) -> Optional[datetime]:
     """
     Extracts the probe-info release timestamp and parses it into a UTC datetime.
-    
+
     Parameters:
-    	info (object): Probe information mapping expected to contain the `_anibridge_release_at` ISO timestamp; if not a dict, the value is treated as absent.
-    
+        info (object): Probe information mapping expected to contain the `_anibridge_release_at` ISO timestamp; if not a dict, the value is treated as absent.
+
     Returns:
-    	`datetime` in UTC if a valid ISO timestamp is present and parsed, `None` otherwise.
+        `datetime` in UTC if a valid ISO timestamp is present and parsed, `None` otherwise.
     """
     if not isinstance(info, dict):
         return None
@@ -296,11 +296,11 @@ def merge_extra_with_release_at(
 ) -> Optional[dict[str, Any]]:
     """
     Return a shallow copy of `base_extra` augmented with a UTC ISO 8601 `release_at` timestamp when provided.
-    
+
     Parameters:
         base_extra (Optional[dict[str, Any]]): The original extra dictionary to copy and augment. If not a dict, it is treated as absent.
         release_at (Optional[datetime]): The datetime to store under the `release_at` key; converted to UTC and formatted as an ISO 8601 string.
-    
+
     Returns:
         Optional[dict[str, Any]]: If `release_at` is provided, a dict (a shallow copy of `base_extra` if it was a dict, otherwise a new dict) containing the `release_at` ISO string. If `release_at` is None, returns a shallow copy of `base_extra` when it is a dict, or `None` if `base_extra` was not a dict.
     """
@@ -325,13 +325,13 @@ def add_release_at_to_probe_info(
 ) -> Optional[dict[str, Any]]:
     """
     Return a probe-info dictionary augmented with a release timestamp under the key "_anibridge_release_at".
-    
+
     If `release_at` is None, the original `info` value is returned unchanged. If `info` is a dict it is shallow-copied before modification; if `info` is not a dict a new dict is created. The `release_at` value is converted to UTC and stored as an ISO 8601 string.
-    
+
     Parameters:
         info (Optional[dict[str, Any]]): Existing probe-info mapping, or None.
         release_at (Optional[datetime]): Release datetime to add.
-    
+
     Returns:
         Optional[dict[str, Any]]: The probe-info dict containing the `_anibridge_release_at` ISO 8601 UTC string, or the original `info` if `release_at` is None.
     """

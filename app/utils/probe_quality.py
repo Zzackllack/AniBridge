@@ -20,12 +20,12 @@ configure_logger()
 def _extract_release_at_from_episode(*, ep: object) -> Optional[datetime]:
     """
     Extracts and caches an episode's release datetime from available HTML content.
-    
+
     This function attempts to retrieve a cached release datetime on the episode object; if absent, it looks for stored HTML (first from the episode's `_anibridge_sto_v2_html`, then from `_html_cache.text`) and parses a release timestamp from that HTML. When a release datetime is found it is cached on the episode as `_anibridge_release_at` for future calls.
-    
+
     Parameters:
         ep (object): Episode-like object that may contain `_anibridge_release_at`, `_anibridge_sto_v2_html`, or `_html_cache.text`.
-    
+
     Returns:
         datetime | None: The parsed release datetime if available, otherwise `None`.
     """
@@ -98,7 +98,7 @@ def probe_episode_quality(
 ) -> tuple[bool, Optional[int], Optional[str], Optional[str], Dict[str, Any] | None]:
     """
     Determine whether an episode is available in the requested language and identify the provider and reported video quality.
-    
+
     Parameters:
         slug (str): Series identifier.
         season (int): Season number.
@@ -107,7 +107,7 @@ def probe_episode_quality(
         preferred_provider (Optional[str]): Provider to try first, if any.
         timeout (float): Socket/metadata probe timeout in seconds.
         site (str): Site identifier used when building the episode object.
-    
+
     Returns:
         tuple:
             available (bool): True if a provider yielded playable metadata for the requested language, False otherwise.
