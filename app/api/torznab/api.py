@@ -119,7 +119,9 @@ class TNModuleProtocol(Protocol):
         preferred_provider: Optional[str] = None,
         timeout: float = 6.0,
         site: str = "aniworld.to",
-    ) -> tuple[bool, Optional[int], Optional[str], Optional[str], Optional[Dict[str, Any]]]: ...
+    ) -> tuple[
+        bool, Optional[int], Optional[str], Optional[str], Optional[Dict[str, Any]]
+    ]: ...
 
 
 def _default_languages_for_site(site: str) -> List[str]:

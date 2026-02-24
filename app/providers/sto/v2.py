@@ -175,6 +175,7 @@ def enrich_episode_from_v2_html(
     if language_names:
         episode.language_name = language_names
 
+
 def enrich_episode_from_v2_url(*, episode: "Episode", base_url: str) -> None:
     """
     Enriches an Episode with provider, language, and release information by fetching and parsing its S.to v2 page.
