@@ -6,6 +6,10 @@ from datetime import datetime, timezone
 def _to_utc_timestamp(dt: datetime) -> int:
     """Convert a datetime to a UTC POSIX timestamp integer.
 
+    Parameters:
+        dt (datetime): Datetime to convert; naive datetimes are treated as UTC,
+        aware datetimes are converted to UTC.
+
     Naive datetimes are treated as UTC by assigning `timezone.utc`. Aware
     datetimes are converted to UTC via `astimezone(timezone.utc)`.
 

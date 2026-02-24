@@ -58,16 +58,28 @@ _TVSEARCH_TVDB_TO_TITLE_CACHE: dict[int, tuple[float, str]] = {}
 
 
 class ProbeResult(NamedTuple):
-    """Structured mapped-special probe result."""
+    """Structured mapped-special probe result.
+
+    Fields:
+        success (bool): Whether mapped probing determined the episode is available.
+        height_px (Optional[int]): Reported video height in pixels.
+        codec (Optional[str]): Reported video codec.
+        provider (Optional[str]): Provider used for the mapped probe.
+        src_season (int): Source season used for probing.
+        src_episode (int): Source episode used for probing.
+        alias_season (int): Alias season requested by the client.
+        alias_episode (int): Alias episode requested by the client.
+        timestamp (Optional[datetime]): Resolved UTC release timestamp, if available.
+    """
 
     success: bool
-    mapped_id: Optional[int]
-    mapped_name: Optional[str]
-    mapped_type: Optional[str]
-    count_a: int
-    count_b: int
-    count_c: int
-    count_d: int
+    height_px: Optional[int]
+    codec: Optional[str]
+    provider: Optional[str]
+    src_season: int
+    src_episode: int
+    alias_season: int
+    alias_episode: int
     timestamp: Optional[datetime]
 
 
@@ -768,13 +780,13 @@ def _try_mapped_special_probe(
     if rec_mapped and rec_mapped.available and rec_mapped.is_fresh:
         return ProbeResult(
             success=True,
-            mapped_id=rec_mapped.height,
-            mapped_name=rec_mapped.vcodec,
-            mapped_type=rec_mapped.provider,
-            count_a=source_season,
-            count_b=source_episode,
-            count_c=alias_season,
-            count_d=alias_episode,
+            height_px=rec_mapped.height,
+            codec=rec_mapped.vcodec,
+            provider=rec_mapped.provider,
+            src_season=source_season,
+            src_episode=source_episode,
+            alias_season=alias_season,
+            alias_episode=alias_episode,
             timestamp=release_at_from_extra(rec_mapped.extra),
         )
 
@@ -804,13 +816,13 @@ def _try_mapped_special_probe(
 
     return ProbeResult(
         success=available,
-        mapped_id=height,
-        mapped_name=vcodec,
-        mapped_type=prov_used,
-        count_a=source_season,
-        count_b=source_episode,
-        count_c=alias_season,
-        count_d=alias_episode,
+        height_px=height,
+        codec=vcodec,
+        provider=prov_used,
+        src_season=source_season,
+        src_episode=source_episode,
+        alias_season=alias_season,
+        alias_episode=alias_episode,
         timestamp=release_at_from_probe_info(info),
     )
 
@@ -1043,13 +1055,13 @@ def emit_tvsearch_episode_items(
                             special_map=special_map,
                         )
                         available = mapped_probe.success
-                        height = mapped_probe.mapped_id
-                        vcodec = mapped_probe.mapped_name
-                        prov_used = mapped_probe.mapped_type
-                        source_season = mapped_probe.count_a
-                        source_episode = mapped_probe.count_b
-                        alias_season = mapped_probe.count_c
-                        alias_episode = mapped_probe.count_d
+                        height = mapped_probe.height_px
+                        vcodec = mapped_probe.codec
+                        prov_used = mapped_probe.provider
+                        source_season = mapped_probe.src_season
+                        source_episode = mapped_probe.src_episode
+                        alias_season = mapped_probe.alias_season
+                        alias_episode = mapped_probe.alias_episode
                         mapped_release_at = mapped_probe.timestamp
                         if mapped_release_at is not None:
                             item_pubdate = mapped_release_at

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urljoin
 
@@ -135,19 +134,6 @@ def parse_episode_providers(
     return providers, languages, language_names
 
 
-def parse_release_at_from_sto_html(html_text: str) -> Optional[datetime]:
-    """
-    Extract the UTC release timestamp from S.to v2 episode HTML, if present.
-
-    Parameters:
-        html_text (str): Raw HTML of the episode page.
-
-    Returns:
-        datetime | None: UTC datetime of the episode's release, or None if no timestamp is found.
-    """
-    return parse_release_at_from_html(html_text)
-
-
 def enrich_episode_from_v2_html(
     *,
     episode: "Episode",
@@ -169,7 +155,7 @@ def enrich_episode_from_v2_html(
         - Sets episode.provider_name to the list of provider names.
         - Sets episode.language to the ordered list of language IDs when available.
         - Sets episode.language_name to the list of human-readable language names when available.
-        - If a release timestamp is found, sets episode._anibridge_release_at to that datetime.
+        - Sets episode._anibridge_release_at to the parsed release datetime, or `None` when no timestamp is found.
         - Always sets episode._anibridge_sto_v2_html to the raw provided HTML.
     """
     providers, languages, language_names = parse_episode_providers(html_text, base_url)
@@ -187,9 +173,8 @@ def enrich_episode_from_v2_html(
     if language_names:
         episode.language_name = language_names
 
-    release_at = parse_release_at_from_sto_html(html_text)
-    if release_at is not None:
-        setattr(episode, "_anibridge_release_at", release_at)
+    release_at = parse_release_at_from_html(html_text)
+    setattr(episode, "_anibridge_release_at", release_at)
 
 
 def enrich_episode_from_v2_url(*, episode: "Episode", base_url: str) -> None:

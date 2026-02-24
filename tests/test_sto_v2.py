@@ -3,9 +3,9 @@ from pathlib import Path
 from app.providers.sto.v2 import (
     build_episode_url,
     parse_episode_providers,
-    parse_release_at_from_sto_html,
     parse_language_id,
 )
+from app.utils.release_dates import parse_release_at_from_html
 
 
 def _read_episode_fixture() -> str:
@@ -63,7 +63,7 @@ def test_parse_episode_providers_from_fixture() -> None:
 def test_parse_release_at_from_sto_html_prefers_title_timestamp() -> None:
     """Prefer title timestamp when both title and visible text are present.
 
-    Ensures parse_release_at_from_sto_html resolves the title value and returns
+    Ensures parse_release_at_from_html resolves the title value and returns
     the expected ISO 8601 UTC datetime.
     """
     html_text = """
@@ -74,7 +74,7 @@ def test_parse_release_at_from_sto_html_prefers_title_timestamp() -> None:
     </span>
     """
 
-    parsed = parse_release_at_from_sto_html(html_text)
+    parsed = parse_release_at_from_html(html_text)
 
     assert parsed is not None
     assert parsed.isoformat() == "2026-02-23T19:47:00+00:00"
