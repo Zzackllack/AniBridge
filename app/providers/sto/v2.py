@@ -143,7 +143,7 @@ def enrich_episode_from_v2_html(
     """
     Enrich an Episode object with provider, language, and release metadata extracted from S.to v2 HTML.
 
-    If no providers are found, logs a warning (including the episode link when available) and returns without modifying the episode.
+    If no providers are found, logs a warning (including the episode link when available) and returns after storing HTML/release metadata.
 
     Parameters:
         episode (Episode): Episode instance to enrich; this function mutates the object.
@@ -160,6 +160,8 @@ def enrich_episode_from_v2_html(
     """
     providers, languages, language_names = parse_episode_providers(html_text, base_url)
     setattr(episode, "_anibridge_sto_v2_html", html_text)
+    release_at = parse_release_at_from_html(html_text)
+    setattr(episode, "_anibridge_release_at", release_at)
     if not providers:
         logger.warning(
             "No S.to v2 providers parsed for {}", getattr(episode, "link", "<no link>")
@@ -172,10 +174,6 @@ def enrich_episode_from_v2_html(
         episode.language = languages
     if language_names:
         episode.language_name = language_names
-
-    release_at = parse_release_at_from_html(html_text)
-    setattr(episode, "_anibridge_release_at", release_at)
-
 
 def enrich_episode_from_v2_url(*, episode: "Episode", base_url: str) -> None:
     """

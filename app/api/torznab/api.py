@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, NamedTuple, Optional
+from typing import Any, Dict, List, NamedTuple, Optional, Protocol
 import xml.etree.ElementTree as ET
 import threading
 import time
@@ -32,6 +32,7 @@ from app.config import (
 from app.db import get_session
 from app.providers.aniworld.specials import (
     SpecialIds,
+    SpecialEpisodeMapping,
     resolve_special_mapping_from_episode_request,
     resolve_special_mapping_from_query,
 )
@@ -81,6 +82,44 @@ class ProbeResult(NamedTuple):
     alias_season: int
     alias_episode: int
     timestamp: Optional[datetime]
+
+
+class AvailabilityRecordProtocol(Protocol):
+    """Shape of cached availability records used by mapped-special probing."""
+
+    available: bool
+    is_fresh: bool
+    height: Optional[int]
+    vcodec: Optional[str]
+    provider: Optional[str]
+    extra: Optional[Dict[str, Any]]
+
+
+class TNModuleProtocol(Protocol):
+    """Required tn-module interface for mapped-special probe operations."""
+
+    def get_availability(
+        self,
+        session: Session,
+        *,
+        slug: str,
+        season: int,
+        episode: int,
+        language: str,
+        site: str = "aniworld.to",
+    ) -> Optional[AvailabilityRecordProtocol]: ...
+
+    def probe_episode_quality(
+        self,
+        *,
+        slug: str,
+        season: int,
+        episode: int,
+        language: str,
+        preferred_provider: Optional[str] = None,
+        timeout: float = 6.0,
+        site: str = "aniworld.to",
+    ) -> tuple[bool, Optional[int], Optional[str], Optional[str], Optional[Dict[str, Any]]]: ...
 
 
 def _default_languages_for_site(site: str) -> List[str]:
@@ -211,8 +250,14 @@ def _merge_extra_with_release(
         Optional[Dict[str, Any]]: A dictionary containing the merged metadata. If a release time can be derived from `rec_extra` or `probe_info`,
         the result will include a `release_at` entry; otherwise the result is `base_extra` (or `None` if `base_extra` was `None`).
     """
+    merged_extra: Dict[str, Any] = {}
+    if isinstance(base_extra, dict):
+        merged_extra.update(base_extra)
+    if isinstance(rec_extra, dict):
+        merged_extra.update(rec_extra)
+
     return merge_extra_with_release_at(
-        base_extra=base_extra,
+        base_extra=merged_extra or None,
         release_at=_resolve_release_at(rec_extra=rec_extra, probe_info=probe_info),
     )
 
@@ -739,12 +784,12 @@ def resolve_season_episode_numbers(
 
 def _try_mapped_special_probe(
     *,
-    tn_module,
+    tn_module: TNModuleProtocol,
     session: Session,
     slug: str,
     lang: str,
     site_found: str,
-    special_map,
+    special_map: SpecialEpisodeMapping,
 ) -> ProbeResult:
     """
     Probe availability and quality for an AniWorld special that maps to a different source episode and return availability, quality metadata, mapping coordinates, and an optional release timestamp.
