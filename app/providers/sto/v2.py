@@ -92,18 +92,17 @@ def parse_language_id(raw_id: str | None, label: str | None) -> Optional[int]:
 def parse_episode_providers(
     html_text: str, base_url: str
 ) -> Tuple[Dict[str, Dict[int, str]], List[int], List[str]]:
-    """Parse providers and languages from S.to v2 episode HTML.
-
-    Uses BeautifulSoup to locate provider buttons and builds a provider mapping
-    (provider -> language id -> redirect URL), the ordered list of language ids
-    seen, and the corresponding language names.
-
+    """
+    Extract provider redirect URLs and language metadata from an S.to v2 episode HTML page.
+    
     Parameters:
-        html_text: Episode page HTML content.
-        base_url: Base S.to URL for resolving /r?t= redirects.
-
+        html_text (str): Raw HTML of the episode page.
+        base_url (str): Base S.to URL used to resolve relative provider/play URLs.
+    
     Returns:
-        Tuple of (providers, language_ids, language_names).
+        providers (Dict[str, Dict[int, str]]): Mapping from provider name to a mapping of language ID to resolved redirect URL.
+        language_ids (List[int]): Ordered list of language IDs found on the page.
+        language_names (List[str]): List of human-readable language names corresponding to `language_ids`.
     """
     soup = BeautifulSoup(html_text, "html.parser")
     providers: Dict[str, Dict[int, str]] = {}
@@ -137,10 +136,13 @@ def parse_episode_providers(
 
 def parse_release_at_from_sto_html(html_text: str):
     """
-    Parse the published timestamp from S.to v2 episode HTML, if present.
-
+    Extract the UTC release timestamp from S.to v2 episode HTML, if present.
+    
+    Parameters:
+        html_text (str): Raw HTML of the episode page.
+    
     Returns:
-        datetime | None: Parsed UTC timestamp, or None when unavailable.
+        datetime | None: UTC datetime of the episode's release, or None if no timestamp is found.
     """
     return parse_release_at_from_html(html_text)
 
@@ -151,12 +153,23 @@ def enrich_episode_from_v2_html(
     html_text: str,
     base_url: str,
 ) -> None:
-    """Populate an Episode with provider/language data parsed from v2 HTML.
-
+    """
+    Enrich an Episode object with provider, language, and release metadata extracted from S.to v2 HTML.
+    
+    If no providers are found, logs a warning (including the episode link when available) and returns without modifying the episode.
+    
     Parameters:
-        episode: Episode instance to enrich.
-        html_text: Episode page HTML content.
-        base_url: Base S.to URL for resolving redirects.
+        episode (Episode): Episode instance to enrich; this function mutates the object.
+        html_text (str): HTML content of the S.to v2 episode page.
+        base_url (str): Base S.to URL used to resolve provider redirect URLs and other relative links.
+    
+    Side effects:
+        - Sets episode.provider to a mapping of providers to language -> redirect URL.
+        - Sets episode.provider_name to the list of provider names.
+        - Sets episode.language to the ordered list of language IDs when available.
+        - Sets episode.language_name to the list of human-readable language names when available.
+        - If a release timestamp is found, sets episode._anibridge_release_at to that datetime.
+        - Always sets episode._anibridge_sto_v2_html to the raw provided HTML.
     """
     providers, languages, language_names = parse_episode_providers(html_text, base_url)
     if not providers:
@@ -179,14 +192,14 @@ def enrich_episode_from_v2_html(
 
 
 def enrich_episode_from_v2_url(*, episode: "Episode", base_url: str) -> None:
-    """Fetch v2 HTML for the Episode link and populate provider data.
-
-    Uses the shared HTTP client to fetch HTML, then delegates parsing to
-    BeautifulSoup-based helpers.
-
+    """
+    Enriches an Episode with provider, language, and release information by fetching and parsing its S.to v2 page.
+    
+    If the episode has no link, the function returns without modifying the episode. On successful fetch and parse, the function updates the episode's provider-related attributes (e.g., `provider`, `provider_name`, `language`, `language_name`) and may set `_anibridge_release_at` (datetime or None) and `_anibridge_sto_v2_html` (raw HTML string).
+    
     Parameters:
-        episode: Episode instance to enrich (must have a link).
-        base_url: Base S.to URL for resolving redirects.
+        episode (Episode): Episode instance to enrich; must have a `link` attribute to perform fetching.
+        base_url (str): Base S.to URL used to resolve provider redirect URLs.
     """
     link = getattr(episode, "link", None)
     if not link:

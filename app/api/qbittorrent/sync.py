@@ -14,6 +14,15 @@ from app.config import DOWNLOAD_DIR, QBIT_PUBLIC_SAVE_PATH
 
 
 def _to_utc_timestamp(dt: datetime) -> int:
+    """
+    Normalize a datetime to UTC and return its Unix timestamp in seconds.
+    
+    Parameters:
+        dt (datetime): The datetime to normalize. If `dt` has no timezone information it is treated as UTC; if it has a timezone it is converted to UTC.
+    
+    Returns:
+        int: Unix timestamp (seconds since the Unix epoch) of the UTC-normalized datetime.
+    """
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     else:
@@ -23,7 +32,18 @@ def _to_utc_timestamp(dt: datetime) -> int:
 
 @router.get("/sync/maindata")
 def sync_maindata(session: Session = Depends(get_session)):
-    """Minimal maindata dump accepted by Sonarr."""
+    """
+    Produce a minimal maindata payload compatible with Sonarr containing torrents and categories.
+    
+    Builds a torrents mapping from database ClientTask rows (augmented with related job information when available) and returns a JSONResponse structured to match Sonarr's expected maindata format.
+    
+    Returns:
+        JSONResponse: A response with keys:
+            - rid: request id (int)
+            - server_state: dict with connection_status and dht_nodes
+            - torrents: dict mapping torrent hash to metadata (name, progress, state, dlspeed, eta, category, save_path, size, added_on, completion_on)
+            - categories: list of available categories
+    """
     logger.debug("Sync maindata requested.")
     from sqlmodel import select
     from app.db import ClientTask

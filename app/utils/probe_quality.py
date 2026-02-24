@@ -18,6 +18,17 @@ configure_logger()
 
 
 def _extract_release_at_from_episode(*, ep: object) -> Optional[datetime]:
+    """
+    Extracts and caches an episode's release datetime from available HTML content.
+    
+    This function attempts to retrieve a cached release datetime on the episode object; if absent, it looks for stored HTML (first from the episode's `_anibridge_sto_v2_html`, then from `_html_cache.text`) and parses a release timestamp from that HTML. When a release datetime is found it is cached on the episode as `_anibridge_release_at` for future calls.
+    
+    Parameters:
+        ep (object): Episode-like object that may contain `_anibridge_release_at`, `_anibridge_sto_v2_html`, or `_html_cache.text`.
+    
+    Returns:
+        datetime | None: The parsed release datetime if available, otherwise `None`.
+    """
     cached_release = getattr(ep, "_anibridge_release_at", None)
     if cached_release is not None:
         return cached_release
@@ -86,24 +97,24 @@ def probe_episode_quality(
     site: str = "aniworld.to",
 ) -> tuple[bool, Optional[int], Optional[str], Optional[str], Dict[str, Any] | None]:
     """
-    Probe whether an episode is available in the requested language and return the provider used along with reported video quality.
-
+    Determine whether an episode is available in the requested language and identify the provider and reported video quality.
+    
     Parameters:
-        slug (str): Episode identifier (series slug).
+        slug (str): Series identifier.
         season (int): Season number.
         episode (int): Episode number.
         language (str): Desired audio/subtitle language code.
         preferred_provider (Optional[str]): Provider to try first, if any.
         timeout (float): Socket/metadata probe timeout in seconds.
         site (str): Site identifier used when building the episode object.
-
+    
     Returns:
-        tuple[bool, Optional[int], Optional[str], Optional[str], Dict[str, Any] | None]:
-            - available (bool): True if a provider yielded playable metadata for the requested language, False otherwise.
-            - height (Optional[int]): Reported video height in pixels, or None if unavailable.
-            - vcodec (Optional[str]): Reported video codec string, or None if unavailable.
-            - provider_used (Optional[str]): Name of the provider that succeeded, or None if none succeeded.
-            - raw_info (Dict[str, Any] | None): Raw metadata returned by the probe, or None if unavailable.
+        tuple:
+            available (bool): True if a provider yielded playable metadata for the requested language, False otherwise.
+            height (Optional[int]): Reported video height in pixels, or None if unavailable.
+            vcodec (Optional[str]): Reported video codec string, or None if unavailable.
+            provider_used (Optional[str]): Name of the provider that succeeded, or None if none succeeded.
+            raw_info (Dict[str, Any] | None): Raw metadata returned by the probe (may include augmented release timestamp), or None if unavailable.
     """
     logger.info(
         f"Probing episode quality for slug={slug}, season={season}, episode={episode}, language={language}, "

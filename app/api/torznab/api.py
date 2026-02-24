@@ -106,7 +106,12 @@ def _coerce_non_negative_int(value: object) -> Optional[int]:
 
 
 def _ordered_unique(values: List[str]) -> List[str]:
-    """Return de-duplicated, non-empty strings while preserving original order."""
+    """
+    Produce a list of unique, non-empty strings from the input while preserving their original order.
+    
+    Returns:
+    	list (List[str]): The input values converted to trimmed strings with empty values removed and duplicates dropped, preserving first-occurrence order.
+    """
     out: List[str] = []
     seen: set[str] = set()
     for raw in values:
@@ -123,6 +128,18 @@ def _resolve_release_at(
     rec_extra: object = None,
     probe_info: object = None,
 ) -> Optional[datetime]:
+    """
+    Derives a release datetime from probe information or record extra metadata.
+    
+    Checks the provided probe_info for a release timestamp and returns it if present; if not found, attempts to extract a release timestamp from rec_extra.
+    
+    Parameters:
+        rec_extra (object): Record extra metadata (e.g., availability/alias metadata) that may contain a release timestamp.
+        probe_info (object): Probe result metadata that may include a release timestamp.
+    
+    Returns:
+        Optional[datetime]: A datetime representing the release time if present in probe_info or rec_extra, otherwise `None`.
+    """
     return release_at_from_probe_info(probe_info) or release_at_from_extra(rec_extra)
 
 
@@ -132,6 +149,19 @@ def _resolve_pubdate(
     rec_extra: object = None,
     probe_info: object = None,
 ) -> datetime:
+    """
+    Choose a publication datetime for an item, preferring a resolved release timestamp when available.
+    
+    Inspects provided record extra metadata and probe information for a release timestamp. If a release timestamp is found, that value is returned; otherwise returns the supplied default_now.
+    
+    Parameters:
+        default_now (datetime): Fallback datetime to use when no release timestamp is found.
+        rec_extra (object, optional): Stored record extra metadata that may contain release information.
+        probe_info (object, optional): Probe result information that may contain release information.
+    
+    Returns:
+        datetime: The resolved publication datetime — the release timestamp if present, otherwise `default_now`.
+    """
     return (
         _resolve_release_at(rec_extra=rec_extra, probe_info=probe_info) or default_now
     )
@@ -143,6 +173,18 @@ def _merge_extra_with_release(
     rec_extra: object = None,
     probe_info: object = None,
 ) -> Optional[dict]:
+    """
+    Return a copy of `base_extra` augmented with a derived `release_at` timestamp when available.
+    
+    Parameters:
+        base_extra (Optional[dict]): Base extra metadata to merge into. If `None`, no base metadata is available.
+        rec_extra (object): Record extra metadata that may contain a release timestamp or related hints.
+        probe_info (object): Probe result object that may include a release timestamp key.
+    
+    Returns:
+        Optional[dict]: A dictionary containing the merged metadata. If a release time can be derived from `rec_extra` or `probe_info`,
+        the result will include a `release_at` entry; otherwise the result is `base_extra` (or `None` if `base_extra` was `None`).
+    """
     return merge_extra_with_release_at(
         base_extra=base_extra,
         release_at=_resolve_release_at(rec_extra=rec_extra, probe_info=probe_info),
@@ -150,7 +192,12 @@ def _merge_extra_with_release(
 
 
 def _cache_get_term_tvdb(term: str) -> Optional[int]:
-    """Return cached tvdb id for a SkyHook search term when entry is fresh."""
+    """
+    Get the cached TVDB ID for a SkyHook search term if the cache entry is still valid.
+    
+    Returns:
+        The cached TVDB ID if present and not expired, `None` otherwise.
+    """
     now = time.time()
     with _TVSEARCH_SKYHOOK_CACHE_LOCK:
         entry = _TVSEARCH_TERM_TO_TVDB_CACHE.get(term)
@@ -477,7 +524,22 @@ def _probe_episode_available_for_discovery(
     site_found: str,
 ) -> bool:
     """
-    Probe whether an episode is available in at least one candidate language.
+    Determine whether the specified episode is available in at least one candidate language.
+    
+    This checks cached availability first and, if not fresh, probes providers for quality/availability.
+    Probe results are upserted into the availability store (via tn_module.upsert_availability), so this function has a side effect of persisting discovered availability and metadata.
+    
+    Parameters:
+        tn_module: Provider module implementing list_available_languages_cached, get_availability,
+            probe_episode_quality, and upsert_availability.
+        session: Database/session object used by tn_module for cached reads and upserts.
+        slug (str): Series identifier.
+        season_i (int): Season number.
+        episode_i (int): Episode number.
+        site_found (str): Catalogue/site identifier to scope language discovery and probes.
+    
+    Returns:
+        bool: `true` if the episode is found available in any candidate language, `false` otherwise.
     """
     cached_langs = tn_module.list_available_languages_cached(
         session,
@@ -669,27 +731,27 @@ def _try_mapped_special_probe(
     Optional[datetime],
 ]:
     """
-    Probe availability and quality for an AniWorld special that maps to a different source episode, using cached availability when possible.
-
+    Probe availability and quality for an AniWorld special that maps to a different source episode and return availability, quality metadata, mapping coordinates, and an optional release timestamp.
+    
     Parameters:
-        tn_module: Provider module exposing `get_availability` and `probe_episode_quality` used to fetch cached availability or probe live quality.
-        session (Session): Database/session object used by `get_availability`.
+        tn_module: Provider module offering `get_availability` and `probe_episode_quality`.
+        session (Session): Database/session used by `get_availability`.
         slug (str): Show identifier used for probing.
-        lang (str): Language to probe (e.g., "German Dub").
-        site_found (str): Catalogue site name where the source episode is hosted.
-        special_map: Mapping object containing `source_season`, `source_episode`, `alias_season`, and `alias_episode` that describe the source coordinates and their alias.
-
+        lang (str): Language code or label to probe (e.g., "German Dub").
+        site_found (str): Catalogue site where the mapped source episode is hosted.
+        special_map: Object with `source_season`, `source_episode`, `alias_season`, and `alias_episode` describing the mapping.
+    
     Returns:
         tuple: (
-            available (bool): `True` if the source episode is available, `False` otherwise,
-            height (Optional[int]): video height in pixels if known, otherwise `None`,
-            vcodec (Optional[str]): video codec identifier if known, otherwise `None`,
-            provider (Optional[str]): provider name that supplied the quality info if known, otherwise `None`,
+            available (bool): True if the mapped source episode is available, False otherwise,
+            height (Optional[int]): reported video height in pixels, or `None` if unknown,
+            vcodec (Optional[str]): reported video codec identifier, or `None` if unknown,
+            provider (Optional[str]): provider name that supplied quality info, or `None`,
             source_season (int): season number of the mapped source episode,
             source_episode (int): episode number of the mapped source episode,
-            alias_season (int): alias season number requested,
-            alias_episode (int): alias episode number requested,
-            release_at (Optional[datetime]): parsed release timestamp in UTC when available
+            alias_season (int): alias (requested) season number,
+            alias_episode (int): alias (requested) episode number,
+            release_at (Optional[datetime]): UTC release timestamp when available, otherwise `None`
         )
     """
     source_season = special_map.source_season
@@ -777,12 +839,30 @@ def emit_tvsearch_episode_items(
     fast_episode_languages: Optional[List[str]] = None,
 ) -> tuple[int, bool]:
     """
-    Emit tvsearch RSS items for one requested season/episode pair.
-
+    Emit RSS items for a single TV episode request (season/episode) into the provided channel.
+    
+    Emits magnet and optional STRM items for available languages, upserts availability records via the provided tn_module, and uses cached, discovered, or live-probed quality information to determine availability, release metadata, and pubdate. Iteration respects max_items and STRM_FILES_MODE and may consult special-episode mappings for certain sites.
+    
+    Parameters:
+        tn_module: Provider module exposing availability, probing, magnet and title builders, and upsert functions.
+        session: Database/session object used by tn_module for cache reads and upserts.
+        channel: XML channel element to which RSS item elements will be appended.
+        slug: Series identifier/slug to query and emit items for.
+        site_found: Source site identifier used for lookups and item metadata (e.g., "aniworld.to").
+        display_title: Human-readable series title used when building release names.
+        q_str: Original query string used for potential special-episode mappings and logging.
+        request_season: Requested season number.
+        request_episode: Requested episode number.
+        ids: Supplemental identifier bundle (e.g., tvdb/tmdb/imdb) used for mapping/probing.
+        now: Fallback publication datetime used when no release timestamp is available.
+        strm_suffix: Suffix appended to titles when building STRM-mode magnet entries.
+        max_items: Optional maximum number of RSS items to emit; when reached, emission stops.
+        allow_live_probe: If true, the function may perform live provider probes for quality/availability.
+        fast_episode_languages: Optional prediscovered candidate languages to prefer before probing.
+    
     Returns:
-        tuple[int, bool]:
-            - Number of emitted RSS items.
-            - Whether emission stopped because the provided `max_items` was reached.
+        tuple[int, bool]: The number of RSS items emitted and a boolean indicating whether
+        emission stopped because max_items was reached.
     """
     cached_langs = tn_module.list_available_languages_cached(
         session,
@@ -1150,15 +1230,17 @@ def _handle_preview_search(
     strm_suffix: str = " [STRM]",
 ) -> int:
     """
-    Populate the RSS channel with preview (S01E01) search results for the given query.
-
-    Resolves the query to a series slug (optionally constrained by site), determines candidate languages, probes and upserts preview availability per language, constructs magnet (and optional STRM) links according to STRM_FILES_MODE, and adds corresponding RSS items to the provided channel.
-
+    Add preview (S01E01) search results for the given query to the provided RSS channel.
+    
     Parameters:
-        site (Optional[str]): Optional site identifier to constrain slug resolution and source-specific behavior.
+        session (Session): Database/session object used for availability lookups and upserts.
+        q_str (str): Query string to resolve into a series slug.
+        channel (xml.etree.ElementTree.Element): RSS channel element to append items to.
+        cat_id (int): Category ID to set on created RSS items.
+        site (Optional[str]): Optional site identifier to constrain slug resolution and provider selection.
         limit (Optional[int]): Maximum number of items to add; None means no explicit limit.
         strm_suffix (str): Suffix appended to release titles for STRM entries (default: " [STRM]").
-
+    
     Returns:
         int: Number of items added to the channel.
     """
@@ -1317,19 +1399,19 @@ def _handle_special_search(
     strm_suffix: str = " [STRM]",
 ) -> int:
     """
-    Generate RSS items for title-only searches that map to AniWorld "special" episodes using metadata-backed aliasing.
-
-    When the query resolves to an aniworld.to slug and a special mapping exists, this will add episode-specific RSS items whose displayed release title uses the Sonarr-facing alias season/episode (SxxEyy) while the magnet payload targets the AniWorld source season/episode. For each candidate language it probes availability, upserts availability with alias metadata, and creates magnet and optional STRM items according to STRM_FILES_MODE. Processing stops when the optional limit is reached.
-
+    Generate RSS items for title-only queries that map to AniWorld "special" episodes via metadata aliasing.
+    
+    Appends episode-specific RSS items whose displayed season/episode (alias SxxEyy) is for Sonarr while the torrent/magnet targets the mapped AniWorld source season/episode. For each candidate language the function probes availability, upserts availability with alias metadata, and creates magnet and optional STRM items until the optional limit is reached.
+    
     Parameters:
-        session (Session): Database/session object used for cached lookups and upserts.
+        session (Session): Database/session used for cached lookups and availability upserts.
         q_str (str): Title-only query string to resolve.
         channel (xml.etree.ElementTree.Element): RSS channel element to which items will be appended.
-        cat_id (int): Torznab category id to use for generated items.
+        cat_id (int): Torznab category id to assign to generated items.
         ids (SpecialIds): Identifiers (tvdb/tmdb/imdb/rid/tvmaze) used to assist special-mapping resolution.
         limit (Optional[int]): Maximum number of RSS items to add; None means no explicit limit.
         strm_suffix (str): Suffix appended to release titles for STRM-mode items.
-
+    
     Returns:
         int: Number of RSS items added to the provided channel.
     """

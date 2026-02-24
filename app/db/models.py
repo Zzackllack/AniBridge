@@ -702,13 +702,12 @@ def upsert_client_task(
     added_on: Optional[datetime] = None,
 ) -> ClientTask:
     """
-    Insert or update a ClientTask record identified by its hash.
-
+    Create or update a ClientTask record identified by its hash.
+    
     Parameters:
-        hash (str): Unique identifier for the client task (primary key).
-        site (str): Site identifier to store on the record; defaults to "aniworld.to".
-        added_on (Optional[datetime]): Optional timestamp override used for the synthetic torrent's creation/add date.
-
+        hash (str): Primary key identifying the client task.
+        added_on (Optional[datetime]): If provided, used as the task's creation/add date; converted to aware UTC. If omitted on insert, the current UTC time is used. On update, the stored `added_on` is changed only when this argument is provided.
+    
     Returns:
         ClientTask: The persisted ClientTask instance refreshed from the database.
     """
