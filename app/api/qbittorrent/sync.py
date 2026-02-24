@@ -10,24 +10,8 @@ from app.db import get_session, get_job
 
 from . import router
 from .common import CATEGORIES, public_save_path
+from .utils import _to_utc_timestamp
 from app.config import DOWNLOAD_DIR, QBIT_PUBLIC_SAVE_PATH
-
-
-def _to_utc_timestamp(dt: datetime) -> int:
-    """
-    Normalize a datetime to UTC and return its Unix timestamp in seconds.
-
-    Parameters:
-        dt (datetime): The datetime to normalize. If `dt` has no timezone information it is treated as UTC; if it has a timezone it is converted to UTC.
-
-    Returns:
-        int: Unix timestamp (seconds since the Unix epoch) of the UTC-normalized datetime.
-    """
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    else:
-        dt = dt.astimezone(timezone.utc)
-    return int(dt.timestamp())
 
 
 @router.get("/sync/maindata")

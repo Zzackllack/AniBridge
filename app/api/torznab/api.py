@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 import xml.etree.ElementTree as ET
 import threading
 import time
@@ -125,8 +125,8 @@ def _ordered_unique(values: List[str]) -> List[str]:
 
 def _resolve_release_at(
     *,
-    rec_extra: object = None,
-    probe_info: object = None,
+    rec_extra: Optional[Dict[str, Any]] = None,
+    probe_info: Optional[Dict[str, Any]] = None,
 ) -> Optional[datetime]:
     """
     Derives a release datetime from probe information or record extra metadata.
@@ -134,8 +134,8 @@ def _resolve_release_at(
     Checks the provided probe_info for a release timestamp and returns it if present; if not found, attempts to extract a release timestamp from rec_extra.
 
     Parameters:
-        rec_extra (object): Record extra metadata (e.g., availability/alias metadata) that may contain a release timestamp.
-        probe_info (object): Probe result metadata that may include a release timestamp.
+        rec_extra (Optional[Dict[str, Any]]): Record extra metadata (e.g., availability/alias metadata) that may contain a release timestamp.
+        probe_info (Optional[Dict[str, Any]]): Probe result metadata that may include a release timestamp.
 
     Returns:
         Optional[datetime]: A datetime representing the release time if present in probe_info or rec_extra, otherwise `None`.
@@ -146,8 +146,8 @@ def _resolve_release_at(
 def _resolve_pubdate(
     *,
     default_now: datetime,
-    rec_extra: object = None,
-    probe_info: object = None,
+    rec_extra: Optional[Dict[str, Any]] = None,
+    probe_info: Optional[Dict[str, Any]] = None,
 ) -> datetime:
     """
     Choose a publication datetime for an item, preferring a resolved release timestamp when available.
@@ -156,8 +156,8 @@ def _resolve_pubdate(
 
     Parameters:
         default_now (datetime): Fallback datetime to use when no release timestamp is found.
-        rec_extra (object, optional): Stored record extra metadata that may contain release information.
-        probe_info (object, optional): Probe result information that may contain release information.
+        rec_extra (Optional[Dict[str, Any]], optional): Stored record extra metadata that may contain release information.
+        probe_info (Optional[Dict[str, Any]], optional): Probe result information that may contain release information.
 
     Returns:
         datetime: The resolved publication datetime — the release timestamp if present, otherwise `default_now`.
@@ -169,20 +169,20 @@ def _resolve_pubdate(
 
 def _merge_extra_with_release(
     *,
-    base_extra: Optional[dict],
-    rec_extra: object = None,
-    probe_info: object = None,
-) -> Optional[dict]:
+    base_extra: Optional[Dict[str, Any]],
+    rec_extra: Optional[Dict[str, Any]] = None,
+    probe_info: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
     """
     Return a copy of `base_extra` augmented with a derived `release_at` timestamp when available.
 
     Parameters:
-        base_extra (Optional[dict]): Base extra metadata to merge into. If `None`, no base metadata is available.
-        rec_extra (object): Record extra metadata that may contain a release timestamp or related hints.
-        probe_info (object): Probe result object that may include a release timestamp key.
+        base_extra (Optional[Dict[str, Any]]): Base extra metadata to merge into. If `None`, no base metadata is available.
+        rec_extra (Optional[Dict[str, Any]]): Record extra metadata that may contain a release timestamp or related hints.
+        probe_info (Optional[Dict[str, Any]]): Probe result object that may include a release timestamp key.
 
     Returns:
-        Optional[dict]: A dictionary containing the merged metadata. If a release time can be derived from `rec_extra` or `probe_info`,
+        Optional[Dict[str, Any]]: A dictionary containing the merged metadata. If a release time can be derived from `rec_extra` or `probe_info`,
         the result will include a `release_at` entry; otherwise the result is `base_extra` (or `None` if `base_extra` was `None`).
     """
     return merge_extra_with_release_at(

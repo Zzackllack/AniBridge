@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import Depends, Form, HTTPException, Request
@@ -27,23 +26,7 @@ from app.utils.release_dates import release_at_from_extra
 
 from . import router
 from .common import public_save_path
-
-
-def _to_utc_timestamp(dt: datetime) -> int:
-    """
-    Convert a datetime to a UTC Unix timestamp.
-
-    Parameters:
-        dt (datetime): A naive or timezone-aware datetime. If naive, it is treated as UTC; if timezone-aware, it is converted to UTC.
-
-    Returns:
-        int: Unix timestamp in seconds since the UTC epoch.
-    """
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    else:
-        dt = dt.astimezone(timezone.utc)
-    return int(dt.timestamp())
+from .utils import _to_utc_timestamp
 
 
 @router.post("/torrents/add")

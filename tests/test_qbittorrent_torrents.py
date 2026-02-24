@@ -73,7 +73,7 @@ def test_torrents_add_aw_and_sto_prefixes(client):
     assert len(items) == 2
 
 
-def test_torrents_add_uses_cached_release_timestamp_for_added_on(client):
+def test_torrents_add_uses_cached_release_timestamp_for_added_on(client) -> None:
     """
     Verify that adding a torrent uses a cached release timestamp for the torrent's added_on field.
 
@@ -84,6 +84,7 @@ def test_torrents_add_uses_cached_release_timestamp_for_added_on(client):
 
     from app.db import engine, upsert_availability
     from app.utils.magnet import build_magnet
+    from app.utils.release_dates import RELEASE_AT_EXTRA_KEY
 
     release_at = datetime(2026, 2, 23, 19, 47, tzinfo=timezone.utc)
     with Session(engine) as s:
@@ -97,7 +98,7 @@ def test_torrents_add_uses_cached_release_timestamp_for_added_on(client):
             height=1080,
             vcodec="h264",
             provider="VOE",
-            extra={"release_at": release_at.isoformat()},
+            extra={RELEASE_AT_EXTRA_KEY: release_at.isoformat()},
             site="aniworld.to",
         )
 

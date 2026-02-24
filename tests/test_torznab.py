@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as ET
+from typing import Any
 
 
 def test_caps(client):
@@ -75,7 +76,13 @@ def test_tvsearch_happy_path(client, monkeypatch):
     assert subs_attr is not None and subs_attr.get("value") == "German"
 
 
-def test_tvsearch_uses_cached_release_timestamp_for_pubdate(client, monkeypatch):
+def test_tvsearch_uses_cached_release_timestamp_for_pubdate(
+    client: Any, monkeypatch: Any
+) -> None:
+    """Use cached release timestamp as pubDate when availability metadata has it.
+
+    This verifies tvsearch emits `pubDate` from cached `extra` release metadata.
+    """
     import app.api.torznab as tn
 
     class Rec:
@@ -84,7 +91,7 @@ def test_tvsearch_uses_cached_release_timestamp_for_pubdate(client, monkeypatch)
         height = 1080
         vcodec = "h264"
         provider = "prov"
-        extra = {"release_at": "2026-02-23T19:47:00+00:00"}
+        extra = {tn.RELEASE_AT_EXTRA_KEY: "2026-02-23T19:47:00+00:00"}
 
     monkeypatch.setattr(
         tn, "_slug_from_query", lambda q, site=None: ("aniworld.to", "slug")

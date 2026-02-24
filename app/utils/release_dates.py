@@ -1,8 +1,24 @@
+"""Release date parsing and reconciliation utilities.
+
+This module parses release date strings from text and HTML, normalizes them
+to UTC, and reconciles release timestamps across extra metadata and probe
+payloads. `BeautifulSoup` is used to parse provider HTML snippets where release
+information is embedded in text nodes and element attributes.
+
+Constants:
+    RELEASE_AT_EXTRA_KEY: Canonical key used to store release timestamps in
+        availability `extra` dictionaries.
+    PROBE_INFO_RELEASE_AT_KEY: Canonical key used to store release timestamps
+        in probe info payloads.
+    _EUROPE_BERLIN: Local timezone used when interpreting site date strings
+        that are published in Berlin local time.
+"""
+
 from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 from zoneinfo import ZoneInfo
 
 from bs4 import BeautifulSoup  # type: ignore
@@ -57,7 +73,8 @@ _WEEKDAY_PREFIX_RE = re.compile(
     re.IGNORECASE,
 )
 _PUBLISH_PREFIX_RE = re.compile(
-    r"\b(?:veröffentlicht(?:\s+bei\s+uns|\s+am)?|published(?:\s+on)?)\b\s*[:\-]?\s*",
+    r"\b(?:veröffentlicht(?:\s+bei\s+uns|\s+am)?|"
+    r"published(?:\s+on)?)\b\s*[:\-]?\s*",
     re.IGNORECASE,
 )
 _GERMAN_DMY_RE = re.compile(
@@ -198,7 +215,7 @@ def parse_release_at_from_html(html_text: str) -> Optional[datetime]:
         Optional[datetime]: The parsed release datetime in UTC if found, `None` otherwise.
     """
     soup = BeautifulSoup(html_text or "", "html.parser")
-    candidates: list[str] = []
+    candidates: List[str] = []
 
     for text_node in soup.find_all(
         string=re.compile(r"(veröffentlicht|published)", re.IGNORECASE)
@@ -291,20 +308,20 @@ def release_at_from_probe_info(info: object) -> Optional[datetime]:
 
 def merge_extra_with_release_at(
     *,
-    base_extra: Optional[dict[str, Any]],
+    base_extra: Optional[Dict[str, Any]],
     release_at: Optional[datetime],
-) -> Optional[dict[str, Any]]:
+) -> Optional[Dict[str, Any]]:
     """
     Return a shallow copy of `base_extra` augmented with a UTC ISO 8601 `release_at` timestamp when provided.
 
     Parameters:
-        base_extra (Optional[dict[str, Any]]): The original extra dictionary to copy and augment. If not a dict, it is treated as absent.
+        base_extra (Optional[Dict[str, Any]]): The original extra dictionary to copy and augment. If not a dict, it is treated as absent.
         release_at (Optional[datetime]): The datetime to store under the `release_at` key; converted to UTC and formatted as an ISO 8601 string.
 
     Returns:
-        Optional[dict[str, Any]]: If `release_at` is provided, a dict (a shallow copy of `base_extra` if it was a dict, otherwise a new dict) containing the `release_at` ISO string. If `release_at` is None, returns a shallow copy of `base_extra` when it is a dict, or `None` if `base_extra` was not a dict.
+        Optional[Dict[str, Any]]: If `release_at` is provided, a dict (a shallow copy of `base_extra` if it was a dict, otherwise a new dict) containing the `release_at` ISO string. If `release_at` is None, returns a shallow copy of `base_extra` when it is a dict, or `None` if `base_extra` was not a dict.
     """
-    extra: Optional[dict[str, Any]]
+    extra: Optional[Dict[str, Any]]
     if isinstance(base_extra, dict):
         extra = dict(base_extra)
     else:
@@ -320,20 +337,20 @@ def merge_extra_with_release_at(
 
 
 def add_release_at_to_probe_info(
-    info: Optional[dict[str, Any]],
+    info: Optional[Dict[str, Any]],
     release_at: Optional[datetime],
-) -> Optional[dict[str, Any]]:
+) -> Optional[Dict[str, Any]]:
     """
     Return a probe-info dictionary augmented with a release timestamp under the key "_anibridge_release_at".
 
     If `release_at` is None, the original `info` value is returned unchanged. If `info` is a dict it is shallow-copied before modification; if `info` is not a dict a new dict is created. The `release_at` value is converted to UTC and stored as an ISO 8601 string.
 
     Parameters:
-        info (Optional[dict[str, Any]]): Existing probe-info mapping, or None.
+        info (Optional[Dict[str, Any]]): Existing probe-info mapping, or None.
         release_at (Optional[datetime]): Release datetime to add.
 
     Returns:
-        Optional[dict[str, Any]]: The probe-info dict containing the `_anibridge_release_at` ISO 8601 UTC string, or the original `info` if `release_at` is None.
+        Optional[Dict[str, Any]]: The probe-info dict containing the `_anibridge_release_at` ISO 8601 UTC string, or the original `info` if `release_at` is None.
     """
     if release_at is None:
         return info

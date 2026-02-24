@@ -30,6 +30,7 @@ def test_availability_and_clienttask_crud(client):
         upsert_client_task,
         get_client_task,
         delete_client_task,
+        as_aware_utc,
     )
 
     with Session(engine) as s:
@@ -141,7 +142,7 @@ def test_availability_and_clienttask_crud(client):
         )
         task = get_client_task(s, "abc")
         assert task
-        assert task.added_on.replace(tzinfo=timezone.utc) == datetime(
+        assert as_aware_utc(task.added_on) == datetime(
             2026, 2, 23, 19, 47, tzinfo=timezone.utc
         )
         delete_client_task(s, "abc")

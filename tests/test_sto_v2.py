@@ -61,6 +61,11 @@ def test_parse_episode_providers_from_fixture() -> None:
 
 
 def test_parse_release_at_from_sto_html_prefers_title_timestamp() -> None:
+    """Prefer title timestamp when both title and visible text are present.
+
+    Ensures parse_release_at_from_sto_html resolves the title value and returns
+    the expected ISO 8601 UTC datetime.
+    """
     html_text = """
     <span class="flex-grow-1">
       <span title="Feb 23, 2026 20:47 Uhr">

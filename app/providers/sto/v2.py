@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urljoin
 
@@ -134,7 +135,7 @@ def parse_episode_providers(
     return providers, languages, language_names
 
 
-def parse_release_at_from_sto_html(html_text: str):
+def parse_release_at_from_sto_html(html_text: str) -> Optional[datetime]:
     """
     Extract the UTC release timestamp from S.to v2 episode HTML, if present.
 
