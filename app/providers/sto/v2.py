@@ -173,6 +173,7 @@ def enrich_episode_from_v2_html(
         - Always sets episode._anibridge_sto_v2_html to the raw provided HTML.
     """
     providers, languages, language_names = parse_episode_providers(html_text, base_url)
+    setattr(episode, "_anibridge_sto_v2_html", html_text)
     if not providers:
         logger.warning(
             "No S.to v2 providers parsed for {}", getattr(episode, "link", "<no link>")
@@ -189,7 +190,6 @@ def enrich_episode_from_v2_html(
     release_at = parse_release_at_from_sto_html(html_text)
     if release_at is not None:
         setattr(episode, "_anibridge_release_at", release_at)
-    setattr(episode, "_anibridge_sto_v2_html", html_text)
 
 
 def enrich_episode_from_v2_url(*, episode: "Episode", base_url: str) -> None:

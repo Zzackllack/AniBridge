@@ -13,8 +13,10 @@ def _to_utc_timestamp(dt: datetime) -> int:
         int: POSIX timestamp in whole seconds.
 
     Raises:
-        TypeError: If `dt` is `None` or not a datetime instance.
+        TypeError: If `dt` is not a datetime instance.
     """
+    if not isinstance(dt, datetime):
+        raise TypeError("dt must be a datetime instance")
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     else:
