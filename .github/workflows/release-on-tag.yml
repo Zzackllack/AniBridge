@@ -53,7 +53,7 @@ jobs:
           python scripts/release/generate_commit_context.py "${args[@]}"
 
       - name: Upload commit context artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-commit-context
           path: |
@@ -73,7 +73,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download commit context artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: release-commit-context
           path: release-context
@@ -99,7 +99,7 @@ jobs:
             --output release-notes/release-notes.md
 
       - name: Upload release notes artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-notes
           path: release-notes/release-notes.md
@@ -113,7 +113,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download release notes
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: release-notes
           path: release-notes
