@@ -1,4 +1,4 @@
-name: Mark stale (legacy) issues and PRs
+name: Ops / Stale Maintenance
 
 on:
   schedule:
@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   stale:
+    name: Stale Sweep
     runs-on: ubuntu-latest
     steps:
       - uses: actions/stale@v10

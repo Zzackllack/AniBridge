@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   test:
-    name: QA / Pytest
+    name: Pytest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

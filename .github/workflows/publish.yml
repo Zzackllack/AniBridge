@@ -1,4 +1,4 @@
-name: Publish to GHCR
+name: Release / GHCR Publish
 
 on:
   push:
@@ -27,6 +27,7 @@ concurrency:
 
 jobs:
   build-and-push:
+    name: Build and Push
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

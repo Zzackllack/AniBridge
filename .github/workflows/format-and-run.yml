@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   linting:
-    name: CQ / Ruff Lint
+    name: Ruff Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -80,7 +80,7 @@ jobs:
           exit 1
 
   format:
-    name: CQ / Ruff Format
+    name: Ruff Format
     runs-on: ubuntu-latest
     needs: linting
     steps:

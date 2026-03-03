@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   pylint:
-    name: QA / Pylint (> 7.5)
+    name: Pylint (> 7.5)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
