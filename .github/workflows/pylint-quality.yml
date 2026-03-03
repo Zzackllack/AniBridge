@@ -1,0 +1,66 @@
+name: QA / Pylint Score
+
+on:
+  push:
+    paths:
+      - "app/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/pylint-quality.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/pylint-quality.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pylint-quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pylint:
+    name: QA / Pylint (> 7.5)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run pylint in app/
+        working-directory: app
+        run: |
+          set -o pipefail
+          uv run pylint . | tee ../pylint-output.txt || true
+
+      - name: Enforce minimum pylint score
+        run: |
+          set -euo pipefail
+          SCORE=$(sed -nE 's/.*rated at ([0-9]+\.[0-9]+)\/10.*/\1/p' pylint-output.txt | tail -n1)
+
+          if [ -z "$SCORE" ]; then
+            echo "Could not parse pylint score from output."
+            exit 1
+          fi
+
+          echo "Parsed pylint score: $SCORE"
+
+          awk -v score="$SCORE" 'BEGIN { if (score <= 7.5) exit 1; exit 0 }' || {
+            echo "pylint score gate failed: score $SCORE is not > 7.5"
+            exit 1
+          }
+
+          echo "pylint score gate passed: score $SCORE > 7.5"

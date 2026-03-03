@@ -1,4 +1,4 @@
-name: CQ
+name: CQ / Ruff Autofix
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   linting:
-    name: Lint with Ruff
+    name: CQ / Ruff Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -80,7 +80,7 @@ jobs:
           exit 1
 
   format:
-    name: Format with Ruff
+    name: CQ / Ruff Format
     runs-on: ubuntu-latest
     needs: linting
     steps:
