@@ -15,7 +15,8 @@ services:
       - ../data/downloads:/downloads
     network_mode: 'service:vpn'
     depends_on:
-      - vpn
+      vpn:
+        condition: service_healthy
     healthcheck:
       test:
         [

@@ -71,3 +71,50 @@ def test_torrents_add_aw_and_sto_prefixes(client):
     info = client.get("/api/v2/torrents/info")
     items = info.json()
     assert len(items) == 2
+
+
+def test_torrents_add_uses_cached_release_timestamp_for_added_on(client) -> None:
+    """
+    Verify that adding a torrent uses a cached release timestamp for the torrent's added_on field.
+
+    Sets an availability record with a release_at timestamp, adds a torrent for that release, and asserts the torrent's `added_on` equals the integer Unix timestamp of the cached `release_at`.
+    """
+    from datetime import datetime, timezone
+    from sqlmodel import Session
+
+    from app.db import engine, upsert_availability
+    from app.utils.magnet import build_magnet
+    from app.utils.release_dates import RELEASE_AT_EXTRA_KEY
+
+    release_at = datetime(2026, 2, 23, 19, 47, tzinfo=timezone.utc)
+    with Session(engine) as s:
+        upsert_availability(
+            s,
+            slug="release-slug",
+            season=1,
+            episode=1,
+            language="German Dub",
+            available=True,
+            height=1080,
+            vcodec="h264",
+            provider="VOE",
+            extra={RELEASE_AT_EXTRA_KEY: release_at.isoformat()},
+            site="aniworld.to",
+        )
+
+    magnet = build_magnet(
+        title="Title Release",
+        slug="release-slug",
+        season=1,
+        episode=1,
+        language="German Dub",
+    )
+    add = client.post(
+        "/api/v2/torrents/add", data={"urls": magnet, "category": "anime"}
+    )
+    assert add.status_code == 200
+
+    info = client.get("/api/v2/torrents/info")
+    items = info.json()
+    assert len(items) == 1
+    assert items[0]["added_on"] == int(release_at.timestamp())

@@ -1,15 +1,52 @@
 from __future__ import annotations
+from datetime import datetime
 from typing import Optional, Dict, Any, List, cast
 from loguru import logger
 import yt_dlp
 
 from app.core.downloader import get_direct_url_with_fallback, build_episode
 from app.utils.naming import quality_from_info
+from app.utils.release_dates import (
+    add_release_at_to_probe_info,
+    parse_release_at_from_html,
+)
 from app.config import PROVIDER_ORDER, CATALOG_SITE_CONFIGS
 from app.utils.logger import config as configure_logger
 from app.providers.megakino.client import get_default_client
 
 configure_logger()
+
+
+def _extract_release_at_from_episode(*, ep: object) -> Optional[datetime]:
+    """
+    Extracts and caches an episode's release datetime from available HTML content.
+
+    This function attempts to retrieve a cached release datetime on the episode object; if absent, it looks for stored HTML (first from the episode's `_anibridge_sto_v2_html`, then from `_html_cache.text`) and parses a release timestamp from that HTML. When a release datetime is found it is cached on the episode as `_anibridge_release_at` for future calls.
+
+    Parameters:
+        ep (object): Episode-like object that may contain `_anibridge_release_at`, `_anibridge_sto_v2_html`, or `_html_cache.text`.
+
+    Returns:
+        datetime | None: The parsed release datetime if available, otherwise `None`.
+    """
+    cached_release = getattr(ep, "_anibridge_release_at", None)
+    if cached_release is not None:
+        return cached_release
+
+    html_text = getattr(ep, "_anibridge_sto_v2_html", None)
+    if not isinstance(html_text, str):
+        response = getattr(ep, "_html_cache", None)
+        html_text = getattr(response, "text", None)
+        if not isinstance(html_text, str):
+            html_text = None
+
+    if not html_text:
+        return None
+
+    release_at = parse_release_at_from_html(html_text)
+    if release_at is not None:
+        setattr(ep, "_anibridge_release_at", release_at)
+    return release_at
 
 
 def probe_episode_quality_once(
@@ -60,10 +97,10 @@ def probe_episode_quality(
     site: str = "aniworld.to",
 ) -> tuple[bool, Optional[int], Optional[str], Optional[str], Dict[str, Any] | None]:
     """
-    Probe whether an episode is available in the requested language and return the provider used along with reported video quality.
+    Determine whether an episode is available in the requested language and identify the provider and reported video quality.
 
     Parameters:
-        slug (str): Episode identifier (series slug).
+        slug (str): Series identifier.
         season (int): Season number.
         episode (int): Episode number.
         language (str): Desired audio/subtitle language code.
@@ -72,12 +109,12 @@ def probe_episode_quality(
         site (str): Site identifier used when building the episode object.
 
     Returns:
-        tuple[bool, Optional[int], Optional[str], Optional[str], Dict[str, Any] | None]:
-            - available (bool): True if a provider yielded playable metadata for the requested language, False otherwise.
-            - height (Optional[int]): Reported video height in pixels, or None if unavailable.
-            - vcodec (Optional[str]): Reported video codec string, or None if unavailable.
-            - provider_used (Optional[str]): Name of the provider that succeeded, or None if none succeeded.
-            - raw_info (Dict[str, Any] | None): Raw metadata returned by the probe, or None if unavailable.
+        tuple:
+            available (bool): True if a provider yielded playable metadata for the requested language, False otherwise.
+            height (Optional[int]): Reported video height in pixels, or None if unavailable.
+            vcodec (Optional[str]): Reported video codec string, or None if unavailable.
+            provider_used (Optional[str]): Name of the provider that succeeded, or None if none succeeded.
+            raw_info (Dict[str, Any] | None): Raw metadata returned by the probe (may include augmented release timestamp), or None if unavailable.
     """
     logger.info(
         f"Probing episode quality for slug={slug}, season={season}, episode={episode}, language={language}, "
@@ -126,6 +163,8 @@ def probe_episode_quality(
             )
             logger.debug(f"Got direct URL: {direct} (chosen provider: {chosen})")
             h, vc, info = probe_episode_quality_once(direct, timeout=timeout)
+            release_at = _extract_release_at_from_episode(ep=ep)
+            info = add_release_at_to_probe_info(info, release_at)
             logger.info(
                 f"Provider '{chosen}' succeeded: available=True, height={h}, vcodec={vc}"
             )

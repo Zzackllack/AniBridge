@@ -19,11 +19,14 @@ from app.db import (
     get_client_task,
     delete_client_task,
     get_job,
+    get_availability,
 )
 from app.core.scheduler import schedule_download, cancel_job
+from app.utils.release_dates import release_at_from_extra
 
 from . import router
 from .common import public_save_path
+from .utils import _to_utc_timestamp
 
 
 @router.post("/torrents/add")
@@ -107,6 +110,28 @@ def torrents_add(
     if not savepath:
         savepath = str(DOWNLOAD_DIR)
     published_savepath = QBIT_PUBLIC_SAVE_PATH or savepath
+    added_on = None
+    try:
+        availability = get_availability(
+            session,
+            slug=slug,
+            season=season,
+            episode=episode,
+            language=language,
+            site=site,
+        )
+        if availability is not None:
+            added_on = release_at_from_extra(availability.extra)
+    except Exception as exc:  # pragma: no cover - defensive fallback
+        logger.debug(
+            "Could not resolve release timestamp for {} S{}E{} {} on {}: {}",
+            slug,
+            season,
+            episode,
+            language,
+            site,
+            exc,
+        )
 
     upsert_client_task(
         session,
@@ -121,6 +146,7 @@ def torrents_add(
         category=category,
         job_id=job_id,
         state="queued" if paused else "downloading",
+        added_on=added_on,
     )
     logger.success(
         "Torrent task upserted for hash={}, state={}, site={}".format(
@@ -136,7 +162,18 @@ def torrents_info(
     filter: Optional[str] = None,
     category: Optional[str] = None,
 ):
-    """List torrents (ClientTasks) in qBittorrent-compatible subset."""
+    """
+    Produce a qBittorrent-compatible list of client tasks and their current status.
+
+    Parameters:
+        filter (Optional[str]): Optional filter string (currently unused).
+        category (Optional[str]): If provided, include only tasks whose category exactly matches this value.
+
+    Returns:
+        JSONResponse: A JSON array of objects describing each torrent. Each object contains:
+            hash, name, state, progress, dlspeed, upspeed, eta, category, save_path,
+            content_path, added_on, completion_on, size, num_seeds, num_leechs.
+    """
     logger.debug("Fetching torrents info.")
     from sqlmodel import select
     from app.db import ClientTask
@@ -206,8 +243,8 @@ def torrents_info(
                 "category": r.category or "",
                 "save_path": save_path_val,
                 "content_path": content_path or "",
-                "added_on": int(r.added_on.timestamp()),
-                "completion_on": int((r.completion_on or r.added_on).timestamp()),
+                "added_on": _to_utc_timestamp(r.added_on),
+                "completion_on": _to_utc_timestamp(r.completion_on or r.added_on),
                 "size": int(size or 0),
                 "num_seeds": 0,
                 "num_leechs": 0,
@@ -262,7 +299,21 @@ def torrents_files(session: Session = Depends(get_session), hash: str = ""):
 
 @router.get("/torrents/properties")
 def torrents_properties(session: Session = Depends(get_session), hash: str = ""):
-    """Minimal /torrents/properties implementation used by Sonarr after completion."""
+    """
+    Return torrent property information expected by Sonarr for a completed or in-progress torrent.
+
+    Parameters:
+        hash (str): Torrent info-hash (case-insensitive); required.
+
+    Returns:
+        dict: JSON-serializable mapping of torrent properties (e.g., save_path, creation_date, piece_size, total_downloaded, time_elapsed, seeding_time, addition_date, completion_date, created_by).
+
+    Raises:
+        HTTPException: 400 if `hash` is missing or empty; 404 if no matching client task is found.
+
+    Notes:
+        - `creation_date`, `addition_date`, and `completion_date` are UTC Unix timestamps.
+    """
     import os
     import time
 
@@ -287,8 +338,8 @@ def torrents_properties(session: Session = Depends(get_session), hash: str = "")
         total_size = int(job.total_bytes)
 
     now = int(time.time())
-    addition_date = int(rec.added_on.timestamp())
-    completion_date = int((rec.completion_on or rec.added_on).timestamp())
+    addition_date = _to_utc_timestamp(rec.added_on)
+    completion_date = _to_utc_timestamp(rec.completion_on or rec.added_on)
     seeding_time = max(0, now - completion_date) if rec.completion_on else 0
     time_elapsed = max(0, now - addition_date)
 
