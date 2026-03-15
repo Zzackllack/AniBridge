@@ -539,25 +539,15 @@ release/
 changelog.md
 !scripts/release/
 /.ruff_cache/
-
-# ───── Spec-Kit (specify) ─────
-
-# Ignore ephemeral state
 .specify/
-
-# ───── Codex overlay ─────
-
-# Ignore everything by default inside .codex
 .codex/
-
-# ───── Agent-specific local dirs (other tools) ─────
-
 .cursor/
 .claude/
 .windsurf/
 .gemini/
 .opencode/
-
+.agents/
+skills-lock.json
 /specs/context
 /specs/007-sto-v2-support/s.to-serien_by=alpha.html
 /specs/007-sto-v2-support/html
