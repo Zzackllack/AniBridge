@@ -1,5 +1,8 @@
 ---
 layout: home
+title: AniBridge Documentation
+titleTemplate: false
+description: Deploy AniBridge as a FastAPI bridge for Prowlarr, Sonarr, and qBittorrent-compatible anime automation with AniWorld, Serienstream, and megakino providers.
 
 hero:
   name: AniBridge

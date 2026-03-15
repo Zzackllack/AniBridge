@@ -4,6 +4,7 @@ import spec from "../src/openapi.json";
 
 // https://vitepress.dev/reference/site-config
 const siteUrl = "https://anibridge-docs.zacklack.de";
+const githubUrl = "https://github.com/zzackllack/AniBridge";
 const apiSidebar = useSidebar({
   spec,
   linkPrefix: "/api/operations/",
@@ -17,6 +18,12 @@ const apiOperationGroups = apiSidebar
     ...group,
     collapsed: false,
   }));
+
+function humanizePathSegment(segment: string): string {
+  return segment
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
 
 export default defineConfig({
   head: [
@@ -142,28 +149,38 @@ export default defineConfig({
     const pageDescription =
       description || siteConfig.site.description || "AniBridge documentation";
     const lastUpdated = pageData.lastUpdated;
+    const isHomePage = pathname === "/";
     // Build breadcrumb list from path parts
     const path = url.replace(siteUrl, "");
     const parts = path.split("/").filter(Boolean);
     const breadcrumbItems = parts.map((p, i) => ({
       "@type": "ListItem",
       position: i + 1,
-      name: p,
+      name: humanizePathSegment(p),
       item: `${siteUrl}/${parts.slice(0, i + 1).join("/")}`,
     }));
-    const tags: HeadConfig[] = [
-      ["link", { rel: "canonical", href: url }],
-      ["link", { rel: "alternate", hreflang: "en", href: url }],
-      ["meta", { property: "og:url", content: url }],
-      ["meta", { property: "og:title", content: pageTitle }],
-      ["meta", { property: "og:description", content: pageDescription }],
-      ["meta", { name: "twitter:title", content: pageTitle }],
-      ["meta", { name: "twitter:description", content: pageDescription }],
-      // Page-level structured data: TechArticle + Breadcrumbs
-      [
-        "script",
-        { type: "application/ld+json" },
-        JSON.stringify({
+    const pageSchema = isHomePage
+      ? {
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "AniBridge",
+          applicationCategory: "DeveloperApplication",
+          operatingSystem: "Docker, Linux",
+          description: pageDescription,
+          url,
+          downloadUrl: githubUrl,
+          offers: {
+            "@type": "Offer",
+            price: "0",
+            priceCurrency: "USD",
+          },
+          publisher: {
+            "@type": "Organization",
+            name: "AniBridge",
+            url: siteUrl,
+          },
+        }
+      : {
           "@context": "https://schema.org",
           "@type": "TechArticle",
           headline: pageData.title || siteConfig.site.title || "AniBridge Docs",
@@ -174,6 +191,11 @@ export default defineConfig({
             ? new Date(lastUpdated).toISOString()
             : undefined,
           mainEntityOfPage: url,
+          isPartOf: {
+            "@type": "WebSite",
+            name: "AniBridge Docs",
+            url: `${siteUrl}/`,
+          },
           publisher: {
             "@type": "Organization",
             name: "AniBridge",
@@ -183,7 +205,23 @@ export default defineConfig({
               url: `${siteUrl}/favicon.svg`,
             },
           },
-        }),
+        };
+    const tags: HeadConfig[] = [
+      ["link", { rel: "canonical", href: url }],
+      ["link", { rel: "alternate", hreflang: "en", href: url }],
+      ["link", { rel: "alternate", hreflang: "x-default", href: url }],
+      ["meta", { property: "og:url", content: url }],
+      ["meta", { property: "og:title", content: pageTitle }],
+      ["meta", { property: "og:description", content: pageDescription }],
+      ["meta", { property: "og:image:alt", content: "AniBridge logo" }],
+      ["meta", { name: "twitter:title", content: pageTitle }],
+      ["meta", { name: "twitter:description", content: pageDescription }],
+      ["meta", { name: "author", content: "AniBridge contributors" }],
+      // Page-level structured data: TechArticle + Breadcrumbs
+      [
+        "script",
+        { type: "application/ld+json" },
+        JSON.stringify(pageSchema),
       ],
       [
         "script",
@@ -197,7 +235,7 @@ export default defineConfig({
                 {
                   "@type": "ListItem",
                   position: 1,
-                  name: "home",
+                  name: "Home",
                   item: `${siteUrl}/`,
                 },
               ],

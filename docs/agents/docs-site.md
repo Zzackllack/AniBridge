@@ -42,7 +42,7 @@
 - Preview URLs: `preview_urls = true` in `wrangler.toml` (required for temporary
   preview links).
 - Build command (Wrangler):
-  - `npm --prefix docs ci --no-audit --no-fund && npm --prefix docs run build`
+  - `git fetch --unshallow --tags 2>/dev/null || git fetch --tags --depth=2147483647 2>/dev/null || true && npm --prefix docs ci --no-audit --no-fund && npm --prefix docs run build`
 - Assets directory: `docs/.vitepress/dist` (binding `ASSETS`).
 - Static assets are configured with `run_worker_first = true` so
   canonical/SEO middleware in the Worker runs on every request.
@@ -50,6 +50,17 @@
 - Worker enforces permanent canonical redirects (`.html`, `/index.html`,
   trailing slash -> clean URL) and sets SEO headers (`X-Robots-Tag`,
   sitemap `Link`) for crawl/index consistency.
+- For search indexing, keep the docs hostname free of Cloudflare challenge or
+  bot-mitigation features that inject `/cdn-cgi/challenge-platform/*` scripts
+  into HTML. If Bot Fight Mode, Super Bot Fight Mode, JavaScript Detections, or
+  custom WAF challenges are enabled for `anibridge-docs.zacklack.de`, disable
+  them for this hostname or add an explicit skip rule for verified search engine
+  crawlers. Search Console URL inspection can succeed while indexing still
+  stalls when Google sees challenge-modified HTML.
+- If every page shows the same `lastUpdated` timestamp after deployment, the
+  build environment is likely using a shallow clone or lacks Git history.
+  VitePress reads per-file timestamps from `git log -1`, so the docs build must
+  fetch full history before `vitepress build`.
 - Cloudflare PR comments are managed by the Cloudflare GitHub app/integration.
   To include preview links in those comments, configure the Cloudflare Builds
   deploy command to `npx wrangler versions upload` (instead of `wrangler deploy`).
