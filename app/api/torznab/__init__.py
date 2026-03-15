@@ -43,6 +43,7 @@ from app.db import (  # noqa: E402
     list_cached_episode_numbers_for_season,
     upsert_availability,
 )
+from app.utils.release_dates import RELEASE_AT_EXTRA_KEY  # noqa: E402
 
 __all__ = [
     "router",
@@ -69,4 +70,5 @@ __all__ = [
     "list_available_languages_cached",
     "list_cached_episode_numbers_for_season",
     "upsert_availability",
+    "RELEASE_AT_EXTRA_KEY",
 ]

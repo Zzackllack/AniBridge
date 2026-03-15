@@ -5,6 +5,7 @@ from app.providers.sto.v2 import (
     parse_episode_providers,
     parse_language_id,
 )
+from app.utils.release_dates import parse_release_at_from_html
 
 
 def _read_episode_fixture() -> str:
@@ -57,3 +58,23 @@ def test_parse_episode_providers_from_fixture() -> None:
     assert 2 in languages
     assert "German Dub" in language_names
     assert "English Dub" in language_names
+
+
+def test_parse_release_at_from_sto_html_prefers_title_timestamp() -> None:
+    """Prefer title timestamp when both title and visible text are present.
+
+    Ensures parse_release_at_from_html resolves the title value and returns
+    the expected ISO 8601 UTC datetime.
+    """
+    html_text = """
+    <span class="flex-grow-1">
+      <span title="Feb 23, 2026 20:47 Uhr">
+        Veröffentlicht am February 23, 2026
+      </span>
+    </span>
+    """
+
+    parsed = parse_release_at_from_html(html_text)
+
+    assert parsed is not None
+    assert parsed.isoformat() == "2026-02-23T19:47:00+00:00"
