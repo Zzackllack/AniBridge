@@ -13,9 +13,9 @@
     "vue": "^3.5.30"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260316.1",
+    "@cloudflare/workers-types": "^4.20260317.1",
     "vite": "^8.0.0",
     "vitepress": "2.0.0-alpha.16",
-    "vitepress-openapi": "^0.1.17"
+    "vitepress-openapi": "^0.1.18"
   }
 }
