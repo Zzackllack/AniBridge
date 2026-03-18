@@ -13,7 +13,6 @@ Provider = Literal[
     "Vidmoly",
     "Streamtape",
     "LoadX",
-    "SpeedFiles",
     "Luluvdo",
 ]
 # Callback invoked with yt-dlp progress dictionaries.

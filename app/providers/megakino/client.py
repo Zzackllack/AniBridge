@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup  # type: ignore
 from loguru import logger
 
+from app.utils.aniworld_compat import prepare_aniworld_home
 from app.utils.http_client import get as http_get
 from app.utils.domain_resolver import get_megakino_base_url
 from app.config import MEGAKINO_TITLES_REFRESH_HOURS
@@ -456,6 +457,7 @@ def _extract_provider_direct(url: str) -> Optional[str]:
         str | None: The direct media URL produced by the provider extractor, or `None` if no extractor matches or extraction fails.
     """
     host = urlparse(url).netloc.lower()
+    prepare_aniworld_home()
     try:
         if "voe" in host:
             from aniworld.extractors.provider.voe import (  # type: ignore
@@ -488,11 +490,11 @@ def _extract_provider_direct(url: str) -> Optional[str]:
 
             return get_direct_link_from_vidmoly(url)
         if "speedfiles" in host:
-            from aniworld.extractors.provider.speedfiles import (  # type: ignore
-                get_direct_link_from_speedfiles,
+            logger.warning(
+                "SpeedFiles extractor was removed from aniworld>=4; skipping {}",
+                url,
             )
-
-            return get_direct_link_from_speedfiles(url)
+            return None
         if "loadx" in host:
             from aniworld.extractors.provider.loadx import (  # type: ignore
                 get_direct_link_from_loadx,

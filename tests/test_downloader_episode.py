@@ -21,6 +21,75 @@ def test_build_episode_accepts_season_zero_for_movies(stub_aniworld_parser):
     assert episode.link.endswith("/anime/stream/kaguya-sama-love-is-war/filme/film-1")
 
 
+def test_build_episode_supports_aniworld_v4_api(monkeypatch):
+    import importlib
+    import sys
+    import types
+    from enum import Enum
+
+    class Audio(Enum):
+        GERMAN = "German"
+
+    class Subtitles(Enum):
+        NONE = "None"
+
+    lang_tuple = (Audio.GERMAN, Subtitles.NONE)
+
+    class FakeSession:
+        def get(self, url: str):
+            return types.SimpleNamespace(url=f"{url}/resolved")
+
+    class FakeAniworldEpisode:
+        def __init__(self, *, url: str):
+            self.url = url
+            self.provider_data = types.SimpleNamespace(
+                _data={lang_tuple: {"VOE": "https://aniworld.to/redirect/123"}}
+            )
+
+        def provider_link(self, language, provider):
+            return self.provider_data._data[language][provider]
+
+    fake_models = types.ModuleType("aniworld.models")
+    fake_models.AniworldEpisode = FakeAniworldEpisode
+    fake_models.SerienstreamEpisode = FakeAniworldEpisode
+
+    fake_config = types.ModuleType("aniworld.config")
+    fake_config.GLOBAL_SESSION = FakeSession()
+    fake_config.LANG_KEY_MAP = {"1": lang_tuple}
+    fake_config.LANG_LABELS = {"1": "German Dub"}
+    fake_config.INVERSE_LANG_LABELS = {"German Dub": "1"}
+    fake_config.INVERSE_LANG_KEY_MAP = {lang_tuple: "1"}
+
+    fake_extractors = types.ModuleType("aniworld.extractors")
+    fake_extractors.provider_functions = {
+        "get_direct_link_from_voe": lambda url: f"{url}/master.m3u8"
+    }
+
+    monkeypatch.setitem(sys.modules, "aniworld.models", fake_models)
+    monkeypatch.setitem(sys.modules, "aniworld.config", fake_config)
+    monkeypatch.setitem(sys.modules, "aniworld.extractors", fake_extractors)
+
+    sys.modules.pop("app.core.downloader.episode", None)
+    episode_module = importlib.import_module("app.core.downloader.episode")
+
+    episode = episode_module.build_episode(
+        slug="kaguya-sama-love-is-war",
+        season=0,
+        episode=1,
+        site="aniworld.to",
+    )
+
+    assert episode.slug == "kaguya-sama-love-is-war"
+    assert episode.season == 0
+    assert episode.episode == 1
+    assert episode.language_name == ["German Dub"]
+    assert episode.link.endswith("/anime/stream/kaguya-sama-love-is-war/filme/film-1")
+    assert (
+        episode.get_direct_link("VOE", "German Dub")
+        == "https://aniworld.to/redirect/123/resolved/master.m3u8"
+    )
+
+
 def test_download_episode_generates_s00e_hint(
     stub_aniworld_parser, monkeypatch, tmp_path: Path
 ):

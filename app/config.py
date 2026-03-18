@@ -278,11 +278,9 @@ for site in CATALOG_SITES_LIST:
     CATALOG_SITE_CONFIGS[site] = deepcopy(base_cfg)
 
 # ---- Provider-Fallback ----
-# Kommagetrennte Liste, z. B. "VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza"
+# Kommagetrennte Liste, z. B. "VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza"
 # Reihenfolge = Priorität
-_default_order = (
-    "VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza"
-)
+_default_order = "VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza"
 _raw = os.getenv("PROVIDER_ORDER", _default_order)
 logger.debug(f"PROVIDER_ORDER raw string: {_raw}")
 
