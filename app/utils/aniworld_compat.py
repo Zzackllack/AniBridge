@@ -18,7 +18,9 @@ def prepare_aniworld_home() -> Path:
             home_path.mkdir(parents=True, exist_ok=True)
             return home_path
         except OSError:
-            logger.debug("Configured HOME is not writable for aniworld: {}", current_home)
+            logger.debug(
+                "Configured HOME is not writable for aniworld: {}", current_home
+            )
 
     fallback_home = DATA_DIR / "aniworld-home"
     fallback_home.mkdir(parents=True, exist_ok=True)
