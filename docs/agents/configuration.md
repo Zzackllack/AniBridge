@@ -10,7 +10,7 @@ AniBridge centralizes configuration in `app/config.py`. Values are derived from 
 - Downloader: `PROVIDER_ORDER`, `MAX_CONCURRENCY`, `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC`, `DOWNLOADS_TTL_HOURS`, `CLEANUP_SCAN_INTERVAL_MIN`
 - STRM: `STRM_FILES_MODE`, `STRM_PROXY_*`
 - Networking policy: external VPN/VPN-sidecar routing only + `PUBLIC_IP_CHECK_*`
-- Provider order default: `VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza`
+- Provider order default: `VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza`
 - Update notifier: `ANIBRIDGE_UPDATE_CHECK`, GitHub owner/repo/token, GHCR image reference
 - Logging: `LOG_LEVEL`, progress toggles
 
