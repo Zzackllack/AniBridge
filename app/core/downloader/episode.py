@@ -14,6 +14,16 @@ if TYPE_CHECKING:
 
 
 def _site_base_url(site: str) -> str:
+    """
+    Resolve the configured base URL for a catalogue site.
+
+    Parameters:
+        site: Catalogue site identifier such as `aniworld.to` or `s.to`.
+
+    Returns:
+        The configured base URL without a trailing slash, or a synthesized
+        `https://<site>` fallback when no site config exists.
+    """
     site_cfg = CATALOG_SITE_CONFIGS.get(site) or {}
     base_url = site_cfg.get("base_url")
     if isinstance(base_url, str) and base_url:
@@ -22,6 +32,20 @@ def _site_base_url(site: str) -> str:
 
 
 def _build_episode_link(site: str, slug: str, season: int, episode: int) -> str:
+    """
+    Build a canonical episode URL from site-specific coordinates.
+
+    Parameters:
+        site: Catalogue site identifier. `s.to` uses the Serienstream URL
+            layout; AniWorld uses `staffel-N/episode-N` or `filme/film-N`.
+        slug: Series slug.
+        season: Season number. Season `0` is treated as AniWorld film/special
+            content.
+        episode: Episode or film index within the selected season.
+
+    Returns:
+        The fully qualified episode page URL.
+    """
     if site == "s.to":
         from app.providers.sto.v2 import build_episode_url
 
@@ -34,6 +58,20 @@ def _build_episode_link(site: str, slug: str, season: int, episode: int) -> str:
 
 
 def _extract_slug_from_link(link: str, site: str) -> str:
+    """
+    Extract a series slug from an episode URL.
+
+    Parameters:
+        link: Fully qualified episode URL.
+        site: Catalogue site identifier used to choose path semantics.
+
+    Returns:
+        The parsed series slug.
+
+    Raises:
+        ValueError: If the URL does not match the expected site-specific
+            structure.
+    """
     parts = [part for part in urlparse(link).path.split("/") if part]
     if site == "s.to":
         if "serie" in parts:
@@ -48,6 +86,20 @@ def _extract_slug_from_link(link: str, site: str) -> str:
 
 
 def _extract_season_episode_from_link(link: str, site: str) -> tuple[int, int]:
+    """
+    Extract season and episode coordinates from an episode URL.
+
+    Parameters:
+        link: Fully qualified episode URL.
+        site: Catalogue site identifier. AniWorld `filme/film-N` links are
+            mapped to `(0, N)`.
+
+    Returns:
+        A tuple of `(season, episode)`.
+
+    Raises:
+        ValueError: If season/episode markers cannot be parsed from the URL.
+    """
     parts = [part for part in urlparse(link).path.split("/") if part]
     if site == "aniworld.to" and "filme" in parts:
         film_part = parts[-1]
@@ -98,7 +150,11 @@ class EpisodeCompat:
             for key in raw.keys():
                 try:
                     label = LANG_LABELS[INVERSE_LANG_KEY_MAP[key]]
-                except Exception:
+                except KeyError:
+                    logger.debug(
+                        "Skipping unknown aniworld language tuple in compatibility layer: {}",
+                        key,
+                    )
                     continue
                 if label not in seen:
                     seen.add(label)
@@ -223,7 +279,20 @@ def build_episode(
         if link:
             ep = LegacyEpisode(link=link, site=site_domain)
         else:
-            assert slug is not None and season is not None and episode is not None
+            missing = [
+                name
+                for name, value in (
+                    ("slug", slug),
+                    ("season", season),
+                    ("episode", episode),
+                )
+                if value is None
+            ]
+            if missing:
+                raise ValueError(
+                    "slug, season and episode must be provided; missing: "
+                    + ", ".join(missing)
+                )
             if site == "s.to" and isinstance(base_url, str) and base_url:
                 from app.providers.sto.v2 import build_episode_url
 
@@ -269,7 +338,20 @@ def build_episode(
 
     resolved_link = link
     if resolved_link is None:
-        assert slug is not None and season is not None and episode is not None
+        missing = [
+            name
+            for name, value in (
+                ("slug", slug),
+                ("season", season),
+                ("episode", episode),
+            )
+            if value is None
+        ]
+        if missing:
+            raise ValueError(
+                "resolved_link requires slug, season and episode; missing: "
+                + ", ".join(missing)
+            )
         resolved_link = _build_episode_link(site, slug, season, episode)
     if slug is None:
         slug = _extract_slug_from_link(resolved_link, site)

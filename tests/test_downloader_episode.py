@@ -69,8 +69,13 @@ def test_build_episode_supports_aniworld_v4_api(monkeypatch):
     monkeypatch.setitem(sys.modules, "aniworld.config", fake_config)
     monkeypatch.setitem(sys.modules, "aniworld.extractors", fake_extractors)
 
+    original_episode_module = sys.modules.get("app.core.downloader.episode")
     sys.modules.pop("app.core.downloader.episode", None)
     episode_module = importlib.import_module("app.core.downloader.episode")
+    if original_episode_module is not None:
+        monkeypatch.setitem(
+            sys.modules, "app.core.downloader.episode", original_episode_module
+        )
 
     episode = episode_module.build_episode(
         slug="kaguya-sama-love-is-war",
@@ -87,6 +92,88 @@ def test_build_episode_supports_aniworld_v4_api(monkeypatch):
     assert (
         episode.get_direct_link("VOE", "German Dub")
         == "https://aniworld.to/redirect/123/resolved/master.m3u8"
+    )
+
+
+def test_build_episode_supports_sto_v4_api(monkeypatch):
+    import importlib
+    import sys
+    import types
+    from enum import Enum
+
+    class Audio(Enum):
+        GERMAN = "German"
+        ENGLISH = "English"
+
+    class Subtitles(Enum):
+        NONE = "None"
+
+    german_tuple = (Audio.GERMAN, Subtitles.NONE)
+    english_tuple = (Audio.ENGLISH, Subtitles.NONE)
+
+    class FakeSession:
+        def get(self, url: str):
+            return types.SimpleNamespace(url=f"{url}/resolved")
+
+    class FakeStoEpisode:
+        def __init__(self, *, url: str):
+            self.url = url
+            self.provider_data = {
+                german_tuple: {"VOE": "https://s.to/r/123"},
+                english_tuple: {"VOE": "https://s.to/r/456"},
+            }
+
+        def _normalize_language(self, language):
+            mapping = {
+                "German Dub": german_tuple,
+                "Deutsch": german_tuple,
+                "English Dub": english_tuple,
+                "Englisch": english_tuple,
+            }
+            return mapping[language]
+
+        def provider_link(self, language, provider):
+            return self.provider_data[language][provider]
+
+    fake_models = types.ModuleType("aniworld.models")
+    fake_models.AniworldEpisode = FakeStoEpisode
+    fake_models.SerienstreamEpisode = FakeStoEpisode
+
+    fake_config = types.ModuleType("aniworld.config")
+    fake_config.GLOBAL_SESSION = FakeSession()
+
+    fake_extractors = types.ModuleType("aniworld.extractors")
+    fake_extractors.provider_functions = {
+        "get_direct_link_from_voe": lambda url: f"{url}/master.m3u8"
+    }
+
+    monkeypatch.setitem(sys.modules, "aniworld.models", fake_models)
+    monkeypatch.setitem(sys.modules, "aniworld.config", fake_config)
+    monkeypatch.setitem(sys.modules, "aniworld.extractors", fake_extractors)
+
+    original_episode_module = sys.modules.get("app.core.downloader.episode")
+    sys.modules.pop("app.core.downloader.episode", None)
+    episode_module = importlib.import_module("app.core.downloader.episode")
+    if original_episode_module is not None:
+        monkeypatch.setitem(
+            sys.modules, "app.core.downloader.episode", original_episode_module
+        )
+
+    episode = episode_module.build_episode(
+        slug="9-1-1",
+        season=1,
+        episode=5,
+        site="s.to",
+    )
+
+    assert episode.slug == "9-1-1"
+    assert episode.season == 1
+    assert episode.episode == 5
+    assert episode.language_name == ["German Dub", "English Dub"]
+    assert episode.link.endswith("/serie/9-1-1/staffel-1/episode-5")
+    assert (
+        episode.get_direct_link("VOE", "German Dub")
+        == "https://s.to/r/123/resolved/master.m3u8"
     )
 
 

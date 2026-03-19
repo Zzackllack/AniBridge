@@ -420,7 +420,7 @@ def _provider_name_from_url(url: str) -> str:
         url (str): The provider or iframe URL to inspect.
 
     Returns:
-        provider_name (str): One of the known provider identifiers (e.g., "VOE", "Doodstream", "Filemoon", "Streamtape", "Vidmoly", "SpeedFiles", "LoadX", "Luluvdo", "Vidoza"); returns "EMBED" if no known provider is detected.
+        provider_name (str): One of the known provider identifiers (e.g., "VOE", "Doodstream", "Filemoon", "Streamtape", "Vidmoly", "LoadX", "Luluvdo", "Vidoza"; `SpeedFiles` is detected but extraction is disabled); returns "EMBED" if no known provider is detected.
     """
     host = urlparse(url).netloc.lower()
     if "voe" in host:
@@ -448,7 +448,7 @@ def _extract_provider_direct(url: str) -> Optional[str]:
     """
     Determine and return a direct media URL for a provider iframe URL by selecting and invoking a provider-specific extractor.
 
-    The function inspects the host part of `url` to choose a provider extractor (e.g., Voe, Doodstream, Filemoon, Streamtape, Vidmoly, Speedfiles, Loadx, Luluvdo, Vidoza). If a matching extractor is available it is imported and called; if the host contains "gxplayer" a legacy GXPlayer extraction is attempted. Any extraction error is caught and results in `None`.
+    The function inspects the host part of `url` to choose a provider extractor (e.g., Voe, Doodstream, Filemoon, Streamtape, Vidmoly, Loadx, Luluvdo, Vidoza). If a matching extractor is available it is imported and called; if the host contains "gxplayer" a legacy GXPlayer extraction is attempted. Any extraction error is caught and results in `None`.
 
     Parameters:
         url (str): The provider iframe URL to resolve.
