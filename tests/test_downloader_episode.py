@@ -36,7 +36,7 @@ def test_build_episode_supports_aniworld_v4_api(monkeypatch):
     lang_tuple = (Audio.GERMAN, Subtitles.NONE)
 
     class FakeSession:
-        def get(self, url: str):
+        def get(self, url: str, **_kwargs):
             return types.SimpleNamespace(url=f"{url}/resolved")
 
     class FakeAniworldEpisode:
@@ -112,7 +112,7 @@ def test_build_episode_supports_sto_v4_api(monkeypatch):
     english_tuple = (Audio.ENGLISH, Subtitles.NONE)
 
     class FakeSession:
-        def get(self, url: str):
+        def get(self, url: str, **_kwargs):
             return types.SimpleNamespace(url=f"{url}/resolved")
 
     class FakeStoEpisode:

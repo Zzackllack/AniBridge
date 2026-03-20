@@ -45,6 +45,12 @@ _MEGAKINO_PROVIDER_HOSTS = (
 )
 
 
+def _is_disabled_provider_url(url: str) -> bool:
+    """Return whether a provider URL points to a disabled extractor host."""
+
+    return "speedfiles" in urlparse(url).netloc.lower()
+
+
 @dataclass
 class MegakinoSearchResult:
     """Represents a megakino search match."""
@@ -177,7 +183,9 @@ class MegakinoClient:
             headers=_megakino_headers(referer=base_url),
         )
         resp.raise_for_status()
-        providers = _extract_provider_links(resp.text)
+        providers = [
+            url for url in _extract_provider_links(resp.text) if not _is_disabled_provider_url(url)
+        ]
         if not providers:
             raise ValueError("No provider iframes found on megakino page")
         logger.debug("Megakino providers extracted: {}", providers)

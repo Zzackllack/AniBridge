@@ -214,8 +214,14 @@ class EpisodeCompat:
         prepare_aniworld_home()
         from aniworld.config import GLOBAL_SESSION  # type: ignore
         from aniworld.extractors import provider_functions  # type: ignore
+        from niquests import RequestException, Timeout  # type: ignore
 
-        provider_url = GLOBAL_SESSION.get(redirect_url).url
+        try:
+            provider_url = GLOBAL_SESSION.get(redirect_url, timeout=5).url
+        except (Timeout, RequestException) as exc:
+            raise ValueError(
+                f"Failed to resolve provider redirect for '{provider_name}' at {redirect_url}: {exc}"
+            ) from exc
         extractor = provider_functions.get(
             f"get_direct_link_from_{provider_name.lower()}"
         )

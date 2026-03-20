@@ -19,9 +19,12 @@ def prepare_aniworld_home() -> Path:
         try:
             home_path = Path(current_home).expanduser()
             home_path.mkdir(parents=True, exist_ok=True)
-            probe_path = home_path / ".anibridge-write-test"
-            probe_path.write_text("ok")
+            with tempfile.NamedTemporaryFile(dir=home_path, delete=False) as probe_file:
+                probe_path = Path(probe_file.name)
+                probe_file.write(b"ok")
             probe_path.unlink()
+            os.environ["HOME"] = str(home_path)
+            os.environ.setdefault("USERPROFILE", str(home_path))
             return home_path
         except OSError:
             logger.debug(
@@ -37,8 +40,11 @@ def prepare_aniworld_home() -> Path:
     for fallback_home in fallback_candidates:
         try:
             fallback_home.mkdir(parents=True, exist_ok=True)
-            probe_path = fallback_home / ".anibridge-write-test"
-            probe_path.write_text("ok")
+            with tempfile.NamedTemporaryFile(
+                dir=fallback_home, delete=False
+            ) as probe_file:
+                probe_path = Path(probe_file.name)
+                probe_file.write(b"ok")
             probe_path.unlink()
             os.environ["HOME"] = str(fallback_home)
             os.environ.setdefault("USERPROFILE", str(fallback_home))
