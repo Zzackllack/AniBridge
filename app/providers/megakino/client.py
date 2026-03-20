@@ -184,7 +184,9 @@ class MegakinoClient:
         )
         resp.raise_for_status()
         providers = [
-            url for url in _extract_provider_links(resp.text) if not _is_disabled_provider_url(url)
+            url
+            for url in _extract_provider_links(resp.text)
+            if not _is_disabled_provider_url(url)
         ]
         if not providers:
             raise ValueError("No provider iframes found on megakino page")
