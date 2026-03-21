@@ -47,6 +47,15 @@ docker compose up -d
 curl -sS http://localhost:8000/health
 ```
 
+For the containerized development stack in this repository, prefer:
+
+```bash
+docker compose -f docker/docker-compose.dev.yaml up --watch
+```
+
+- Compose watch syncs `app/` changes into the AniBridge container for fast iteration.
+- Build-affecting file changes still trigger a rebuild automatically.
+
 ## Behind a VPN (Docker + Gluetun)
 
 When using `network_mode: service:gluetun`, multiple containers share the same network namespace. They cannot bind the same internal port. Configure a unique port per service and expose it via the VPN container’s port mappings.

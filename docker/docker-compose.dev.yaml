@@ -5,15 +5,38 @@
 name: anibridge-dev
 services:
   anibridge:
-    build: ..
+    build:
+      context: ..
     container_name: anibridge-dev
     ports:
       - "8000:8000"
     env_file:
       - ../.env
+    environment:
+      - ANIBRIDGE_RELOAD=true
     volumes:
       - ../data:/app/data
       - ../data/downloads:/downloads
+    develop:
+      watch:
+        - action: sync
+          path: ../app
+          target: /app/app
+          ignore:
+            - __pycache__/
+            - "**/*.pyc"
+        - action: rebuild
+          path: ../pyproject.toml
+        - action: rebuild
+          path: ../uv.lock
+        - action: rebuild
+          path: ../Dockerfile
+        - action: rebuild
+          path: ../docker/entrypoint.sh
+        - action: rebuild
+          path: ../VERSION
+        - action: rebuild
+          path: ../alembic.ini
     healthcheck:
       test:
         ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]

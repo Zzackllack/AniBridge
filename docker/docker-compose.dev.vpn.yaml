@@ -5,14 +5,37 @@
 name: anibridge-dev-vpn
 services:
   anibridge:
-    build: ..
+    build:
+      context: ..
     container_name: anibridge-dev-vpn
     env_file:
     # You will need to set port to something other than 8000 in the .env file since this is already used in this stack
       - ../.env
+    environment:
+      - ANIBRIDGE_RELOAD=true
     volumes:
       - ../data:/app/data
       - ../data/downloads:/downloads
+    develop:
+      watch:
+        - action: sync
+          path: ../app
+          target: /app/app
+          ignore:
+            - __pycache__/
+            - "**/*.pyc"
+        - action: rebuild
+          path: ../pyproject.toml
+        - action: rebuild
+          path: ../uv.lock
+        - action: rebuild
+          path: ../Dockerfile
+        - action: rebuild
+          path: ../docker/entrypoint.sh
+        - action: rebuild
+          path: ../VERSION
+        - action: rebuild
+          path: ../alembic.ini
     network_mode: 'service:vpn'
     depends_on:
       - vpn

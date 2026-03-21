@@ -10,6 +10,9 @@
 
 - `uv run python -m app.main` starts the FastAPI app.
 - `uvicorn app.main:app --reload` is supported when `ANIBRIDGE_RELOAD=true`.
+- Containerized dev stack: run `docker compose -f docker/docker-compose.dev.yaml up --watch`.
+  - Compose `develop.watch` syncs `app/` changes into the running `anibridge` container.
+  - Changes to `pyproject.toml`, `uv.lock`, `Dockerfile`, `docker/entrypoint.sh`, `VERSION`, or `alembic.ini` trigger an image rebuild.
 
 ## CLI and Utilities
 

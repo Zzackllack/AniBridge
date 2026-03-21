@@ -35,3 +35,5 @@
 
 - Optional Sonarr/Prowlarr containers for end-to-end testing.
 - Shared network `anibridge-dev-net`.
+- `anibridge` enables `ANIBRIDGE_RELOAD=true` for containerized development.
+- Compose `develop.watch` syncs `app/` into `/app/app` and rebuilds the image when build inputs change.
