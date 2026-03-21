@@ -11,6 +11,9 @@
 
 - Version source: `VERSION` file.
 - `Makefile` provides `patch`, `minor`, `major` targets using `bump2version`.
+- Release targets prompt before bumping when `PUSH=ask`, print the real
+  post-bump version, and use one atomic `git push --follow-tags` step so
+  branch and tag publication cannot diverge.
 - Version bumps also update `docs/src/openapi.json` (`info.version`) and `docs/package.json` (`version`) for the docs API reference.
 - Python distributions built via `uv run --with build python -m build`.
 - PyInstaller builds use `anibridge.spec` and `hooks/hook-fake_useragent.py`.
@@ -29,16 +32,18 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
 1. Run tests: `pytest`.
 2. Update docs as needed.
 3. Bump version: `make patch|minor|major`.
-4. Commit and push changes.
-5. Tag release: `make tag` or `git tag -a vX.Y.Z`.
-6. Push tags to trigger `release-on-tag.yml` and `publish.yml`.
-7. Draft release notes including migrations/API/compliance notes.
-8. Verify GHCR image tags published.
-9. Deploy docs with `wrangler publish` after a successful build.
+4. If you used `PUSH=false`, push the resulting commit and annotated tag
+   together with `git push --atomic --follow-tags origin HEAD`.
+5. `release-on-tag.yml` and `publish.yml` trigger from the pushed tag.
+6. Verify the GitHub release has generated notes and uploaded artifacts.
+7. Verify GHCR image tags published.
+8. Deploy docs with `wrangler publish` after a successful build.
 
 ## CI/CD Workflows
 
 - `tests.yml`: runs `uv sync --frozen` and executes pytest.
 - `format-and-run.yml`: runs `ruff format app` and auto-commits formatting changes.
 - `publish.yml`: builds and pushes GHCR images.
-- `release-on-tag.yml`: builds Python dists and PyInstaller artifacts on `v*` tags.
+- `release-on-tag.yml`: builds Python dists and PyInstaller artifacts on
+  `v*` tags; artifact upload waits for generated release notes so failed
+  note generation cannot publish a partial release entry.
