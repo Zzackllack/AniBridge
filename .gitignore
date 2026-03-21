@@ -551,6 +551,6 @@ skills-lock.json
 /specs/context
 /specs/007-sto-v2-support/s.to-serien_by=alpha.html
 /specs/007-sto-v2-support/html
-/.github/chatmodes/**
-/.github/instructions/**
-/.github/prompts/**
+/.github/chatmodes/
+/.github/instructions/
+/.github/prompts/
