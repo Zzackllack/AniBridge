@@ -194,12 +194,52 @@ class EpisodeCompat:
             )
         return LANG_KEY_MAP[key]
 
+    def _get_provider_redirect_url(self, language: Any, provider_name: str) -> str:
+        provider_data = getattr(self._backend, "provider_data", None)
+        raw = getattr(provider_data, "_data", provider_data)
+        if not isinstance(raw, dict):
+            raise ValueError("Episode backend has no provider data")
+
+        provider_dict = raw.get(language)
+        if provider_dict is None and isinstance(language, tuple) and len(language) == 2:
+            for key, candidate in raw.items():
+                if not (isinstance(key, tuple) and len(key) == 2):
+                    continue
+                try:
+                    if getattr(key[0], "value", key[0]) == getattr(
+                        language[0], "value", language[0]
+                    ) and getattr(key[1], "value", key[1]) == getattr(
+                        language[1], "value", language[1]
+                    ):
+                        provider_dict = candidate
+                        break
+                except Exception:
+                    continue
+
+        if not isinstance(provider_dict, dict):
+            raise ValueError("No provider data found for requested backend language")
+
+        redirect_url = provider_dict.get(provider_name)
+        if not redirect_url:
+            raise ValueError(
+                f"Provider '{provider_name}' not found for requested backend language"
+            )
+
+        return redirect_url
+
     def get_direct_link(self, provider_name: str, language: str) -> str:
         backend_language = self._normalize_language_for_backend(language)
         try:
-            redirect_url = self._backend.provider_link(backend_language, provider_name)
+            redirect_url = self._get_provider_redirect_url(
+                backend_language, provider_name
+            )
         except Exception as exc:
             available = self.available_languages
+            msg = str(exc)
+            if "Provider '" in msg and "not found" in msg:
+                raise ValueError(
+                    f"Provider '{provider_name}' not found for language '{language}' on site '{self.site}'."
+                ) from exc
             if available:
                 raise ValueError(
                     f"No provider found for language '{language}' on site '{self.site}'. Available languages: {available}"

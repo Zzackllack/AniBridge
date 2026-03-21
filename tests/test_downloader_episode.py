@@ -177,6 +177,111 @@ def test_build_episode_supports_sto_v4_api(monkeypatch):
     )
 
 
+def test_sto_v4_missing_provider_does_not_mask_available_language(monkeypatch):
+    import importlib
+    import sys
+    import types
+    from enum import Enum
+
+    class Audio(Enum):
+        GERMAN = "German"
+        ENGLISH = "English"
+
+    class Subtitles(Enum):
+        NONE = "None"
+
+    german_tuple = (Audio.GERMAN, Subtitles.NONE)
+    english_tuple = (Audio.ENGLISH, Subtitles.NONE)
+
+    class FakeSession:
+        def get(self, url: str, **_kwargs):
+            return types.SimpleNamespace(url=f"{url}/resolved")
+
+    class FakeStoEpisode:
+        def __init__(self, *, url: str):
+            self.url = url
+            self.provider_data = {
+                german_tuple: {
+                    "VOE": "https://s.to/r/voe",
+                    "Streamtape": "https://s.to/r/streamtape",
+                },
+                english_tuple: {"VOE": "https://s.to/r/eng-voe"},
+            }
+
+        def _normalize_language(self, language):
+            mapping = {
+                "German Dub": german_tuple,
+                "English Dub": english_tuple,
+            }
+            return mapping[language]
+
+        def provider_link(self, language, provider):
+            provider_dict = self.provider_data.get(language)
+            if not provider_dict:
+                raise ValueError(f"No provider data found for language: {language}")
+            url = provider_dict.get(provider)
+            if not url:
+                raise ValueError(
+                    f"Provider '{provider}' not found for language: {language}."
+                )
+            return url
+
+    fake_models = types.ModuleType("aniworld.models")
+    fake_models.AniworldEpisode = FakeStoEpisode
+    fake_models.SerienstreamEpisode = FakeStoEpisode
+
+    fake_config = types.ModuleType("aniworld.config")
+    fake_config.GLOBAL_SESSION = FakeSession()
+
+    fake_extractors = types.ModuleType("aniworld.extractors")
+    fake_extractors.provider_functions = {
+        "get_direct_link_from_voe": lambda url: f"{url}/master.m3u8",
+        "get_direct_link_from_streamtape": lambda url: f"{url}/master.m3u8",
+    }
+
+    monkeypatch.setitem(sys.modules, "aniworld.models", fake_models)
+    monkeypatch.setitem(sys.modules, "aniworld.config", fake_config)
+    monkeypatch.setitem(sys.modules, "aniworld.extractors", fake_extractors)
+
+    original_episode_module = sys.modules.get("app.core.downloader.episode")
+    sys.modules.pop("app.core.downloader.episode", None)
+    episode_module = importlib.import_module("app.core.downloader.episode")
+    if original_episode_module is not None:
+        monkeypatch.setitem(
+            sys.modules, "app.core.downloader.episode", original_episode_module
+        )
+
+    original_provider_resolution = sys.modules.get(
+        "app.core.downloader.provider_resolution"
+    )
+    sys.modules.pop("app.core.downloader.provider_resolution", None)
+    provider_resolution = importlib.import_module(
+        "app.core.downloader.provider_resolution"
+    )
+    if original_provider_resolution is not None:
+        monkeypatch.setitem(
+            sys.modules,
+            "app.core.downloader.provider_resolution",
+            original_provider_resolution,
+        )
+
+    episode = episode_module.build_episode(
+        slug="better-call-saul",
+        season=1,
+        episode=1,
+        site="s.to",
+    )
+
+    direct_url, provider = provider_resolution.get_direct_url_with_fallback(
+        episode,
+        preferred="Filemoon",
+        language="German Dub",
+    )
+
+    assert provider == "VOE"
+    assert direct_url == "https://s.to/r/voe/resolved/master.m3u8"
+
+
 def test_download_episode_generates_s00e_hint(
     stub_aniworld_parser, monkeypatch, tmp_path: Path
 ):
