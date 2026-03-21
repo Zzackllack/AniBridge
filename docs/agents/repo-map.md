@@ -3,7 +3,7 @@
 ## Repository Root
 
 - `AGENTS.md` — agent entrypoint and index.
-- `README.md` — project overview.
+- `.github/README.md` — project overview.
 - `LEGAL.md` — legal disclaimer and usage restrictions.
 - `LICENSE` — BSD 3-Clause license.
 - `VERSION` — current project version.
