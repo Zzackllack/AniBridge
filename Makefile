@@ -9,6 +9,7 @@ bump:
 
 patch:
 	uv run bump2version patch
+	echo "Version bumped to $(shell cat VERSION)"
 	# push the new commit and tag to origin so CI triggers on the pushed tag
 	@/bin/sh -c ' \
 	if [ "$(PUSH)" = "true" ]; then \
@@ -26,6 +27,7 @@ patch:
 
 minor:
 	uv run bump2version minor
+	echo "Version bumped to $(shell cat VERSION)"
 	# push the new commit and tag to origin so CI triggers on the pushed tag
 	@/bin/sh -c ' \
 	if [ "$(PUSH)" = "true" ]; then \
@@ -43,6 +45,7 @@ minor:
 
 major:
 	uv run bump2version major
+	echo "Version bumped to $(shell cat VERSION)"
 	# push the new commit and tag to origin so CI triggers on the pushed tag
 	@/bin/sh -c ' \
 	if [ "$(PUSH)" = "true" ]; then \
