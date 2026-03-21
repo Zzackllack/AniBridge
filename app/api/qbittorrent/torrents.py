@@ -143,7 +143,7 @@ def torrents_info(
     import os
 
     rows = session.exec(select(ClientTask)).all()
-    logger.info(f"Found {len(rows)} client tasks in database.")
+    logger.trace(f"Found {len(rows)} client tasks in database.")
     out: List[dict] = []
     for r in rows:
         if category and (r.category or "") != category:
@@ -213,7 +213,7 @@ def torrents_info(
                 "num_leechs": 0,
             }
         )
-    logger.success("Torrent info response generated.")
+    logger.trace("Torrent info response generated.")
     return JSONResponse(out)
 
 

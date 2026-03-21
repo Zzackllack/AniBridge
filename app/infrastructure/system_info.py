@@ -88,24 +88,24 @@ def log_full_system_report() -> None:
     try:
         # Use timezone-aware UTC timestamp (PEP 495) and render with 'Z'
         now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-        logger.info(f"SysInfo: timestamp_utc={now}")
+        logger.debug(f"SysInfo: timestamp_utc={now}")
 
         # Python / process
-        logger.info(
+        logger.debug(
             f"SysInfo: python={sys.version.split()[0]} exec={sys.executable} pid={os.getpid()} cwd={os.getcwd()}"
         )
-        logger.info(
+        logger.debug(
             f"SysInfo: argv={sys.argv} user_uid={os.getuid() if hasattr(os, 'getuid') else 'n/a'} group_gid={os.getgid() if hasattr(os, 'getgid') else 'n/a'}"
         )
 
         # OS / platform
         uname = platform.uname()
-        logger.info(
+        logger.debug(
             f"SysInfo: os={uname.system} release={uname.release} version={uname.version} machine={uname.machine} processor={uname.processor}"
         )
         try:
             plat = platform.platform()
-            logger.info(f"SysInfo: platform={plat}")
+            logger.debug(f"SysInfo: platform={plat}")
         except Exception:
             pass
 
@@ -115,14 +115,14 @@ def log_full_system_report() -> None:
                 osrel.get("PRETTY_NAME")
                 or " ".join([osrel.get("NAME", ""), osrel.get("VERSION", "")]).strip()
             )
-            logger.info(f"SysInfo: os_release={pretty} id={osrel.get('ID', '')}")
+            logger.debug(f"SysInfo: os_release={pretty} id={osrel.get('ID', '')}")
 
         # Container / cgroup
-        logger.info(f"SysInfo: in_docker={IN_DOCKER}")
+        logger.debug(f"SysInfo: in_docker={IN_DOCKER}")
         cg = _read_file("/proc/1/cgroup", max_bytes=5000)
         if cg:
             first = "|".join(cg.splitlines()[:3])
-            logger.info(f"SysInfo: cgroup_snippet={first}")
+            logger.debug(f"SysInfo: cgroup_snippet={first}")
 
         # CPU / cores
         try:
@@ -132,11 +132,11 @@ def log_full_system_report() -> None:
                 if ":" in line and line.lower().startswith("model name"):
                     model = line.split(":", 1)[1].strip()
                     break
-            logger.info(
+            logger.debug(
                 f"SysInfo: cpu_cores={os.cpu_count()} model={model or uname.processor}"
             )
         except Exception:
-            logger.info(f"SysInfo: cpu_cores={os.cpu_count()}")
+            logger.debug(f"SysInfo: cpu_cores={os.cpu_count()}")
 
         # Memory
         meminfo = _read_file("/proc/meminfo", max_bytes=5000)
@@ -148,7 +148,7 @@ def log_full_system_report() -> None:
             }
             mt = lines.get("MemTotal")
             ma = lines.get("MemAvailable") or lines.get("MemFree")
-            logger.info(f"SysInfo: mem_total={mt} mem_available={ma}")
+            logger.debug(f"SysInfo: mem_total={mt} mem_available={ma}")
 
         # Disk usage
         for label, path in (
@@ -159,7 +159,7 @@ def log_full_system_report() -> None:
             du = _disk_usage(path)
             if du:
                 t, u, f = du
-                logger.info(
+                logger.debug(
                     f"SysInfo: disk_{label} total={t} used={u} free={f} path={path}"
                 )
 
@@ -168,7 +168,7 @@ def log_full_system_report() -> None:
             hostname = socket.gethostname()
             fqdn = socket.getfqdn()
             defip = _default_route_ip()
-            logger.info(f"SysInfo: hostname={hostname} fqdn={fqdn} default_ip={defip}")
+            logger.debug(f"SysInfo: hostname={hostname} fqdn={fqdn} default_ip={defip}")
         except Exception:
             pass
         try:
@@ -176,7 +176,7 @@ def log_full_system_report() -> None:
             for name in os.listdir("/sys/class/net"):
                 ifnames.append(name)
             if ifnames:
-                logger.info(f"SysInfo: interfaces={ifnames}")
+                logger.debug(f"SysInfo: interfaces={ifnames}")
         except Exception:
             pass
 
@@ -184,7 +184,7 @@ def log_full_system_report() -> None:
         mounts = _read_file("/proc/mounts", max_bytes=20000)
         if mounts:
             first = "|".join(mounts.splitlines()[:10])
-            logger.info(f"SysInfo: mounts_snippet={first}")
+            logger.debug(f"SysInfo: mounts_snippet={first}")
 
         # Environment (masked)
         try:
