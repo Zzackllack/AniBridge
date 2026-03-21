@@ -31,7 +31,7 @@ def _build_provider() -> CatalogProvider:
         alphabet_url=STO_ALPHABET_URL,
         alphabet_html=STO_ALPHABET_HTML,
         titles_refresh_hours=STO_TITLES_REFRESH_HOURS,
-        default_languages=["German Dub", "English Dub", "German Sub"],
+        default_languages=["German Dub", "English Dub"],
         release_group=RELEASE_GROUP_STO,
     )
 

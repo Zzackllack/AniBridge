@@ -45,7 +45,6 @@ For users, this history is useful context: domain changes, blocks, or infrastruc
 - Default language candidates in AniBridge:
   - `German Dub`
   - `English Dub`
-  - `German Sub`
 
 ## Episode Provider Parsing (S.to v2)
 

@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup  # type: ignore
 from loguru import logger
 
+from app.utils.aniworld_compat import prepare_aniworld_home
 from app.utils.http_client import get as http_get
 from app.utils.domain_resolver import get_megakino_base_url
 from app.config import MEGAKINO_TITLES_REFRESH_HOURS
@@ -42,6 +43,12 @@ _MEGAKINO_PROVIDER_HOSTS = (
     "vidoza",
     "gxplayer",
 )
+
+
+def _is_disabled_provider_url(url: str) -> bool:
+    """Return whether a provider URL points to a disabled extractor host."""
+
+    return "speedfiles" in urlparse(url).netloc.lower()
 
 
 @dataclass
@@ -176,7 +183,11 @@ class MegakinoClient:
             headers=_megakino_headers(referer=base_url),
         )
         resp.raise_for_status()
-        providers = _extract_provider_links(resp.text)
+        providers = [
+            url
+            for url in _extract_provider_links(resp.text)
+            if not _is_disabled_provider_url(url)
+        ]
         if not providers:
             raise ValueError("No provider iframes found on megakino page")
         logger.debug("Megakino providers extracted: {}", providers)
@@ -419,7 +430,7 @@ def _provider_name_from_url(url: str) -> str:
         url (str): The provider or iframe URL to inspect.
 
     Returns:
-        provider_name (str): One of the known provider identifiers (e.g., "VOE", "Doodstream", "Filemoon", "Streamtape", "Vidmoly", "SpeedFiles", "LoadX", "Luluvdo", "Vidoza"); returns "EMBED" if no known provider is detected.
+        provider_name (str): One of the known provider identifiers (e.g., "VOE", "Doodstream", "Filemoon", "Streamtape", "Vidmoly", "LoadX", "Luluvdo", "Vidoza"; `SpeedFiles` is detected but extraction is disabled); returns "EMBED" if no known provider is detected.
     """
     host = urlparse(url).netloc.lower()
     if "voe" in host:
@@ -447,7 +458,7 @@ def _extract_provider_direct(url: str) -> Optional[str]:
     """
     Determine and return a direct media URL for a provider iframe URL by selecting and invoking a provider-specific extractor.
 
-    The function inspects the host part of `url` to choose a provider extractor (e.g., Voe, Doodstream, Filemoon, Streamtape, Vidmoly, Speedfiles, Loadx, Luluvdo, Vidoza). If a matching extractor is available it is imported and called; if the host contains "gxplayer" a legacy GXPlayer extraction is attempted. Any extraction error is caught and results in `None`.
+    The function inspects the host part of `url` to choose a provider extractor (e.g., Voe, Doodstream, Filemoon, Streamtape, Vidmoly, Loadx, Luluvdo, Vidoza). If a matching extractor is available it is imported and called; if the host contains "gxplayer" a legacy GXPlayer extraction is attempted. Any extraction error is caught and results in `None`.
 
     Parameters:
         url (str): The provider iframe URL to resolve.
@@ -456,6 +467,7 @@ def _extract_provider_direct(url: str) -> Optional[str]:
         str | None: The direct media URL produced by the provider extractor, or `None` if no extractor matches or extraction fails.
     """
     host = urlparse(url).netloc.lower()
+    prepare_aniworld_home()
     try:
         if "voe" in host:
             from aniworld.extractors.provider.voe import (  # type: ignore
@@ -488,11 +500,11 @@ def _extract_provider_direct(url: str) -> Optional[str]:
 
             return get_direct_link_from_vidmoly(url)
         if "speedfiles" in host:
-            from aniworld.extractors.provider.speedfiles import (  # type: ignore
-                get_direct_link_from_speedfiles,
+            logger.warning(
+                "SpeedFiles extractor was removed from aniworld>=4; skipping {}",
+                url,
             )
-
-            return get_direct_link_from_speedfiles(url)
+            return None
         if "loadx" in host:
             from aniworld.extractors.provider.loadx import (  # type: ignore
                 get_direct_link_from_loadx,

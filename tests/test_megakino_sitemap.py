@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import pytest
+
 from app.providers.megakino.client import MegakinoClient, slug_to_title
 from app.providers.megakino.sitemap import (
     MegakinoIndex,
@@ -63,3 +65,32 @@ def test_megakino_client_search_matches_tokens():
     results = client.search("Avengers Endgame 2019", limit=3)
     assert results
     assert results[0].slug == "avengers-endgame"
+
+
+def test_megakino_resolve_direct_url_filters_speedfiles(monkeypatch):
+    client = MegakinoClient(sitemap_url="http://example.com", refresh_hours=0.0)
+
+    monkeypatch.setattr(client, "resolve_url", lambda slug: "https://megakino1.to/page")
+    monkeypatch.setattr(
+        "app.providers.megakino.client.get_megakino_base_url",
+        lambda: "https://megakino1.to",
+    )
+    monkeypatch.setattr(
+        "app.providers.megakino.client._warm_megakino_session",
+        lambda base_url: None,
+    )
+    monkeypatch.setattr(
+        "app.providers.megakino.client.http_get",
+        lambda *args, **kwargs: type(
+            "Response",
+            (),
+            {"text": "<html></html>", "raise_for_status": lambda self: None},
+        )(),
+    )
+    monkeypatch.setattr(
+        "app.providers.megakino.client._extract_provider_links",
+        lambda html: ["https://speedfiles.example/embed/123"],
+    )
+
+    with pytest.raises(ValueError, match="No provider iframes found"):
+        client.resolve_direct_url("slug")

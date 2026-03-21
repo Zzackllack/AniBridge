@@ -4,6 +4,7 @@ from typing import Any
 from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
+
 from app.utils.logger import config as configure_logger
 
 # Load .env as early as possible so all downstream imports see the intended env
@@ -254,7 +255,7 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "alphabet_html": STO_ALPHABET_HTML,
         "alphabet_url": STO_ALPHABET_URL,
         "titles_refresh_hours": STO_TITLES_REFRESH_HOURS,
-        "default_languages": ["German Dub", "English Dub", "German Sub"],
+        "default_languages": ["German Dub", "English Dub"],
         "release_group": RELEASE_GROUP_STO,
     },
     "megakino": {
@@ -278,17 +279,32 @@ for site in CATALOG_SITES_LIST:
     CATALOG_SITE_CONFIGS[site] = deepcopy(base_cfg)
 
 # ---- Provider-Fallback ----
-# Kommagetrennte Liste, z. B. "VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza"
+# Kommagetrennte Liste, z. B. "VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza"
 # Reihenfolge = Priorität
-_default_order = (
-    "VOE,Filemoon,Streamtape,Vidmoly,SpeedFiles,Doodstream,LoadX,Luluvdo,Vidoza"
-)
+_default_order = "VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza"
 _raw = os.getenv("PROVIDER_ORDER", _default_order)
 logger.debug(f"PROVIDER_ORDER raw string: {_raw}")
 
 # normalisieren: split, trim, nur nicht-leere nehmen, Groß/Kleinschreibung egal
 PROVIDER_ORDER = [p.strip() for p in _raw.split(",") if p.strip()]
 logger.debug(f"PROVIDER_ORDER normalized: {PROVIDER_ORDER}")
+_VALID_PROVIDERS = {
+    "VOE",
+    "Vidoza",
+    "Doodstream",
+    "Filemoon",
+    "Vidmoly",
+    "Streamtape",
+    "LoadX",
+    "Luluvdo",
+}
+for provider_name in PROVIDER_ORDER:
+    if provider_name not in _VALID_PROVIDERS:
+        logger.warning(
+            "Unknown provider '{}' configured in PROVIDER_ORDER. Valid values: {}",
+            provider_name,
+            sorted(_VALID_PROVIDERS),
+        )
 
 # --- Parallelität ---
 # Anzahl gleichzeitiger Downloads (Thread-Pool-Größe)

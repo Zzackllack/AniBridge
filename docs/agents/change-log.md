@@ -1,5 +1,8 @@
 # Change Log
 
+- 2026-03-19: Documented the `aniworld` 4.1.1 migration, including the new
+  site-specific episode model split and the removal of `SpeedFiles` from the
+  default provider order.
 - 2026-02-23: Documented Cloudflare PR preview URL requirements and enabled
   `preview_urls` in `wrangler.toml`.
 - 2026-01-25: Refactored AGENTS.md into progressive disclosure files under `docs/agents/`.
