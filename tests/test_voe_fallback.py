@@ -52,10 +52,24 @@ def test_sto_voe_redirect_resolver_follows_nested_redirects(monkeypatch):
             self.status_code = 200
 
         def raise_for_status(self):
+            """
+            No-op replacement for Response.raise_for_status that never raises an exception.
+            
+            This method intentionally does not raise for any HTTP status and can be used on fake response objects to bypass HTTP error checking in tests.
+            """
             return None
 
     class FakeStoEpisode:
         def __init__(self, *, url: str):
+            """
+            Initialize a fake episode object with a VOE provider redirect entry.
+            
+            Sets the instance's `url` attribute to the given `url` and populates `provider_data`
+            with a mapping from `german_tuple` to a dict containing the `"VOE"` redirect token.
+            
+            Parameters:
+                url (str): The episode URL to store on the instance.
+            """
             self.url = url
             self.provider_data = {german_tuple: {"VOE": raw_redirect}}
 
@@ -143,17 +157,47 @@ def test_voe_direct_link_fallback_follows_nested_redirects(monkeypatch):
 
     class FakeResponse:
         def __init__(self, *, url: str, text: str):
+            """
+            Initialize the fake HTTP response with its final URL and body text.
+            
+            Parameters:
+                url (str): The response's final URL (after redirects).
+                text (str): The response body content, typically HTML.
+            """
             self.url = url
             self.text = text
 
         def raise_for_status(self):
+            """
+            No-op replacement for Response.raise_for_status that never raises an exception.
+            
+            This method intentionally does not raise for any HTTP status and can be used on fake response objects to bypass HTTP error checking in tests.
+            """
             return None
 
     class FakeSession:
         def __init__(self):
+            """
+            Initialize the fake session and create a list to record requested (url, timeout) pairs.
+            
+            The `calls` attribute is an empty list that will be appended with tuples `(url, timeout)` each time `get` is invoked.
+            """
             self.calls: list[tuple[str, int]] = []
 
         def get(self, url: str, **kwargs):
+            """
+            Simulated session GET that records the timeout and returns canned FakeResponse objects for two specific test URLs.
+            
+            Parameters:
+                url (str): URL requested.
+                **kwargs: Arbitrary keyword arguments; expects a `timeout` key which is recorded.
+            
+            Returns:
+                FakeResponse: For `provider_url`, a response whose text contains a script redirecting to `nested_embed_url`; for `nested_embed_url`, a response with text `"<html>final-html</html>"`.
+            
+            Raises:
+                AssertionError: If an unexpected URL is requested.
+            """
             self.calls.append((url, kwargs["timeout"]))
             if url == provider_url:
                 return FakeResponse(
@@ -245,14 +289,45 @@ def test_voe_direct_link_retries_on_transient_fetch_abort(monkeypatch):
 
     class FakeResponse:
         def __init__(self, url: str, text: str = "<html>ok</html>"):
+            """
+            Initialize a fake HTTP response used in tests.
+            
+            Parameters:
+                url (str): The response URL.
+                text (str): The response body text; defaults to "<html>ok</html>".
+            
+            Notes:
+                The instance will have a `status_code` attribute set to 200.
+            """
             self.url = url
             self.text = text
             self.status_code = 200
 
         def raise_for_status(self):
+            """
+            No-op replacement for Response.raise_for_status that never raises an exception.
+            
+            This method intentionally does not raise for any HTTP status and can be used on fake response objects to bypass HTTP error checking in tests.
+            """
             return None
 
     def _fake_requests_get(url: str, **_kwargs):
+        """
+        Simulates a requests.get call that fails once with a transient connection error then returns a recovered FakeResponse.
+        
+        Parameters:
+            url (str): Expected request URL; the function asserts it equals the test's `redirect_url`.
+            **_kwargs: Ignored keyword arguments forwarded by callers.
+        
+        Returns:
+            FakeResponse: A response whose `.url` is "https://dianaavoidthey.com/e/recovered" after the first failed attempt.
+        
+        Raises:
+            requests.ConnectionError: Raised on the first invocation to simulate a transient network failure.
+        
+        Side effects:
+            Increments `request_attempts["count"]` on each call.
+        """
         request_attempts["count"] += 1
         assert url == redirect_url
         if request_attempts["count"] == 1:
@@ -263,10 +338,28 @@ def test_voe_direct_link_retries_on_transient_fetch_abort(monkeypatch):
 
     class FakeStoEpisode:
         def __init__(self, *, url: str):
+            """
+            Initialize the fake episode with the given URL and a preset VOE provider mapping for the German Dub language.
+            
+            Parameters:
+                url (str): The episode URL to store on the instance (assigned to `self.url`).
+            
+            Attributes set:
+                provider_data (dict): A mapping from `german_tuple` to `{"VOE": redirect_url}` used by tests to simulate provider data.
+            """
             self.url = url
             self.provider_data = {german_tuple: {"VOE": redirect_url}}
 
         def _normalize_language(self, language):
+            """
+            Map a human-readable language label to the episode's normalized language tuple.
+            
+            Parameters:
+            	language (str): Human-readable language label (for example, "German Dub").
+            
+            Returns:
+            	tuple: The internal language tuple corresponding to the provided label.
+            """
             return {"German Dub": german_tuple}[language]
 
     fake_models = types.ModuleType("aniworld.models")
@@ -333,19 +426,53 @@ def test_voe_direct_link_reports_turnstile_requirement(monkeypatch):
 
     class FakeResponse:
         def __init__(self, text: str):
+            """
+            Initialize a test response object with the given HTML body.
+            
+            Parameters:
+                text (str): The HTML response body to expose via the `text` attribute.
+            
+            Attributes created:
+                url (str): Preexisting redirect URL captured from the surrounding test scope.
+                text (str): The provided HTML body.
+                status_code (int): HTTP status code, set to 200.
+            """
             self.url = redirect_url
             self.text = text
             self.status_code = 200
 
         def raise_for_status(self):
+            """
+            No-op replacement for Response.raise_for_status that never raises an exception.
+            
+            This method intentionally does not raise for any HTTP status and can be used on fake response objects to bypass HTTP error checking in tests.
+            """
             return None
 
     class FakeStoEpisode:
         def __init__(self, *, url: str):
+            """
+            Initialize the fake episode with the given URL and a preset VOE provider mapping for the German Dub language.
+            
+            Parameters:
+                url (str): The episode URL to store on the instance (assigned to `self.url`).
+            
+            Attributes set:
+                provider_data (dict): A mapping from `german_tuple` to `{"VOE": redirect_url}` used by tests to simulate provider data.
+            """
             self.url = url
             self.provider_data = {german_tuple: {"VOE": redirect_url}}
 
         def _normalize_language(self, language):
+            """
+            Map a human-readable language label to the episode's normalized language tuple.
+            
+            Parameters:
+            	language (str): Human-readable language label (for example, "German Dub").
+            
+            Returns:
+            	tuple: The internal language tuple corresponding to the provided label.
+            """
             return {"German Dub": german_tuple}[language]
 
     fake_models = types.ModuleType("aniworld.models")

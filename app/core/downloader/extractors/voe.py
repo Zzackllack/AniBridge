@@ -89,6 +89,18 @@ def choose_redirect_candidate(html: str, current_url: str) -> Optional[str]:
         return None
 
     def _score(candidate: str) -> tuple[int, int, int]:
+        """
+        Compute a three-part score for a URL candidate to rank redirect targets.
+        
+        Parameters:
+            candidate (str): The URL string to evaluate.
+        
+        Returns:
+            tuple[int, int, int]: A tuple of three integers (has_e_segment, host_differs, has_permanent_token):
+                - has_e_segment: 1 if the candidate's path contains "/e/", 0 otherwise.
+                - host_differs: 1 if the candidate's hostname differs from the current request's netloc, 0 otherwise.
+                - has_permanent_token: 1 if the candidate contains "permanenttoken=" (case-insensitive), 0 otherwise.
+        """
         parsed = urlparse(candidate)
         host = (parsed.hostname or "").lower()
         path = (parsed.path or "").lower()
@@ -104,7 +116,12 @@ def choose_redirect_candidate(html: str, current_url: str) -> Optional[str]:
 @lru_cache(maxsize=256)
 def host_is_public(host: str) -> bool:
     """
-    Return whether a redirect host resolves only to public IP addresses.
+    Determine whether a host resolves exclusively to public (globally routable) IP addresses.
+    
+    If `host` is an IP literal the check uses that literal's global address property. If DNS resolution fails or yields no addresses, the function returns `False`.
+    
+    Returns:
+        `True` if all resolved addresses for `host` are public/global, `False` otherwise.
     """
     try:
         literal = ipaddress.ip_address(host)
@@ -130,10 +147,14 @@ def host_is_public(host: str) -> bool:
 
 def build_provider_headers(*, provider_name: str, site: str) -> dict[str, str]:
     """
-    Build request headers for provider fetches.
-
-    Serienstream is more likely to allow redirect-token fetches when the request
-    resembles a normal document navigation instead of a bare script client.
+    Build HTTP request headers for the given provider and site.
+    
+    Parameters:
+        provider_name (str): Identifier used to select provider-specific header mappings from configuration.
+        site (str): Site identifier; when "s.to" adds navigation-like headers and a Referer suitable for Serienstream.
+    
+    Returns:
+        headers (dict[str, str]): Headers to use for requests to the provider.
     """
     prepare_aniworld_home()
     import aniworld.config as aniworld_config  # type: ignore
@@ -177,7 +198,17 @@ def looks_like_turnstile_page(html: str) -> bool:
 
 def fetch_provider_page(*, url: str, headers: dict[str, str]) -> tuple[str, str]:
     """
-    Fetch a provider page with redirect handling and return final URL + HTML.
+    Fetches the given URL following redirects and returns the final URL and the page HTML.
+    
+    Parameters:
+        url (str): The initial URL to request.
+        headers (dict[str, str]): HTTP headers to include with the request.
+    
+    Returns:
+        tuple[str, str]: Final URL after redirects and the response HTML text.
+    
+    Raises:
+        requests.RequestException: On network errors or non-successful HTTP responses.
     """
     response = requests.get(
         url,
@@ -191,11 +222,19 @@ def fetch_provider_page(*, url: str, headers: dict[str, str]) -> tuple[str, str]
 
 def resolve_direct_link_from_redirect(*, redirect_url: str, site: str) -> str:
     """
-    Resolve a VOE direct URL starting from the catalogue redirect token itself.
-
-    This avoids the upstream extractor's shared niquests session and follows the
-    current VOE redirect chain explicitly: catalogue token -> voe.sx -> final
-    mirror host -> encoded source.
+    Resolve a VOE direct video URL from a catalogue redirect token.
+    
+    Follow the provider redirect chain starting from `redirect_url` until a VOE source URL is extracted or resolution fails.
+    
+    Parameters:
+        redirect_url (str): Starting catalogue redirect URL or token that leads into the VOE redirect chain.
+        site (str): Catalogue site identifier used to build provider request headers.
+    
+    Returns:
+        str: The resolved direct VOE video URL.
+    
+    Raises:
+        ValueError: If an HTTP fetch fails, if the redirect chain remains blocked by a Turnstile challenge after retries, or if no VOE source is found.
     """
     prepare_aniworld_home()
     from aniworld.extractors.provider.voe import extract_voe_source_from_html  # type: ignore
@@ -258,9 +297,15 @@ def resolve_direct_link_from_redirect(*, redirect_url: str, site: str) -> str:
 
 def resolve_direct_link_fallback(*, initial_urls: list[str]) -> Optional[str]:
     """
-    Resolve VOE embeds by following nested HTML/JS redirects until a source exists.
-
-    This supplements the upstream extractor, which only follows one redirect hop.
+    Follow nested HTML/JavaScript redirect chains from a list of starting URLs to resolve a direct VOE video source.
+    
+    Attempts to fetch each start URL (using the global session and VOE provider headers), extracts a direct VOE source from the response HTML if present, and otherwise follows the next redirect candidate found in the page until a direct source is found or the chain ends.
+    
+    Parameters:
+        initial_urls (list[str]): Starting URLs to try, processed in order.
+    
+    Returns:
+        Optional[str]: A direct VOE video URL if one is resolved, `None` if no direct source is found.
     """
     prepare_aniworld_home()
     import aniworld.config as aniworld_config  # type: ignore
@@ -308,7 +353,10 @@ def resolve_direct_link_fallback(*, initial_urls: list[str]) -> Optional[str]:
 
 def is_transient_error(err: Exception) -> bool:
     """
-    Detect transient VOE fetch failures that should be retried.
+    Determine whether an exception represents a transient VOE fetch error that is likely retryable.
+    
+    Returns:
+        True if the exception message contains any configured transient error marker, False otherwise.
     """
     message = str(err).lower()
     return any(marker in message for marker in _TRANSIENT_ERROR_MARKERS)
