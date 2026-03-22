@@ -119,3 +119,38 @@ def test_sto_voe_fallback_follows_nested_redirects(monkeypatch):
     )
 
     assert episode.get_direct_link("VOE", "German Dub") == final_source
+
+
+def test_resolve_provider_redirect_url_retries_on_timeout(monkeypatch):
+    import importlib
+    import sys
+    import types
+
+    attempts = {"count": 0}
+
+    class FakeResponse:
+        url = "https://voe.sx/e/recovered"
+
+    class FakeSession:
+        def get(self, url: str, **kwargs):
+            attempts["count"] += 1
+            assert url == "https://s.to/r/token"
+            assert kwargs["timeout"] == 3
+            if attempts["count"] < 3:
+                raise TimeoutError("timed out")
+            return FakeResponse()
+
+    fake_config = types.ModuleType("aniworld.config")
+    fake_config.GLOBAL_SESSION = FakeSession()
+
+    monkeypatch.setitem(sys.modules, "aniworld.config", fake_config)
+
+    episode_module = importlib.import_module("app.core.downloader.episode")
+    monkeypatch.setattr(episode_module, "PROVIDER_REDIRECT_TIMEOUT_SECONDS", 3)
+    monkeypatch.setattr(episode_module, "PROVIDER_REDIRECT_RETRIES", 2)
+
+    assert (
+        episode_module._resolve_provider_redirect_url("https://s.to/r/token", "VOE")
+        == "https://voe.sx/e/recovered"
+    )
+    assert attempts["count"] == 3

@@ -62,6 +62,25 @@ def test_download_rate_limit_invalid_or_negative_defaults_to_zero(monkeypatch):
     cfg = importlib.reload(cfg)
     assert cfg.DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC == 0
 
+
+def test_provider_redirect_settings(monkeypatch):
+    import importlib
+    import app
+    import sys
+
+    monkeypatch.setenv("PROVIDER_REDIRECT_TIMEOUT_SECONDS", "15")
+    monkeypatch.setenv("PROVIDER_REDIRECT_RETRIES", "4")
+
+    if "app.config" in sys.modules:
+        del sys.modules["app.config"]
+    if hasattr(app, "config"):
+        delattr(app, "config")
+    cfg = importlib.import_module("app.config")
+    cfg = importlib.reload(cfg)
+
+    assert cfg.PROVIDER_REDIRECT_TIMEOUT_SECONDS == 15
+    assert cfg.PROVIDER_REDIRECT_RETRIES == 4
+
     monkeypatch.setenv("DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC", "not-a-number")
     if "app.config" in sys.modules:
         del sys.modules["app.config"]
