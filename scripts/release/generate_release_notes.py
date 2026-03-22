@@ -18,7 +18,7 @@ from typing import Any, Dict, List
 
 from google import genai
 
-DEFAULT_MODEL = "gemini-pro-latest"
+DEFAULT_MODEL = "gemini-3-flash-preview"
 MAX_COMMITS_DEFAULT = 200
 DEFAULT_LOG_LEVEL = "INFO"
 
