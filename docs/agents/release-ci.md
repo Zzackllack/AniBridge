@@ -18,6 +18,9 @@
 - Python distributions built via `uv run --with build python -m build`.
 - PyInstaller builds use `anibridge.spec` and `hooks/hook-fake_useragent.py`.
 - Releases publish artifacts and SHA256 checksums via GitHub Actions on tag push.
+- GitHub release bodies are hybrid: Gemini-generated narrative notes are supplied
+  via `body_path`, and GitHub's native generated release notes are appended for a
+  deterministic merged-PR/contributor section.
 
 ## Docs Build (Cloudflare)
 
@@ -46,4 +49,6 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
 - `publish.yml`: builds and pushes GHCR images.
 - `release-on-tag.yml`: builds Python dists and PyInstaller artifacts on
   `v*` tags; artifact upload waits for generated release notes so failed
-  note generation cannot publish a partial release entry.
+  note generation cannot publish a partial release entry. Release uploads enable
+  GitHub's generated release notes so the published body includes both the
+  AI-authored summary and GitHub's deterministic Markdown changelog.

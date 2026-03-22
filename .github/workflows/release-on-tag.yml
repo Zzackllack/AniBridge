@@ -134,6 +134,7 @@ jobs:
         with:
           files: "dist/*"
           body_path: release-notes/release-notes.md
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -195,5 +196,6 @@ jobs:
         with:
           files: "release/*"
           body_path: release-notes/release-notes.md
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
