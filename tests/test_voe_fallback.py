@@ -299,6 +299,22 @@ def test_voe_direct_link_reports_turnstile_requirement(monkeypatch):
     monkeypatch.setitem(sys.modules, "aniworld.extractors.provider.voe", fake_voe)
 
     episode_module = importlib.import_module("app.core.downloader.episode")
+    sleep_calls: list[int] = []
+    monkeypatch.setattr(
+        episode_module.voe_extractor,
+        "PROVIDER_REDIRECT_RETRIES",
+        2,
+    )
+    monkeypatch.setattr(
+        episode_module.voe_extractor,
+        "PROVIDER_CHALLENGE_BACKOFF_SECONDS",
+        5,
+    )
+    monkeypatch.setattr(
+        episode_module.voe_extractor.time,
+        "sleep",
+        lambda seconds: sleep_calls.append(seconds),
+    )
     monkeypatch.setattr(
         episode_module.voe_extractor.requests,
         "get",
@@ -322,5 +338,6 @@ def test_voe_direct_link_reports_turnstile_requirement(monkeypatch):
         site="s.to",
     )
 
-    with pytest.raises(ValueError, match="STO_COOKIE_HEADER"):
+    with pytest.raises(ValueError, match="automatic backoff retries"):
         episode.get_direct_link("VOE", "German Dub")
+    assert sleep_calls == [5, 10]

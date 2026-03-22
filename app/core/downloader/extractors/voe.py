@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import re
+import time
 from typing import Optional
 from urllib.parse import urlparse
 
 from loguru import logger
 import requests
 
-from app.config import PROVIDER_REDIRECT_TIMEOUT_SECONDS, STO_COOKIE_HEADER
+from app.config import (
+    PROVIDER_CHALLENGE_BACKOFF_SECONDS,
+    PROVIDER_REDIRECT_RETRIES,
+    PROVIDER_REDIRECT_TIMEOUT_SECONDS,
+)
 from app.utils.aniworld_compat import prepare_aniworld_home
 
 _URL_PATTERN = re.compile(r"https?://[^'\"<>\s]+")
@@ -93,11 +98,10 @@ def choose_redirect_candidate(html: str, current_url: str) -> Optional[str]:
 
 def build_provider_headers(*, provider_name: str, site: str) -> dict[str, str]:
     """
-    Build request headers for provider fetches, including optional site cookies.
+    Build request headers for provider fetches.
 
-    Serienstream can gate provider redirect tokens behind Turnstile. Allowing a
-    solved browser Cookie header gives operators a reliable escape hatch when
-    the anti-bot page is mandatory.
+    Serienstream is more likely to allow redirect-token fetches when the request
+    resembles a normal document navigation instead of a bare script client.
     """
     prepare_aniworld_home()
     import aniworld.config as aniworld_config  # type: ignore
@@ -107,8 +111,21 @@ def build_provider_headers(*, provider_name: str, site: str) -> dict[str, str]:
     headers = dict(
         provider_headers.get(provider_name, {"User-Agent": default_user_agent})
     )
-    if site == "s.to" and STO_COOKIE_HEADER:
-        headers["Cookie"] = STO_COOKIE_HEADER
+    if site == "s.to":
+        headers.update(
+            {
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache",
+                "Priority": "u=0, i",
+                "Referer": "https://serienstream.to/",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Upgrade-Insecure-Requests": "1",
+            }
+        )
     return headers
 
 
@@ -150,6 +167,7 @@ def resolve_direct_link_from_redirect(*, redirect_url: str, site: str) -> str:
     headers = build_provider_headers(provider_name="VOE", site=site)
     pending: list[str] = [redirect_url]
     visited: set[str] = set()
+    challenge_attempts: dict[str, int] = {}
 
     while pending:
         current_url = pending.pop(0).strip()
@@ -171,10 +189,23 @@ def resolve_direct_link_from_redirect(*, redirect_url: str, site: str) -> str:
             return source
 
         if looks_like_turnstile_page(html):
+            attempts = challenge_attempts.get(current_url, 0) + 1
+            challenge_attempts[current_url] = attempts
+            if attempts <= PROVIDER_REDIRECT_RETRIES:
+                wait_seconds = max(PROVIDER_CHALLENGE_BACKOFF_SECONDS, 1) * attempts
+                logger.warning(
+                    "Serienstream challenge page detected at {}. Backing off for {}s before retry {}/{}.",
+                    current_url,
+                    wait_seconds,
+                    attempts,
+                    PROVIDER_REDIRECT_RETRIES,
+                )
+                visited.discard(current_url)
+                time.sleep(wait_seconds)
+                pending.insert(0, current_url)
+                continue
             raise ValueError(
-                "Serienstream redirect requires a Turnstile challenge. "
-                "Set STO_COOKIE_HEADER to a solved browser Cookie header or "
-                "retry after solving the challenge in a browser session."
+                "Serienstream redirect stayed behind a Turnstile challenge after automatic backoff retries."
             )
 
         candidate = choose_redirect_candidate(html, final_url)

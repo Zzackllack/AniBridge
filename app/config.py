@@ -203,8 +203,6 @@ STO_ALPHABET_HTML = Path(
 STO_ALPHABET_URL = os.getenv(
     "STO_ALPHABET_URL", f"{STO_BASE_URL}/serien?by=alpha"
 ).strip()
-STO_COOKIE_HEADER = os.getenv("STO_COOKIE_HEADER", "").strip()
-
 # Megakino (series/movies)
 MEGAKINO_BASE_URL = os.getenv("MEGAKINO_BASE_URL", "https://megakino1.to").strip()
 MEGAKINO_TITLES_REFRESH_HOURS = float(os.getenv("MEGAKINO_TITLES_REFRESH_HOURS", "12"))
@@ -218,7 +216,6 @@ logger.debug(
 logger.debug(
     f"STO_ALPHABET_HTML={STO_ALPHABET_HTML}, STO_ALPHABET_URL={STO_ALPHABET_URL}"
 )
-logger.debug("STO_COOKIE_HEADER configured={}", bool(STO_COOKIE_HEADER))
 logger.debug(f"MEGAKINO_BASE_URL={MEGAKINO_BASE_URL}")
 logger.debug(f"MEGAKINO_TITLES_REFRESH_HOURS={MEGAKINO_TITLES_REFRESH_HOURS}")
 logger.debug(f"MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN={MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN}")
@@ -321,6 +318,14 @@ PROVIDER_REDIRECT_RETRIES = _as_non_negative_int(
     os.getenv("PROVIDER_REDIRECT_RETRIES"), 2
 )
 logger.debug("PROVIDER_REDIRECT_RETRIES={}", PROVIDER_REDIRECT_RETRIES)
+
+PROVIDER_CHALLENGE_BACKOFF_SECONDS = _as_non_negative_int(
+    os.getenv("PROVIDER_CHALLENGE_BACKOFF_SECONDS"), 300
+)
+logger.debug(
+    "PROVIDER_CHALLENGE_BACKOFF_SECONDS={}",
+    PROVIDER_CHALLENGE_BACKOFF_SECONDS,
+)
 
 # --- Parallelität ---
 # Anzahl gleichzeitiger Downloads (Thread-Pool-Größe)

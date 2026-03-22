@@ -7,7 +7,7 @@ AniBridge centralizes configuration in `app/config.py`. Values are derived from 
 - Paths: `DATA_DIR`, `DOWNLOAD_DIR`, `QBIT_PUBLIC_SAVE_PATH`
 - Migrations: `DB_MIGRATE_ON_STARTUP`
 - Torznab: `INDEXER_NAME`, `INDEXER_API_KEY`, `TORZNAB_*`
-- Downloader: `PROVIDER_ORDER`, `PROVIDER_REDIRECT_TIMEOUT_SECONDS`, `PROVIDER_REDIRECT_RETRIES`, `MAX_CONCURRENCY`, `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC`, `DOWNLOADS_TTL_HOURS`, `CLEANUP_SCAN_INTERVAL_MIN`
+- Downloader: `PROVIDER_ORDER`, `PROVIDER_REDIRECT_TIMEOUT_SECONDS`, `PROVIDER_REDIRECT_RETRIES`, `PROVIDER_CHALLENGE_BACKOFF_SECONDS`, `MAX_CONCURRENCY`, `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC`, `DOWNLOADS_TTL_HOURS`, `CLEANUP_SCAN_INTERVAL_MIN`
 - STRM: `STRM_FILES_MODE`, `STRM_PROXY_*`
 - Networking policy: external VPN/VPN-sidecar routing only + `PUBLIC_IP_CHECK_*`
 - Provider order default: `VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza`
@@ -16,9 +16,9 @@ AniBridge centralizes configuration in `app/config.py`. Values are derived from 
   tune `PROVIDER_REDIRECT_TIMEOUT_SECONDS` / `PROVIDER_REDIRECT_RETRIES`
   before changing download-layer settings.
 - s.to/Turnstile note: Serienstream can now return a Turnstile page for
-  `/r?t=...` redirect tokens. When AniBridge logs a Turnstile/Captcha warning,
-  set `STO_COOKIE_HEADER` to a browser `Cookie` header captured after solving
-  the challenge in a real browser session.
+  `/r?t=...` redirect tokens. AniBridge now retries those pages with browser-like
+  navigation headers and a cool-down controlled by
+  `PROVIDER_CHALLENGE_BACKOFF_SECONDS`.
 - Update notifier: `ANIBRIDGE_UPDATE_CHECK`, GitHub owner/repo/token, GHCR image reference
 - Logging: `LOG_LEVEL`, progress toggles
 
@@ -39,18 +39,18 @@ AniBridge centralizes configuration in `app/config.py`. Values are derived from 
 13. `STO_ALPHABET_HTML` — Override local s.to HTML.
 14. `STO_ALPHABET_URL` — s.to alphabet page.
 15. `STO_TITLES_REFRESH_HOURS` — Title refresh interval for s.to (default `24`).
-16. `STO_COOKIE_HEADER` — Optional browser `Cookie` header for Serienstream redirect challenges.
-17. `MEGAKINO_BASE_URL` — Megakino base URL override.
-18. `MEGAKINO_TITLES_REFRESH_HOURS` — Megakino refresh interval.
-19. `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN` — Megakino domain checker interval.
-20. `CATALOG_SITES` — Enabled catalogue sites.
-21. `SOURCE_TAG` — Release source tag (default `WEB`).
-22. `RELEASE_GROUP` — Release group label (default `aniworld`).
-23. `RELEASE_GROUP_ANIWORLD` — AniWorld release group override.
-24. `RELEASE_GROUP_STO` — s.to release group override.
-25. `PROVIDER_ORDER` — Comma-separated provider priority list.
-26. `PROVIDER_REDIRECT_TIMEOUT_SECONDS` — Timeout for resolving catalogue redirect tokens into provider URLs (default `12`).
-27. `PROVIDER_REDIRECT_RETRIES` — Extra retry attempts for transient provider redirect failures (default `2`).
+16. `MEGAKINO_BASE_URL` — Megakino base URL override.
+17. `MEGAKINO_TITLES_REFRESH_HOURS` — Megakino refresh interval.
+18. `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN` — Megakino domain checker interval.
+19. `CATALOG_SITES` — Enabled catalogue sites.
+20. `SOURCE_TAG` — Release source tag (default `WEB`).
+21. `RELEASE_GROUP` — Release group label (default `aniworld`).
+22. `RELEASE_GROUP_ANIWORLD` — AniWorld release group override.
+23. `RELEASE_GROUP_STO` — s.to release group override.
+24. `PROVIDER_ORDER` — Comma-separated provider priority list.
+25. `PROVIDER_REDIRECT_TIMEOUT_SECONDS` — Timeout for resolving catalogue redirect tokens into provider URLs (default `12`).
+26. `PROVIDER_REDIRECT_RETRIES` — Extra retry attempts for transient provider redirect failures (default `2`).
+27. `PROVIDER_CHALLENGE_BACKOFF_SECONDS` — Base cool-down for Turnstile challenge retries (default `300`).
 28. `MAX_CONCURRENCY` — Thread pool size (default `3`).
 29. `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC` — Per-download yt-dlp rate cap (`0` disables).
 30. `INDEXER_NAME` — Torznab display name (default `AniBridge Torznab`).

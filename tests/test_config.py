@@ -70,6 +70,7 @@ def test_provider_redirect_settings(monkeypatch):
 
     monkeypatch.setenv("PROVIDER_REDIRECT_TIMEOUT_SECONDS", "15")
     monkeypatch.setenv("PROVIDER_REDIRECT_RETRIES", "4")
+    monkeypatch.setenv("PROVIDER_CHALLENGE_BACKOFF_SECONDS", "120")
 
     if "app.config" in sys.modules:
         del sys.modules["app.config"]
@@ -80,6 +81,7 @@ def test_provider_redirect_settings(monkeypatch):
 
     assert cfg.PROVIDER_REDIRECT_TIMEOUT_SECONDS == 15
     assert cfg.PROVIDER_REDIRECT_RETRIES == 4
+    assert cfg.PROVIDER_CHALLENGE_BACKOFF_SECONDS == 120
 
     monkeypatch.setenv("DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC", "not-a-number")
     if "app.config" in sys.modules:
@@ -89,20 +91,3 @@ def test_provider_redirect_settings(monkeypatch):
     cfg = importlib.import_module("app.config")
     cfg = importlib.reload(cfg)
     assert cfg.DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC == 0
-
-
-def test_sto_cookie_header(monkeypatch):
-    import importlib
-    import app
-    import sys
-
-    monkeypatch.setenv("STO_COOKIE_HEADER", "foo=bar; baz=qux")
-
-    if "app.config" in sys.modules:
-        del sys.modules["app.config"]
-    if hasattr(app, "config"):
-        delattr(app, "config")
-    cfg = importlib.import_module("app.config")
-    cfg = importlib.reload(cfg)
-
-    assert cfg.STO_COOKIE_HEADER == "foo=bar; baz=qux"
