@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import re
+import time
 from typing import Any, Optional, TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -12,123 +12,26 @@ from app.config import (
     PROVIDER_REDIRECT_RETRIES,
     PROVIDER_REDIRECT_TIMEOUT_SECONDS,
 )
+from app.core.downloader.extractors import voe as voe_extractor
 from app.utils.aniworld_compat import prepare_aniworld_home
 
 if TYPE_CHECKING:
     from aniworld.models import Episode
 
 
-_URL_PATTERN = re.compile(r"https?://[^'\"<>\s]+")
-_IGNORED_REDIRECT_HOSTS = {
-    "challenges.cloudflare.com",
-    "fonts.googleapis.com",
-    "fonts.gstatic.com",
-}
-_IGNORED_REDIRECT_SUFFIXES = (
-    ".css",
-    ".gif",
-    ".ico",
-    ".jpeg",
-    ".jpg",
-    ".js",
-    ".json",
-    ".png",
-    ".svg",
-    ".webp",
-)
-
-
-def _choose_redirect_candidate(html: str, current_url: str) -> Optional[str]:
-    """
-    Pick the most likely next redirect target from a provider page.
-
-    The upstream pages often include many unrelated asset URLs. This prefers
-    actual embed/watch targets and filters static assets or challenge scripts.
-    """
-    current = urlparse(current_url)
-    candidates: list[str] = []
-    seen: set[str] = set()
-    for raw_url in _URL_PATTERN.findall(html):
-        candidate = raw_url.rstrip(");,")
-        if not candidate or candidate in seen:
-            continue
-        seen.add(candidate)
-        parsed = urlparse(candidate)
-        host = (parsed.netloc or "").lower()
-        path = (parsed.path or "").lower()
-        if not host or host in _IGNORED_REDIRECT_HOSTS:
-            continue
-        if path.endswith(_IGNORED_REDIRECT_SUFFIXES):
-            continue
-        if candidate == current_url:
-            continue
-        candidates.append(candidate)
-
-    if not candidates:
-        return None
-
-    def _score(candidate: str) -> tuple[int, int, int]:
-        parsed = urlparse(candidate)
-        host = (parsed.netloc or "").lower()
-        path = (parsed.path or "").lower()
-        return (
-            1 if "/e/" in path else 0,
-            1 if host != (current.netloc or "").lower() else 0,
-            1 if "permanenttoken=" in candidate.lower() else 0,
-        )
-
-    return max(candidates, key=_score)
-
-
-def _resolve_voe_direct_link_fallback(*, initial_urls: list[str]) -> Optional[str]:
-    """
-    Resolve VOE embeds by following nested HTML/JS redirects until a source exists.
-
-    This supplements the upstream extractor, which only follows one redirect hop.
-    """
-    prepare_aniworld_home()
-    from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION, PROVIDER_HEADERS_D  # type: ignore
-    from aniworld.extractors.provider.voe import extract_voe_source_from_html  # type: ignore
-
-    headers = PROVIDER_HEADERS_D.get("VOE", {"User-Agent": DEFAULT_USER_AGENT})
-    visited: set[str] = set()
-
-    for start_url in initial_urls:
-        next_url = (start_url or "").strip()
-        while next_url and next_url not in visited:
-            visited.add(next_url)
-            try:
-                response = GLOBAL_SESSION.get(next_url, headers=headers, timeout=10)
-                response.raise_for_status()
-            except Exception as err:
-                logger.warning("VOE fallback failed to fetch {}: {}", next_url, err)
-                break
-
-            html = response.text
-            direct_url = extract_voe_source_from_html(html)
-            if direct_url:
-                logger.success("VOE fallback resolved direct URL via {}", next_url)
-                return direct_url
-
-            candidate = _choose_redirect_candidate(html, str(response.url))
-            logger.debug(
-                "VOE fallback redirect step: current={}, next={}",
-                response.url,
-                candidate,
-            )
-            if not candidate:
-                break
-            next_url = candidate
-
-    return None
-
-
 def _resolve_provider_redirect_url(redirect_url: str, provider_name: str) -> str:
     """
-    Resolve a catalogue redirect token to the provider embed URL with retries.
+    Resolve a redirect URL to its final provider embed URL, retrying on transient failures.
 
-    VOE and similar hosts occasionally respond slowly enough that a single short
-    request fails even though the redirect is still valid moments later.
+    Parameters:
+        redirect_url (str): The catalogue redirect URL or token to follow.
+        provider_name (str): Human-readable provider identifier used in log messages.
+
+    Returns:
+        str: The final resolved URL after following redirects.
+
+    Raises:
+        ValueError: If all retry attempts fail; the exception message contains the last underlying error.
     """
     prepare_aniworld_home()
     from aniworld.config import GLOBAL_SESSION  # type: ignore
@@ -154,6 +57,97 @@ def _resolve_provider_redirect_url(redirect_url: str, provider_name: str) -> str
             )
 
     raise ValueError(str(last_error))
+
+
+def _get_direct_link_with_retries(
+    *,
+    provider_name: str,
+    redirect_url: str,
+    extractor: Any,
+    site: str,
+) -> str:
+    """
+    Resolve a provider's final direct media URL, retrying transient VOE failures.
+
+    Attempts provider direct-link extraction up to PROVIDER_REDIRECT_RETRIES + 1 times. For provider "voe" on site "s.to" it uses the VOE extractor's direct resolve path and will retry on errors that VOE marks as transient, applying a small backoff between attempts; for other providers it resolves the provider redirect URL and calls the supplied extractor. If VOE extraction fails to produce a direct URL, a VOE fallback resolver is attempted before failing.
+
+    Returns:
+        The resolved direct media URL as a string.
+
+    Raises:
+        ValueError: If resolution fails after retries or if the extractor returns no direct URL.
+        Exception: Any exception raised by the extractor (propagated after retry logic).
+    """
+    attempts = PROVIDER_REDIRECT_RETRIES + 1
+    last_error: Optional[Exception] = None
+
+    for attempt in range(1, attempts + 1):
+        direct_url = None
+        extractor_error: Optional[Exception] = None
+
+        if provider_name.lower() == "voe" and site == "s.to":
+            try:
+                return voe_extractor.resolve_direct_link_from_redirect(
+                    redirect_url=redirect_url,
+                    site=site,
+                )
+            except ValueError as exc:
+                extractor_error = exc
+                logger.warning("VOE extractor failed for {}: {}", redirect_url, exc)
+                last_error = extractor_error
+                if attempt < attempts and voe_extractor.is_transient_error(
+                    extractor_error
+                ):
+                    logger.warning(
+                        "Retrying VOE direct extraction after transient failure (attempt {}/{}).",
+                        attempt + 1,
+                        attempts,
+                    )
+                    time.sleep(min(1.0 * attempt, 2.0))
+                    continue
+
+        provider_url = _resolve_provider_redirect_url(redirect_url, provider_name)
+
+        try:
+            direct_url = extractor(provider_url)
+        except ValueError as exc:
+            if extractor_error is None:
+                extractor_error = exc
+            if provider_name.lower() != "voe":
+                raise
+            logger.warning("VOE extractor failed for {}: {}", provider_url, exc)
+
+        if not direct_url and provider_name.lower() == "voe":
+            direct_url = voe_extractor.resolve_direct_link_fallback(
+                initial_urls=[provider_url, redirect_url]
+            )
+            if direct_url:
+                return direct_url
+
+        if direct_url:
+            return direct_url
+
+        if extractor_error is None:
+            raise ValueError(
+                f"Extractor for provider '{provider_name}' returned no direct URL."
+            )
+
+        last_error = extractor_error
+        if provider_name.lower() != "voe":
+            raise extractor_error
+        if attempt >= attempts or not voe_extractor.is_transient_error(extractor_error):
+            raise extractor_error
+
+        logger.warning(
+            "Retrying VOE direct extraction after transient failure (attempt {}/{}).",
+            attempt + 1,
+            attempts,
+        )
+        time.sleep(min(1.0 * attempt, 2.0))
+
+    if last_error is not None:
+        raise last_error
+    raise ValueError(f"Failed to resolve provider '{provider_name}' direct URL.")
 
 
 def _site_base_url(site: str) -> str:
@@ -371,6 +365,20 @@ class EpisodeCompat:
         return redirect_url
 
     def get_direct_link(self, provider_name: str, language: str) -> str:
+        """
+        Resolve and return the provider's final direct media URL for the given language.
+
+        Parameters:
+            provider_name (str): Provider identifier as used in the backend provider data.
+            language (str): Human-facing language label to select provider data (e.g., "German Dub").
+
+        Returns:
+            str: The resolved direct media URL for the requested provider and language.
+
+        Raises:
+            ValueError: If the provider is not available for the language/site, no redirect URL is present,
+                        the provider extractor is not implemented, or direct-link resolution fails.
+        """
         backend_language = self._normalize_language_for_backend(language)
         redirect_url: Optional[str] = None
         try:
@@ -396,16 +404,9 @@ class EpisodeCompat:
             )
 
         prepare_aniworld_home()
-        from aniworld.config import GLOBAL_SESSION  # type: ignore
         from aniworld.extractors import provider_functions  # type: ignore
         from niquests import RequestException, Timeout  # type: ignore
 
-        try:
-            provider_url = _resolve_provider_redirect_url(redirect_url, provider_name)
-        except (Timeout, RequestException, ValueError) as exc:
-            raise ValueError(
-                f"Failed to resolve provider redirect for '{provider_name}' at {redirect_url}: {exc}"
-            ) from exc
         extractor = provider_functions.get(
             f"get_direct_link_from_{provider_name.lower()}"
         )
@@ -414,30 +415,17 @@ class EpisodeCompat:
                 f"The provider '{provider_name}' is not implemented in aniworld>=4."
             )
 
-        direct_url = None
-        extractor_error: Optional[Exception] = None
         try:
-            direct_url = extractor(provider_url)
-        except ValueError as exc:
-            extractor_error = exc
-            if provider_name.lower() != "voe":
-                raise
-            logger.warning("VOE extractor failed for {}: {}", provider_url, exc)
-
-        if not direct_url and provider_name.lower() == "voe":
-            direct_url = _resolve_voe_direct_link_fallback(
-                initial_urls=[provider_url, redirect_url]
+            return _get_direct_link_with_retries(
+                provider_name=provider_name,
+                redirect_url=redirect_url,
+                extractor=extractor,
+                site=self.site,
             )
-            if direct_url:
-                return direct_url
-
-        if extractor_error is not None:
-            raise extractor_error
-        if not direct_url:
+        except (Timeout, RequestException, ValueError) as exc:
             raise ValueError(
-                f"Extractor for provider '{provider_name}' returned no direct URL."
-            )
-        return direct_url
+                f"Failed to resolve provider '{provider_name}' at {redirect_url}: {exc}"
+            ) from exc
 
 
 def build_episode(
@@ -449,11 +437,15 @@ def build_episode(
     site: str = "aniworld.to",
 ) -> Episode | EpisodeCompat:
     """
-    Construct an episode object from either a direct URL or a (slug, season, episode) triple.
+    Construct an episode object from a URL or from slug/season/episode coordinates.
 
-    Prefers the legacy `aniworld.models.Episode` API when available. When running
-    against aniworld>=4, wraps the new site-specific episode classes in a small
-    compatibility shim so the rest of AniBridge can keep using the old contract.
+    When the legacy `aniworld.models.Episode` class is importable, returns an instance of that legacy Episode (optionally enriched for s.to). When the legacy API is not available (aniworld>=4), returns an EpisodeCompat that wraps a site-specific backend episode object.
+
+    Returns:
+        An instance of the legacy `Episode` when available, otherwise an `EpisodeCompat` wrapping the new site-specific episode backend.
+
+    Raises:
+        ValueError: If neither `link` nor the (`slug`, `season`, `episode`) triple is provided; if required coordinates are missing when constructing a resolved link; or if the specified `site` is not supported.
     """
     logger.info(
         "Building episode: link={}, slug={}, season={}, episode={}, site={}",

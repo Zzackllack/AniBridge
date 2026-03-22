@@ -64,12 +64,18 @@ def test_download_rate_limit_invalid_or_negative_defaults_to_zero(monkeypatch):
 
 
 def test_provider_redirect_settings(monkeypatch):
+    """
+    Verify that provider redirect configuration environment variables are parsed into integer constants and that an invalid download rate limit falls back to zero.
+
+    Asserts that PROVIDER_REDIRECT_TIMEOUT_SECONDS, PROVIDER_REDIRECT_RETRIES, and PROVIDER_CHALLENGE_BACKOFF_SECONDS are read from the environment and converted to 15, 4, and 120 respectively, and that DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC set to a non-numeric value results in 0.
+    """
     import importlib
     import app
     import sys
 
     monkeypatch.setenv("PROVIDER_REDIRECT_TIMEOUT_SECONDS", "15")
     monkeypatch.setenv("PROVIDER_REDIRECT_RETRIES", "4")
+    monkeypatch.setenv("PROVIDER_CHALLENGE_BACKOFF_SECONDS", "120")
 
     if "app.config" in sys.modules:
         del sys.modules["app.config"]
@@ -80,6 +86,7 @@ def test_provider_redirect_settings(monkeypatch):
 
     assert cfg.PROVIDER_REDIRECT_TIMEOUT_SECONDS == 15
     assert cfg.PROVIDER_REDIRECT_RETRIES == 4
+    assert cfg.PROVIDER_CHALLENGE_BACKOFF_SECONDS == 120
 
     monkeypatch.setenv("DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC", "not-a-number")
     if "app.config" in sys.modules:

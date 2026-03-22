@@ -203,7 +203,6 @@ STO_ALPHABET_HTML = Path(
 STO_ALPHABET_URL = os.getenv(
     "STO_ALPHABET_URL", f"{STO_BASE_URL}/serien?by=alpha"
 ).strip()
-
 # Megakino (series/movies)
 MEGAKINO_BASE_URL = os.getenv("MEGAKINO_BASE_URL", "https://megakino1.to").strip()
 MEGAKINO_TITLES_REFRESH_HOURS = float(os.getenv("MEGAKINO_TITLES_REFRESH_HOURS", "12"))
@@ -319,6 +318,14 @@ PROVIDER_REDIRECT_RETRIES = _as_non_negative_int(
     os.getenv("PROVIDER_REDIRECT_RETRIES"), 2
 )
 logger.debug("PROVIDER_REDIRECT_RETRIES={}", PROVIDER_REDIRECT_RETRIES)
+
+PROVIDER_CHALLENGE_BACKOFF_SECONDS = _as_non_negative_int(
+    os.getenv("PROVIDER_CHALLENGE_BACKOFF_SECONDS"), 300
+)
+logger.debug(
+    "PROVIDER_CHALLENGE_BACKOFF_SECONDS={}",
+    PROVIDER_CHALLENGE_BACKOFF_SECONDS,
+)
 
 # --- Parallelität ---
 # Anzahl gleichzeitiger Downloads (Thread-Pool-Größe)

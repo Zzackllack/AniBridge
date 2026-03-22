@@ -1,5 +1,8 @@
 # Change Log
 
+- 2026-03-22: Documented automatic Serienstream Turnstile handling for protected
+  `/r?t=...` redirect tokens, including browser-like headers and configurable
+  backoff via `PROVIDER_CHALLENGE_BACKOFF_SECONDS`.
 - 2026-03-22: Documented provider redirect retry/timeout controls for slow
   `s.to` -> `VOE` resolution and noted the Sonarr `qBittorrent is reporting an
   error` symptom when redirect resolution fails before download start.
