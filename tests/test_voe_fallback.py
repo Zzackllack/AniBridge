@@ -150,6 +150,7 @@ def test_voe_direct_link_fallback_follows_nested_redirects(monkeypatch):
     import importlib
     import sys
     import types
+    import aniworld
 
     provider_url = "https://voe.sx/e/abc123"
     nested_embed_url = "https://dianaavoidthey.com/e/abc123"
@@ -222,8 +223,15 @@ def test_voe_direct_link_fallback_follows_nested_redirects(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "aniworld.config", fake_config)
     monkeypatch.setitem(sys.modules, "aniworld.extractors.provider.voe", fake_voe)
+    monkeypatch.setattr(aniworld, "config", fake_config, raising=False)
 
+    original_voe_module = sys.modules.get("app.core.downloader.extractors.voe")
+    sys.modules.pop("app.core.downloader.extractors.voe", None)
     voe_module = importlib.import_module("app.core.downloader.extractors.voe")
+    if original_voe_module is not None:
+        monkeypatch.setitem(
+            sys.modules, "app.core.downloader.extractors.voe", original_voe_module
+        )
     monkeypatch.setattr(voe_module, "PROVIDER_REDIRECT_TIMEOUT_SECONDS", 7)
 
     assert (
