@@ -137,7 +137,7 @@ def torrents_info(
     category: Optional[str] = None,
 ):
     """List torrents (ClientTasks) in qBittorrent-compatible subset."""
-    logger.debug("Fetching torrents info.")
+    logger.trace("Fetching torrents info.")
     from sqlmodel import select
     from app.db import ClientTask
     import os
@@ -158,7 +158,7 @@ def torrents_info(
             progress = (job.progress or 0.0) / 100.0
             dlspeed = int(job.speed or 0)
             eta = int(job.eta or 0)
-            logger.debug(
+            logger.trace(
                 f"Job {job.id}: status={job.status}, progress={progress}, speed={dlspeed}, eta={eta}"
             )
             if job.status == "completed":

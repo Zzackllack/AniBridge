@@ -315,10 +315,10 @@ def create_job(session: Session, *, source_site: Optional[str] = None) -> Job:
 
 
 def get_job(session: Session, job_id: str) -> Optional[Job]:
-    logger.debug(f"Fetching job {job_id} from DB.")
+    logger.trace(f"Fetching job {job_id} from DB.")
     job = session.get(Job, job_id)
     if job:
-        logger.debug(f"Job {job_id} found.")
+        logger.trace(f"Job {job_id} found.")
     else:
         logger.warning(f"Job {job_id} not found.")
     return job
