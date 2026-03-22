@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import ipaddress
 import re
+import socket
 import time
+from functools import lru_cache
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -9,6 +12,7 @@ from loguru import logger
 import requests
 
 from app.config import (
+    CATALOG_SITE_CONFIGS,
     PROVIDER_CHALLENGE_BACKOFF_SECONDS,
     PROVIDER_REDIRECT_RETRIES,
     PROVIDER_REDIRECT_TIMEOUT_SECONDS,
@@ -36,7 +40,6 @@ _IGNORED_REDIRECT_SUFFIXES = (
 _TRANSIENT_ERROR_MARKERS = (
     "connection aborted",
     "connection reset",
-    "failed to fetch voe page",
     "input/output error",
     "remote end closed connection",
     "temporarily unavailable",
@@ -70,11 +73,13 @@ def choose_redirect_candidate(html: str, current_url: str) -> Optional[str]:
             continue
         seen.add(candidate)
         parsed = urlparse(candidate)
-        host = (parsed.netloc or "").lower()
+        host = (parsed.hostname or "").lower()
         path = (parsed.path or "").lower()
         if not host or host in _IGNORED_REDIRECT_HOSTS:
             continue
         if path.endswith(_IGNORED_REDIRECT_SUFFIXES):
+            continue
+        if not host_is_public(host):
             continue
         if candidate == current_url:
             continue
@@ -85,7 +90,7 @@ def choose_redirect_candidate(html: str, current_url: str) -> Optional[str]:
 
     def _score(candidate: str) -> tuple[int, int, int]:
         parsed = urlparse(candidate)
-        host = (parsed.netloc or "").lower()
+        host = (parsed.hostname or "").lower()
         path = (parsed.path or "").lower()
         return (
             1 if "/e/" in path else 0,
@@ -94,6 +99,33 @@ def choose_redirect_candidate(html: str, current_url: str) -> Optional[str]:
         )
 
     return max(candidates, key=_score)
+
+
+@lru_cache(maxsize=256)
+def host_is_public(host: str) -> bool:
+    """
+    Return whether a redirect host resolves only to public IP addresses.
+    """
+    try:
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+
+    if literal is not None:
+        return literal.is_global
+
+    try:
+        address_infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+    except socket.gaierror:
+        return False
+
+    addresses = {
+        info[4][0] for info in address_infos if info[4] and isinstance(info[4][0], str)
+    }
+    if not addresses:
+        return False
+
+    return all(ipaddress.ip_address(address).is_global for address in addresses)
 
 
 def build_provider_headers(*, provider_name: str, site: str) -> dict[str, str]:
@@ -112,6 +144,10 @@ def build_provider_headers(*, provider_name: str, site: str) -> dict[str, str]:
         provider_headers.get(provider_name, {"User-Agent": default_user_agent})
     )
     if site == "s.to":
+        site_config = CATALOG_SITE_CONFIGS.get(site, {})
+        referer = str(site_config.get("base_url") or "https://serienstream.to").rstrip(
+            "/"
+        )
         headers.update(
             {
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -119,7 +155,7 @@ def build_provider_headers(*, provider_name: str, site: str) -> dict[str, str]:
                 "Cache-Control": "no-cache",
                 "Pragma": "no-cache",
                 "Priority": "u=0, i",
-                "Referer": "https://serienstream.to/",
+                "Referer": f"{referer}/",
                 "Sec-Fetch-Dest": "document",
                 "Sec-Fetch-Mode": "navigate",
                 "Sec-Fetch-Site": "none",
@@ -180,8 +216,8 @@ def resolve_direct_link_from_redirect(*, redirect_url: str, site: str) -> str:
         except requests.RequestException as exc:
             raise ValueError(f"Failed to fetch VOE page: {exc}") from exc
 
-        if final_url != current_url and final_url not in visited:
-            pending.insert(0, final_url)
+        if final_url != current_url:
+            visited.add(final_url)
 
         source = extract_voe_source_from_html(html)
         if source:
@@ -241,7 +277,11 @@ def resolve_direct_link_fallback(*, initial_urls: list[str]) -> Optional[str]:
         while next_url and next_url not in visited:
             visited.add(next_url)
             try:
-                response = global_session.get(next_url, headers=headers, timeout=10)
+                response = global_session.get(
+                    next_url,
+                    headers=headers,
+                    timeout=PROVIDER_REDIRECT_TIMEOUT_SECONDS,
+                )
                 response.raise_for_status()
             except Exception as err:
                 logger.warning("VOE fallback failed to fetch {}: {}", next_url, err)

@@ -2,8 +2,8 @@ import pytest
 import requests
 
 
-def test_choose_redirect_candidate_prefers_embed_target():
-    from app.core.downloader.extractors.voe import choose_redirect_candidate
+def test_choose_redirect_candidate_prefers_embed_target(monkeypatch):
+    from app.core.downloader.extractors import voe as voe_module
 
     html = """
     <html>
@@ -19,13 +19,15 @@ def test_choose_redirect_candidate_prefers_embed_target():
     </html>
     """
 
+    monkeypatch.setattr(voe_module, "host_is_public", lambda _host: True)
+
     assert (
-        choose_redirect_candidate(html, "https://voe.sx/e/original")
+        voe_module.choose_redirect_candidate(html, "https://voe.sx/e/original")
         == "https://mirror.example/e/abc123"
     )
 
 
-def test_sto_voe_fallback_follows_nested_redirects(monkeypatch):
+def test_sto_voe_redirect_resolver_follows_nested_redirects(monkeypatch):
     import importlib
     import sys
     import types
@@ -66,6 +68,11 @@ def test_sto_voe_fallback_follows_nested_redirects(monkeypatch):
 
     fake_config = types.ModuleType("aniworld.config")
     fake_config.DEFAULT_USER_AGENT = "test-agent"
+    fake_config.GLOBAL_SESSION = types.SimpleNamespace(
+        get=lambda url, **_kwargs: (_ for _ in ()).throw(
+            AssertionError(f"Unexpected fallback redirect fetch: {url}")
+        )
+    )
     fake_config.PROVIDER_HEADERS_D = {"VOE": {"User-Agent": "test-agent"}}
 
     fake_extractors = types.ModuleType("aniworld.extractors")
@@ -100,20 +107,16 @@ def test_sto_voe_fallback_follows_nested_redirects(monkeypatch):
         episode_module.voe_extractor.requests,
         "get",
         lambda url, **_kwargs: (
-            FakeResponse(url=embed_url, text="<!doctype html></doctype>")
+            FakeResponse(
+                url=embed_url,
+                text=f"<script>window.location.href='{nested_embed_url}'</script>",
+            )
             if url == raw_redirect
             else (
-                FakeResponse(
-                    url=embed_url,
-                    text=f"<script>window.location.href='{nested_embed_url}'</script>",
-                )
-                if url == embed_url
-                else (
-                    FakeResponse(url=nested_embed_url, text="<html>final-html</html>")
-                    if url == nested_embed_url
-                    else (_ for _ in ()).throw(
-                        AssertionError(f"Unexpected URL fetched: {url}")
-                    )
+                FakeResponse(url=nested_embed_url, text="<html>final-html</html>")
+                if url == nested_embed_url
+                else (_ for _ in ()).throw(
+                    AssertionError(f"Unexpected URL fetched: {url}")
                 )
             )
         ),
@@ -127,6 +130,66 @@ def test_sto_voe_fallback_follows_nested_redirects(monkeypatch):
     )
 
     assert episode.get_direct_link("VOE", "German Dub") == final_source
+
+
+def test_voe_direct_link_fallback_follows_nested_redirects(monkeypatch):
+    import importlib
+    import sys
+    import types
+
+    provider_url = "https://voe.sx/e/abc123"
+    nested_embed_url = "https://dianaavoidthey.com/e/abc123"
+    final_source = "https://cdn.example/master.m3u8"
+
+    class FakeResponse:
+        def __init__(self, *, url: str, text: str):
+            self.url = url
+            self.text = text
+
+        def raise_for_status(self):
+            return None
+
+    class FakeSession:
+        def __init__(self):
+            self.calls: list[tuple[str, int]] = []
+
+        def get(self, url: str, **kwargs):
+            self.calls.append((url, kwargs["timeout"]))
+            if url == provider_url:
+                return FakeResponse(
+                    url=provider_url,
+                    text=f"<script>window.location.href='{nested_embed_url}'</script>",
+                )
+            if url == nested_embed_url:
+                return FakeResponse(
+                    url=nested_embed_url, text="<html>final-html</html>"
+                )
+            raise AssertionError(f"Unexpected URL fetched: {url}")
+
+    fake_config = types.ModuleType("aniworld.config")
+    fake_config.DEFAULT_USER_AGENT = "test-agent"
+    fake_config.GLOBAL_SESSION = FakeSession()
+    fake_config.PROVIDER_HEADERS_D = {"VOE": {"User-Agent": "test-agent"}}
+
+    fake_voe = types.ModuleType("aniworld.extractors.provider.voe")
+    fake_voe.extract_voe_source_from_html = lambda html: (
+        final_source if html == "<html>final-html</html>" else None
+    )
+
+    monkeypatch.setitem(sys.modules, "aniworld.config", fake_config)
+    monkeypatch.setitem(sys.modules, "aniworld.extractors.provider.voe", fake_voe)
+
+    voe_module = importlib.import_module("app.core.downloader.extractors.voe")
+    monkeypatch.setattr(voe_module, "PROVIDER_REDIRECT_TIMEOUT_SECONDS", 7)
+
+    assert (
+        voe_module.resolve_direct_link_fallback(initial_urls=[provider_url])
+        == final_source
+    )
+    assert fake_config.GLOBAL_SESSION.calls == [
+        (provider_url, 7),
+        (nested_embed_url, 7),
+    ]
 
 
 def test_resolve_provider_redirect_url_retries_on_timeout(monkeypatch):
@@ -212,6 +275,11 @@ def test_voe_direct_link_retries_on_transient_fetch_abort(monkeypatch):
 
     fake_config = types.ModuleType("aniworld.config")
     fake_config.DEFAULT_USER_AGENT = "test-agent"
+    fake_config.GLOBAL_SESSION = types.SimpleNamespace(
+        get=lambda url, **_kwargs: (_ for _ in ()).throw(
+            AssertionError(f"Unexpected fallback redirect fetch: {url}")
+        )
+    )
     fake_config.PROVIDER_HEADERS_D = {"VOE": {"User-Agent": "test-agent"}}
     fake_extractors = types.ModuleType("aniworld.extractors")
     fake_voe = types.ModuleType("aniworld.extractors.provider.voe")
@@ -286,6 +354,13 @@ def test_voe_direct_link_reports_turnstile_requirement(monkeypatch):
 
     fake_config = types.ModuleType("aniworld.config")
     fake_config.DEFAULT_USER_AGENT = "test-agent"
+    fake_config.GLOBAL_SESSION = types.SimpleNamespace(
+        get=lambda url, **_kwargs: types.SimpleNamespace(
+            url=url,
+            text="",
+            raise_for_status=lambda: None,
+        )
+    )
     fake_config.PROVIDER_HEADERS_D = {"VOE": {"User-Agent": "test-agent"}}
 
     fake_extractors = types.ModuleType("aniworld.extractors")

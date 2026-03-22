@@ -70,6 +70,9 @@ def _get_direct_link_with_retries(
     last_error: Optional[Exception] = None
 
     for attempt in range(1, attempts + 1):
+        direct_url = None
+        extractor_error: Optional[Exception] = None
+
         if provider_name.lower() == "voe" and site == "s.to":
             try:
                 return voe_extractor.resolve_direct_link_from_redirect(
@@ -80,26 +83,24 @@ def _get_direct_link_with_retries(
                 extractor_error = exc
                 logger.warning("VOE extractor failed for {}: {}", redirect_url, exc)
                 last_error = extractor_error
-                if attempt >= attempts or not voe_extractor.is_transient_error(
+                if attempt < attempts and voe_extractor.is_transient_error(
                     extractor_error
                 ):
-                    raise extractor_error
-                logger.warning(
-                    "Retrying VOE direct extraction after transient failure (attempt {}/{}).",
-                    attempt + 1,
-                    attempts,
-                )
-                time.sleep(min(1.0 * attempt, 2.0))
-                continue
+                    logger.warning(
+                        "Retrying VOE direct extraction after transient failure (attempt {}/{}).",
+                        attempt + 1,
+                        attempts,
+                    )
+                    time.sleep(min(1.0 * attempt, 2.0))
+                    continue
 
         provider_url = _resolve_provider_redirect_url(redirect_url, provider_name)
-        direct_url = None
-        extractor_error: Optional[Exception] = None
 
         try:
             direct_url = extractor(provider_url)
         except ValueError as exc:
-            extractor_error = exc
+            if extractor_error is None:
+                extractor_error = exc
             if provider_name.lower() != "voe":
                 raise
             logger.warning("VOE extractor failed for {}: {}", provider_url, exc)
