@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any, Optional, TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -11,6 +12,111 @@ from app.utils.aniworld_compat import prepare_aniworld_home
 
 if TYPE_CHECKING:
     from aniworld.models import Episode
+
+
+_URL_PATTERN = re.compile(r"https?://[^'\"<>\s]+")
+_IGNORED_REDIRECT_HOSTS = {
+    "challenges.cloudflare.com",
+    "fonts.googleapis.com",
+    "fonts.gstatic.com",
+}
+_IGNORED_REDIRECT_SUFFIXES = (
+    ".css",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".js",
+    ".json",
+    ".png",
+    ".svg",
+    ".webp",
+)
+
+
+def _choose_redirect_candidate(html: str, current_url: str) -> Optional[str]:
+    """
+    Pick the most likely next redirect target from a provider page.
+
+    The upstream pages often include many unrelated asset URLs. This prefers
+    actual embed/watch targets and filters static assets or challenge scripts.
+    """
+    current = urlparse(current_url)
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for raw_url in _URL_PATTERN.findall(html):
+        candidate = raw_url.rstrip(");,")
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        parsed = urlparse(candidate)
+        host = (parsed.netloc or "").lower()
+        path = (parsed.path or "").lower()
+        if not host or host in _IGNORED_REDIRECT_HOSTS:
+            continue
+        if path.endswith(_IGNORED_REDIRECT_SUFFIXES):
+            continue
+        if candidate == current_url:
+            continue
+        candidates.append(candidate)
+
+    if not candidates:
+        return None
+
+    def _score(candidate: str) -> tuple[int, int, int]:
+        parsed = urlparse(candidate)
+        host = (parsed.netloc or "").lower()
+        path = (parsed.path or "").lower()
+        return (
+            1 if "/e/" in path else 0,
+            1 if host != (current.netloc or "").lower() else 0,
+            1 if "permanenttoken=" in candidate.lower() else 0,
+        )
+
+    return max(candidates, key=_score)
+
+
+def _resolve_voe_direct_link_fallback(*, initial_urls: list[str]) -> Optional[str]:
+    """
+    Resolve VOE embeds by following nested HTML/JS redirects until a source exists.
+
+    This supplements the upstream extractor, which only follows one redirect hop.
+    """
+    prepare_aniworld_home()
+    from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION, PROVIDER_HEADERS_D  # type: ignore
+    from aniworld.extractors.provider.voe import extract_voe_source_from_html  # type: ignore
+
+    headers = PROVIDER_HEADERS_D.get("VOE", {"User-Agent": DEFAULT_USER_AGENT})
+    visited: set[str] = set()
+
+    for start_url in initial_urls:
+        next_url = (start_url or "").strip()
+        while next_url and next_url not in visited:
+            visited.add(next_url)
+            try:
+                response = GLOBAL_SESSION.get(next_url, headers=headers, timeout=10)
+                response.raise_for_status()
+            except Exception as err:
+                logger.warning("VOE fallback failed to fetch {}: {}", next_url, err)
+                break
+
+            html = response.text
+            direct_url = extract_voe_source_from_html(html)
+            if direct_url:
+                logger.success("VOE fallback resolved direct URL via {}", next_url)
+                return direct_url
+
+            candidate = _choose_redirect_candidate(html, str(response.url))
+            logger.debug(
+                "VOE fallback redirect step: current={}, next={}",
+                response.url,
+                candidate,
+            )
+            if not candidate:
+                break
+            next_url = candidate
+
+    return None
 
 
 def _site_base_url(site: str) -> str:
@@ -229,6 +335,7 @@ class EpisodeCompat:
 
     def get_direct_link(self, provider_name: str, language: str) -> str:
         backend_language = self._normalize_language_for_backend(language)
+        redirect_url: Optional[str] = None
         try:
             redirect_url = self._get_provider_redirect_url(
                 backend_language, provider_name
@@ -270,7 +377,25 @@ class EpisodeCompat:
                 f"The provider '{provider_name}' is not implemented in aniworld>=4."
             )
 
-        direct_url = extractor(provider_url)
+        direct_url = None
+        extractor_error: Optional[Exception] = None
+        try:
+            direct_url = extractor(provider_url)
+        except ValueError as exc:
+            extractor_error = exc
+            if provider_name.lower() != "voe":
+                raise
+            logger.warning("VOE extractor failed for {}: {}", provider_url, exc)
+
+        if not direct_url and provider_name.lower() == "voe":
+            direct_url = _resolve_voe_direct_link_fallback(
+                initial_urls=[provider_url, redirect_url]
+            )
+            if direct_url:
+                return direct_url
+
+        if extractor_error is not None:
+            raise extractor_error
         if not direct_url:
             raise ValueError(
                 f"Extractor for provider '{provider_name}' returned no direct URL."
