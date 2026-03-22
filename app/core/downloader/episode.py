@@ -7,7 +7,11 @@ from urllib.parse import urlparse
 
 from loguru import logger
 
-from app.config import CATALOG_SITE_CONFIGS
+from app.config import (
+    CATALOG_SITE_CONFIGS,
+    PROVIDER_REDIRECT_RETRIES,
+    PROVIDER_REDIRECT_TIMEOUT_SECONDS,
+)
 from app.utils.aniworld_compat import prepare_aniworld_home
 
 if TYPE_CHECKING:
@@ -117,6 +121,39 @@ def _resolve_voe_direct_link_fallback(*, initial_urls: list[str]) -> Optional[st
             next_url = candidate
 
     return None
+
+
+def _resolve_provider_redirect_url(redirect_url: str, provider_name: str) -> str:
+    """
+    Resolve a catalogue redirect token to the provider embed URL with retries.
+
+    VOE and similar hosts occasionally respond slowly enough that a single short
+    request fails even though the redirect is still valid moments later.
+    """
+    prepare_aniworld_home()
+    from aniworld.config import GLOBAL_SESSION  # type: ignore
+
+    attempts = PROVIDER_REDIRECT_RETRIES + 1
+    last_error: Optional[Exception] = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            response = GLOBAL_SESSION.get(
+                redirect_url,
+                timeout=PROVIDER_REDIRECT_TIMEOUT_SECONDS,
+            )
+            return str(response.url)
+        except Exception as err:
+            last_error = err
+            logger.warning(
+                "Provider redirect resolution failed for '{}' (attempt {}/{}): {}",
+                provider_name,
+                attempt,
+                attempts,
+                err,
+            )
+
+    raise ValueError(str(last_error))
 
 
 def _site_base_url(site: str) -> str:
@@ -364,8 +401,8 @@ class EpisodeCompat:
         from niquests import RequestException, Timeout  # type: ignore
 
         try:
-            provider_url = GLOBAL_SESSION.get(redirect_url, timeout=5).url
-        except (Timeout, RequestException) as exc:
+            provider_url = _resolve_provider_redirect_url(redirect_url, provider_name)
+        except (Timeout, RequestException, ValueError) as exc:
             raise ValueError(
                 f"Failed to resolve provider redirect for '{provider_name}' at {redirect_url}: {exc}"
             ) from exc

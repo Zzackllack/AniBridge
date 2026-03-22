@@ -306,6 +306,20 @@ for provider_name in PROVIDER_ORDER:
             sorted(_VALID_PROVIDERS),
         )
 
+# Provider redirect resolution can be slower than direct extractor fetches,
+# especially for VOE after provider-side anti-bot or redirect changes.
+PROVIDER_REDIRECT_TIMEOUT_SECONDS = _as_non_negative_int(
+    os.getenv("PROVIDER_REDIRECT_TIMEOUT_SECONDS"), 12
+)
+if PROVIDER_REDIRECT_TIMEOUT_SECONDS < 1:
+    PROVIDER_REDIRECT_TIMEOUT_SECONDS = 1
+logger.debug("PROVIDER_REDIRECT_TIMEOUT_SECONDS={}", PROVIDER_REDIRECT_TIMEOUT_SECONDS)
+
+PROVIDER_REDIRECT_RETRIES = _as_non_negative_int(
+    os.getenv("PROVIDER_REDIRECT_RETRIES"), 2
+)
+logger.debug("PROVIDER_REDIRECT_RETRIES={}", PROVIDER_REDIRECT_RETRIES)
+
 # --- Parallelität ---
 # Anzahl gleichzeitiger Downloads (Thread-Pool-Größe)
 MAX_CONCURRENCY = int(os.getenv("MAX_CONCURRENCY", "3"))
