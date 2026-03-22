@@ -15,6 +15,10 @@ AniBridge centralizes configuration in `app/config.py`. Values are derived from 
   that never started downloading, inspect logs for provider redirect timeouts and
   tune `PROVIDER_REDIRECT_TIMEOUT_SECONDS` / `PROVIDER_REDIRECT_RETRIES`
   before changing download-layer settings.
+- s.to/Turnstile note: Serienstream can now return a Turnstile page for
+  `/r?t=...` redirect tokens. When AniBridge logs a Turnstile/Captcha warning,
+  set `STO_COOKIE_HEADER` to a browser `Cookie` header captured after solving
+  the challenge in a real browser session.
 - Update notifier: `ANIBRIDGE_UPDATE_CHECK`, GitHub owner/repo/token, GHCR image reference
 - Logging: `LOG_LEVEL`, progress toggles
 
@@ -35,62 +39,63 @@ AniBridge centralizes configuration in `app/config.py`. Values are derived from 
 13. `STO_ALPHABET_HTML` — Override local s.to HTML.
 14. `STO_ALPHABET_URL` — s.to alphabet page.
 15. `STO_TITLES_REFRESH_HOURS` — Title refresh interval for s.to (default `24`).
-16. `MEGAKINO_BASE_URL` — Megakino base URL override.
-17. `MEGAKINO_TITLES_REFRESH_HOURS` — Megakino refresh interval.
-18. `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN` — Megakino domain checker interval.
-19. `CATALOG_SITES` — Enabled catalogue sites.
-20. `SOURCE_TAG` — Release source tag (default `WEB`).
-21. `RELEASE_GROUP` — Release group label (default `aniworld`).
-22. `RELEASE_GROUP_ANIWORLD` — AniWorld release group override.
-23. `RELEASE_GROUP_STO` — s.to release group override.
-24. `PROVIDER_ORDER` — Comma-separated provider priority list.
-25. `PROVIDER_REDIRECT_TIMEOUT_SECONDS` — Timeout for resolving catalogue redirect tokens into provider URLs (default `12`).
-26. `PROVIDER_REDIRECT_RETRIES` — Extra retry attempts for transient provider redirect failures (default `2`).
-27. `MAX_CONCURRENCY` — Thread pool size (default `3`).
-28. `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC` — Per-download yt-dlp rate cap (`0` disables).
-29. `INDEXER_NAME` — Torznab display name (default `AniBridge Torznab`).
-30. `INDEXER_API_KEY` — Optional Torznab API key.
-31. `TORZNAB_CAT_ANIME` — Category mapping (default `5070`).
-32. `TORZNAB_CAT_MOVIE` — Movie category mapping (default `2000`).
-33. `AVAILABILITY_TTL_HOURS` — Availability cache TTL (default `24`).
-34. `TORZNAB_FAKE_SEEDERS` — Seeders in results (default `999`).
-35. `TORZNAB_FAKE_LEECHERS` — Leechers in results (default `787`).
-36. `TORZNAB_RETURN_TEST_RESULT` — Return test item (default `true`).
-37. `TORZNAB_TEST_TITLE` — Test item title.
-38. `TORZNAB_TEST_SLUG` — Test item slug.
-39. `TORZNAB_TEST_SEASON` — Test season number.
-40. `TORZNAB_TEST_EPISODE` — Test episode number.
-41. `TORZNAB_TEST_LANGUAGE` — Test language label.
-42. `TORZNAB_SEASON_SEARCH_MODE` — Season-search execution mode (`fast`/`strict`, default `fast`).
-43. `TORZNAB_SEASON_SEARCH_MAX_EPISODES` — Season-search fallback probe ceiling (default `60`).
-44. `TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES` — Season-search fallback stop threshold (default `3`).
-45. `DELETE_FILES_ON_TORRENT_DELETE` — Remove files on delete (default `true`).
-46. `DOWNLOADS_TTL_HOURS` — TTL cleanup threshold (default `0`, disabled).
-47. `CLEANUP_SCAN_INTERVAL_MIN` — Cleanup interval (default `30`).
-48. `STRM_FILES_MODE` — STRM mode (`no`, `both`, `only`, default `no`).
-49. `STRM_PROXY_MODE` — STRM proxy mode (`direct`, `proxy`, `redirect`, default `direct`).
-50. `STRM_PUBLIC_BASE_URL` — Public base URL for STRM proxy URLs.
-51. `STRM_PROXY_AUTH` — STRM proxy auth mode (`none`, `token`, `apikey`).
-52. `STRM_PROXY_SECRET` — Shared secret for STRM proxy auth.
-53. `STRM_PROXY_UPSTREAM_ALLOWLIST` — Comma-separated upstream host allowlist.
-54. `STRM_PROXY_CACHE_TTL_SECONDS` — STRM URL cache TTL in seconds (default `0`).
-55. `STRM_PROXY_TOKEN_TTL_SECONDS` — STRM proxy token TTL in seconds (default `900`).
-56. `PROGRESS_FORCE_BAR` — Force progress bar (default `false`).
-57. `PROGRESS_STEP_PERCENT` — Progress logging step (default `5`).
-58. `ANIBRIDGE_UPDATE_CHECK` — Enable release polling (default `true`).
-59. `ANIBRIDGE_GITHUB_TOKEN` — GitHub API token.
-60. `ANIBRIDGE_GITHUB_OWNER` — GitHub owner (default `zzackllack`).
-61. `ANIBRIDGE_GITHUB_REPO` — Repo name (default `AniBridge`).
-62. `ANIBRIDGE_GHCR_IMAGE` — GHCR image slug (default `zzackllack/anibridge`).
-63. `PUBLIC_IP_CHECK_ENABLED` — Enable periodic public IP logging (default `false`).
-64. `PUBLIC_IP_CHECK_INTERVAL_MIN` — Public IP check interval minutes (default `30`).
-65. `ANIBRIDGE_HOST` — Bind host.
-66. `ANIBRIDGE_PORT` — Bind port.
-67. `ANIBRIDGE_CORS_ORIGINS` — CORS origins.
-68. `ANIBRIDGE_CORS_ALLOW_CREDENTIALS` — CORS credentials behavior.
-69. `ANIBRIDGE_TEST_MODE` — Test-mode runtime toggle.
-70. `PYTHONUNBUFFERED` — Set to `1` in Docker to keep logs flush.
-71. `SONARR_*`, `PROWLARR_*` — Integration values documented in `docs/src/integrations/clients`.
+16. `STO_COOKIE_HEADER` — Optional browser `Cookie` header for Serienstream redirect challenges.
+17. `MEGAKINO_BASE_URL` — Megakino base URL override.
+18. `MEGAKINO_TITLES_REFRESH_HOURS` — Megakino refresh interval.
+19. `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN` — Megakino domain checker interval.
+20. `CATALOG_SITES` — Enabled catalogue sites.
+21. `SOURCE_TAG` — Release source tag (default `WEB`).
+22. `RELEASE_GROUP` — Release group label (default `aniworld`).
+23. `RELEASE_GROUP_ANIWORLD` — AniWorld release group override.
+24. `RELEASE_GROUP_STO` — s.to release group override.
+25. `PROVIDER_ORDER` — Comma-separated provider priority list.
+26. `PROVIDER_REDIRECT_TIMEOUT_SECONDS` — Timeout for resolving catalogue redirect tokens into provider URLs (default `12`).
+27. `PROVIDER_REDIRECT_RETRIES` — Extra retry attempts for transient provider redirect failures (default `2`).
+28. `MAX_CONCURRENCY` — Thread pool size (default `3`).
+29. `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC` — Per-download yt-dlp rate cap (`0` disables).
+30. `INDEXER_NAME` — Torznab display name (default `AniBridge Torznab`).
+31. `INDEXER_API_KEY` — Optional Torznab API key.
+32. `TORZNAB_CAT_ANIME` — Category mapping (default `5070`).
+33. `TORZNAB_CAT_MOVIE` — Movie category mapping (default `2000`).
+34. `AVAILABILITY_TTL_HOURS` — Availability cache TTL (default `24`).
+35. `TORZNAB_FAKE_SEEDERS` — Seeders in results (default `999`).
+36. `TORZNAB_FAKE_LEECHERS` — Leechers in results (default `787`).
+37. `TORZNAB_RETURN_TEST_RESULT` — Return test item (default `true`).
+38. `TORZNAB_TEST_TITLE` — Test item title.
+39. `TORZNAB_TEST_SLUG` — Test item slug.
+40. `TORZNAB_TEST_SEASON` — Test season number.
+41. `TORZNAB_TEST_EPISODE` — Test episode number.
+42. `TORZNAB_TEST_LANGUAGE` — Test language label.
+43. `TORZNAB_SEASON_SEARCH_MODE` — Season-search execution mode (`fast`/`strict`, default `fast`).
+44. `TORZNAB_SEASON_SEARCH_MAX_EPISODES` — Season-search fallback probe ceiling (default `60`).
+45. `TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES` — Season-search fallback stop threshold (default `3`).
+46. `DELETE_FILES_ON_TORRENT_DELETE` — Remove files on delete (default `true`).
+47. `DOWNLOADS_TTL_HOURS` — TTL cleanup threshold (default `0`, disabled).
+48. `CLEANUP_SCAN_INTERVAL_MIN` — Cleanup interval (default `30`).
+49. `STRM_FILES_MODE` — STRM mode (`no`, `both`, `only`, default `no`).
+50. `STRM_PROXY_MODE` — STRM proxy mode (`direct`, `proxy`, `redirect`, default `direct`).
+51. `STRM_PUBLIC_BASE_URL` — Public base URL for STRM proxy URLs.
+52. `STRM_PROXY_AUTH` — STRM proxy auth mode (`none`, `token`, `apikey`).
+53. `STRM_PROXY_SECRET` — Shared secret for STRM proxy auth.
+54. `STRM_PROXY_UPSTREAM_ALLOWLIST` — Comma-separated upstream host allowlist.
+55. `STRM_PROXY_CACHE_TTL_SECONDS` — STRM URL cache TTL in seconds (default `0`).
+56. `STRM_PROXY_TOKEN_TTL_SECONDS` — STRM proxy token TTL in seconds (default `900`).
+57. `PROGRESS_FORCE_BAR` — Force progress bar (default `false`).
+58. `PROGRESS_STEP_PERCENT` — Progress logging step (default `5`).
+59. `ANIBRIDGE_UPDATE_CHECK` — Enable release polling (default `true`).
+60. `ANIBRIDGE_GITHUB_TOKEN` — GitHub API token.
+61. `ANIBRIDGE_GITHUB_OWNER` — GitHub owner (default `zzackllack`).
+62. `ANIBRIDGE_GITHUB_REPO` — Repo name (default `AniBridge`).
+63. `ANIBRIDGE_GHCR_IMAGE` — GHCR image slug (default `zzackllack/anibridge`).
+64. `PUBLIC_IP_CHECK_ENABLED` — Enable periodic public IP logging (default `false`).
+65. `PUBLIC_IP_CHECK_INTERVAL_MIN` — Public IP check interval minutes (default `30`).
+66. `ANIBRIDGE_HOST` — Bind host.
+67. `ANIBRIDGE_PORT` — Bind port.
+68. `ANIBRIDGE_CORS_ORIGINS` — CORS origins.
+69. `ANIBRIDGE_CORS_ALLOW_CREDENTIALS` — CORS credentials behavior.
+70. `ANIBRIDGE_TEST_MODE` — Test-mode runtime toggle.
+71. `PYTHONUNBUFFERED` — Set to `1` in Docker to keep logs flush.
+72. `SONARR_*`, `PROWLARR_*` — Integration values documented in `docs/src/integrations/clients`.
 
 ## Removed Legacy Proxy Variables
 

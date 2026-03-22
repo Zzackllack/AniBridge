@@ -89,3 +89,20 @@ def test_provider_redirect_settings(monkeypatch):
     cfg = importlib.import_module("app.config")
     cfg = importlib.reload(cfg)
     assert cfg.DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC == 0
+
+
+def test_sto_cookie_header(monkeypatch):
+    import importlib
+    import app
+    import sys
+
+    monkeypatch.setenv("STO_COOKIE_HEADER", "foo=bar; baz=qux")
+
+    if "app.config" in sys.modules:
+        del sys.modules["app.config"]
+    if hasattr(app, "config"):
+        delattr(app, "config")
+    cfg = importlib.import_module("app.config")
+    cfg = importlib.reload(cfg)
+
+    assert cfg.STO_COOKIE_HEADER == "foo=bar; baz=qux"

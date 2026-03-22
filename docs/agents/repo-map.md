@@ -25,6 +25,7 @@
 
 - `api/` — endpoint routers grouped by domain.
 - `core/` — bootstrap, scheduler, downloader, lifespan.
+- `core/downloader/extractors/` — local extractor overrides for fragile upstream provider logic such as VOE.
 - `db/` — SQLModel definitions and helpers.
 - `domain/` — domain-level models.
 - `infrastructure/` — logging, networking helpers, system diagnostics.

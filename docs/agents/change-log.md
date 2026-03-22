@@ -1,5 +1,8 @@
 # Change Log
 
+- 2026-03-22: Documented Serienstream Turnstile handling for protected
+  `/r?t=...` redirect tokens and added the optional `STO_COOKIE_HEADER`
+  operator override for browser-solved sessions.
 - 2026-03-22: Documented provider redirect retry/timeout controls for slow
   `s.to` -> `VOE` resolution and noted the Sonarr `qBittorrent is reporting an
   error` symptom when redirect resolution fails before download start.

@@ -76,6 +76,11 @@ def test_build_episode_supports_aniworld_v4_api(monkeypatch):
         monkeypatch.setitem(
             sys.modules, "app.core.downloader.episode", original_episode_module
         )
+    monkeypatch.setattr(
+        episode_module.voe_extractor,
+        "resolve_direct_link_from_redirect",
+        lambda *, redirect_url, site: f"{redirect_url}/resolved/master.m3u8",
+    )
 
     episode = episode_module.build_episode(
         slug="kaguya-sama-love-is-war",
@@ -158,6 +163,11 @@ def test_build_episode_supports_sto_v4_api(monkeypatch):
         monkeypatch.setitem(
             sys.modules, "app.core.downloader.episode", original_episode_module
         )
+    monkeypatch.setattr(
+        episode_module.voe_extractor,
+        "resolve_direct_link_from_redirect",
+        lambda *, redirect_url, site: f"{redirect_url}/resolved/master.m3u8",
+    )
 
     episode = episode_module.build_episode(
         slug="9-1-1",
@@ -250,6 +260,11 @@ def test_sto_v4_missing_provider_does_not_mask_available_language(monkeypatch):
         monkeypatch.setitem(
             sys.modules, "app.core.downloader.episode", original_episode_module
         )
+    monkeypatch.setattr(
+        episode_module.voe_extractor,
+        "resolve_direct_link_from_redirect",
+        lambda *, redirect_url, site: f"{redirect_url}/resolved/master.m3u8",
+    )
 
     original_provider_resolution = sys.modules.get(
         "app.core.downloader.provider_resolution"
