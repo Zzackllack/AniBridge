@@ -22,14 +22,14 @@ if TYPE_CHECKING:
 def _resolve_provider_redirect_url(redirect_url: str, provider_name: str) -> str:
     """
     Resolve a redirect URL to its final provider embed URL, retrying on transient failures.
-    
+
     Parameters:
         redirect_url (str): The catalogue redirect URL or token to follow.
         provider_name (str): Human-readable provider identifier used in log messages.
-    
+
     Returns:
         str: The final resolved URL after following redirects.
-    
+
     Raises:
         ValueError: If all retry attempts fail; the exception message contains the last underlying error.
     """
@@ -68,12 +68,12 @@ def _get_direct_link_with_retries(
 ) -> str:
     """
     Resolve a provider's final direct media URL, retrying transient VOE failures.
-    
+
     Attempts provider direct-link extraction up to PROVIDER_REDIRECT_RETRIES + 1 times. For provider "voe" on site "s.to" it uses the VOE extractor's direct resolve path and will retry on errors that VOE marks as transient, applying a small backoff between attempts; for other providers it resolves the provider redirect URL and calls the supplied extractor. If VOE extraction fails to produce a direct URL, a VOE fallback resolver is attempted before failing.
-    
+
     Returns:
         The resolved direct media URL as a string.
-    
+
     Raises:
         ValueError: If resolution fails after retries or if the extractor returns no direct URL.
         Exception: Any exception raised by the extractor (propagated after retry logic).
@@ -367,14 +367,14 @@ class EpisodeCompat:
     def get_direct_link(self, provider_name: str, language: str) -> str:
         """
         Resolve and return the provider's final direct media URL for the given language.
-        
+
         Parameters:
             provider_name (str): Provider identifier as used in the backend provider data.
             language (str): Human-facing language label to select provider data (e.g., "German Dub").
-        
+
         Returns:
             str: The resolved direct media URL for the requested provider and language.
-        
+
         Raises:
             ValueError: If the provider is not available for the language/site, no redirect URL is present,
                         the provider extractor is not implemented, or direct-link resolution fails.
@@ -438,12 +438,12 @@ def build_episode(
 ) -> Episode | EpisodeCompat:
     """
     Construct an episode object from a URL or from slug/season/episode coordinates.
-    
+
     When the legacy `aniworld.models.Episode` class is importable, returns an instance of that legacy Episode (optionally enriched for s.to). When the legacy API is not available (aniworld>=4), returns an EpisodeCompat that wraps a site-specific backend episode object.
-    
+
     Returns:
         An instance of the legacy `Episode` when available, otherwise an `EpisodeCompat` wrapping the new site-specific episode backend.
-    
+
     Raises:
         ValueError: If neither `link` nor the (`slug`, `season`, `episode`) triple is provided; if required coordinates are missing when constructing a resolved link; or if the specified `site` is not supported.
     """

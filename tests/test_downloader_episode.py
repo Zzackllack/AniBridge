@@ -4,11 +4,11 @@ from pathlib import Path
 def patch_voe_resolver(monkeypatch, episode_module):
     """
     Patch the VOE redirect resolver in the given episode module to a deterministic test implementation.
-    
+
     Parameters:
-    	monkeypatch: The pytest `monkeypatch` fixture used to set the attribute.
-    	episode_module: Module object containing `voe_extractor`; its
-    		`resolve_direct_link_from_redirect` will be replaced.
+        monkeypatch: The pytest `monkeypatch` fixture used to set the attribute.
+        episode_module: Module object containing `voe_extractor`; its
+                `resolve_direct_link_from_redirect` will be replaced.
     """
     monkeypatch.setattr(
         episode_module.voe_extractor,
@@ -198,7 +198,7 @@ def test_build_episode_supports_sto_v4_api(monkeypatch):
 def test_sto_v4_missing_provider_does_not_mask_available_language(monkeypatch):
     """
     Verify that when a provider is missing for one language, available providers for another language are still selected.
-    
+
     Sets up fake `aniworld` modules where German has both VOE and Streamtape and English only VOE, then builds an episode for `s.to` and requests a preferred provider that does not exist. Confirms the resolver falls back to the available provider (`VOE`) and returns its resolved direct URL.
     """
     import importlib

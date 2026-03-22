@@ -91,10 +91,10 @@ def choose_redirect_candidate(html: str, current_url: str) -> Optional[str]:
     def _score(candidate: str) -> tuple[int, int, int]:
         """
         Compute a three-part score for a URL candidate to rank redirect targets.
-        
+
         Parameters:
             candidate (str): The URL string to evaluate.
-        
+
         Returns:
             tuple[int, int, int]: A tuple of three integers (has_e_segment, host_differs, has_permanent_token):
                 - has_e_segment: 1 if the candidate's path contains "/e/", 0 otherwise.
@@ -117,9 +117,9 @@ def choose_redirect_candidate(html: str, current_url: str) -> Optional[str]:
 def host_is_public(host: str) -> bool:
     """
     Determine whether a host resolves exclusively to public (globally routable) IP addresses.
-    
+
     If `host` is an IP literal the check uses that literal's global address property. If DNS resolution fails or yields no addresses, the function returns `False`.
-    
+
     Returns:
         `True` if all resolved addresses for `host` are public/global, `False` otherwise.
     """
@@ -148,11 +148,11 @@ def host_is_public(host: str) -> bool:
 def build_provider_headers(*, provider_name: str, site: str) -> dict[str, str]:
     """
     Build HTTP request headers for the given provider and site.
-    
+
     Parameters:
         provider_name (str): Identifier used to select provider-specific header mappings from configuration.
         site (str): Site identifier; when "s.to" adds navigation-like headers and a Referer suitable for Serienstream.
-    
+
     Returns:
         headers (dict[str, str]): Headers to use for requests to the provider.
     """
@@ -199,14 +199,14 @@ def looks_like_turnstile_page(html: str) -> bool:
 def fetch_provider_page(*, url: str, headers: dict[str, str]) -> tuple[str, str]:
     """
     Fetches the given URL following redirects and returns the final URL and the page HTML.
-    
+
     Parameters:
         url (str): The initial URL to request.
         headers (dict[str, str]): HTTP headers to include with the request.
-    
+
     Returns:
         tuple[str, str]: Final URL after redirects and the response HTML text.
-    
+
     Raises:
         requests.RequestException: On network errors or non-successful HTTP responses.
     """
@@ -223,16 +223,16 @@ def fetch_provider_page(*, url: str, headers: dict[str, str]) -> tuple[str, str]
 def resolve_direct_link_from_redirect(*, redirect_url: str, site: str) -> str:
     """
     Resolve a VOE direct video URL from a catalogue redirect token.
-    
+
     Follow the provider redirect chain starting from `redirect_url` until a VOE source URL is extracted or resolution fails.
-    
+
     Parameters:
         redirect_url (str): Starting catalogue redirect URL or token that leads into the VOE redirect chain.
         site (str): Catalogue site identifier used to build provider request headers.
-    
+
     Returns:
         str: The resolved direct VOE video URL.
-    
+
     Raises:
         ValueError: If an HTTP fetch fails, if the redirect chain remains blocked by a Turnstile challenge after retries, or if no VOE source is found.
     """
@@ -298,12 +298,12 @@ def resolve_direct_link_from_redirect(*, redirect_url: str, site: str) -> str:
 def resolve_direct_link_fallback(*, initial_urls: list[str]) -> Optional[str]:
     """
     Follow nested HTML/JavaScript redirect chains from a list of starting URLs to resolve a direct VOE video source.
-    
+
     Attempts to fetch each start URL (using the global session and VOE provider headers), extracts a direct VOE source from the response HTML if present, and otherwise follows the next redirect candidate found in the page until a direct source is found or the chain ends.
-    
+
     Parameters:
         initial_urls (list[str]): Starting URLs to try, processed in order.
-    
+
     Returns:
         Optional[str]: A direct VOE video URL if one is resolved, `None` if no direct source is found.
     """
@@ -354,7 +354,7 @@ def resolve_direct_link_fallback(*, initial_urls: list[str]) -> Optional[str]:
 def is_transient_error(err: Exception) -> bool:
     """
     Determine whether an exception represents a transient VOE fetch error that is likely retryable.
-    
+
     Returns:
         True if the exception message contains any configured transient error marker, False otherwise.
     """
