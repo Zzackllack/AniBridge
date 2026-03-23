@@ -18,7 +18,10 @@
 - `docs/src/developer/*` — developer guides.
 - `docs/src/api/*` — API docs.
 - `docs/src/integrations/*` — integration guides.
-- `docs/src/legal.md` — legal documentation.
+- `docs/src/legal.md` — main legal notice and boundary statement.
+- `docs/src/acceptable-use.md` — acceptable-use and disallowed-patterns page.
+- `docs/src/rights-holder-notice.md` — repository-specific notice-routing page.
+- `docs/src/contributor-ip.md` — contributor provenance and submission rules.
 
 ## Documentation Editing Guide
 

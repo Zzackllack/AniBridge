@@ -15,7 +15,7 @@ AniBridge is a FastAPI service that bridges anime/series streaming catalogs (Ani
 - Documentation: VitePress site under `docs/`
 - Testing: pytest
 - Observability: Loguru + TerminalLogger + `/health`
-- License: BSD 3-Clause with `LEGAL.md` disclaimer
+- License: BSD 3-Clause with legal documentation under `docs/src/legal.md`
 
 ## Tech Stack Matrix
 

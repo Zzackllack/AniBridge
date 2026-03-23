@@ -2,7 +2,7 @@
 
 ## Orientation Checklist
 
-1. Read `README.md`, `LEGAL.md`, `CODE_OF_CONDUCT.md`.
+1. Read `.github/README.md`, `docs/src/legal.md`, and `.github/CODE_OF_CONDUCT.md`.
 2. Set up the local environment (see `docs/agents/dev-workflows.md`).
 3. Run tests: `pytest`.
 4. Start the API and check `/health`.
@@ -16,7 +16,8 @@
 2. Keep tests deterministic and cover key paths.
 3. Update docs and release notes when behavior changes.
 4. Preserve concurrency limits, structured logging, and `/health` responsiveness.
-5. Maintain Python 3.12 baseline and document migrations/legal posture.
+5. Maintain Python 3.12 baseline and keep legal docs aligned with the repo's
+   actual architecture and license posture.
 
 ## Maintenance Notice
 
