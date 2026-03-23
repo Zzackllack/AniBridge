@@ -55,7 +55,22 @@ request responsibly:
 Do not send passwords, raw secrets, session credentials, or unrelated personal
 data unless strictly necessary for the request.
 
-## 4. GitHub Platform Process
+## 4. Optional Pre-Notice Contact
+
+For concerns relating to repository-contained material, the preferred initial
+contact route is [dmca@zacklack.de](mailto:dmca@zacklack.de). Where
+practicable, claimants are encouraged to contact that address before or
+alongside a platform notice so the repository material can be reviewed directly
+and, where appropriate, clarified, revised, removed, or otherwise addressed
+without avoidable escalation.
+
+This request is intended as a practical, good-faith resolution path for
+repository-controlled material only. It is voluntary, not mandatory. It does
+not require any claimant to delay or forgo a platform notice, legal notice, or
+other available remedy, and it does not apply to third-party hosted media,
+third-party services, or infrastructure outside repository control.
+
+## 5. GitHub Platform Process
 
 GitHub controls access to GitHub-hosted repository content. If you are sending a
 formal copyright complaint about repository materials on GitHub, GitHub's own
@@ -65,7 +80,7 @@ independently of any direct notice to project maintainers.
 A project-facing notice does not replace GitHub's own review, takedown, counter
 notice, or reinstatement procedures.
 
-## 5. Project-Level Handling
+## 6. Project-Level Handling
 
 For repository-controlled materials, maintainers may, in their discretion:
 
