@@ -1,0 +1,51 @@
+name: CQ / PR Title
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-title-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-title:
+    name: Conventional Commit Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate pull request title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+
+          pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9._/-]+\))?(!)?: .+$'
+
+          if [[ "${PR_TITLE}" =~ ${pattern} ]]; then
+            echo "PR title is valid: ${PR_TITLE}"
+            exit 0
+          fi
+
+          echo "Pull request title must follow Conventional Commits."
+          echo "Received: ${PR_TITLE}"
+          echo
+          echo "Expected format:"
+          echo "  type(scope): description"
+          echo "  type: description"
+          echo "  type(scope)!: description"
+          echo
+          echo "Allowed types:"
+          echo "  build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test"
+          echo
+          echo "Examples:"
+          echo "  feat(api): add torrent health endpoint"
+          echo "  fix: handle missing provider aliases"
+          echo "  refactor(parser)!: remove legacy AniWorld slug fallback"
+          exit 1
