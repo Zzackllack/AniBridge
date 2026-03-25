@@ -135,7 +135,7 @@ def _as_int(raw: object) -> Optional[int]:
         if not value:
             return None
         return int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
 

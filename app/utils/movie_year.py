@@ -77,7 +77,7 @@ def parse_imdb_suggestions(payload: dict, query: str) -> Optional[ImdbSuggestion
         year = item.get("y")
         try:
             year_val = int(year) if year is not None else None
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             year_val = None
         t_tokens = _normalize_tokens(title)
         score = len(q_tokens & t_tokens)

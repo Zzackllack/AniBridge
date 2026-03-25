@@ -543,7 +543,7 @@ def list_cached_episode_numbers_for_season(
     for episode_no in rows:
         try:
             parsed = int(episode_no)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
         if parsed > 0:
             unique_episode_numbers.add(parsed)

@@ -85,7 +85,7 @@ def _coerce_positive_int(value: object) -> Optional[int]:
     """
     try:
         parsed = int(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return parsed if parsed > 0 else None
 
@@ -94,7 +94,7 @@ def _coerce_non_negative_int(value: object) -> Optional[int]:
     """Coerce an arbitrary value into a non-negative integer."""
     try:
         parsed = int(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return parsed if parsed >= 0 else None
 
@@ -461,7 +461,7 @@ def _probe_episode_available_for_discovery(
                 language=lang,
                 site=site_found,
             )
-        except (ValueError, RuntimeError):
+        except ValueError, RuntimeError:
             rec = None
 
         if rec and rec.available and rec.is_fresh:
@@ -477,7 +477,7 @@ def _probe_episode_available_for_discovery(
                     site=site_found,
                 )
             )
-        except (ValueError, RuntimeError):
+        except ValueError, RuntimeError:
             available = False
             height = None
             vcodec = None
@@ -497,7 +497,7 @@ def _probe_episode_available_for_discovery(
                 extra=None,
                 site=site_found,
             )
-        except (ValueError, RuntimeError):
+        except ValueError, RuntimeError:
             pass
         if available:
             return True
@@ -653,7 +653,7 @@ def _try_mapped_special_probe(
             language=lang,
             site=site_found,
         )
-    except (ValueError, RuntimeError):
+    except ValueError, RuntimeError:
         rec_mapped = None
     if rec_mapped and rec_mapped.available and rec_mapped.is_fresh:
         return (

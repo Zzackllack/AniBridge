@@ -36,7 +36,7 @@ def _as_non_negative_int(val: str | None, default: int) -> int:
         return default
     try:
         parsed = int(val.strip())
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         logger.warning(
             "Invalid non-negative integer value {!r}; using {}", val, default
         )
