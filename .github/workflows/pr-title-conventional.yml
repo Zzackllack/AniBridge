@@ -1,7 +1,7 @@
 name: CQ / PR Title
 
 on:
-  pull_request:
+  pull_request_target:
     types:
       - opened
       - edited
@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: pr-title-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -21,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Validate pull request title
+        id: validate
+        continue-on-error: true
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
@@ -49,3 +52,69 @@ jobs:
           echo "  fix: handle missing provider aliases"
           echo "  refactor(parser)!: remove legacy AniWorld slug fallback"
           exit 1
+
+      - name: Sync pull request guidance comment
+        if: always()
+        uses: actions/github-script@v8
+        env:
+          COMMENT_MARKER: "<!-- anibridge-pr-title-conventional -->"
+          COMMENT_BODY: |
+            <!-- anibridge-pr-title-conventional -->
+            Please update this pull request title to follow the Conventional Commits specification.
+
+            Examples:
+            - `feat(api): add torrent health endpoint`
+            - `fix: handle missing provider aliases`
+            - `refactor(parser)!: remove legacy AniWorld slug fallback`
+
+            Reference:
+            - https://www.conventionalcommits.org/en/v1.0.0/
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const marker = process.env.COMMENT_MARKER;
+            const body = process.env.COMMENT_BODY;
+            const shouldComment = '${{ steps.validate.outcome }}' === 'failure';
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find((comment) =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker),
+            );
+
+            if (shouldComment) {
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id,
+                  body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number,
+                  body,
+                });
+              }
+              return;
+            }
+
+            if (existing) {
+              await github.rest.issues.deleteComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+              });
+            }
+
+      - name: Enforce title validation
+        if: steps.validate.outcome == 'failure'
+        run: exit 1

@@ -47,8 +47,9 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
 - `tests.yml`: runs `uv sync --frozen` and executes pytest.
 - `format-and-run.yml`: runs `ruff format app` and auto-commits formatting changes.
 - `pr-title-conventional.yml`: validates pull request titles against the
-  Conventional Commits schema so squash-merge titles and release notes stay
-  consistent.
+  Conventional Commits schema, posts a short remediation comment on failing
+  pull requests, and removes that comment automatically once the title is fixed
+  so squash-merge titles and release notes stay consistent.
 - `publish.yml`: builds and pushes GHCR images.
 - `release-on-tag.yml`: builds Python dists and PyInstaller artifacts on
   `v*` tags; artifact upload waits for generated release notes so failed
