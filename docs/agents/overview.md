@@ -8,7 +8,7 @@ AniBridge is a FastAPI service that bridges anime/series streaming catalogs (Ani
 
 - Repository: https://github.com/Zzackllack/AniBridge
 - Primary maintainer: @Zzackllack
-- Runtime: Python 3.12 (packaging metadata allows >=3.11)
+- Runtime: Python 3.14
 - Frameworks: FastAPI, SQLModel, Uvicorn, Loguru, yt-dlp, AniWorld library
 - Database: SQLite at `data/anibridge_jobs.db` with Alembic migrations
 - Deployments: Docker (GHCR), bare-metal Python, PyInstaller single-binary, docs on Cloudflare Workers

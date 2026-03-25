@@ -4,7 +4,7 @@ AniBridge is a FastAPI service that bridges AniWorld/Serienstream/megakino catal
 
 Essentials
 
-- Python runtime baseline: 3.12.
+- Python runtime baseline: 3.14.
 - Package manager: uv for Python dependencies.
 - Repo-wide: do not commit artifacts under `data/`.
 - Database: SQLite with Alembic migrations in `app/db/migrations`.

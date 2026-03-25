@@ -2,7 +2,7 @@
 
 ## Dockerfile Highlights
 
-- Base image: `python:3.12-slim`.
+- Base image: `python:3.14-slim`.
 - Multi-stage build (`base`, `deps`, `final`).
 - Installs `gosu` and build essentials for runtime compatibility.
 - Non-root user `appuser` (UID/GID configurable).

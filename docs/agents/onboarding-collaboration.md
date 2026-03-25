@@ -16,7 +16,7 @@
 2. Keep tests deterministic and cover key paths.
 3. Update docs and release notes when behavior changes.
 4. Preserve concurrency limits, structured logging, and `/health` responsiveness.
-5. Maintain Python 3.12 baseline and keep legal docs aligned with the repo's
+5. Maintain Python 3.14 baseline and keep legal docs aligned with the repo's
    actual architecture and license posture.
 
 ## Maintenance Notice
