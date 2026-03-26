@@ -30,7 +30,7 @@ jobs:
 
           git fetch --prune --tags
           git tag -d "${tag}" || true
-          git push origin ":refs/tags/${tag}" || true
+          git push origin ":refs/tags/${tag}"
 
           echo "Release tags must be created by the 'Release / Cut Release' workflow on main."
           echo "Manual pushes of v* tags are not a supported release path."
