@@ -33,12 +33,6 @@ def sanitize(text: str, limit: int = 600) -> str:
     return text[: limit - 3].rstrip() + "..."
 
 
-def available_models(api_key: str) -> None:
-    client = genai.Client(api_key=api_key)
-    for m in client.models.list():
-        print(getattr(m, "name", m))
-
-
 def build_prompt(
     repo_url: str,
     current_tag: str,
@@ -251,8 +245,6 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     logger.debug("Using Gemini model: %s", model)
-    logger.debug("Available models:")
-    available_models(api_key)
 
     prompt = build_prompt(
         repo_url, current_tag, previous_tag, commits[: args.max_commits]
