@@ -90,8 +90,12 @@ def ensure_clean_worktree() -> None:
         raise RuntimeError("Refusing to cut release from a dirty worktree.")
 
 
-def latest_release_tag(exclude: Iterable[str] = ()) -> str | None:
+def latest_release_tag(current_version: str, exclude: Iterable[str] = ()) -> str | None:
     excluded = set(exclude)
+    current_tag = f"v{current_version}"
+    if current_tag not in excluded and git_output("tag", "-l", current_tag):
+        return current_tag
+
     tags = [
         tag
         for tag in git_output("tag", "--sort=-creatordate").splitlines()
@@ -108,7 +112,7 @@ def build_release_plan(release_type: str) -> ReleasePlan:
         next_version=next_version,
         release_type=release_type,
         release_tag=f"v{next_version}",
-        previous_tag=latest_release_tag(),
+        previous_tag=latest_release_tag(current_version),
         files=(
             display_path(VERSION_FILE),
             display_path(PYPROJECT_FILE),
@@ -118,31 +122,39 @@ def build_release_plan(release_type: str) -> ReleasePlan:
     )
 
 
-def replace_once(path: Path, pattern: str, replacement: str) -> None:
+def replace_once(path: Path, pattern: str, replacement: str) -> str:
     content = path.read_text(encoding="utf-8")
     updated, count = re.subn(pattern, replacement, content, count=1, flags=re.MULTILINE)
     if count != 1:
         raise RuntimeError(f"Could not update version in {display_path(path)}")
-    path.write_text(updated, encoding="utf-8")
+    return updated
+
+
+def write_updates(updates: dict[Path, str]) -> None:
+    for path, content in updates.items():
+        path.write_text(content, encoding="utf-8")
 
 
 def apply_release_plan(plan: ReleasePlan) -> None:
-    VERSION_FILE.write_text(plan.next_version + "\n", encoding="utf-8")
-    replace_once(
-        PYPROJECT_FILE,
-        r'^(version = ")\d+\.\d+\.\d+(")$',
-        rf"\g<1>{plan.next_version}\2",
-    )
-    replace_once(
-        OPENAPI_FILE,
-        r'^(\s*"version": ")\d+\.\d+\.\d+(")(,?)$',
-        rf"\g<1>{plan.next_version}\2\3",
-    )
-    replace_once(
-        DOCS_PACKAGE_FILE,
-        r'^(\s*"version": ")\d+\.\d+\.\d+(")(,?)$',
-        rf"\g<1>{plan.next_version}\2\3",
-    )
+    updates = {
+        VERSION_FILE: plan.next_version + "\n",
+        PYPROJECT_FILE: replace_once(
+            PYPROJECT_FILE,
+            r'^(version = ")\d+\.\d+\.\d+(")$',
+            rf"\g<1>{plan.next_version}\2",
+        ),
+        OPENAPI_FILE: replace_once(
+            OPENAPI_FILE,
+            r'^(\s*"version": ")\d+\.\d+\.\d+(")(,?)$',
+            rf"\g<1>{plan.next_version}\2\3",
+        ),
+        DOCS_PACKAGE_FILE: replace_once(
+            DOCS_PACKAGE_FILE,
+            r'^(\s*"version": ")\d+\.\d+\.\d+(")(,?)$',
+            rf"\g<1>{plan.next_version}\2\3",
+        ),
+    }
+    write_updates(updates)
 
 
 def create_commit(plan: ReleasePlan) -> dict[str, str]:

@@ -62,3 +62,23 @@ def test_main_outputs_release_plan_json(tmp_path: Path, monkeypatch) -> None:
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     assert payload["next_version"] == "9.8.8"
     assert payload["release_tag"] == "v9.8.8"
+
+
+def test_build_release_plan_prefers_matching_current_version_tag(monkeypatch) -> None:
+    monkeypatch.setattr(
+        cut_release,
+        "git_output",
+        lambda *args, timeout=30: (
+            "v9.8.7" if args == ("tag", "-l", "v9.8.7") else "v9.9.0\nv9.8.7\n"
+        ),
+    )
+    monkeypatch.setattr(
+        cut_release,
+        "VERSION_FILE",
+        Path("/tmp/anibridge-version-test"),
+    )
+    cut_release.VERSION_FILE.write_text("9.8.7\n", encoding="utf-8")
+
+    plan = cut_release.build_release_plan("patch")
+
+    assert plan.previous_tag == "v9.8.7"

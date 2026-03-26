@@ -9,7 +9,8 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
-permissions: {}
+permissions:
+  contents: write
 
 jobs:
   reject-manual-release-tags:
@@ -17,9 +18,20 @@ jobs:
     if: github.actor != 'github-actions[bot]' && github.triggering_actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
       - name: Reject manual release tag push
         run: |
           set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/}"
+
+          git fetch --prune --tags
+          git tag -d "${tag}" || true
+          git push origin ":refs/tags/${tag}" || true
+
           echo "Release tags must be created by the 'Release / Cut Release' workflow on main."
           echo "Manual pushes of v* tags are not a supported release path."
           exit 1
