@@ -1,0 +1,479 @@
+name: Release / Cut Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Semantic version increment to cut from the selected ref
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        required: true
+      dry_run:
+        description: Validate and build without pushing refs, images, or releases
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-cut-${{ github.event.repository.default_branch }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-latest
+    outputs:
+      base_sha: ${{ steps.policy.outputs.base_sha }}
+      default_branch: ${{ steps.policy.outputs.default_branch }}
+      next_version: ${{ steps.plan.outputs.next_version }}
+      previous_version: ${{ steps.plan.outputs.previous_version }}
+      release_tag: ${{ steps.plan.outputs.release_tag }}
+      previous_tag: ${{ steps.plan.outputs.previous_tag }}
+      selected_ref: ${{ steps.policy.outputs.selected_ref }}
+    steps:
+      - name: Checkout selected ref
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Enforce branch policy
+        id: policy
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SELECTED_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          git fetch origin "${DEFAULT_BRANCH}"
+          current_sha=$(git rev-parse HEAD)
+          default_sha=$(git rev-parse "origin/${DEFAULT_BRANCH}")
+
+          echo "default_branch=${DEFAULT_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "selected_ref=${SELECTED_REF}" >> "$GITHUB_OUTPUT"
+
+          if [ "${DRY_RUN}" = "false" ] && [ "${SELECTED_REF}" != "${DEFAULT_BRANCH}" ]; then
+            echo "Real releases may only run from ${DEFAULT_BRANCH}, not ${SELECTED_REF}." >&2
+            exit 1
+          fi
+
+          if [ "${SELECTED_REF}" = "${DEFAULT_BRANCH}" ] && [ "${current_sha}" != "${default_sha}" ]; then
+            echo "Selected ref is not the current ${DEFAULT_BRANCH} tip." >&2
+            echo "Checked out: ${current_sha}" >&2
+            echo "Origin tip:  ${default_sha}" >&2
+            exit 1
+          fi
+
+          echo "base_sha=${current_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Compute next release version
+        id: plan
+        run: |
+          set -euo pipefail
+          uv run python scripts/release/cut_release.py \
+            --release-type "${{ inputs.release_type }}" \
+            --output-json release-plan.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("release-plan.json").read_text(encoding="utf-8"))
+          output = Path(__import__("os").environ["GITHUB_OUTPUT"])
+          with output.open("a", encoding="utf-8") as fh:
+              for key in ("next_version", "previous_version", "release_tag", "previous_tag"):
+                  fh.write(f"{key}={payload.get(key) or ''}\n")
+          PY
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Run package build smoke test
+        run: uv run --with build python -m build --sdist --wheel -o /tmp/anibridge-release-smoke
+
+  cut-version:
+    name: Cut Version
+    runs-on: ubuntu-latest
+    needs: preflight
+    if: inputs.dry_run == false
+    permissions:
+      contents: read
+    outputs:
+      commit_sha: ${{ steps.meta.outputs.commit_sha }}
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      next_version: ${{ steps.meta.outputs.next_version }}
+      previous_tag: ${{ steps.meta.outputs.previous_tag }}
+    steps:
+      - name: Checkout validated base
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.preflight.outputs.base_sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Create release commit and tag
+        id: meta
+        run: |
+          set -euo pipefail
+          git switch -c release-candidate
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          python scripts/release/cut_release.py \
+            --release-type "${{ inputs.release_type }}" \
+            --apply \
+            --commit \
+            --tag \
+            --output-json release-plan.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import os
+
+          payload = json.loads(Path("release-plan.json").read_text(encoding="utf-8"))
+          output = Path(os.environ["GITHUB_OUTPUT"])
+          with output.open("a", encoding="utf-8") as fh:
+              fh.write(f"commit_sha={payload['commit_sha']}\n")
+              fh.write(f"release_tag={payload['release_tag']}\n")
+              fh.write(f"next_version={payload['next_version']}\n")
+              fh.write(f"previous_tag={payload.get('previous_tag') or ''}\n")
+          PY
+
+      - name: Create git bundle for publish step
+        run: |
+          set -euo pipefail
+          git bundle create release.bundle release-candidate "${{ steps.meta.outputs.release_tag }}"
+
+      - name: Upload release refs
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-ref-bundle
+          path: |
+            release.bundle
+            release-plan.json
+          retention-days: 1
+
+  publish-ref:
+    name: Publish Release Ref
+    runs-on: ubuntu-latest
+    needs:
+      - preflight
+      - cut-version
+    if: inputs.dry_run == false
+    permissions:
+      contents: write
+    outputs:
+      release_tag: ${{ needs.cut-version.outputs.release_tag }}
+      next_version: ${{ needs.cut-version.outputs.next_version }}
+      previous_tag: ${{ needs.cut-version.outputs.previous_tag }}
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.preflight.outputs.default_branch }}
+
+      - name: Download release refs
+        uses: actions/download-artifact@v8
+        with:
+          name: release-ref-bundle
+          path: release-ref
+
+      - name: Push release commit and tag
+        env:
+          DEFAULT_BRANCH: ${{ needs.preflight.outputs.default_branch }}
+          BASE_SHA: ${{ needs.preflight.outputs.base_sha }}
+          RELEASE_TAG: ${{ needs.cut-version.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          git fetch origin "${DEFAULT_BRANCH}"
+          current_origin_sha=$(git rev-parse "origin/${DEFAULT_BRANCH}")
+          if [ "${current_origin_sha}" != "${BASE_SHA}" ]; then
+            echo "Origin ${DEFAULT_BRANCH} moved since preflight; refusing to publish stale release refs." >&2
+            echo "Expected ${BASE_SHA}, found ${current_origin_sha}" >&2
+            exit 1
+          fi
+
+          git fetch release-ref/release.bundle \
+            "refs/heads/release-candidate:refs/heads/release-candidate" \
+            "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+
+          git push origin \
+            "refs/heads/release-candidate:refs/heads/${DEFAULT_BRANCH}" \
+            "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+
+  build-python-dists:
+    name: Build Python Dists
+    runs-on: ubuntu-latest
+    needs: publish-ref
+    if: inputs.dry_run == false
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{ needs.publish-ref.outputs.release_tag }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build distributions
+        run: uv run --with build python -m build
+
+      - name: Create checksums
+        working-directory: dist
+        run: |
+          set -euo pipefail
+          find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+
+      - name: Upload Python dists
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-dists
+          path: dist/*
+          retention-days: 7
+
+  build-pyinstaller:
+    name: Build PyInstaller (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: publish-ref
+    if: inputs.dry_run == false
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{ needs.publish-ref.outputs.release_tag }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build single-file binary (linux/macos)
+        if: matrix.os != 'windows-latest'
+        run: |
+          set -euo pipefail
+          uv run --with pyinstaller pyinstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge
+          mkdir -p artifacts release
+          mv dist/anibridge artifacts/
+          version=$(tr -d ' \n\r' < VERSION)
+          tar -czf "release/anibridge-${{ matrix.os }}-${version}.tar.gz" -C artifacts .
+
+      - name: Build single-file binary (windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          uv run --with pyinstaller pyinstaller --additional-hooks-dir hooks --onefile app\main.py --name anibridge.exe
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Move-Item -Path dist\anibridge.exe -Destination artifacts\anibridge.exe
+          $v = (Get-Content VERSION -Raw).Trim()
+          Compress-Archive -Path artifacts\* -DestinationPath (Join-Path -Path release -ChildPath "anibridge-windows-$v.zip") -Force
+
+      - name: Upload packaged binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: pyinstaller-${{ matrix.os }}
+          path: release/*
+          retention-days: 7
+
+  build-release-image:
+    name: Build Release Image
+    runs-on: ubuntu-latest
+    needs: publish-ref
+    if: inputs.dry_run == false
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{ needs.publish-ref.outputs.release_tag }}
+
+      - name: Normalize image name to lowercase
+        shell: bash
+        run: |
+          echo "IMAGE_NAME=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push versioned release image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-ref.outputs.next_version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-ref.outputs.release_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+
+  generate-release-notes:
+    name: Generate Release Notes
+    runs-on: ubuntu-latest
+    needs: publish-ref
+    if: inputs.dry_run == false
+    outputs:
+      notes_available: ${{ steps.status.outputs.notes_available }}
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{ needs.publish-ref.outputs.release_tag }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Generate commit context
+        env:
+          CURRENT_TAG: ${{ needs.publish-ref.outputs.release_tag }}
+          PREVIOUS_TAG: ${{ needs.publish-ref.outputs.previous_tag }}
+        run: |
+          set -euo pipefail
+          args=(--current-tag "${CURRENT_TAG}" --output-dir ".")
+          if [ -n "${PREVIOUS_TAG}" ]; then
+            args+=(--previous-tag "${PREVIOUS_TAG}")
+          fi
+          python scripts/release/generate_commit_context.py "${args[@]}"
+
+      - name: Attempt Gemini release notes
+        id: gemini
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          uv run --with google-genai python scripts/release/generate_release_notes.py \
+            --context-json commit_context.json \
+            --output release-notes.md
+
+      - name: Record release-note status
+        id: status
+        run: |
+          set -euo pipefail
+          if [ -f release-notes.md ]; then
+            echo "notes_available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "notes_available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload Gemini release notes
+        if: steps.status.outputs.notes_available == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-notes
+          path: release-notes.md
+          retention-days: 7
+
+  publish-release:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs:
+      - publish-ref
+      - build-python-dists
+      - build-pyinstaller
+      - build-release-image
+      - generate-release-notes
+    if: inputs.dry_run == false
+    permissions:
+      contents: write
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v8
+        with:
+          name: python-dists
+          path: release-assets
+
+      - name: Download packaged binaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: pyinstaller-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Download Gemini release notes
+        if: needs.generate-release-notes.outputs.notes_available == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: release-notes
+
+      - name: Publish release with Gemini notes
+        if: needs.generate-release-notes.outputs.notes_available == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.publish-ref.outputs.release_tag }}
+          files: release-assets/*
+          body_path: release-notes/release-notes.md
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish release with GitHub generated notes
+        if: needs.generate-release-notes.outputs.notes_available != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.publish-ref.outputs.release_tag }}
+          files: release-assets/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
