@@ -47,6 +47,13 @@ def format_version(parts: tuple[int, int, int]) -> str:
     return ".".join(str(part) for part in parts)
 
 
+def display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def bump_version(current: str, release_type: str) -> str:
     major, minor, patch = parse_version(current)
     if release_type == "patch":
@@ -58,18 +65,23 @@ def bump_version(current: str, release_type: str) -> str:
     raise ValueError(f"Unsupported release type: {release_type}")
 
 
-def run_git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+def run_git(
+    *args: str,
+    check: bool = True,
+    timeout: float | None = 30,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
         cwd=ROOT,
         check=check,
         capture_output=True,
         text=True,
+        timeout=timeout,
     )
 
 
-def git_output(*args: str) -> str:
-    return run_git(*args).stdout.strip()
+def git_output(*args: str, timeout: float | None = 30) -> str:
+    return run_git(*args, timeout=timeout).stdout.strip()
 
 
 def ensure_clean_worktree() -> None:
@@ -98,10 +110,10 @@ def build_release_plan(release_type: str) -> ReleasePlan:
         release_tag=f"v{next_version}",
         previous_tag=latest_release_tag(),
         files=(
-            str(VERSION_FILE.relative_to(ROOT)),
-            str(PYPROJECT_FILE.relative_to(ROOT)),
-            str(OPENAPI_FILE.relative_to(ROOT)),
-            str(DOCS_PACKAGE_FILE.relative_to(ROOT)),
+            display_path(VERSION_FILE),
+            display_path(PYPROJECT_FILE),
+            display_path(OPENAPI_FILE),
+            display_path(DOCS_PACKAGE_FILE),
         ),
     )
 
@@ -110,7 +122,7 @@ def replace_once(path: Path, pattern: str, replacement: str) -> None:
     content = path.read_text(encoding="utf-8")
     updated, count = re.subn(pattern, replacement, content, count=1, flags=re.MULTILINE)
     if count != 1:
-        raise RuntimeError(f"Could not update version in {path.relative_to(ROOT)}")
+        raise RuntimeError(f"Could not update version in {display_path(path)}")
     path.write_text(updated, encoding="utf-8")
 
 
@@ -123,27 +135,30 @@ def apply_release_plan(plan: ReleasePlan) -> None:
     )
     replace_once(
         OPENAPI_FILE,
-        r'^(\s*"version": ")\d+\.\d+\.\d+(",)$',
-        rf"\g<1>{plan.next_version}\2",
+        r'^(\s*"version": ")\d+\.\d+\.\d+(")(,?)$',
+        rf"\g<1>{plan.next_version}\2\3",
     )
     replace_once(
         DOCS_PACKAGE_FILE,
-        r'^(\s*"version": ")\d+\.\d+\.\d+(")$',
-        rf"\g<1>{plan.next_version}\2",
+        r'^(\s*"version": ")\d+\.\d+\.\d+(")(,?)$',
+        rf"\g<1>{plan.next_version}\2\3",
     )
 
 
-def create_commit_and_tag(plan: ReleasePlan) -> dict[str, str]:
+def create_commit(plan: ReleasePlan) -> dict[str, str]:
     run_git("add", *plan.files)
     commit_message = f"chore(release): cut {plan.release_tag}"
     run_git("commit", "-m", commit_message)
-    tag_message = f"Release {plan.release_tag}"
-    run_git("tag", "-a", plan.release_tag, "-m", tag_message)
     return {
         "commit_message": commit_message,
-        "tag_message": tag_message,
         "commit_sha": git_output("rev-parse", "HEAD"),
     }
+
+
+def create_tag(plan: ReleasePlan) -> dict[str, str]:
+    tag_message = f"Release {plan.release_tag}"
+    run_git("tag", "-a", plan.release_tag, "-m", tag_message)
+    return {"tag_message": tag_message}
 
 
 def plan_to_dict(plan: ReleasePlan) -> dict[str, object]:
@@ -212,7 +227,9 @@ def main(argv: list[str] | None = None) -> int:
         apply_release_plan(plan)
 
     if args.commit:
-        result.update(create_commit_and_tag(plan))
+        result.update(create_commit(plan))
+    if args.tag:
+        result.update(create_tag(plan))
 
     payload = json.dumps(result, indent=2) + "\n"
     if args.output_json:
