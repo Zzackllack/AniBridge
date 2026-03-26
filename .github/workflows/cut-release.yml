@@ -145,7 +145,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          python scripts/release/cut_release.py \
+          uv run python scripts/release/cut_release.py \
             --release-type "${{ inputs.release_type }}" \
             --apply \
             --commit \
@@ -303,7 +303,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          uv run --with pyinstaller pyinstaller --additional-hooks-dir hooks --onefile app\main.py --name anibridge.exe
+          uv run --with pyinstaller pyinstaller --additional-hooks-dir hooks --onefile app\main.py --name anibridge
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
           New-Item -ItemType Directory -Force -Path release | Out-Null
           Move-Item -Path dist\anibridge.exe -Destination artifacts\anibridge.exe
@@ -351,7 +351,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-ref.outputs.next_version }}
@@ -464,7 +464,7 @@ jobs:
           tag_name: ${{ needs.publish-ref.outputs.release_tag }}
           files: release-assets/*
           body_path: release-notes/release-notes.md
-          generate_release_notes: true
+          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

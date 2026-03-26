@@ -9,10 +9,12 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+permissions: {}
+
 jobs:
   reject-manual-release-tags:
     name: Reject Manual Tag Push
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && github.triggering_actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Reject manual release tag push
