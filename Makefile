@@ -1,50 +1,31 @@
-# Makefile for version bumping, building, and packaging
+# Makefile for local build helpers and CI release workflow dispatch.
 
-PUSH ?= ask
+RELEASE_WORKFLOW := Release / Cut Release
+RELEASE_REF ?= main
+RELEASE_TYPE ?= patch
+DRY_RUN_REF ?= $(shell git rev-parse --abbrev-ref HEAD)
 
-.PHONY: bump patch minor major tag build wheel pyinstaller
+.PHONY: bump patch minor major release-dry-run build wheel pyinstaller
 
-define run_bump
-	@/bin/sh -eu -c ' \
-	part="$(1)"; \
-	should_push="$(PUSH)"; \
-	if [ "$$should_push" = "ask" ]; then \
-		printf "Push commit and tag to origin after bump? [y/N] "; \
-		read -r ans; \
-		case "$$ans" in \
-			y|Y) should_push=true ;; \
-			*) should_push=false ;; \
-		esac; \
-	fi; \
-	before=$$(cat VERSION); \
-	uv run bump2version "$$part"; \
-	after=$$(cat VERSION); \
-	echo "Version bumped: $$before -> $$after"; \
-	if [ "$$should_push" = "true" ]; then \
-		git push --atomic --follow-tags origin HEAD; \
-		echo "Pushed commit and tag for $$after to origin"; \
-	else \
-		echo "Created local commit and tag for $$after; not pushed to origin"; \
-	fi'
+define run_release
+	@gh workflow run "$(RELEASE_WORKFLOW)" --ref "$(1)" -f release_type="$(2)" -f dry_run="$(3)"
+	@echo "Dispatched $(RELEASE_WORKFLOW) on ref '$(1)' with release_type='$(2)' dry_run='$(3)'"
 endef
 
 bump:
-	@echo "Usage: make patch|minor|major"
+	@echo "Usage: make patch|minor|major or make release-dry-run RELEASE_TYPE=patch"
 
 patch:
-	$(call run_bump,patch)
+	$(call run_release,$(RELEASE_REF),patch,false)
 
 minor:
-	$(call run_bump,minor)
+	$(call run_release,$(RELEASE_REF),minor,false)
 
 major:
-	$(call run_bump,major)
+	$(call run_release,$(RELEASE_REF),major,false)
 
-tag:
-	# create an annotated tag from current VERSION
-	tag=v$(shell cat VERSION)
-	git tag -a $$tag -m "Release $$tag"
-	git push --tags
+release-dry-run:
+	$(call run_release,$(DRY_RUN_REF),$(RELEASE_TYPE),true)
 
 
 build:
