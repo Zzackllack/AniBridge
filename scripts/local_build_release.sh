@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Local release build helper
+# Local artifact build helper
 # - builds sdist/wheel
 # - generates SHA256SUMS
 # - builds a PyInstaller single-file binary for the current OS

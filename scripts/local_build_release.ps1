@@ -2,7 +2,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# Local release build helper (PowerShell port)
+# Local artifact build helper (PowerShell port)
 # - builds sdist/wheel
 # - generates SHA256SUMS
 # - builds a PyInstaller single-file binary for the current OS
