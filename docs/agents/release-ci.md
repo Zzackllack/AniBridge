@@ -54,8 +54,9 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
   `tests.yml` fails on a PR, including the pytest output in a collapsed Markdown
   details block, and removes the comment automatically once the test run passes.
 - `codeowners-review.yml`: checks pull requests for malformed `CODEOWNERS`
-  rules and newly added or renamed paths that are covered only by the global
-  fallback rule, then posts or refreshes a remediation comment on the PR.
+  rules, invalid or unresolved owner references, and newly added or renamed
+  paths that are covered only by the global fallback rule, then posts or
+  refreshes a remediation comment on the PR.
 - `format-and-run.yml`: runs `ruff format app` and auto-commits formatting changes.
 - `pr-title-conventional.yml`: validates pull request titles against the
   Conventional Commits schema, posts a short remediation comment on failing
