@@ -49,7 +49,16 @@ jobs:
             const invalidOwners = [];
             const unresolvedOwners = [];
             const rules = [];
-            const ownerTokenRe = /^@[A-Za-z0-9](?:[A-Za-z0-9-]*)(?:\/[A-Za-z0-9_.-]+)?$/;
+            const ownerTokenRe = /^(?:@[A-Za-z0-9](?:[A-Za-z0-9-]*)(?:\/[A-Za-z0-9_.-]+)?|[^\s@]+@[^\s@]+\.[^\s@]+)$/;
+            const emailTokenRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+            const isRateLimited = (error) => {
+              if (error.status !== 403) {
+                return false;
+              }
+              const remaining = error.response?.headers?.['x-ratelimit-remaining'];
+              return remaining === '0' || /rate limit/i.test(error.message || '');
+            };
 
             for (const [index, line] of raw.split(/\r?\n/).entries()) {
               const trimmed = line.trim();
@@ -70,23 +79,30 @@ jobs:
               });
             }
 
-            const seenOwners = new Set();
+            const uniqueOwners = new Map();
             for (const rule of rules) {
               for (const ownerRef of rule.owners) {
-                if (seenOwners.has(ownerRef)) {
-                  continue;
-                }
-                seenOwners.add(ownerRef);
-
-                if (!ownerTokenRe.test(ownerRef)) {
-                  invalidOwners.push({
+                if (!uniqueOwners.has(ownerRef)) {
+                  uniqueOwners.set(ownerRef, {
                     owner: ownerRef,
                     lineNumber: rule.lineNumber,
                   });
-                  continue;
                 }
+              }
+            }
 
-                const ownerValue = ownerRef.slice(1);
+            const resolveOwner = async (entry) => {
+              if (!ownerTokenRe.test(entry.owner)) {
+                invalidOwners.push(entry);
+                return;
+              }
+
+              if (emailTokenRe.test(entry.owner)) {
+                return;
+              }
+
+              const ownerValue = entry.owner.slice(1);
+              for (let attempt = 0; attempt < 3; attempt += 1) {
                 try {
                   if (ownerValue.includes('/')) {
                     const [org, team_slug] = ownerValue.split('/', 2);
@@ -99,16 +115,29 @@ jobs:
                       username: ownerValue,
                     });
                   }
+                  return;
                 } catch (error) {
                   if (error.status === 404) {
-                    unresolvedOwners.push({
-                      owner: ownerRef,
-                      lineNumber: rule.lineNumber,
-                    });
+                    unresolvedOwners.push(entry);
+                    return;
+                  }
+                  if (isRateLimited(error) && attempt < 2) {
+                    await sleep(1000 * (2 ** attempt));
                     continue;
                   }
                   throw error;
                 }
+              }
+            };
+
+            const ownerEntries = [...uniqueOwners.values()];
+            const chunkSize = 10;
+            for (let index = 0; index < ownerEntries.length; index += chunkSize) {
+              const chunk = ownerEntries.slice(index, index + chunkSize);
+              const results = await Promise.allSettled(chunk.map((entry) => resolveOwner(entry)));
+              const rejected = results.find((result) => result.status === 'rejected');
+              if (rejected) {
+                throw rejected.reason;
               }
             }
 
