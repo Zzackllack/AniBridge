@@ -1,0 +1,209 @@
+name: CQ / CODEOWNERS
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: codeowners-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-codeowners:
+    name: CODEOWNERS Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Validate CODEOWNERS coverage
+        id: validate
+        continue-on-error: true
+        uses: actions/github-script@v8
+        env:
+          COMMENT_MARKER: "<!-- anibridge-pr-codeowners -->"
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const candidates = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS'];
+
+            const codeownersPath = candidates.find((candidate) => fs.existsSync(candidate));
+            if (!codeownersPath) {
+              throw new Error('No CODEOWNERS file found in .github/, repo root, or docs/.');
+            }
+
+            const raw = fs.readFileSync(codeownersPath, 'utf8');
+            const invalidLines = [];
+            const rules = [];
+
+            for (const [index, line] of raw.split(/\r?\n/).entries()) {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed.startsWith('#')) {
+                continue;
+              }
+
+              const tokens = trimmed.split(/\s+/);
+              if (tokens.length < 2) {
+                invalidLines.push(index + 1);
+                continue;
+              }
+
+              rules.push({
+                pattern: tokens[0],
+                owners: tokens.slice(1),
+              });
+            }
+
+            const globToRegex = (pattern) => {
+              let result = '^';
+              for (let i = 0; i < pattern.length; i += 1) {
+                const char = pattern[i];
+                const next = pattern[i + 1];
+                if (char === '*' && next === '*') {
+                  result += '.*';
+                  i += 1;
+                } else if (char === '*') {
+                  result += '[^/]*';
+                } else if (char === '?') {
+                  result += '[^/]';
+                } else if ('\\.[]{}()+-^$|'.includes(char)) {
+                  result += `\\${char}`;
+                } else {
+                  result += char;
+                }
+              }
+              result += '$';
+              return new RegExp(result);
+            };
+
+            const matches = (pattern, file) => {
+              if (pattern === '*') {
+                return true;
+              }
+
+              const normalized = pattern.replace(/^\/+/, '');
+              if (normalized.endsWith('/')) {
+                return file.startsWith(normalized);
+              }
+
+              return globToRegex(normalized).test(file);
+            };
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: issue_number,
+              per_page: 100,
+            });
+
+            const candidatePaths = files
+              .filter((file) => ['added', 'renamed', 'copied'].includes(file.status))
+              .map((file) => file.filename);
+
+            const fallbackOnly = candidatePaths.filter((filename) => {
+              const matchedRules = rules.filter((rule) => matches(rule.pattern, filename));
+              const hasSpecificRule = matchedRules.some((rule) => rule.pattern !== '*');
+              return matchedRules.length > 0 && !hasSpecificRule;
+            });
+
+            const findings = [];
+            if (invalidLines.length > 0) {
+              findings.push(
+                `- \`${codeownersPath}\` has malformed rule lines: ${invalidLines.join(', ')}.`,
+              );
+            }
+            if (fallbackOnly.length > 0) {
+              findings.push(
+                '- The following added or renamed paths are only covered by the global `*` fallback:',
+              );
+              for (const filename of fallbackOnly) {
+                findings.push(`  - \`${filename}\``);
+              }
+            }
+
+            if (findings.length === 0) {
+              return;
+            }
+
+            const marker = process.env.COMMENT_MARKER;
+            const body = [
+              marker,
+              'Please review `.github/CODEOWNERS` for this pull request.',
+              '',
+              ...findings,
+              '',
+              'If the fallback ownership is intentional, update `CODEOWNERS` to add an explicit rule or adjust this check.',
+            ].join('\n');
+
+            fs.writeFileSync('codeowners-comment.md', `${body}\n`, 'utf8');
+            throw new Error('CODEOWNERS review is required for this pull request.');
+
+      - name: Sync pull request CODEOWNERS comment
+        if: always()
+        uses: actions/github-script@v8
+        env:
+          COMMENT_MARKER: "<!-- anibridge-pr-codeowners -->"
+        with:
+          script: |
+            const fs = require('node:fs');
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const marker = process.env.COMMENT_MARKER;
+            const shouldComment = '${{ steps.validate.outcome }}' === 'failure';
+            const body = fs.existsSync('codeowners-comment.md')
+              ? fs.readFileSync('codeowners-comment.md', 'utf8')
+              : null;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find((comment) =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker),
+            );
+
+            if (shouldComment && body) {
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id,
+                  body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number,
+                  body,
+                });
+              }
+              return;
+            }
+
+            if (existing) {
+              await github.rest.issues.deleteComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+              });
+            }
+
+      - name: Enforce CODEOWNERS validation
+        if: steps.validate.outcome == 'failure'
+        run: exit 1
