@@ -48,7 +48,11 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
 
 ## CI/CD Workflows
 
-- `tests.yml`: runs `uv sync --frozen` and executes pytest.
+- `tests.yml`: runs `uv sync --frozen`, executes pytest, and uploads captured
+  failure output for pull-request feedback.
+- `pr-test-feedback.yml`: posts or updates a pull request comment when
+  `tests.yml` fails on a PR, including the pytest output in a collapsed Markdown
+  details block, and removes the comment automatically once the test run passes.
 - `format-and-run.yml`: runs `ruff format app` and auto-commits formatting changes.
 - `pr-title-conventional.yml`: validates pull request titles against the
   Conventional Commits schema, posts a short remediation comment on failing

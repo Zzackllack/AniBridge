@@ -1,0 +1,154 @@
+name: QA / PR Test Feedback
+
+on:
+  workflow_run:
+    workflows:
+      - QA / Tests
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: pr-test-feedback-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  sync-pytest-feedback:
+    name: Sync Pytest Feedback
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve workflow run context
+        id: context
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const pullRequest = context.payload.workflow_run.pull_requests?.[0];
+            core.setOutput('pr_number', pullRequest ? String(pullRequest.number) : '');
+            core.setOutput('conclusion', context.payload.workflow_run.conclusion || '');
+            core.setOutput('run_url', context.payload.workflow_run.html_url || '');
+
+            if (!pullRequest) {
+              core.setOutput('artifact_id', '');
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+            const run_id = context.payload.workflow_run.id;
+            const artifactName = `pytest-output-pr-${pullRequest.number}`;
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+              owner,
+              repo,
+              run_id,
+              per_page: 100,
+            });
+            const artifact = artifacts.find((item) => item.name === artifactName);
+            core.setOutput('artifact_id', artifact ? String(artifact.id) : '');
+
+      - name: Download pytest output artifact
+        if: steps.context.outputs.conclusion == 'failure' && steps.context.outputs.artifact_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ARTIFACT_ID: ${{ steps.context.outputs.artifact_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${REPO}/actions/artifacts/${ARTIFACT_ID}/zip" > pytest-output.zip
+          unzip -p pytest-output.zip > pytest-output.txt
+
+      - name: Build pull request feedback body
+        if: steps.context.outputs.pr_number != ''
+        env:
+          CONCLUSION: ${{ steps.context.outputs.conclusion }}
+          RUN_URL: ${{ steps.context.outputs.run_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker='<!-- anibridge-pr-pytest-feedback -->'
+          {
+            echo "${marker}"
+            echo "Pytest failed for this pull request."
+            echo
+            echo "Run details: ${RUN_URL}"
+            if [ "${CONCLUSION}" = "failure" ] && [ -s pytest-output.txt ]; then
+              echo
+              echo "<details><summary>Pytest output</summary>"
+              echo
+              echo '```text'
+              python - <<'PY'
+          from pathlib import Path
+
+          output = Path("pytest-output.txt").read_text(encoding="utf-8", errors="replace")
+          max_chars = 50000
+          if len(output) > max_chars:
+              print("(truncated to the last 50000 characters)")
+              print()
+              output = output[-max_chars:]
+          print(output.rstrip())
+          PY
+              echo '```'
+              echo
+              echo "</details>"
+            fi
+          } > comment-body.md
+
+      - name: Sync pull request feedback comment
+        if: steps.context.outputs.pr_number != ''
+        uses: actions/github-script@v8
+        env:
+          COMMENT_MARKER: "<!-- anibridge-pr-pytest-feedback -->"
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+          CONCLUSION: ${{ steps.context.outputs.conclusion }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const { owner, repo } = context.repo;
+            const issue_number = Number(process.env.PR_NUMBER);
+            const marker = process.env.COMMENT_MARKER;
+            const shouldComment = process.env.CONCLUSION === 'failure';
+            const body = fs.readFileSync('comment-body.md', 'utf8');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find((comment) =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker),
+            );
+
+            if (shouldComment) {
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id,
+                  body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number,
+                  body,
+                });
+              }
+              return;
+            }
+
+            if (existing) {
+              await github.rest.issues.deleteComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+              });
+            }

@@ -30,3 +30,5 @@
 ## CI
 
 - `.github/workflows/tests.yml` runs on pushes/PRs touching `app/**` or `tests/**`.
+- On pull requests, failed pytest runs upload the captured console output so CI
+  can post or refresh a remediation comment on the PR thread.
