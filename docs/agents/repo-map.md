@@ -17,7 +17,8 @@
 - `app/` — Python application package.
 - `docs/` — VitePress documentation source.
 - `specs/` — specifications and planning artifacts.
-- `tests/` — pytest suite.
+- `tests/` — pytest suite organized into `integration/api/` and domain-oriented
+  `unit/` coverage.
 - `scripts/` — helper scripts.
 - `hooks/` — PyInstaller hooks.
 - `data/` — runtime data. Never commit artifacts here.
