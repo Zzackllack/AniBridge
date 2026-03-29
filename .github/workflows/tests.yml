@@ -2,6 +2,8 @@ name: QA / Tests
 
 on:
   push:
+    tags-ignore:
+      - 'v*'
     paths:
       - 'app/**'
       - 'tests/**'

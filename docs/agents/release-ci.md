@@ -53,7 +53,7 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
 ## CI/CD Workflows
 
 - `tests.yml`: runs `uv sync --frozen`, executes pytest, and uploads captured
-  failure output for pull request feedback.
+  failure output for pull request feedback. It ignores `v*` release-tag pushes.
 - `pr-test-feedback.yml`: posts or updates a pull request comment when
   `tests.yml` fails on a PR, including the pytest output in a collapsed Markdown
   details block, and removes the comment automatically once the test run passes.
@@ -62,6 +62,11 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
   paths that are covered only by the global fallback rule, then posts or
   refreshes a remediation comment on the PR.
 - `format-and-run.yml`: runs `ruff format app` and auto-commits formatting changes.
+- `pylint-quality.yml`: enforces the pylint score gate on branch pushes and pull
+  requests, but ignores `v*` release-tag pushes.
+- `format-and-run.yml`: runs `ruff format app` and auto-commits formatting
+  changes on branch pushes and pull requests, but ignores `v*` release-tag
+  pushes.
 - `pr-title-conventional.yml`: validates pull request titles against the
   Conventional Commits schema, posts a short remediation comment on failing
   pull requests, and removes that comment automatically once the title is fixed
@@ -72,4 +77,5 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
   creates the release commit and tag in CI, builds release artifacts, publishes
   versioned GHCR images, and creates the GitHub release.
 - `release-on-tag.yml`: guardrail workflow that rejects manual pushes of `v*`
-  tags outside the CI release workflow.
+  tags outside the CI release workflow while allowing tags created by the
+  release commit shape `chore(release): cut vX.Y.Z`.

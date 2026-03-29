@@ -2,6 +2,8 @@ name: CQ / Ruff Autofix
 
 on:
   push:
+    tags-ignore:
+      - "v*"
     paths:
       - "app/**"
       - "pyproject.toml"

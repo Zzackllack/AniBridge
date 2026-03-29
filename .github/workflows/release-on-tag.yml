@@ -15,7 +15,6 @@ permissions:
 jobs:
   reject-manual-release-tags:
     name: Reject Manual Tag Push
-    if: github.actor != 'github-actions[bot]' && github.triggering_actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -27,6 +26,13 @@ jobs:
         run: |
           set -euo pipefail
           tag="${GITHUB_REF#refs/tags/}"
+          tagged_subject="$(git log -1 --format=%s "${tag}^{commit}")"
+          expected_subject="chore(release): cut ${tag}"
+
+          if [ "${tagged_subject}" = "${expected_subject}" ]; then
+            echo "Recognized CI-managed release tag ${tag}; skipping guard failure."
+            exit 0
+          fi
 
           git fetch --prune --tags
           git tag -d "${tag}" || true
