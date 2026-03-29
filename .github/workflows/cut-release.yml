@@ -497,7 +497,8 @@ jobs:
           tag_name: ${{ needs.publish-ref.outputs.release_tag }}
           files: release-assets/*
           body_path: release-notes/release-notes.md
-          generate_release_notes: false
+          generate_release_notes: true
+          append_body: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
