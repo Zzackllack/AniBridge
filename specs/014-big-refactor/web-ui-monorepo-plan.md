@@ -9,6 +9,7 @@ Repository: `/Users/zacklack/Developer/Own/Repos/AniBridge`
 - Add a future React-based web UI without destabilizing the Python backend.
 - Preserve maintainability and clear boundaries for a production-grade codebase.
 - Avoid renaming existing backend folders right now.
+- Use the Web UI as the primary operator surface for challenge/captcha-assisted flows.
 
 ## Short Answer
 
@@ -33,6 +34,11 @@ Why this is best now:
 - No backend import/path churn.
 - Fastest path to shipping UI.
 - Easy to evolve later into `apps/` + `packages/` if needed.
+
+Additional reason:
+
+- the future browser-assisted verification feature can live naturally beside the Web UI
+  without forcing browser logic into the Python package layout.
 
 ## Alternative Structure (Future-Ready, More Opinionated)
 
@@ -84,6 +90,113 @@ Use a “multi-runtime monorepo” model:
 - Python runtime for backend (`uv`, `pytest`, `ruff`).
 - Node runtime for UI (`pnpm` or `npm`, depending on final choice).
 - Keep runtime boundaries explicit in docs and CI.
+- Treat browser automation / browser-assisted verification as backend-owned
+  infrastructure, surfaced through the Web UI.
+
+## Browser-Assisted Verification Architecture
+
+The future Web UI should not be treated only as a dashboard.
+
+It should also be the primary operator interface for protected flows that require:
+
+- Cloudflare Turnstile solving
+- browser session reuse
+- human-in-the-loop verification
+- explicit pause/resume behavior for jobs
+
+### Recommended Model
+
+Use three cooperating layers:
+
+1. Backend API and scheduler
+2. Browser resolver service
+3. Web UI verification center
+
+### 1. Backend API and scheduler
+
+Backend responsibilities:
+
+- detect challenge/captcha pages during provider resolution
+- move affected jobs into explicit states such as `challenge_required` or
+  `waiting_for_user`
+- enqueue browser-assisted resolution work
+- persist verification session metadata and audit events
+- expose status and control APIs to the UI
+
+### 2. Browser resolver service
+
+This should be a dedicated subsystem, not a hidden helper inside a provider extractor.
+
+Recommended characteristics:
+
+- persistent browser profile per environment or operator
+- browser state reused across multiple jobs
+- normal HTTP remains the fast path; browser is only used for protected steps
+- protected navigation continues inside the same browser session after solve
+- support both local desktop mode and server mode
+
+Recommended server mode:
+
+- Chromium/Playwright-compatible backend
+- persistent user-data-dir
+- Xvfb-backed visible browser when needed
+- optional noVNC or equivalent remote operator view
+
+### 3. Web UI verification center
+
+The Web UI should include a dedicated verification area instead of burying this
+inside generic download logs.
+
+Recommended UX capabilities:
+
+- list jobs waiting for verification
+- show blocked domain/provider and current challenge reason
+- open or attach to active browser verification session
+- show countdown/expiry hints where known
+- resume, cancel, or retry jobs explicitly
+- show audit trail of verification attempts and outcomes
+
+## What the Web UI should NOT do
+
+The Web UI should not:
+
+- ask the user to paste raw cookies as the primary workflow
+- depend on unofficial auto-solver repositories as the main production path
+- force all downloads through a browser even when plain HTTP works
+- treat challenge-required jobs as generic opaque failures
+
+## API / Backend Contract Additions
+
+The Web UI plan should assume new backend capabilities for challenge-aware job control.
+
+Suggested backend concepts:
+
+- `ChallengeRequired` internal error/state
+- `verification_session_id`
+- `challenge_reason`
+- `browser_resolution_status`
+- `verification_started_at`
+- `verification_expires_at` when derivable
+
+Suggested API surfaces:
+
+- list challenge-blocked jobs
+- request browser verification session
+- attach to existing verification session
+- mark verification complete / cancel / retry
+- fetch challenge event history
+
+## Security and Enterprise-Grade Expectations
+
+If this is implemented, it should be built like an operator feature, not a scraping hack.
+
+Requirements:
+
+- explicit auth around verification controls
+- audit logging for session start/stop/solve/resume actions
+- least-privilege storage for browser profiles and secrets
+- clear retention policy for verification artifacts
+- no silent background solving claims when a human solve is actually required
 
 ## CI/CD Expectations After Adding UI
 
@@ -96,11 +209,15 @@ At minimum, add separate checks:
 ## Suggested Implementation Phases (No Code Yet)
 
 1. Create `web/` and define stack choice criteria.
-2. Decide package manager policy for frontend (prefer one tool across `docs/` and `web/`).
-3. Define API integration contract (auth/session strategy, base URL handling, error model).
-4. Add CI job for `web/` with basic quality gates.
-5. Add docs section: local dev commands for backend + web side-by-side.
-6. Revisit repo structure after UI is stable (optional migration to `apps/` layout).
+2. Decide package manager policy for frontend (prefer one tool across `docs/` and
+   `web/`).
+3. Define API integration contract, including challenge-aware job states and
+   verification session APIs.
+4. Build a minimal browser resolver service with persistent profile support.
+5. Add a first Web UI verification center for `challenge_required` jobs.
+6. Add CI job for `web/` with basic quality gates.
+7. Add docs section: local dev commands for backend + web side-by-side.
+8. Revisit repo structure after UI is stable (optional migration to `apps/` layout).
 
 ## Decision Guidance: Next.js vs Astro vs TanStack Start
 
@@ -112,10 +229,18 @@ If AniBridge Web UI is primarily dashboard/app UX with forms, tables, stateful v
 
 - Next.js or TanStack Start are usually better fits than Astro.
 
+Because AniBridge is also likely to need authenticated operator workflows,
+session-driven views, and browser-verification control panels, this further
+pushes the recommendation toward Next.js or TanStack Start over Astro.
+
 ## Recommended Policy to Adopt Now
 
 - Keep backend at `app/`.
 - Add UI at `web/`.
 - Keep names lowercase.
 - Treat this as one monorepo with two runtimes.
+- Design the UI from the start to include a verification center for
+  browser-assisted challenge handling.
+- Keep browser-assisted verification as a dedicated subsystem with persistent
+  session management, not as scattered extractor-specific hacks.
 - Defer any backend folder renaming until there is a concrete payoff.

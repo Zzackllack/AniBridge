@@ -249,6 +249,23 @@ Upcoming features like:
 
 will increase pressure on the same hot path if the architecture remains request-live-probe-centric.
 
+### 4.4 Anti-bot / captcha escalation risk
+
+Provider resolution is no longer purely a stateless HTTP problem.
+
+Some catalogue and hoster flows now intermittently require:
+
+- Cloudflare challenge pages
+- human verification
+- browser session state
+- retryable, stateful navigation instead of plain `requests`
+
+Implication:
+
+- continuing to model all provider resolution as plain HTTP will become less reliable over time
+- captcha handling must be treated as a first-class subsystem, not an incidental retry branch
+- future Web UI and operational tooling should be designed to support human-in-the-loop verification
+
 ---
 
 ## 5. Performance Design Principles
@@ -265,6 +282,8 @@ The following principles should guide future work:
 8. **Bound concurrency carefully**
 9. **Prefer predictable latency over maximum theoretical completeness**
 10. **Do not sacrifice release title quality, but obtain it more selectively**
+11. **Treat browser-required flows as a separate execution class**
+12. **Do not block normal request paths on interactive verification**
 
 ---
 
@@ -493,6 +512,61 @@ This avoids repeated nested traversal of the same provider list.
 - easier reasoning
 - easier future parallelization
 
+### 7.11 Introduce browser-assisted challenge resolution as a separate subsystem
+
+AniBridge should not keep embedding captcha logic directly into provider extractors as the long-term model.
+
+Instead, introduce a dedicated challenge-resolution subsystem with the following behavior:
+
+- normal HTTP resolution remains the default fast path
+- challenge/captcha detection raises a structured internal state, not an ad-hoc string failure
+- challenge-required jobs are handed to a browser-assisted resolver
+- the browser-assisted resolver owns persistent browser state and session reuse
+- protected navigation continues inside that same browser session after the challenge is solved
+
+Why this matters:
+
+- browser-required flows have different performance and reliability characteristics than normal HTTP fetches
+- they should be measurable, queueable, and debuggable independently
+- the system should avoid retry storms against challenge-protected pages
+
+### 7.12 Add challenge-state-aware job control
+
+Jobs that hit browser-required verification should not look like generic download errors.
+
+Recommended state model:
+
+- `pending`
+- `running`
+- `challenge_required`
+- `waiting_for_user`
+- `resolving_in_browser`
+- `completed`
+- `failed`
+
+Operational effect:
+
+- Sonarr/Radarr-facing compatibility can still expose a reasonable failure/wait state
+- internal UI and observability can tell the operator exactly why progress is paused
+
+### 7.13 Persist verification/browser sessions separately from HTTP cache
+
+Do not model solved captcha state as just another request cache entry.
+
+Instead persist separately:
+
+- browser profile metadata
+- last successful challenge timestamp per domain
+- verification TTL / expiry hints
+- active session ownership / lease info
+- failure counts for challenge-required domains
+
+This avoids conflating:
+
+- cached content facts
+- transport health
+- human/browser verification state
+
 ---
 
 ## 8. Recommended Refactor Direction
@@ -511,6 +585,8 @@ This avoids repeated nested traversal of the same provider list.
 2. add bounded parallel provider confirmation
 3. make normal season-search metadata/cache-first by default
 4. add stale-while-revalidate quality behavior
+5. add structured challenge detection and browser-assisted resolver integration
+6. add explicit job state transitions for challenge-required flows
 
 ### 8.3 Later priority
 
@@ -518,6 +594,7 @@ This avoids repeated nested traversal of the same provider list.
 2. confidence-based result model
 3. richer provider ranking heuristics
 4. possible async modernization if still justified after architectural cleanup
+5. multi-session browser broker and domain-specific challenge policies
 
 ---
 
@@ -531,6 +608,9 @@ The following would likely be bad directions:
 - rewriting the whole project to Rust / C++ before fixing architecture
 - introducing unbounded per-request concurrency
 - expanding provider count without first fixing probe-path scaling
+- relying on unofficial automatic captcha solvers as the primary production path
+- requiring manual cookie copying as the steady-state operator workflow
+- forcing interactive captcha resolution directly inside latency-sensitive request handlers
 
 ---
 
@@ -549,6 +629,11 @@ Potential new internal concepts:
 - `refresh_quality_in_background(...)`
 - `singleflight_probe(key, fn)`
 - `confirm_top_candidates_parallel(...)`
+- `detect_challenge_page(...)`
+- `enqueue_challenge_resolution(...)`
+- `browser_resolve_redirect(...)`
+- `challenge_session_store`
+- `verification_required_error`
 
 Potential new persistence concepts:
 
@@ -556,6 +641,16 @@ Potential new persistence concepts:
 - negative probe cache table
 - quality cache table
 - background warmup queue entries
+- browser session lease table
+- challenge-event audit table
+- domain challenge-policy table
+
+Potential new service concepts:
+
+- `browser_resolver_service`
+- `challenge_queue`
+- `verification_session_manager`
+- `operator_notification_channel`
 
 ---
 
@@ -567,6 +662,8 @@ The work should be considered successful if it produces the following outcomes:
 
 - release titles remain high quality for Sonarr / Prowlarr
 - no regression in compatibility
+- challenge-protected provider flows can be paused/resumed intentionally
+- operators can see when user verification is required and why
 
 ### Performance
 
@@ -575,12 +672,15 @@ The work should be considered successful if it produces the following outcomes:
 - lower timeout frequency
 - lower tail latency on season-search
 - improved warm-cache hit rates
+- no retry storm against challenge-protected redirect pages
 
 ### Operational
 
 - easier reasoning about probe behavior
 - easier debugging of why a provider was chosen or skipped
 - scalable path for future provider additions
+- explicit observability for captcha / browser-assisted resolution flows
+- supportable path for local desktop and server-side browser-assisted operation
 
 ---
 
@@ -598,5 +698,13 @@ The key move is:
 - reduce repeated provider failures
 - reduce duplicate in-flight work
 - keep the online request path fast and predictable
+
+For challenge-protected flows, the equivalent key move is:
+
+- keep plain HTTP as the fast path
+- detect when plain HTTP is no longer the right tool
+- hand off to a dedicated browser-assisted verification subsystem
+- continue protected navigation inside the same verified browser session
+- integrate that workflow into the future Web UI instead of treating it as an operator hack
 
 That is the highest-leverage performance path forward.
