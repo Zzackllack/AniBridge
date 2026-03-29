@@ -27,6 +27,7 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   preflight:
@@ -193,6 +194,7 @@ jobs:
     permissions:
       contents: write
     outputs:
+      commit_sha: ${{ needs.cut-version.outputs.commit_sha }}
       release_tag: ${{ needs.cut-version.outputs.release_tag }}
       next_version: ${{ needs.cut-version.outputs.next_version }}
       previous_tag: ${{ needs.cut-version.outputs.previous_tag }}
@@ -267,7 +269,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          ref: refs/tags/${{ needs.publish-ref.outputs.release_tag }}
+          ref: ${{ needs.publish-ref.outputs.commit_sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -306,7 +308,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          ref: refs/tags/${{ needs.publish-ref.outputs.release_tag }}
+          ref: ${{ needs.publish-ref.outputs.commit_sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -357,7 +359,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          ref: refs/tags/${{ needs.publish-ref.outputs.release_tag }}
+          ref: ${{ needs.publish-ref.outputs.commit_sha }}
 
       - name: Normalize image name to lowercase
         shell: bash
@@ -402,7 +404,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          ref: refs/tags/${{ needs.publish-ref.outputs.release_tag }}
+          ref: ${{ needs.publish-ref.outputs.commit_sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -418,6 +420,10 @@ jobs:
           PREVIOUS_TAG: ${{ needs.publish-ref.outputs.previous_tag }}
         run: |
           set -euo pipefail
+          git fetch origin "refs/tags/${CURRENT_TAG}:refs/tags/${CURRENT_TAG}"
+          if [ -n "${PREVIOUS_TAG}" ]; then
+            git fetch origin "refs/tags/${PREVIOUS_TAG}:refs/tags/${PREVIOUS_TAG}" || true
+          fi
           args=(--current-tag "${CURRENT_TAG}" --output-dir ".")
           if [ -n "${PREVIOUS_TAG}" ]; then
             args+=(--previous-tag "${PREVIOUS_TAG}")
