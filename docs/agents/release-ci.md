@@ -21,6 +21,10 @@
 - PyInstaller builds use `anibridge.spec` and `hooks/hook-fake_useragent.py`.
 - Release refs are created in CI only after tests and package-build preflight
   pass.
+- The release workflow pushes the release commit and tag over SSH with a
+  repository deploy key; it requires the Actions secrets `RELEASE_DEPLOY_KEY`
+  and `RELEASE_SSH_KNOWN_HOSTS`, and that deploy key must be allowed in the
+  branch ruleset bypass list for `main`.
 - Gemini release notes are best-effort; the workflow falls back to GitHub's
   generated notes if Gemini is unavailable or fails.
 - GitHub release publication is centralized in one job so assets and release

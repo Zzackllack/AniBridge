@@ -202,12 +202,36 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ needs.preflight.outputs.default_branch }}
+          persist-credentials: false
 
       - name: Download release refs
         uses: actions/download-artifact@v8
         with:
           name: release-ref-bundle
           path: release-ref
+
+      - name: Load release deploy key
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+
+      - name: Configure SSH known hosts and origin
+        env:
+          RELEASE_SSH_KNOWN_HOSTS: ${{ secrets.RELEASE_SSH_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_SSH_KNOWN_HOSTS:-}" ]; then
+            echo "RELEASE_SSH_KNOWN_HOSTS secret is required for SSH-based release pushes." >&2
+            exit 1
+          fi
+
+          mkdir -p "${HOME}/.ssh"
+          chmod 700 "${HOME}/.ssh"
+          printf '%s\n' "${RELEASE_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/known_hosts"
+          chmod 644 "${HOME}/.ssh/known_hosts"
+
+          git remote set-url origin "git@github.com:${GITHUB_REPOSITORY}.git"
 
       - name: Push release commit and tag
         env:
