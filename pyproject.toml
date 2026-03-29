@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "anibridge"
-version = "2.4.8"
+version = "2.4.9"
 description = "AniBridge - small utility to bridge AniWorld and Serienstream (s.to) catalogues to the *arr stack"
 readme = "/.github/README.md"
 license = "BSD-3-Clause"
