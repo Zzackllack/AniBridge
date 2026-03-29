@@ -6,7 +6,8 @@
 2. Set up the local environment (see `docs/agents/dev-workflows.md`).
 3. Run tests: `pytest`.
 4. Start the API and check `/health`.
-5. Review `.github/workflows` to understand automation triggers.
+5. Review `.github/workflows` and `.github/copilot-instructions.md` to
+   understand automation triggers and repository review standards.
 6. Review docs structure under `docs/src` and VitePress config.
 7. Inspect `docker-compose.yaml` for runtime env defaults.
 

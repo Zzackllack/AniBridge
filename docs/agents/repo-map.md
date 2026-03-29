@@ -4,6 +4,8 @@
 
 - `AGENTS.md` — agent entrypoint and index.
 - `.github/README.md` — project overview.
+- `.github/copilot-instructions.md` — repository-level instructions for GitHub
+  Copilot code reviews.
 - `LICENSE` — BSD 3-Clause license.
 - `VERSION` — current project version.
 - `pyproject.toml` — Python packaging metadata.
