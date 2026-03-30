@@ -213,7 +213,7 @@ jobs:
           path: release-ref
 
       - name: Load release deploy key
-        uses: webfactory/ssh-agent@v0.9.1
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
