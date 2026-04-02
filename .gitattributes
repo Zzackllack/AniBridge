@@ -1,0 +1,6 @@
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker-compose*.yaml text eol=lf
+docker-compose*.yml text eol=lf
+docker/*.yaml text eol=lf
+docker/*.yml text eol=lf
