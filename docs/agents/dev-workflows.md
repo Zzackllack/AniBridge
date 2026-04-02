@@ -13,6 +13,7 @@
 - Containerized dev stack: run `docker compose -f docker/docker-compose.dev.yaml up --watch`.
   - Compose `develop.watch` syncs `app/` changes into the running `anibridge` container.
   - Changes to `pyproject.toml`, `uv.lock`, `Dockerfile`, `docker/entrypoint.sh`, `VERSION`, or `alembic.ini` trigger an image rebuild.
+  - Windows/Docker Desktop checkouts must keep shell scripts on LF line endings; the image now normalizes `docker/entrypoint.sh` during build, and `.gitattributes` enforces LF for shell and Docker files in the repo.
 
 ## CLI and Utilities
 

@@ -25,6 +25,7 @@ docker compose -f docker/docker-compose.dev.yaml up --watch
 - Python source changes under `app/` are synced into the running AniBridge container.
 - Uvicorn reload picks those changes up without rebuilding the whole image.
 - Changes to `pyproject.toml`, `uv.lock`, `Dockerfile`, `docker/entrypoint.sh`, `VERSION`, or `alembic.ini` trigger an AniBridge image rebuild automatically.
+- On Windows/Docker Desktop, shell scripts must use LF line endings. The image normalizes `docker/entrypoint.sh` during build, and the repo ships `.gitattributes` rules to keep shell and Docker files on LF.
 
 ## Envs
 
