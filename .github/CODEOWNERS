@@ -11,6 +11,7 @@
 
 # GitHub workflows and automation
 /.github/workflows/ @Zzackllack
+/.gitattributes @Zzackllack
 
 # Docker and deployment
 /docker/ @Zzackllack
