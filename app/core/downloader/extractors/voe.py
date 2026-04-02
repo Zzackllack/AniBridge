@@ -116,15 +116,27 @@ def choose_redirect_candidate(html: str, current_url: str) -> Optional[str]:
 @lru_cache(maxsize=256)
 def host_is_public(host: str) -> bool:
     """
-    Determine whether a host resolves exclusively to public (globally routable) IP addresses.
+    Determine whether a host is suitable for following provider redirects.
 
-    If `host` is an IP literal the check uses that literal's global address property. If DNS resolution fails or yields no addresses, the function returns `False`.
+    IP literals must be globally routable. Named hosts are allowed unless they
+    are obviously local-only; if DNS resolution succeeds, all resolved
+    addresses must be globally routable. Unresolved public-looking hostnames are
+    allowed so redirect chains do not fail purely because local DNS cannot
+    resolve a temporary provider domain.
 
     Returns:
-        `True` if all resolved addresses for `host` are public/global, `False` otherwise.
+        `True` if `host` looks publicly routable, `False` otherwise.
     """
+    normalized = host.strip().rstrip(".").lower()
+    if not normalized:
+        return False
+    if normalized in {"localhost", "localhost.localdomain"}:
+        return False
+    if normalized.endswith((".local", ".internal", ".home", ".lan")):
+        return False
+
     try:
-        literal = ipaddress.ip_address(host)
+        literal = ipaddress.ip_address(normalized)
     except ValueError:
         literal = None
 
@@ -132,15 +144,15 @@ def host_is_public(host: str) -> bool:
         return literal.is_global
 
     try:
-        address_infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+        address_infos = socket.getaddrinfo(normalized, None, type=socket.SOCK_STREAM)
     except socket.gaierror:
-        return False
+        return True
 
     addresses = {
         info[4][0] for info in address_infos if info[4] and isinstance(info[4][0], str)
     }
     if not addresses:
-        return False
+        return True
 
     return all(ipaddress.ip_address(address).is_global for address in addresses)
 

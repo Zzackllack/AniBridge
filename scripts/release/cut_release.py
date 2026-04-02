@@ -23,7 +23,9 @@ PYPROJECT_FILE = ROOT / "pyproject.toml"
 OPENAPI_FILE = ROOT / "docs/src/openapi.json"
 DOCS_PACKAGE_FILE = ROOT / "docs/package.json"
 
-SEMVER_RE = re.compile(r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)$")
+SEMVER_RE = re.compile(
+    r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)$"
+)
 
 
 @dataclass(frozen=True)
