@@ -30,10 +30,9 @@ def _discover_repo_root() -> Path:
 
     this_file = Path(__file__).resolve()
     for candidate in this_file.parents:
-        if (
-            (candidate / ".github").exists()
-            and (candidate / "apps" / "api" / "pyproject.toml").exists()
-        ):
+        if (candidate / ".github").exists() and (
+            candidate / "apps" / "api" / "pyproject.toml"
+        ).exists():
             return candidate
     return Path.cwd()
 
