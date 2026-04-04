@@ -8,6 +8,7 @@ outline: deep
 ## Dev server
 
 ```bash
+cd apps/api
 python -m app.main
 ```
 
@@ -19,12 +20,12 @@ python -m app.main
 For the full Sonarr/Radarr/Prowlarr workflow in containers, use the development compose file in watch mode:
 
 ```bash
-docker compose -f docker/docker-compose.dev.yaml up --watch
+docker compose -f docker/compose.dev.yaml up --watch
 ```
 
-- Python source changes under `app/` are synced into the running AniBridge container.
+- Python source changes under `apps/api/app/` are synced into the running AniBridge container.
 - Uvicorn reload picks those changes up without rebuilding the whole image.
-- Changes to `pyproject.toml`, `uv.lock`, `Dockerfile`, `docker/entrypoint.sh`, `VERSION`, or `alembic.ini` trigger an AniBridge image rebuild automatically.
+- Changes to `apps/api/pyproject.toml`, `apps/api/uv.lock`, `apps/api/Dockerfile`, `docker/entrypoint.sh`, `VERSION`, or `apps/api/alembic.ini` trigger an AniBridge image rebuild automatically.
 - On Windows/Docker Desktop, shell scripts must use LF line endings. The image normalizes `docker/entrypoint.sh` during build, and the repo ships `.gitattributes` rules to keep shell and Docker files on LF.
 
 ## Envs

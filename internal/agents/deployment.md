@@ -1,6 +1,6 @@
 # Deployment
 
-## Dockerfile Highlights
+## `apps/api/Dockerfile` Highlights
 
 - Base image: `python:3.14-slim`.
 - Multi-stage build (`base`, `deps`, `final`).
@@ -23,7 +23,7 @@
 
 ## Docker Compose
 
-### `docker-compose.yaml`
+### `docker/compose.yaml`
 
 - Service `anibridge` uses `ghcr.io/zzackllack/anibridge:latest`.
 - Ports: `8000:8000`.
@@ -36,4 +36,4 @@
 - Optional Sonarr/Prowlarr containers for end-to-end testing.
 - Shared network `anibridge-dev-net`.
 - `anibridge` enables `ANIBRIDGE_RELOAD=true` for containerized development.
-- Compose `develop.watch` syncs `app/` into `/app/app` and rebuilds the image when build inputs change.
+- Compose `develop.watch` syncs `apps/api/app/` into `/app/app` and rebuilds the image when build inputs change.

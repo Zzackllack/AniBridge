@@ -5,7 +5,7 @@ outline: deep
 
 # Environment Variables
 
-Comprehensive list of env vars read in `app/config.py`.
+Comprehensive list of env vars read in `apps/api/app/config.py`.
 
 ## Paths
 

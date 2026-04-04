@@ -27,7 +27,7 @@ services:
       - DB_MIGRATE_ON_STARTUP=${DB_MIGRATE_ON_STARTUP:-true}
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./data:/data
+      - ../data:/data
     healthcheck:
       test:
         ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]

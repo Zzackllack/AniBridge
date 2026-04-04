@@ -8,22 +8,22 @@
   Copilot code reviews.
 - `LICENSE` — BSD 3-Clause license.
 - `VERSION` — current project version.
-- `pyproject.toml` — Python packaging metadata.
-- `uv.lock` — uv dependency lock.
-- `Dockerfile` — container build.
+- `apps/api/pyproject.toml` — Python packaging metadata.
+- `apps/api/uv.lock` — uv dependency lock.
+- `apps/api/Dockerfile` — container build.
 - `nixpacks.toml` — Nixpacks configuration.
-- `docker-compose.yaml` / `docker-compose.dev.yaml` — compose configs.
+- `docker/compose.yaml` / `docker/compose.dev.yaml` — compose configs.
 - `wrangler.toml` — Cloudflare Workers config for docs.
-- `app/` — Python application package.
+- `apps/api/` — Python backend project root.
 - `docs/` — VitePress documentation source.
-- `specs/` — specifications and planning artifacts.
-- `tests/` — pytest suite organized into `integration/api/` and domain-oriented
-  `unit/` coverage.
+- `internal/specs/` — specifications and planning artifacts.
+- `apps/api/tests/` — pytest suite organized into `integration/api/` and
+  domain-oriented `unit/` coverage.
 - `scripts/` — helper scripts.
-- `hooks/` — PyInstaller hooks.
+- `apps/api/hooks/` — PyInstaller hooks.
 - `data/` — runtime data. Never commit artifacts here.
 
-## `app/` High-Level Layout
+## `apps/api/app/` High-Level Layout
 
 - `api/` — endpoint routers grouped by domain.
 - `core/` — bootstrap, scheduler, downloader, lifespan.
@@ -57,20 +57,20 @@
 
 ## File Reference Index
 
-- `app/main.py` — FastAPI app entry.
-- `app/cli.py` — CLI server runner.
-- `app/config.py` — environment configuration.
-- `app/core/bootstrap.py` — env bootstrap and log setup.
-- `app/core/lifespan.py` — FastAPI lifespan manager.
-- `app/core/scheduler.py` — thread pool management.
-- `app/core/downloader.py` — download orchestration.
-- `app/api/health.py` — health check router.
-- `app/api/legacy_downloader.py` — legacy download endpoint.
-- `app/api/torznab/api.py` — Torznab handlers.
-- `app/api/qbittorrent/*` — qBittorrent shim endpoints.
-- `app/db/models.py` — SQLModel definitions and CRUD.
-- `app/domain/models.py` — domain models.
-- `app/utils/*` — shared utilities.
-- `app/infrastructure/*` — logging, public-IP/network helpers, system info.
+- `apps/api/app/main.py` — FastAPI app entry.
+- `apps/api/app/cli.py` — CLI server runner.
+- `apps/api/app/config.py` — environment configuration.
+- `apps/api/app/core/bootstrap.py` — env bootstrap and log setup.
+- `apps/api/app/core/lifespan.py` — FastAPI lifespan manager.
+- `apps/api/app/core/scheduler.py` — thread pool management.
+- `apps/api/app/core/downloader/*` — download orchestration.
+- `apps/api/app/api/health.py` — health check router.
+- `apps/api/app/api/legacy_downloader.py` — legacy download endpoint.
+- `apps/api/app/api/torznab/api.py` — Torznab handlers.
+- `apps/api/app/api/qbittorrent/*` — qBittorrent shim endpoints.
+- `apps/api/app/db/models.py` — SQLModel definitions and CRUD.
+- `apps/api/app/domain/models.py` — domain models.
+- `apps/api/app/utils/*` — shared utilities.
+- `apps/api/app/infrastructure/*` — logging, public-IP/network helpers, system info.
 - `docs/.vitepress/config.mts` — docs site config.
 - `docs/worker.ts` — Cloudflare Worker entry.

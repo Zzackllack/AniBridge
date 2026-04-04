@@ -87,15 +87,16 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: cd apps/api && uv sync --frozen
 
       - name: Compute next release version
         id: plan
         run: |
           set -euo pipefail
-          uv run python scripts/release/cut_release.py \
+          cd apps/api
+          uv run python ../../scripts/release/cut_release.py \
             --release-type "${{ inputs.release_type }}" \
-            --output-json release-plan.json
+            --output-json ../../release-plan.json
 
           python - <<'PY'
           import json
@@ -109,10 +110,10 @@ jobs:
           PY
 
       - name: Run tests
-        run: uv run pytest
+        run: cd apps/api && uv run pytest
 
       - name: Run package build smoke test
-        run: uv run --with build python -m build --sdist --wheel -o /tmp/anibridge-release-smoke
+        run: cd apps/api && uv run --with build python -m build --sdist --wheel -o /tmp/anibridge-release-smoke
 
   cut-version:
     name: Cut Version
@@ -149,13 +150,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          uv run python scripts/release/cut_release.py \
+          cd apps/api
+          uv run python ../../scripts/release/cut_release.py \
             --release-type "${{ inputs.release_type }}" \
             --apply \
             --commit \
             --tag \
-            --output-json release-plan.json
+            --output-json ../../release-plan.json
 
+          cd ../..
           python - <<'PY'
           import json
           from pathlib import Path
@@ -280,10 +283,10 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       - name: Build distributions
-        run: uv run --with build python -m build
+        run: cd apps/api && uv run --with build python -m build
 
       - name: Create checksums
-        working-directory: dist
+        working-directory: apps/api/dist
         run: |
           set -euo pipefail
           find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
@@ -292,7 +295,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: python-dists
-          path: dist/*
+          path: apps/api/dist/*
           retention-days: 7
 
   build-pyinstaller:
@@ -322,9 +325,11 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: |
           set -euo pipefail
+          cd apps/api
           uv run --with pyinstaller pyinstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge
+          cd ../..
           mkdir -p artifacts release
-          mv dist/anibridge artifacts/
+          mv apps/api/dist/anibridge artifacts/
           version=$(tr -d ' \n\r' < VERSION)
           tar -czf "release/anibridge-${{ matrix.os }}-${version}.tar.gz" -C artifacts .
 
@@ -332,10 +337,12 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
+          Push-Location apps/api
           uv run --with pyinstaller pyinstaller --additional-hooks-dir hooks --onefile app\main.py --name anibridge
+          Pop-Location
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
           New-Item -ItemType Directory -Force -Path release | Out-Null
-          Move-Item -Path dist\anibridge.exe -Destination artifacts\anibridge.exe
+          Move-Item -Path apps/api/dist/anibridge.exe -Destination artifacts\anibridge.exe
           $v = (Get-Content VERSION -Raw).Trim()
           Compress-Archive -Path artifacts\* -DestinationPath (Join-Path -Path release -ChildPath "anibridge-windows-$v.zip") -Force
 

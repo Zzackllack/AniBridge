@@ -14,6 +14,7 @@ You can run AniBridge directly with Python or via Docker Compose.
 ## Python
 
 ```bash
+cd apps/api
 python -m app.main
 # INFO: Uvicorn on http://0.0.0.0:8000
 ```
@@ -50,10 +51,10 @@ curl -sS http://localhost:8000/health
 For the containerized development stack in this repository, prefer:
 
 ```bash
-docker compose -f docker/docker-compose.dev.yaml up --watch
+docker compose -f docker/compose.dev.yaml up --watch
 ```
 
-- Compose watch syncs `app/` changes into the AniBridge container for fast iteration.
+- Compose watch syncs `apps/api/app/` changes into the AniBridge container for fast iteration.
 - Build-affecting file changes still trigger a rebuild automatically.
 
 ## Behind a VPN (Docker + Gluetun)

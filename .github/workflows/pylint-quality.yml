@@ -5,15 +5,17 @@ on:
     tags-ignore:
       - "v*"
     paths:
-      - "app/**"
-      - "pyproject.toml"
-      - "uv.lock"
+      - "apps/api/app/**"
+      - "apps/api/tests/**"
+      - "apps/api/pyproject.toml"
+      - "apps/api/uv.lock"
       - ".github/workflows/pylint-quality.yml"
   pull_request:
     paths:
-      - "app/**"
-      - "pyproject.toml"
-      - "uv.lock"
+      - "apps/api/app/**"
+      - "apps/api/tests/**"
+      - "apps/api/pyproject.toml"
+      - "apps/api/uv.lock"
       - ".github/workflows/pylint-quality.yml"
 
 permissions:
@@ -40,10 +42,10 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: cd apps/api && uv sync --frozen
 
-      - name: Run pylint in app/
-        working-directory: app
+      - name: Run pylint in apps/api/app/
+        working-directory: apps/api/app
         run: |
           set -o pipefail
           uv run pylint . | tee ../pylint-output.txt || true

@@ -24,19 +24,19 @@
 
 ## Domain Models (Python)
 
-- `app/domain/models.py` mirrors DB models but is decoupled for domain logic and API serialization.
+- `apps/api/app/domain/models.py` mirrors DB models but is decoupled for domain logic and API serialization.
 
 ## SQL Engine Helpers
 
 - `apply_migrations()` runs Alembic migrations (default at app startup).
-- `create_db_and_tables()` creates tables directly (used for tests/legacy paths).
+- `create_db_and_tables()` creates tables directly (used for backend tests and legacy paths).
 - `cleanup_dangling_jobs()` resets jobs stuck in non-terminal state to `failed`.
 - `dispose_engine()` closes engine on shutdown/testing.
 
 ## Migrations
 
-- Alembic configuration lives in `alembic.ini`.
-- Migration scripts live in `app/db/migrations/versions`.
+- Alembic configuration lives in `apps/api/alembic.ini`.
+- Migration scripts live in `apps/api/app/db/migrations/versions`.
 
 ## Data Directory
 

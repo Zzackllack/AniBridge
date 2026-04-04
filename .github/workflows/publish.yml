@@ -4,13 +4,13 @@ on:
   push:
     branches: [main]
     paths:
-      - "Dockerfile"
+      - "apps/api/Dockerfile"
       - "docker/entrypoint.sh"
-      - "app/**"
+      - "apps/api/app/**"
       - "VERSION"
-      - "alembic.ini"
-      - "pyproject.toml"
-      - "uv.lock"
+      - "apps/api/alembic.ini"
+      - "apps/api/pyproject.toml"
+      - "apps/api/uv.lock"
   workflow_dispatch:
 
 permissions:
@@ -68,6 +68,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          file: apps/api/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}

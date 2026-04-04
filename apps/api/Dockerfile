@@ -14,11 +14,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # --- Stage 2: Install Python dependencies ---
 FROM base AS deps
 COPY --from=ghcr.io/astral-sh/uv:0.10.0 /uv /usr/local/bin/uv
-COPY pyproject.toml uv.lock ./
+COPY apps/api/pyproject.toml ./pyproject.toml
+COPY apps/api/uv.lock ./uv.lock
 RUN uv sync --frozen --no-install-project
-COPY app/ ./app/
+COPY apps/api/app/ ./app/
 COPY VERSION ./
-COPY alembic.ini ./
+COPY apps/api/alembic.ini ./alembic.ini
 RUN uv sync --frozen --no-editable
 
 # --- Stage 3: Copy source and create non-root user ---
@@ -30,14 +31,13 @@ RUN addgroup --system appgroup && adduser --system --group appuser
 
 ENV PATH="/app/.venv/bin:${PATH}"
 COPY --from=deps /app/.venv /app/.venv
-COPY app/ ./app/
+COPY apps/api/app/ ./app/
 COPY VERSION ./
-COPY alembic.ini ./
+COPY apps/api/alembic.ini ./alembic.ini
 
 # Prepare writable data directory for runtime mounts (ownership finalized at runtime)
 RUN mkdir -p /data
 
-# Lightweight entrypoint that adjusts UID/GID to PUID/PGID and drops privileges
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 

@@ -5,16 +5,22 @@ on:
     tags-ignore:
       - 'v*'
     paths:
-      - 'app/**'
-      - 'tests/**'
-      - 'pyproject.toml'
-      - 'uv.lock'
+      - 'apps/api/app/**'
+      - 'apps/api/tests/**'
+      - 'apps/api/pyproject.toml'
+      - 'apps/api/uv.lock'
+      - 'apps/api/pytest.ini'
+      - 'apps/api/alembic.ini'
+      - 'apps/api/Dockerfile'
   pull_request:
     paths:
-      - 'app/**'
-      - 'tests/**'
-      - 'pyproject.toml'
-      - 'uv.lock'
+      - 'apps/api/app/**'
+      - 'apps/api/tests/**'
+      - 'apps/api/pyproject.toml'
+      - 'apps/api/uv.lock'
+      - 'apps/api/pytest.ini'
+      - 'apps/api/alembic.ini'
+      - 'apps/api/Dockerfile'
 
 permissions:
   contents: read
@@ -34,27 +40,28 @@ jobs:
             python-version: '3.14'
       - uses: astral-sh/setup-uv@v7
       - name: Install dependencies
-        run: uv sync --frozen
+        run: cd apps/api && uv sync --frozen
       - name: Run tests
         id: pytest
         continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
+          cd apps/api
           uv run pytest 2>&1 | tee pytest-output.txt
       - name: Upload pytest failure output
         if: github.event_name == 'pull_request' && steps.pytest.outcome == 'failure'
         uses: actions/upload-artifact@v7
         with:
           name: pytest-output-pr-${{ github.event.pull_request.number }}
-          path: pytest-output.txt
+          path: apps/api/pytest-output.txt
           if-no-files-found: error
           retention-days: 7
       - name: Upload coverage
         uses: actions/upload-artifact@v7
         with:
           name: coverage-report
-          path: ./.coverage
+          path: ./apps/api/.coverage
           if-no-files-found: ignore
       - name: Enforce test success
         if: steps.pytest.outcome == 'failure'

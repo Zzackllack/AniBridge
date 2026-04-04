@@ -19,7 +19,7 @@ from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[2]
 VERSION_FILE = ROOT / "VERSION"
-PYPROJECT_FILE = ROOT / "pyproject.toml"
+PYPROJECT_FILE = ROOT / "apps/api/pyproject.toml"
 OPENAPI_FILE = ROOT / "docs/src/openapi.json"
 DOCS_PACKAGE_FILE = ROOT / "docs/package.json"
 

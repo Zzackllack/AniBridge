@@ -7,6 +7,7 @@ services:
   anibridge:
     build:
       context: ..
+      dockerfile: apps/api/Dockerfile
     container_name: anibridge-dev
     ports:
       - "8000:8000"
@@ -20,23 +21,23 @@ services:
     develop:
       watch:
         - action: sync
-          path: ../app
+          path: ../apps/api/app
           target: /app/app
           ignore:
             - __pycache__/
             - "**/*.pyc"
         - action: rebuild
-          path: ../pyproject.toml
+          path: ../apps/api/pyproject.toml
         - action: rebuild
-          path: ../uv.lock
+          path: ../apps/api/uv.lock
         - action: rebuild
-          path: ../Dockerfile
+          path: ../apps/api/Dockerfile
         - action: rebuild
           path: ../docker/entrypoint.sh
         - action: rebuild
           path: ../VERSION
         - action: rebuild
-          path: ../alembic.ini
+          path: ../apps/api/alembic.ini
     healthcheck:
       test:
         ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]

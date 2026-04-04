@@ -3,13 +3,13 @@
 ## Orientation Checklist
 
 1. Read `.github/README.md`, `docs/src/legal.md`, and `.github/CODE_OF_CONDUCT.md`.
-2. Set up the local environment (see `docs/agents/dev-workflows.md`).
-3. Run tests: `pytest`.
+2. Set up the local environment (see `internal/agents/dev-workflows.md`).
+3. Run tests: `cd apps/api && pytest`.
 4. Start the API and check `/health`.
 5. Review `.github/workflows` and `.github/copilot-instructions.md` to
    understand automation triggers and repository review standards.
 6. Review docs structure under `docs/src` and VitePress config.
-7. Inspect `docker-compose.yaml` for runtime env defaults.
+7. Inspect `docker/compose.yaml` for runtime env defaults.
 
 ## Quality Checklist
 
@@ -22,10 +22,10 @@
 
 ## Maintenance Notice
 
-- Update `AGENTS.md` and the relevant `docs/agents/*` files whenever changes would make agent guidance outdated.
+- Update `AGENTS.md` and the relevant `internal/agents/*` files whenever changes would make agent guidance outdated.
 
 ## Collaboration Patterns
 
 - Use focused scopes per change: API, scheduler, downloader, docs.
 - When updating docs, validate that docs reflect code behavior.
-- When changing release flow, align `VERSION`, `pyproject.toml`, and release notes.
+- When changing release flow, align `VERSION`, `apps/api/pyproject.toml`, and release notes.

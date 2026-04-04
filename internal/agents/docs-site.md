@@ -45,7 +45,7 @@
 - Preview URLs: `preview_urls = true` in `wrangler.toml` (required for temporary
   preview links).
 - Build command (Wrangler):
-  - `git fetch --unshallow --tags 2>/dev/null || git fetch --tags --depth=2147483647 2>/dev/null || true && npm --prefix docs ci --no-audit --no-fund && npm --prefix docs run build`
+  - `git fetch --unshallow --tags 2>/dev/null || git fetch --tags --depth=2147483647 2>/dev/null || true && pnpm --prefix docs install --frozen-lockfile && pnpm --prefix docs run build`
 - Assets directory: `docs/.vitepress/dist` (binding `ASSETS`).
 - Static assets are configured with `run_worker_first = true` so
   canonical/SEO middleware in the Worker runs on every request.

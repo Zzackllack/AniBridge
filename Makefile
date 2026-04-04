@@ -29,10 +29,10 @@ release-dry-run:
 
 
 build:
-	uv build
+	cd apps/api && uv build
 
 wheel: build
 
 pyinstaller:
-	# build single-file for the current platform from app/main.py (adjust as needed)
-	uv run pyinstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge
+	# build single-file for the current platform from apps/api/app/main.py
+	cd apps/api && uv run pyinstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge

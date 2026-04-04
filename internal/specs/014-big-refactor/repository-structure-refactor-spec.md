@@ -97,7 +97,6 @@ the repository less conventional, not more maintainable.
   .dockerignore
   AGENTS.md
   LICENSE
-  LEGAL.md
   Makefile
   VERSION
   context7.json
@@ -265,28 +264,14 @@ entrypoints:
 
 ### Decision
 
-Keep `LEGAL.md` at root as a short pointer file unless all root references can
-be replaced cleanly.
+Delete the root `LEGAL.md` pointer once root-facing references point directly to
+the canonical docs page.
 
-### Current state
+### Rationale
 
-`LEGAL.md` is not a true content duplicate. It already points to the canonical
-legal page in `docs/src/legal.md`.
-
-### Why keeping it can be reasonable
-
-- It provides a discoverable legal pointer from the repository root.
-- It avoids duplicating the actual legal text.
-
-### When deletion would be acceptable
-
-Delete it only if:
-
-- `.github/README.md` and other root-facing materials link directly to the docs
-  legal page
-- the repo still has an obvious legal entrypoint for GitHub visitors
-
-This is optional cleanup, not a priority structure fix.
+- The legal content already lives canonically in `docs/src/legal.md`.
+- Keeping a root pointer adds one more root file without adding new content.
+- The repository README and docs can link directly to the published legal page.
 
 ## 5.8 `nixpacks.toml` and deployment-specific config
 
@@ -380,7 +365,7 @@ This should be done in phases, with rename-only commits where possible.
 
 ### Phase 5 - Optional follow-up cleanup
 
-- decide whether `LEGAL.md` remains as a pointer or is removed
+- remove `LEGAL.md` once root references are direct
 - review `nixpacks.toml`, `wrangler.toml`, and other deployment configs
 - introduce `packages/` only if reuse emerges
 

@@ -2,7 +2,7 @@
 
 ## Test Runner
 
-- Pytest configured via `pytest.ini`.
+- Pytest configured via `apps/api/pytest.ini`.
 
 ## Fixtures
 
@@ -12,7 +12,7 @@
 
 - `tests/integration/api/` contains request/response coverage for FastAPI
   surfaces such as qBittorrent, STRM proxy, Torznab, and health endpoints.
-- `tests/unit/app/` covers app-level helpers such as config, CORS, and version
+- `apps/api/tests/unit/app/` covers app-level helpers such as config, CORS, and version
   resolution.
 - `tests/unit/api/` contains non-request unit coverage for API helper modules.
 - `tests/unit/core/` groups downloader, scheduler, and STRM proxy logic.
@@ -31,12 +31,12 @@
 - `tests/unit/utils/` and `tests/unit/utils/title_resolver/` — helper modules.
 - `tests/unit/db/test_models.py` — SQLModel behaviors and TTL logic.
 - `tests/unit/utils/test_update_notifier.py` — release checks.
-- `tests/unit/app/test_version.py` — `_version.py` alignment with `VERSION`.
+- `apps/api/tests/unit/app/test_version.py` — `_version.py` alignment with `VERSION`.
 
 ## Execution
 
-- Run all tests: `pytest`.
-- Optional coverage: `pytest --cov=app`.
+- Run all tests: `cd apps/api && pytest`.
+- Optional coverage: `cd apps/api && pytest --cov=app`.
 
 ## Coverage Goals
 
@@ -44,6 +44,6 @@
 
 ## CI
 
-- `.github/workflows/tests.yml` runs on pushes/PRs touching `app/**` or `tests/**`.
+- `.github/workflows/tests.yml` runs on pushes/PRs touching `apps/api/app/**` or `apps/api/tests/**`.
 - On pull requests, failed pytest runs upload the captured console output so CI
   can post or refresh a remediation comment on the PR thread.

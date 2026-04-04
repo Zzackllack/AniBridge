@@ -1,6 +1,6 @@
 # Configuration
 
-AniBridge centralizes configuration in `app/config.py`. Values are derived from environment variables, `.env`, and defaults.
+AniBridge centralizes configuration in `apps/api/app/config.py`. Values are derived from environment variables, `.env`, and defaults.
 
 ## Key Groups
 

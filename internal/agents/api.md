@@ -3,7 +3,7 @@
 ## Base URLs
 
 - Local default: `http://localhost:8000`
-- Docker mapping configured via `docker-compose.yaml` (port 8000)
+- Docker mapping configured via `docker/compose.yaml` (port 8000)
 
 ## Health Endpoint (`/health`)
 
@@ -47,4 +47,4 @@
 
 - Exceptions logged via Loguru.
 - API returns structured errors aligned with qBittorrent/Torznab expectations.
-- `app/api/qbittorrent/common.py` provides shared error helpers.
+- `apps/api/app/api/qbittorrent/common.py` provides shared error helpers.

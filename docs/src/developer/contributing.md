@@ -45,18 +45,21 @@ winget install --id=astral-sh.uv  -e
 ```bash
 git clone https://github.com/zzackllack/AniBridge.git
 cd AniBridge
+cd apps/api
 uv sync --frozen
 ```
 
 Run the application locally with:
 
 ```bash
+cd apps/api
 uv run python -m app.main
 ```
 
 Or directly with Python:
 
 ```bash
+cd apps/api
 python -m app.main
 ```
 
@@ -67,6 +70,7 @@ Test changes to GitHub workflows using a tool like [act](https://github.com/nekt
 Before submitting a pull request ensure that all tests pass:
 
 ```bash
+cd apps/api
 pytest
 ```
 

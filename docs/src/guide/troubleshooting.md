@@ -22,7 +22,7 @@ outline: deep
 
 - Check `PROVIDER_ORDER` and language availability
 - Validate ffmpeg/ffprobe in PATH for proper renaming
-- Inspect `app/core/downloader.py` logs for provider exceptions
+- Inspect `apps/api/app/core/downloader/*` logs for provider exceptions
 
 ## Wrong save path reported to Sonarr
 

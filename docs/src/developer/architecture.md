@@ -29,15 +29,15 @@ flowchart LR
   end
 
   subgraph AB["AniBridge (FastAPI)"]
-    Main["app/main.py"]
+    Main["apps/api/app/main.py"]
     Torznab["/torznab/api"]
     QB["/api/v2/* (qB shim)"]
     Strm["/strm/* (STRM proxy)"]
     Legacy["/downloader/download"]
-    Scheduler["app/core/scheduler.py"]
-    DL["app/core/downloader/*"]
-    Resolver["app/utils/title_resolver.py"]
-    Specials["app/providers/aniworld/specials.py"]
+    Scheduler["apps/api/app/core/scheduler.py"]
+    DL["apps/api/app/core/downloader/*"]
+    Resolver["apps/api/app/utils/title_resolver.py"]
+    Specials["apps/api/app/providers/aniworld/specials.py"]
     DB[("SQLite + SQLModel")]
   end
 
@@ -76,12 +76,12 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  API["API Layer<br/>app/api/*"]
-  CORE["Core Services<br/>app/core/*"]
-  UTIL["Utility Layer<br/>app/utils/*"]
-  PROV["Provider Layer<br/>app/providers/*"]
-  DB["Persistence Layer<br/>app/db/*"]
-  INFRA["Infra Layer<br/>app/infrastructure/*"]
+  API["API Layer<br/>apps/api/app/api/*"]
+  CORE["Core Services<br/>apps/api/app/core/*"]
+  UTIL["Utility Layer<br/>apps/api/app/utils/*"]
+  PROV["Provider Layer<br/>apps/api/app/providers/*"]
+  DB["Persistence Layer<br/>apps/api/app/db/*"]
+  INFRA["Infra Layer<br/>apps/api/app/infrastructure/*"]
 
   API --> CORE
   API --> UTIL
@@ -181,7 +181,7 @@ For each successful candidate, AniBridge builds:
 
 ## Slug Resolution and Best-Match Algorithm
 
-Slug resolution is centralized in `app/utils/title_resolver.py`.
+Slug resolution is centralized in `apps/api/app/utils/title_resolver.py`.
 
 ### Site Selection Strategy
 
@@ -288,7 +288,7 @@ sequenceDiagram
 
 ## Downloader and Provider Fallback
 
-`app/core/downloader/download.py` orchestrates download fallback.
+`apps/api/app/core/downloader/download.py` orchestrates download fallback.
 
 ```mermaid
 flowchart TD
@@ -452,7 +452,7 @@ stateDiagram-v2
 
 Notes:
 
-- `app/providers/registry.py` is deprecated compatibility code. Use `app.providers.get_provider()` / `list_providers()`.
+- `apps/api/app/providers/registry.py` is deprecated compatibility code. Use `app.providers.get_provider()` / `list_providers()`.
 - Provider defaults and ordering come from `CATALOG_SITE_CONFIGS` + `PROVIDER_ORDER`.
 
 ## End-to-End Sonarr + Prowlarr Workflow
@@ -489,10 +489,10 @@ sequenceDiagram
 
 When debugging cross-module behavior, start in this order:
 
-1. `app/api/torznab/api.py` for release generation logic.
-2. `app/utils/title_resolver.py` for slug matching and site fallback.
-3. `app/api/qbittorrent/torrents.py` for magnet intake and job enqueue.
-4. `app/core/scheduler.py` for runner selection (`download` vs `strm`).
-5. `app/core/downloader/download.py` for provider fallback behavior.
-6. `app/api/strm.py` + `app/core/strm_proxy/*` for playback proxy behavior.
-7. `app/db/models.py` for persisted state and cache freshness rules.
+1. `apps/api/app/api/torznab/api.py` for release generation logic.
+2. `apps/api/app/utils/title_resolver.py` for slug matching and site fallback.
+3. `apps/api/app/api/qbittorrent/torrents.py` for magnet intake and job enqueue.
+4. `apps/api/app/core/scheduler.py` for runner selection (`download` vs `strm`).
+5. `apps/api/app/core/downloader/download.py` for provider fallback behavior.
+6. `apps/api/app/api/strm.py` + `apps/api/app/core/strm_proxy/*` for playback proxy behavior.
+7. `apps/api/app/db/models.py` for persisted state and cache freshness rules.

@@ -18,7 +18,7 @@
   branches may run dry-runs only.
 - Version bumps also update `docs/src/openapi.json` (`info.version`) and `docs/package.json` (`version`) for the docs API reference.
 - Python distributions built via `uv run --with build python -m build`.
-- PyInstaller builds use `anibridge.spec` and `hooks/hook-fake_useragent.py`.
+- PyInstaller builds use `apps/api/anibridge.spec` and `apps/api/hooks/hook-fake_useragent.py`.
 - Release refs are created in CI only after tests and package-build preflight
   pass.
 - The release workflow pushes the release commit and tag over SSH with a
@@ -40,7 +40,7 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
 
 ## Release Playbook
 
-1. Run tests: `pytest`.
+1. Run tests: `cd apps/api && pytest`.
 2. Update docs as needed.
 3. Dispatch `make patch`, `make minor`, or `make major` from a machine with
    authenticated `gh`, or run `Release / Cut Release` directly in GitHub.
@@ -52,7 +52,7 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
 
 ## CI/CD Workflows
 
-- `tests.yml`: runs `uv sync --frozen`, executes pytest, and uploads captured
+- `tests.yml`: runs `cd apps/api && uv sync --frozen`, executes pytest, and uploads captured
   failure output for pull request feedback. It ignores `v*` release-tag pushes.
 - `pr-test-feedback.yml`: posts or updates a pull request comment when
   `tests.yml` fails on a PR, including the pytest output in a collapsed Markdown
@@ -61,10 +61,10 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
   rules, invalid or unresolved owner references, and newly added or renamed
   paths that are covered only by the global fallback rule, then posts or
   refreshes a remediation comment on the PR.
-- `format-and-run.yml`: runs `ruff format app` and auto-commits formatting changes.
+- `format-and-run.yml`: runs `cd apps/api && ruff format app tests` and auto-commits formatting changes.
 - `pylint-quality.yml`: enforces the pylint score gate on branch pushes and pull
   requests, but ignores `v*` release-tag pushes.
-- `format-and-run.yml`: runs `ruff format app` and auto-commits formatting
+- `format-and-run.yml`: runs `cd apps/api && ruff format app tests` and auto-commits formatting
   changes on branch pushes and pull requests, but ignores `v*` release-tag
   pushes.
 - `pr-title-conventional.yml`: validates pull request titles against the

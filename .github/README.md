@@ -41,7 +41,7 @@ AniBridge is a minimal FastAPI service that bridges anime and series streaming c
 ### With Docker
 
 ```bash
-docker compose up -d
+docker compose -f docker/compose.yaml up -d
 ```
 
 ### From source
@@ -50,6 +50,7 @@ docker compose up -d
 git clone https://github.com/zzackllack/AniBridge.git
 cd AniBridge
 # Install uv first if needed: https://docs.astral.sh/uv/getting-started/installation/
+cd apps/api
 uv sync --frozen
 uv run python -m app.main
 ```

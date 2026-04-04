@@ -1,7 +1,7 @@
 # AniBridge Repository Refactor Follow-Up
 
 Date: 2026-04-03
-Status: After iteration 1 path moves only
+Status: Updated after iteration 2 follow-up work
 Scope: Broken references, deferred deletions, and next-iteration work after the
 initial `git mv`-style restructure
 
@@ -144,25 +144,11 @@ Current backend source location:
 
 The following were intentionally deferred from iteration 1.
 
-### 4.1 `LEGAL.md`
+### 4.1 Completed in iteration 2
 
-User decision:
-
-- delete `LEGAL.md`
-- do not do it in iteration 1
-
-Before deletion:
-
-- update any root-facing references to point directly to the canonical legal
-  docs page in `docs/src/legal.md`
-
-### 4.2 `docs/package-lock.json`
-
-User decision:
-
-- standardize Node package management on `pnpm`
-- remove `docs/package-lock.json`
-- do not do it in iteration 1
+- `LEGAL.md` deleted after root-facing references were updated
+- `docs/package-lock.json` deleted to standardize Node package management on
+  `pnpm`
 
 ### 4.3 Root Node workspace files
 
@@ -180,22 +166,27 @@ Leave at root for now.
 
 Leave at root for now.
 
-## 5. Deferred follow-up implementation work
+## 5. Iteration 2 completion status
 
-The following work was explicitly postponed to a later iteration:
+Completed in iteration 2:
 
-- update CI workflows
-- update `AGENTS.md`
-- update docs content and internal links
-- update release scripts
-- update Docker build references
-- update compose references
-- update Makefile commands
-- update local development commands
-- update path-sensitive tests
-- update generated docs or OpenAPI artifacts only if needed
+- updated root entrypoints and developer commands
+- updated CI workflows and release/build scripts
+- updated Docker and compose references
+- updated maintained internal agent docs
+- updated maintained public developer docs
+- fixed backend test runner path assumptions after the move
+- deleted `LEGAL.md`
+- deleted `docs/package-lock.json`
 
-## 6. Recommended order for iteration 2
+Still intentionally not mass-rewritten:
+
+- older historical documents under `internal/specs/` that mention the pre-move
+  paths as part of past planning context
+- broader content cleanup for long-form historical specs where current-path
+  normalization is optional rather than required for day-to-day operation
+
+## 6. Recommended next work
 
 1. Update root entrypoints and developer commands:
    - `AGENTS.md`
@@ -208,15 +199,23 @@ The following work was explicitly postponed to a later iteration:
 3. Update internal markdown references:
    - `internal/agents/*`
    - `internal/specs/*`
-4. Delete deferred files once references are clean:
-   - `LEGAL.md`
-   - `docs/package-lock.json`
-5. Run verification:
-   - `pytest` from the new backend location
-   - docs build
-   - Docker and compose smoke checks
+4. Optional historical-doc normalization:
+   - update older `internal/specs/*` references from `app/`, `tests/`, and
+     `specs/` to the current layout where that improves readability
+5. Start the Web UI bootstrap work in `apps/web/`
 
-## 7. Commit guidance for this iteration
+## 7. Verification from iteration 2
+
+- `cd apps/api && uv run pytest -q` -> passed
+- `pnpm --prefix docs run build` -> passed
+- `docker compose -f docker/compose.yaml config` -> passed
+- `docker compose -f docker/compose.dev.yaml config` -> passed
+- `docker compose -f docker/compose.dev.vpn.yaml config` -> passed
+
+Compose parsing emitted only non-blocking warnings about unset optional env vars
+and the obsolete `version` key in `docker/compose.yaml`.
+
+## 8. Commit guidance for this iteration
 
 This iteration is suitable for a dedicated rename-only commit plus the
 follow-up report document.
