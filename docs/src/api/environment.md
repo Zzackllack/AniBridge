@@ -13,6 +13,12 @@ Comprehensive list of env vars read in `apps/api/app/config.py`.
 - `DATA_DIR`: where the SQLite DB and logs live
 - `QBIT_PUBLIC_SAVE_PATH`: path override reported to clients (e.g., Sonarr)
 
+When running AniBridge from the checked-out source tree without overriding
+these variables, local defaults are anchored to the repository root:
+
+- `DATA_DIR` -> `<repo>/data`
+- `DOWNLOAD_DIR` -> `<repo>/data/downloads`
+
 ## Indexer (Torznab)
 
 - `INDEXER_NAME` (default: `AniBridge Torznab`)

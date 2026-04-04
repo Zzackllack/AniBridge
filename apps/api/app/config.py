@@ -18,6 +18,26 @@ IN_DOCKER = Path("/.dockerenv").exists()
 logger.debug(f"IN_DOCKER={IN_DOCKER}")
 
 
+def _discover_repo_root() -> Path:
+    """Return repository root when running from the source tree.
+
+    After the repo move to ``apps/api``, relying on ``Path.cwd()`` made local
+    runs create ``data/`` inside ``apps/api`` whenever commands were executed
+    from that directory. Prefer the repository root when the current module is
+    part of the checked-out source tree, and fall back to ``Path.cwd()`` for
+    installed or otherwise non-repo environments.
+    """
+
+    this_file = Path(__file__).resolve()
+    for candidate in this_file.parents:
+        if (
+            (candidate / ".github").exists()
+            and (candidate / "apps" / "api" / "pyproject.toml").exists()
+        ):
+            return candidate
+    return Path.cwd()
+
+
 # --- Networking / transport policy ---
 # Legacy in-app outbound proxy support has been removed on purpose.
 # AniBridge now expects traffic shaping/anonymization to happen externally
@@ -127,12 +147,13 @@ env_download = os.getenv("DOWNLOAD_DIR")
 env_data = os.getenv("DATA_DIR")
 env_download_path = _str_to_path(env_download.strip() if env_download else None)
 env_data_path = _str_to_path(env_data.strip() if env_data else None)
+REPO_ROOT = _discover_repo_root()
 
 # Default candidates differ for Docker vs local
 default_download = (
-    Path("/data/downloads") if IN_DOCKER else (Path.cwd() / "data" / "downloads")
+    Path("/data/downloads") if IN_DOCKER else (REPO_ROOT / "data" / "downloads")
 )
-default_data = Path("/data") if IN_DOCKER else (Path.cwd() / "data")
+default_data = Path("/data") if IN_DOCKER else (REPO_ROOT / "data")
 
 # Provide sensible cross-image fallbacks: some deploys mount under /app/data
 download_candidates: list[Path] = []
@@ -148,7 +169,7 @@ download_candidates.extend(
     [
         default_download,
         Path("/app/data/downloads"),
-        Path.cwd() / "data" / "downloads",
+        REPO_ROOT / "data" / "downloads",
         Path("/tmp/anibridge/downloads"),
     ]
 )
@@ -159,7 +180,7 @@ data_candidates.extend(
     [
         default_data,
         Path("/app/data"),
-        Path.cwd() / "data",
+        REPO_ROOT / "data",
         Path("/tmp/anibridge"),
     ]
 )

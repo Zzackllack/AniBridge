@@ -14,6 +14,14 @@ def test_provider_order_parsing(monkeypatch):
     assert cfg.PROVIDER_ORDER == ["VOE", "Filemoon", "Streamtape"]
 
 
+def test_repo_root_defaults_anchor_local_data_paths() -> None:
+    import app.config as cfg
+
+    assert cfg.REPO_ROOT.name == "AniBridge"
+    assert cfg.DATA_DIR == (cfg.REPO_ROOT / "data").resolve()
+    assert cfg.DOWNLOAD_DIR == (cfg.REPO_ROOT / "data" / "downloads").resolve()
+
+
 def test_max_concurrency_floor(monkeypatch):
     monkeypatch.setenv("MAX_CONCURRENCY", "0")
     import importlib

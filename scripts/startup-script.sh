@@ -16,6 +16,7 @@ fi
 
 echo "✅ Python3 detected: $(python3 --version)"
 
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 API_DIR="$(cd "$(dirname "$0")/../apps/api" && pwd)"
 
 # Ensure Python version is >= 3.14 to match apps/api/pyproject.toml requires-python.
@@ -47,7 +48,8 @@ export LOG_LEVEL=DEBUG
 export INDEXER_API_KEY="devkey"
 export INDEXER_NAME="AniBridge"
 export TORZNAB_CAT_ANIME=5070
-export DOWNLOAD_DIR="./downloads"
+export DATA_DIR="$REPO_ROOT/data"
+export DOWNLOAD_DIR="$REPO_ROOT/data/downloads"
 
 echo "✅ Environment variables set."
 

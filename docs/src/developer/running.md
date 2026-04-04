@@ -32,6 +32,9 @@ docker compose -f docker/compose.dev.yaml up --watch
 
 Use `.env` or export vars. See [Environment](/api/environment).
 
+When running from source, AniBridge defaults `DATA_DIR` and `DOWNLOAD_DIR` to
+the repository root `data/` directory even if you launch it from `apps/api/`.
+
 ## Useful curl
 
 ::: code-group
