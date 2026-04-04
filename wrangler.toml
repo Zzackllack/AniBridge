@@ -12,7 +12,7 @@ routes = [
 # Build the VitePress site under docs/ and serve the output as static assets.
 [build]
 # Ensure docs deps are installed, then build VitePress
-command = "git fetch --unshallow --tags 2>/dev/null || git fetch --tags --depth=2147483647 2>/dev/null || true && corepack enable && pnpm --prefix docs install --frozen-lockfile && pnpm --prefix docs run build"
+command = "git fetch --unshallow --tags 2>/dev/null || git fetch --tags --depth=2147483647 2>/dev/null || true && corepack pnpm --prefix docs install --frozen-lockfile && corepack pnpm --prefix docs run build"
 # Watch only content/config to avoid loops from node_modules or dist changes
 watch_dir = [
   "docs/src",
