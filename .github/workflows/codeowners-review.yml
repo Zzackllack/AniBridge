@@ -244,7 +244,6 @@ jobs:
           COMMENT_MARKER: "<!-- anibridge-pr-codeowners -->"
         with:
           script: |
-            const core = require('@actions/core');
             const fs = require('node:fs');
             const { owner, repo } = context.repo;
             const issue_number = context.payload.pull_request.number;
