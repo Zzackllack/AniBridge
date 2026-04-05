@@ -28,13 +28,16 @@ echo "==> Building python distributions"
 
 echo "==> Creating SHA256SUMS"
 mkdir -p "$API_DIR/dist"
-uv run python - <<PY > "$API_DIR/dist/SHA256SUMS"
+(
+  cd "$API_DIR"
+  uv run python - <<PY > dist/SHA256SUMS
 import hashlib,glob,os
-files=sorted([f for f in glob.glob('apps/api/dist/*') if os.path.isfile(f)])
+files=sorted([f for f in glob.glob('dist/*') if os.path.isfile(f)])
 for p in files:
     h=hashlib.sha256(open(p,'rb').read()).hexdigest()
     print(f"{h}  {os.path.basename(p)}")
 PY
+)
 
 echo "==> Building PyInstaller single-file (current OS)"
 if [ -f "$API_DIR/app/main.py" ]; then
