@@ -98,6 +98,7 @@ jobs:
             --release-type "${{ inputs.release_type }}" \
             --output-json ../../release-plan.json
 
+          cd ../..
           python - <<'PY'
           import json
           from pathlib import Path

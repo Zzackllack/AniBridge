@@ -14,8 +14,10 @@ services:
       - ../.env
     environment:
       - ANIBRIDGE_RELOAD=true
+      - DATA_DIR=/data
+      - DOWNLOAD_DIR=/downloads
     volumes:
-      - ../data:/app/data
+      - ../data:/data
       - ../data/downloads:/downloads
     develop:
       watch:
