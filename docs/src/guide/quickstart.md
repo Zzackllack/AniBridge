@@ -113,6 +113,7 @@ Place a `.env` file next to the binary if you need to customize paths. See [Envi
 ::: code-group
 
 ```bash [uv]
+cd apps/api
 uv sync --frozen
 uv run python -m app.main
 ```

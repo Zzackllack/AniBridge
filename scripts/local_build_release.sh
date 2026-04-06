@@ -18,34 +18,46 @@ fi
 VERSION=$(cat VERSION)
 echo "Building release for version: $VERSION"
 
+API_DIR="$ROOT_DIR/apps/api"
+
 echo "==> Building python distributions"
-uv build
+(
+  cd "$API_DIR"
+  uv build
+)
 
 echo "==> Creating SHA256SUMS"
-uv run python - <<PY > dist/SHA256SUMS
+mkdir -p "$API_DIR/dist"
+(
+  cd "$API_DIR"
+  uv run python - <<PY > dist/SHA256SUMS
 import hashlib,glob,os
 files=sorted([f for f in glob.glob('dist/*') if os.path.isfile(f)])
 for p in files:
     h=hashlib.sha256(open(p,'rb').read()).hexdigest()
     print(f"{h}  {os.path.basename(p)}")
 PY
+)
 
 echo "==> Building PyInstaller single-file (current OS)"
-if [ -f app/main.py ]; then
+if [ -f "$API_DIR/app/main.py" ]; then
   # Use our custom hooks directory so package data like fake_useragent's
   # browsers.jsonl get included in the bundle.
-  uv run pyinstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge
+  (
+    cd "$API_DIR"
+    uv run pyinstaller --additional-hooks-dir hooks --onefile app/main.py --name anibridge
+  )
   PLATFORM=$(uname -s | tr '[:upper:]' '[:lower:]')
   mkdir -p "release/${VERSION}/${PLATFORM}"
-  if [ -f dist/anibridge ]; then
-    cp dist/anibridge "release/${VERSION}/${PLATFORM}/"
-  elif [ -f dist/anibridge.exe ]; then
-    cp dist/anibridge.exe "release/${VERSION}/${PLATFORM}/"
+  if [ -f "$API_DIR/dist/anibridge" ]; then
+    cp "$API_DIR/dist/anibridge" "release/${VERSION}/${PLATFORM}/"
+  elif [ -f "$API_DIR/dist/anibridge.exe" ]; then
+    cp "$API_DIR/dist/anibridge.exe" "release/${VERSION}/${PLATFORM}/"
   else
-    echo "PyInstaller did not produce expected binary in dist/ (ok to continue)."
+    echo "PyInstaller did not produce expected binary in apps/api/dist/ (ok to continue)."
   fi
 else
-  echo "No app/main.py entrypoint found — skipping PyInstaller step."
+  echo "No apps/api/app/main.py entrypoint found — skipping PyInstaller step."
 fi
 
 if command -v docker >/dev/null 2>&1; then
@@ -56,14 +68,14 @@ if command -v docker >/dev/null 2>&1; then
   else
     IMAGE="ghcr.io/zzackllack/anibridge"
   fi
-  docker build -t ${IMAGE}:${VERSION} -t ${IMAGE}:v${VERSION} . || echo "docker build failed"
+  docker build -f apps/api/Dockerfile -t ${IMAGE}:${VERSION} -t ${IMAGE}:v${VERSION} . || echo "docker build failed"
 else
   echo "docker not found — skipping docker build"
 fi
 
 echo "==> Collecting artifacts into release/${VERSION}/dist"
 mkdir -p "release/${VERSION}/dist"
-cp -f dist/* "release/${VERSION}/dist/" || true
+cp -f "$API_DIR"/dist/* "release/${VERSION}/dist/" || true
 
 echo "Done. Artifacts are in: release/${VERSION}/"
 echo " - Python dists: release/${VERSION}/dist/"

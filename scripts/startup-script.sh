@@ -16,20 +16,29 @@ fi
 
 echo "✅ Python3 detected: $(python3 --version)"
 
-# Ensure Python version is >= 3.11 to match pyproject.toml requires-python.
-PYTHON_VERSION_OK=$(python3 -c 'import sys; print(int(sys.version_info >= (3, 11)))' || echo "0")
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+API_DIR="$(cd "$(dirname "$0")/../apps/api" && pwd)"
+
+# Ensure Python version is >= 3.14 to match apps/api/pyproject.toml requires-python.
+PYTHON_VERSION_OK=$(python3 -c 'import sys; print(int(sys.version_info >= (3, 14)))' || echo "0")
 if [ "$PYTHON_VERSION_OK" != "1" ]; then
-    echo "❌ Python 3.11+ is required, but found: $(python3 --version 2>&1 || echo "unknown version")"
+    echo "❌ Python 3.14+ is required, but found: $(python3 --version 2>&1 || echo "unknown version")"
     exit 1
 fi
 
 # Create virtual environment
 echo "📦 Creating virtual environment..."
-uv venv
+(
+    cd "$API_DIR"
+    uv venv
+)
 
 # Install dependencies
 echo "📦 Installing dependencies..."
-uv sync --frozen
+(
+    cd "$API_DIR"
+    uv sync --frozen
+)
 
 echo "✅ Dependencies installed."
 
@@ -39,7 +48,8 @@ export LOG_LEVEL=DEBUG
 export INDEXER_API_KEY="devkey"
 export INDEXER_NAME="AniBridge"
 export TORZNAB_CAT_ANIME=5070
-export DOWNLOAD_DIR="./downloads"
+export DATA_DIR="$REPO_ROOT/data"
+export DOWNLOAD_DIR="$REPO_ROOT/data/downloads"
 
 echo "✅ Environment variables set."
 
@@ -51,4 +61,7 @@ echo "💡 You can now start the AniBridge FastAPI server."
 
 # Start FastAPI
 echo "🚀 Launching AniBridge..."
-uv run python -m app.main
+(
+    cd "$API_DIR"
+    uv run python -m app.main
+)

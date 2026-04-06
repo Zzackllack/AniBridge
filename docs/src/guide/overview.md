@@ -22,12 +22,12 @@ It targets AniWorld for anime, Serienstream/s.to for general series, and megakin
 
 ## Architecture
 
-- **FastAPI app** (`app/main.py`): mounts Torznab and qBittorrent routers, health checks, jobs SSE, direct download enqueueing.
+- **FastAPI app** (`apps/api/app/main.py`): mounts Torznab and qBittorrent routers, health checks, jobs SSE, direct download enqueueing.
 - **Torznab router** (`/torznab/api`): implements `caps`, `search`, and `tvsearch`, returning magnet-like entries with embedded metadata.
 - **qBittorrent shim** (`/api/v2/*`): minimal subset Sonarr/Prowlarr expect (`auth`, `torrents/*`, `sync/maindata`, etc.).
-- **Scheduler** (`app/core/scheduler.py`): thread pool executor, job registry, cancelation, and DB updates.
-- **Downloader** (`app/core/downloader/download.py`): provider fallback, yt-dlp, language validation, and final release renaming.
-- **Models & DB** (`app/db/models.py`): SQLModel/SQLite for Jobs, EpisodeAvailability cache, and ClientTask (qBittorrent torrent mirror).
+- **Scheduler** (`apps/api/app/core/scheduler.py`): thread pool executor, job registry, cancelation, and DB updates.
+- **Downloader** (`apps/api/app/core/downloader/download.py`): provider fallback, yt-dlp, language validation, and final release renaming.
+- **Models & DB** (`apps/api/app/db/models.py`): SQLModel/SQLite for Jobs, EpisodeAvailability cache, and ClientTask (qBittorrent torrent mirror).
 - **Utilities**: title resolution, magnet building/parsing, quality probing, naming, and logging.
 
 For a visual, algorithm-level walkthrough of module interactions, see the

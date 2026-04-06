@@ -5,14 +5,18 @@ on:
     tags-ignore:
       - "v*"
     paths:
-      - "app/**"
-      - "pyproject.toml"
-      - "uv.lock"
+      - "apps/api/app/**"
+      - "apps/api/tests/**"
+      - "apps/api/pyproject.toml"
+      - "apps/api/uv.lock"
+      - "apps/api/pytest.ini"
   pull_request:
     paths:
-      - "app/**"
-      - "pyproject.toml"
-      - "uv.lock"
+      - "apps/api/app/**"
+      - "apps/api/tests/**"
+      - "apps/api/pyproject.toml"
+      - "apps/api/uv.lock"
+      - "apps/api/pytest.ini"
 
 concurrency:
   group: cq-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -39,9 +43,9 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
       - name: Install dependencies
-        run: uv sync --frozen
+        run: cd apps/api && uv sync --frozen
       - name: Run Ruff linter (auto-fix)
-        run: uv run ruff check --fix app tests
+        run: cd apps/api && uv run ruff check --fix app tests
       - name: Commit and push changes
         env:
           CAN_PUSH: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
@@ -49,7 +53,7 @@ jobs:
           set -euo pipefail
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git add app tests
+          git add apps/api/app apps/api/tests
           if git diff --cached --quiet; then
             echo "No changes to commit"
             exit 0
@@ -109,9 +113,9 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
       - name: Install dependencies
-        run: uv sync --frozen
+        run: cd apps/api && uv sync --frozen
       - name: Run Ruff formatter
-        run: uv run ruff format app tests
+        run: cd apps/api && uv run ruff format app tests
       - name: Commit and push changes
         env:
           CAN_PUSH: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
@@ -119,7 +123,7 @@ jobs:
           set -euo pipefail
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git add app tests
+          git add apps/api/app apps/api/tests
           if git diff --cached --quiet; then
             echo "No changes to commit"
             exit 0

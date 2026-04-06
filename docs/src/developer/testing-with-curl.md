@@ -116,7 +116,7 @@ Notes:
 
 - AniBridge's shim may return plain text `Ok.` on success. A 200 response generally means the torrent was accepted.
 
-- If the add endpoint expects different form fields, inspect `app/api/qbittorrent/torrents.py`.
+- If the add endpoint expects different form fields, inspect `apps/api/app/api/qbittorrent/torrents.py`.
 
 ## 6) Verify the torrent/job appears
 
@@ -170,4 +170,4 @@ docker compose logs -f anibridge
 
 - If Torznab returns provider page URLs instead of magnet URIs, you may need to use the legacy downloader or inspect the `guid`/`link` to map to the internal job creation endpoint.
 - If the Torznab endpoint requires `apikey`, add `&apikey=YOUR_KEY` to the tvsearch request.
-- If the qBittorrent shim returns errors, inspect `app/api/qbittorrent/torrents.py` to verify required parameters.
+- If the qBittorrent shim returns errors, inspect `apps/api/app/api/qbittorrent/torrents.py` to verify required parameters.

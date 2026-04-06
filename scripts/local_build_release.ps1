@@ -23,11 +23,15 @@ if (-not (Test-Path -Path 'VERSION')) {
 $VERSION = (Get-Content -Path 'VERSION' -Raw).Trim()
 Write-Host "Building release for version: $VERSION"
 
+$ApiDir = Join-Path -Path $RepoRoot -ChildPath 'apps/api'
+
 Write-Host "==> Building python distributions"
+Push-Location $ApiDir
 uv build
+Pop-Location
 
 Write-Host "==> Creating SHA256SUMS"
-$distDir = Join-Path -Path $RepoRoot -ChildPath 'dist'
+$distDir = Join-Path -Path $ApiDir -ChildPath 'dist'
 if (-not (Test-Path $distDir)) { New-Item -ItemType Directory -Path $distDir | Out-Null }
 $distFiles = Get-ChildItem -Path $distDir -File -ErrorAction SilentlyContinue | Sort-Object Name
 $shaFile = Join-Path -Path $distDir -ChildPath 'SHA256SUMS'
@@ -41,8 +45,10 @@ $sb.ToString() | Set-Content -Path $shaFile -NoNewline
 Write-Host "SHA256SUMS written to $shaFile"
 
 Write-Host "==> Building PyInstaller single-file (current OS)"
-if (Test-Path 'app\main.py') {
+if (Test-Path (Join-Path -Path $ApiDir -ChildPath 'app/main.py')) {
+    Push-Location $ApiDir
     uv run pyinstaller --additional-hooks-dir hooks --onefile 'app/main.py' --name anibridge
+    Pop-Location
 
     if ($IsWindows) { $PLATFORM = 'windows' }
     elseif ($IsLinux) { $PLATFORM = 'linux' }
@@ -52,17 +58,17 @@ if (Test-Path 'app\main.py') {
     $platformDir = Join-Path -Path (Join-Path -Path 'release' -ChildPath $VERSION) -ChildPath $PLATFORM
     New-Item -ItemType Directory -Path $platformDir -Force | Out-Null
 
-    $binA = Join-Path -Path 'dist' -ChildPath 'anibridge'
-    $binB = Join-Path -Path 'dist' -ChildPath 'anibridge.exe'
+    $binA = Join-Path -Path $distDir -ChildPath 'anibridge'
+    $binB = Join-Path -Path $distDir -ChildPath 'anibridge.exe'
     if (Test-Path $binA) {
         Copy-Item -Path $binA -Destination $platformDir -Force
     } elseif (Test-Path $binB) {
         Copy-Item -Path $binB -Destination $platformDir -Force
     } else {
-        Write-Host "PyInstaller did not produce expected binary in dist/ (ok to continue)."
+        Write-Host "PyInstaller did not produce expected binary in apps/api/dist/ (ok to continue)."
     }
 } else {
-    Write-Host "No app/main.py entrypoint found — skipping PyInstaller step."
+    Write-Host "No apps/api/app/main.py entrypoint found — skipping PyInstaller step."
 }
 
 Write-Host "==> Building Docker image"
@@ -75,7 +81,7 @@ if ($dockerCmd) {
     } else { $IMAGE = 'ghcr.io/youruser/anibridge' }
 
     try {
-        docker build -t "${IMAGE}:${VERSION}" -t "${IMAGE}:v${VERSION}" .
+        docker build -f apps/api/Dockerfile -t "${IMAGE}:${VERSION}" -t "${IMAGE}:v${VERSION}" .
     } catch {
         Write-Host "docker build failed: $_"
     }
@@ -86,7 +92,7 @@ if ($dockerCmd) {
 Write-Host "==> Collecting artifacts into release/$VERSION/dist"
 $targetDist = Join-Path -Path (Join-Path -Path 'release' -ChildPath $VERSION) -ChildPath 'dist'
 New-Item -ItemType Directory -Path $targetDist -Force | Out-Null
-Get-ChildItem -Path 'dist' -File -ErrorAction SilentlyContinue | ForEach-Object {
+Get-ChildItem -Path $distDir -File -ErrorAction SilentlyContinue | ForEach-Object {
     Copy-Item -Path $_.FullName -Destination $targetDist -Force -ErrorAction SilentlyContinue
 }
 

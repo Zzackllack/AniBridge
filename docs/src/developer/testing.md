@@ -10,12 +10,14 @@ AniBridge ships Pytest tests for config, Torznab, qBittorrent shim, magnets, and
 ## Run tests
 
 ```bash
+cd apps/api
 pytest -q
 ```
 
 ## Coverage
 
 ```bash
+cd apps/api
 pytest --cov=app --cov-report=term-missing
 ```
 
@@ -23,4 +25,3 @@ pytest --cov=app --cov-report=term-missing
 
 - Tests use the SQLite DB under `DATA_DIR`; the engine is disposed at shutdown to avoid dangling connections.
 - Some tests monkeypatch title sources — `ANIWORLD_ALPHABET_HTML` can point to a small HTML fixture.
-
