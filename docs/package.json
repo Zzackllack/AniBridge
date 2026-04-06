@@ -9,13 +9,13 @@
     "preview": "vitepress preview"
   },
   "dependencies": {
-    "@vue/server-renderer": "^3.5.31",
+    "@vue/server-renderer": "^3.5.32",
     "lucide-vue-next": "^1.0.0",
-    "vue": "^3.5.31"
+    "vue": "^3.5.32"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260329.1",
-    "vite": "^8.0.3",
+    "@cloudflare/workers-types": "^4.20260405.1",
+    "vite": "^8.0.5",
     "vitepress": "2.0.0-alpha.17",
     "vitepress-openapi": "^0.1.19"
   }
