@@ -52,14 +52,6 @@ export default defineConfig({
     ],
     ["link", { rel: "manifest", href: "/site.webmanifest" }],
     [
-      "link",
-      {
-        rel: "preconnect",
-        href: "https://umami-analytics.zacklack.de",
-        crossorigin: "",
-      },
-    ],
-    [
       "script",
       {
         defer: "",
@@ -73,6 +65,14 @@ export default defineConfig({
       "meta",
       {
         name: "robots",
+        content:
+          "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1",
+      },
+    ],
+    [
+      "meta",
+      {
+        name: "googlebot",
         content:
           "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1",
       },
@@ -118,10 +118,10 @@ export default defineConfig({
     },
   },
 
-  title: "AniBridge Documentation",
+  title: "AniBridge Docs",
   description:
-    "AniBridge: FastAPI bridge exposing Torznab feed and qBittorrent-compatible API to automate anime downloads via Prowlarr/Sonarr.",
-  titleTemplate: ":title • AniBridge Docs",
+    "AniBridge documentation for a FastAPI bridge that exposes Torznab and qBittorrent-compatible APIs for anime automation with Prowlarr, Sonarr, and supported providers.",
+  titleTemplate: ":title | AniBridge Docs for Anime Automation",
   lastUpdated: true,
   ignoreDeadLinks: true,
   cleanUrls: true,
@@ -258,8 +258,18 @@ export default defineConfig({
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     // Use a lightweight vector for header logo to improve LCP
-    logo: "/favicon.svg",
+    logo: {
+      src: "/favicon.svg",
+      alt: "AniBridge Docs home",
+    },
     siteTitle: "AniBridge",
+    notFound: {
+      title: "Page Not Found",
+      quote:
+        "The requested documentation page does not exist or has moved. Use the guide, API, integrations, or developer sections below to continue browsing AniBridge docs.",
+      link: "/guide/overview",
+      linkLabel: "Go to the AniBridge guide overview",
+    },
     nav: [
       { text: "Guide", link: "/guide/overview" },
       { text: "API", link: "/api/overview" },

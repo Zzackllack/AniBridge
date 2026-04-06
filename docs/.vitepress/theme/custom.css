@@ -17,6 +17,10 @@
 
 /* Custom glow around the home hero image */
 /* Targets the default theme's home hero image element */
+.VPHomeHero .image .image-bg {
+  display: none;
+}
+
 /* Mobile-first: subtle glow */
 .VPHomeHero .image .image-container img.VPImage.image-src {
   filter: drop-shadow(0 0 1rem rgba(50, 69, 86, 0.9))

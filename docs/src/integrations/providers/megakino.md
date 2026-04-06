@@ -6,7 +6,7 @@ outline: deep
 # Megakino Provider
 
 <div class="provider-banner">
-  <img src="./img/megakino.png" alt="Megakino banner image" />
+  <img src="./img/megakino.png" alt="Megakino banner image" title="Megakino provider banner" width="1313" height="946" />
 </div>
 
 ::: danger Legal And Jurisdiction Notice

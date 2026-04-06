@@ -51,8 +51,10 @@
   canonical/SEO middleware in the Worker runs on every request.
 - Worker entry: `docs/worker.ts`.
 - Worker enforces permanent canonical redirects (`.html`, `/index.html`,
-  trailing slash -> clean URL) and sets SEO headers (`X-Robots-Tag`,
-  sitemap `Link`) for crawl/index consistency.
+  trailing slash -> clean URL), redirects the legacy `www.anibridge-docs`
+  hostname to the canonical docs hostname, and sets SEO/security headers
+  (`X-Robots-Tag`, sitemap `Link`, `Strict-Transport-Security`) for crawl/index
+  consistency.
 - For search indexing, keep the docs hostname free of Cloudflare challenge or
   bot-mitigation features that inject `/cdn-cgi/challenge-platform/*` scripts
   into HTML. If Bot Fight Mode, Super Bot Fight Mode, JavaScript Detections, or

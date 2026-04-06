@@ -146,6 +146,42 @@ function attachHeroCtaTracking() {
   })
 }
 
+function ensureMainLandmark() {
+  if (typeof document === 'undefined') return
+  const mainCandidate = document.querySelector<HTMLElement>(
+    '.VPContent, main, [role="main"]'
+  )
+  if (!mainCandidate) return
+  if (mainCandidate.tagName.toLowerCase() !== 'main' && !mainCandidate.hasAttribute('role')) {
+    mainCandidate.setAttribute('role', 'main')
+  }
+  if (!mainCandidate.id) {
+    mainCandidate.id = 'main-content'
+  }
+}
+
+function normalizeTitles() {
+  if (typeof document === 'undefined') return
+
+  const anchors = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'))
+  anchors.forEach((anchor) => {
+    if (anchor.getAttribute('title')) return
+    const label =
+      anchor.textContent?.trim() ||
+      anchor.getAttribute('aria-label') ||
+      anchor.getAttribute('href') ||
+      ''
+    if (label) anchor.setAttribute('title', label)
+  })
+
+  const images = Array.from(document.querySelectorAll<HTMLImageElement>('img'))
+  images.forEach((img) => {
+    if (img.getAttribute('title')) return
+    const alt = img.getAttribute('alt')?.trim()
+    if (alt) img.setAttribute('title', alt)
+  })
+}
+
 const theme: Theme = {
   ...DefaultTheme,
   enhanceApp(ctx) {
@@ -167,6 +203,8 @@ const theme: Theme = {
       lastRoutePathKey = window.location.pathname + window.location.search
       // Attach initial listeners after hydration
       setTimeout(() => {
+        ensureMainLandmark()
+        normalizeTitles()
         attachOutboundTracking()
         attachHeroCtaTracking()
         attachMermaidThemeObserver()
@@ -184,6 +222,8 @@ const theme: Theme = {
         } else if (w.umami?.track) {
           w.umami.track('pageview', { url })
         }
+        ensureMainLandmark()
+        normalizeTitles()
         attachOutboundTracking()
         attachHeroCtaTracking()
         if (!isHashOnlyNavigation) {

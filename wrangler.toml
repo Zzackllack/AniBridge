@@ -6,7 +6,8 @@ compatibility_date = "2025-08-15"
 # Enable temporary Workers preview URLs for non-production deployments.
 preview_urls = true
 routes = [
-  { pattern = "anibridge-docs.zacklack.de", zone_name = "zacklack.de" }
+  { pattern = "anibridge-docs.zacklack.de", zone_name = "zacklack.de" },
+  { pattern = "www.anibridge-docs.zacklack.de", zone_name = "zacklack.de" }
 ]
 
 # Build the VitePress site under docs/ and serve the output as static assets.

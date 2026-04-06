@@ -6,7 +6,7 @@ outline: deep
 # AniWorld Provider
 
 <div class="provider-banner">
-  <img src="./img/aniworld.png" alt="AniWorld banner image" />
+  <img src="./img/aniworld.png" alt="AniWorld banner image" title="AniWorld provider banner" width="900" height="550" />
 </div>
 
 ::: danger Legal And Jurisdiction Notice

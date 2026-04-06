@@ -10,7 +10,7 @@ started.
 
 ## Code of Conduct
 
-Please read and adhere to our [Code of Conduct](https://raw.githubusercontent.com/Zzackllack/AniBridge/refs/heads/main/CODE_OF_CONDUCT.md).
+Please read and adhere to our [Code of Conduct](https://github.com/zzackllack/AniBridge/blob/main/.github/CODE_OF_CONDUCT.md "AniBridge code of conduct").
 
 ## Development Setup
 
@@ -87,7 +87,7 @@ We follow the [Conventional Commits specification](https://www.conventionalcommi
 
 ## Codeowners
 
-The codeowners for this repository are listed in the [CODEOWNERS](https://raw.githubusercontent.com/Zzackllack/AniBridge/refs/heads/main/.github/CODEOWNERS) file. Please update it as necessary when making changes to the codebase.
+The codeowners for this repository are listed in the [CODEOWNERS](https://github.com/zzackllack/AniBridge/blob/main/.github/CODEOWNERS "AniBridge CODEOWNERS file") file. Please update it as necessary when making changes to the codebase.
 
 Conventions and tips you should follow when editing the CODEOWNERS file:
 
