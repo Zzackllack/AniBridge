@@ -17,7 +17,8 @@ def test_provider_order_parsing(monkeypatch):
 def test_repo_root_defaults_anchor_local_data_paths() -> None:
     import app.config as cfg
 
-    assert cfg.REPO_ROOT.name == "AniBridge"
+    assert (cfg.REPO_ROOT / ".github").exists()
+    assert (cfg.REPO_ROOT / "apps" / "api" / "pyproject.toml").exists()
     assert cfg.DATA_DIR == (cfg.REPO_ROOT / "data").resolve()
     assert cfg.DOWNLOAD_DIR == (cfg.REPO_ROOT / "data" / "downloads").resolve()
 
