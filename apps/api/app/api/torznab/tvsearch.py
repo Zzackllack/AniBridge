@@ -124,7 +124,7 @@ def probe_episode_available_for_discovery(
                 language=lang,
                 site=site_found,
             )
-        except (ValueError, RuntimeError):
+        except ValueError, RuntimeError:
             rec = None
 
         if rec and rec.available and rec.is_fresh:
@@ -140,7 +140,7 @@ def probe_episode_available_for_discovery(
                     site=site_found,
                 )
             )
-        except (ValueError, RuntimeError):
+        except ValueError, RuntimeError:
             available = False
             height = None
             vcodec = None
@@ -160,7 +160,7 @@ def probe_episode_available_for_discovery(
                 extra=None,
                 site=site_found,
             )
-        except (ValueError, RuntimeError):
+        except ValueError, RuntimeError:
             pass
         if available:
             return True
@@ -296,7 +296,7 @@ def try_mapped_special_probe(
             language=lang,
             site=site_found,
         )
-    except (ValueError, RuntimeError):
+    except ValueError, RuntimeError:
         rec_mapped = None
     if rec_mapped and rec_mapped.available and rec_mapped.is_fresh:
         return (

@@ -23,7 +23,7 @@ def coerce_positive_int(value: object) -> Optional[int]:
     """Coerce a value into a positive integer when possible."""
     try:
         parsed = int(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return parsed if parsed > 0 else None
 
@@ -32,7 +32,7 @@ def coerce_non_negative_int(value: object) -> Optional[int]:
     """Coerce a value into a non-negative integer when possible."""
     try:
         parsed = int(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return parsed if parsed >= 0 else None
 
