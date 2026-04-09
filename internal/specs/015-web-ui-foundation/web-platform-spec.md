@@ -1,26 +1,35 @@
 # AniBridge Web Platform Foundation Spec
 
 Date: 2026-04-09
-Status: Proposed
-Scope: Web UI platform decision, frontend architecture, supporting libraries,
-tooling, CI/CD, Docker, and release implications
+Status: Exploratory Draft
+Scope: Web UI platform direction, product vision, frontend architecture,
+supporting libraries, browser verification flows, notifications, metadata
+strategy, CI/CD, Docker, and release implications
 
 ## 1. Purpose
 
-This spec defines how AniBridge should add a Web UI after the repository
+This spec explores how AniBridge should add a Web UI after the repository
 migration to the `apps/` layout.
 
 The goal is not just to pick a frontend framework. The Web UI will affect:
 
 - frontend architecture and runtime model
+- operator workflows for browser-assisted challenge handling
 - developer workflow and local development
 - repository-level Node tooling
 - API contracts and client generation
+- metadata and discovery features
+- notifications and alerting
+- state persistence for browser sessions
 - testing strategy
 - CI/CD and release workflow
 - Docker and deployment topology
 
-The decision should optimize for:
+This document is intentionally not final. It combines decisions, open questions,
+tradeoffs, and idea dumps so AniBridge can iterate toward the right product
+shape instead of prematurely locking itself into one architecture.
+
+The decision process should optimize for:
 
 - clean integration with the existing FastAPI backend
 - high maintainability and explicit boundaries
@@ -46,7 +55,24 @@ That matters because it changes the framework decision:
 
 This strongly biases the choice toward a client-first frontend architecture.
 
-## 3. Primary Recommendation
+## 3. Expanded Product Vision
+
+The Web UI should not be treated as a thin configuration dashboard only.
+
+The broader vision now includes:
+
+- an operator/admin UI
+- a verification center for challenge-protected providers
+- a live browser steering surface for manual intervention
+- persistent browser sessions and cookie storage
+- notifications when jobs require attention
+- discovery and browsing surfaces for recent/trending content
+- direct/manual download flows outside Sonarr/Prowlarr where appropriate
+
+This changes the frontend conversation significantly. The Web UI is no longer
+just "settings plus health"; it is becoming a true product surface.
+
+## 4. Primary Recommendation
 
 AniBridge should implement the Web UI as a React + TypeScript application in
 `apps/web/` using Vite as the build tool and TanStack Router as the routing
@@ -61,7 +87,7 @@ Recommended foundation:
 - API client generation: Orval from FastAPI OpenAPI
 - Forms and validation: React Hook Form + Zod
 - Styling: Tailwind CSS v4
-- Headless UI primitives: Radix UI
+- Headless UI primitives: Base UI or Radix UI
 - App shell/component layer: local components plus selected shadcn/ui patterns
 - Unit/component tests: Vitest + Testing Library
 - Browser/E2E tests: Playwright
@@ -71,9 +97,12 @@ Recommended foundation:
 This should be managed with pnpm as the Node workspace tool once the Web UI is
 introduced.
 
-## 4. Why This Stack Fits AniBridge
+This is still the leading recommendation, but it is no longer the only model
+under consideration because the product scope is wider than originally framed.
 
-## 4.1 Why React
+## 5. Why This Stack Fits AniBridge
+
+## 5.1 Why React
 
 React remains the safest default for an enterprise-grade admin or operator UI:
 
@@ -85,7 +114,7 @@ React remains the safest default for an enterprise-grade admin or operator UI:
 The decision is not based on hype. It is based on risk reduction and long-term
 maintainability.
 
-## 4.2 Why Vite
+## 5.2 Why Vite
 
 Vite is the best default fit for AniBridge because:
 
@@ -98,7 +127,7 @@ Vite is the best default fit for AniBridge because:
 Vite also keeps the Web UI honest: build a frontend, not an accidental second
 backend.
 
-## 4.3 Why TanStack Router
+## 5.3 Why TanStack Router
 
 TanStack Router fits AniBridge better than a minimal router because AniBridge is
 likely to need:
@@ -111,7 +140,7 @@ likely to need:
 
 That is exactly where TanStack Router is stronger than a barebones solution.
 
-## 4.4 Why TanStack Query
+## 5.4 Why TanStack Query
 
 AniBridge is API-driven. The frontend will be reading and mutating server state:
 
@@ -131,7 +160,7 @@ TanStack Query is a strong fit because it gives AniBridge:
 - optimistic UI where useful
 - fewer custom loading and cache abstractions
 
-## 4.5 Why generated API clients
+## 5.5 Why generated API clients
 
 AniBridge already exposes a backend contract through FastAPI/OpenAPI.
 
@@ -146,7 +175,159 @@ Using Orval against the FastAPI OpenAPI schema gives:
 
 This is one of the highest-leverage decisions in the whole frontend addition.
 
-## 5. Why Not Next.js As The Default
+## 6. Radix UI vs Base UI
+
+The earlier draft chose Radix UI as the default primitive layer. After further
+research, that choice should be softened.
+
+### What the official docs say
+
+Base UI describes itself as a "comprehensive UI component library" for
+accessible React interfaces, with fully open component APIs and a future-proof
+foundation for professional interface design. It also explicitly documents CSP
+handling and broader composability patterns.
+
+Radix Primitives describes itself as a lower-level component library focused on
+accessibility, customization, and developer experience, intended as a base
+layer for design systems or for incremental adoption.
+
+### Practical interpretation for AniBridge
+
+Radix strengths:
+
+- mature and widely battle-tested primitive layer
+- excellent fit for incremental adoption
+- strong ecosystem familiarity
+- large amount of existing examples and community knowledge
+
+Base UI strengths:
+
+- broader and more modern "comprehensive but unstyled" component surface
+- very flexible open APIs
+- explicit attention to accessibility and CSP-related concerns
+- designed by a team with direct Radix, Floating UI, and Material UI lineage
+
+### Current recommendation
+
+AniBridge should treat both as viable, with a slight architectural preference
+toward Base UI for the new frontend exploration and a slight delivery-risk
+preference toward Radix UI for the first implementation.
+
+That means:
+
+- if optimization target is lowest adoption risk right now: choose Radix UI
+- if optimization target is long-term component flexibility and a more
+  comprehensive unstyled base: choose Base UI
+
+### Provisional decision
+
+Do not lock this yet.
+
+The next implementation spike should compare Base UI and Radix UI against three
+real AniBridge surfaces:
+
+- app shell/navigation
+- verification queue/detail panel
+- live browser session controls
+
+Whichever library produces the cleaner result with less glue code should win.
+
+## 7. TanStack Router vs TanStack Start
+
+The earlier draft preferred TanStack Router directly. That still makes sense,
+but TanStack Start deserves more explicit treatment.
+
+### What the official docs say
+
+TanStack Start describes itself as a full-stack framework powered by TanStack
+Router and Vite. Its official docs say it adds SSR, streaming, server routes,
+API routes, server functions, middleware, and full-stack bundling on top of
+TanStack Router. The same docs also explicitly say that if you know you do not
+need those capabilities, you may want to use TanStack Router alone.
+
+The official docs also label TanStack Start as Release Candidate.
+
+### Why Router-only is still the safer default
+
+- AniBridge already has FastAPI as its backend
+- adding Start introduces a second full-stack-capable runtime model
+- the browser verification center and operator workflows do not inherently need
+  frontend-owned server routes
+- Router-only keeps deployment and local development simpler
+
+### Why Start is still a serious candidate
+
+Start becomes more attractive if AniBridge wants:
+
+- same-origin auth middleware in the frontend layer
+- server functions for frontend-owned orchestration glue
+- hybrid rendering for a richer landing page or public app shell
+- more integrated frontend hosting on platforms that like a JS app runtime
+
+### Provisional decision
+
+Treat TanStack Router + Vite as the default starting point.
+
+Treat TanStack Start as the escalation path if the frontend begins to require:
+
+- frontend-owned middleware
+- frontend-owned BFF endpoints
+- SSR/streaming
+- more complex same-origin auth patterns
+
+In other words:
+
+- Start is not rejected
+- Start is not the default
+- Router-only wins unless clear full-stack frontend requirements emerge
+
+## 8. Is Zustand Needed?
+
+Not by default.
+
+AniBridge should not add Zustand on day one just because many React apps do.
+
+The frontend state categories should be separated first:
+
+- server state: TanStack Query
+- URL state: TanStack Router search params
+- local component state: React state
+- cross-session persisted UI preferences: optional client store
+
+### When Zustand is not needed
+
+Zustand is probably unnecessary for:
+
+- API data
+- paginated lists driven by URL/search params
+- forms
+- most modal/open-close state
+- route-level filters that belong in the URL
+
+### When Zustand may become useful
+
+Zustand becomes attractive for cross-cutting client-only state such as:
+
+- docked verification panel state
+- browser viewer session UI state
+- notification center preferences
+- local operator workspace layout
+- persisted non-URL UI preferences
+
+### Provisional decision
+
+Do not include Zustand in the initial bootstrap.
+
+Revisit it only after at least one of these appears:
+
+- multiple unrelated components need the same client-only state
+- state persistence outside URL/search params becomes substantial
+- the verification center creates a genuine control-plane store
+
+If that happens, Zustand is a good candidate, but it is optional rather than
+foundational.
+
+## 9. Why Not Next.js As The Default
 
 Next.js is not the recommended default for AniBridge.
 
@@ -167,7 +348,7 @@ Next.js should only be reconsidered if AniBridge later needs:
 
 That is not the current problem.
 
-## 6. Alternatives Considered
+## 10. Alternatives Considered
 
 ## 6.1 Next.js
 
@@ -217,7 +398,41 @@ Cons for AniBridge:
 
 Decision: not selected
 
-## 7. Expected Web UI Scope
+## 11. Expanded Functional Scope
+
+The Web UI scope should now be treated as at least four product areas, not one.
+
+### 11.1 Operator console
+
+- health and version
+- queue/job visibility
+- mapping and metadata inspection
+- search/add flows
+- settings and diagnostics
+
+### 11.2 Verification center
+
+- jobs blocked by provider challenge
+- challenge reason and provider visibility
+- explicit human-in-the-loop workflows
+- audit trail and retry/resume flows
+
+### 11.3 Live browser steering
+
+- attach to a persistent browser session
+- manually solve Cloudflare Turnstile or similar challenges
+- steer navigation live
+- preserve cookies and session state
+- return control to AniBridge after manual verification
+
+### 11.4 Discovery and manual media operations
+
+- trending/recent content landing view
+- provider-backed availability browsing
+- manual download triggers
+- optional direct ZIP or single-episode manual download flows
+
+## 12. Expected Web UI Scope
 
 The first Web UI should not try to mirror every backend capability. It should
 ship a strong operational core first.
@@ -226,12 +441,13 @@ Phase 1 capabilities:
 
 - authentication/bootstrap if required
 - health and version view
-- dashboard overview
+- dashboard overview that is actually informative, not a blank shell
 - active jobs/download queue
 - mappings browser/editor
 - search and add flow
 - settings/config inspection where safe
 - error and background task visibility
+- verification queue and detail view
 
 Phase 2 capabilities:
 
@@ -240,6 +456,10 @@ Phase 2 capabilities:
 - audit/history views
 - improved onboarding and diagnostics
 - more polished component system and Storybook coverage
+- notification rules and delivery configuration
+- live browser steering
+- discovery/trending surfaces
+- manual/direct download actions
 
 Non-goal for phase 1:
 
@@ -247,7 +467,248 @@ Non-goal for phase 1:
 - public marketing site behavior
 - duplicating backend business rules in the browser
 
-## 8. Recommended Frontend Libraries
+## 13. Verification Center And Browser Session Architecture
+
+This is likely one of the most differentiating AniBridge features and needs to
+be designed as a first-class subsystem.
+
+## 13.1 Problem
+
+Some providers can fail behind Cloudflare Turnstile or similar protection,
+especially for redirect flows. AniBridge needs a human-assisted fallback that is
+operationally clean instead of opaque and brittle.
+
+## 13.2 Required capabilities
+
+- detect challenge-blocked jobs in the backend
+- pause and persist affected flows
+- expose blocked jobs to the frontend
+- attach an operator to a live browser session
+- preserve cookies/profile/session data across attempts
+- resume backend work after successful intervention
+
+## 13.3 Architecture options
+
+### Option A: dedicated persistent browser container plus noVNC
+
+Model:
+
+- one or more Chromium containers
+- persistent user-data-dir mounted on a volume
+- X server plus noVNC for remote operator interaction
+- AniBridge backend coordinates sessions and job assignment
+
+Pros:
+
+- simple conceptual model
+- visible browser is real, not simulated
+- proven remote desktop pattern
+
+Cons:
+
+- noVNC is not a great UX on mobile
+- remote desktop UX is coarse
+- less app-native feeling
+
+### Option B: Playwright-driven browser service plus custom live viewer
+
+Model:
+
+- persistent Playwright/Chromium sessions
+- backend/browser-service exposes screenshots, DOM metadata, and control
+  endpoints or a websocket stream
+- frontend renders a custom control panel instead of a full remote desktop
+
+Pros:
+
+- more integrated product experience
+- more controllable and auditable
+- potentially better responsive/mobile UX
+
+Cons:
+
+- much more engineering effort
+- trickier to make robust for arbitrary anti-bot flows
+
+### Option C: hybrid model
+
+Model:
+
+- start with noVNC for operator steering
+- later add a richer AniBridge-native control surface for common actions
+
+Pros:
+
+- pragmatic
+- faster to ship
+- lets AniBridge learn before overbuilding
+
+Cons:
+
+- transitional architecture
+- UX inconsistency between early and later flows
+
+### Provisional direction
+
+The most realistic starting point is Option C:
+
+- phase 1: dedicated browser resolver container + persistent profile + noVNC
+- phase 2: more app-native browser session tooling where it clearly pays off
+
+## 13.4 Persistence requirements
+
+Browser verification must be stateful.
+
+AniBridge should persist:
+
+- browser profile directory on disk/volume
+- session ownership metadata
+- job-to-session mapping
+- verification audit events
+- cookie/session freshness signals where feasible
+
+The browser should not be disposable for every verification event unless a
+provider explicitly requires it.
+
+## 14. Notifications And Alerting
+
+AniBridge should likely gain an alerting subsystem once the verification center
+exists.
+
+Candidate notification targets:
+
+- Discord webhook
+- generic webhook
+- email
+- SMS later if there is a real need
+
+Candidate events:
+
+- challenge required
+- repeated provider failure
+- browser session expired
+- download job stuck
+- metadata sync failure
+
+Recommendation:
+
+- start with generic webhook plus Discord webhook
+- add email after core notification abstractions exist
+
+Backend implications:
+
+- notification settings model
+- delivery retry handling
+- event classification and deduplication
+- audit log for outbound notifications
+
+## 15. Landing Page / Discovery Surface
+
+The start page after login should not be blank or just settings-oriented.
+
+It should become a useful operational and discovery surface.
+
+Candidate widgets:
+
+- current queue state
+- recent failures needing attention
+- latest successful downloads
+- trending anime
+- trending series
+- trending movies
+- provider/system health summary
+
+## 15.1 Candidate metadata/trending sources
+
+Potential external metadata sources:
+
+- TMDb for trending movies and TV
+- AniList for anime discovery and seasonal/trending anime
+- TVDB as a canonical metadata/mapping source if licensing and integration fit
+- Trakt as an optional discovery/trending source later
+
+What the current docs indicate:
+
+- TMDb exposes trending movie and TV endpoints
+- AniList exposes a large GraphQL API but also documents rate limiting and terms
+  of use constraints, including restrictions on large-scale data collection
+
+### Provisional recommendation
+
+For the landing page:
+
+- use TMDb for trending movies and TV
+- evaluate AniList for anime discovery carefully, with terms/rate limits in mind
+- do not build a large background metadata mirror until the product really needs
+  it
+
+## 15.2 Only show items AniBridge can actually serve?
+
+This is a major product question.
+
+Possible approaches:
+
+### Approach A: show global trending content regardless of current provider availability
+
+Pros:
+
+- easiest to implement
+- best discovery UX
+
+Cons:
+
+- may frustrate users if many entries are not actually available
+
+### Approach B: show only provider-confirmed available items
+
+Pros:
+
+- operationally honest
+- stronger trust in the UI
+
+Cons:
+
+- requires large provider crawling/indexing work
+- implies substantial backend refactor and scheduled sync jobs
+- requires metadata normalization and provider-to-canonical mapping
+
+### Approach C: mixed model
+
+- show global trending content
+- annotate whether AniBridge currently knows it as available, unknown, or
+  unavailable
+
+This is the strongest candidate right now because it avoids building a full
+catalog ingestion platform too early while still being honest about certainty.
+
+## 16. Manual And Direct Download Flows
+
+The frontend may eventually support direct/manual download workflows outside the
+Arr stack.
+
+Potential capabilities:
+
+- trigger a direct episode download
+- download a season or show as a ZIP archive
+- download to a user-selected path inside the container/runtime
+- queue a manual background download job without Sonarr/Prowlarr
+
+These are useful but potentially high-risk because they expand AniBridge from an
+automation bridge into a more direct media operations tool.
+
+Open questions:
+
+- Should these flows be admin-only?
+- Should they reuse the same queue/job model as Arr-driven jobs?
+- Should ZIP generation happen synchronously, asynchronously, or not at all?
+- How should path selection be sandboxed to avoid unsafe filesystem writes?
+
+Recommendation:
+
+- keep manual direct download flows in the vision
+- do not put them in the first implementation slice
+
+## 17. Recommended Frontend Libraries
 
 ## 8.1 Core runtime
 
@@ -299,16 +760,17 @@ Rationale:
 - ergonomic forms
 - strong integration with Zod
 
-## 8.5 UI foundation
+## 17.5 UI foundation
 
 - `tailwindcss`
-- `@radix-ui/react-*` primitives as needed
+- `@base-ui/react` or `@radix-ui/react-*`
 - `lucide-react`
 
 Rationale:
 
 - Tailwind gives fast composition and token-based scaling
-- Radix provides accessible primitives without forcing a full design system
+- Base UI or Radix provides accessible primitives without forcing a full design
+  system
 - Lucide is a good default icon set
 
 Optional:
@@ -357,7 +819,29 @@ Use Storybook only when:
 Do not add Storybook in the first bootstrap commit unless the UI scope is
 already broad.
 
-## 9. Repository Changes Required
+## 18. Backend Expansion Required
+
+The Web UI vision implies a non-trivial backend expansion.
+
+The backend will likely need new API groups for:
+
+- dashboard overview
+- queue and job detail
+- verification sessions
+- browser resolver lifecycle
+- notifications
+- discovery/trending content aggregation
+- manual download operations
+
+The backend may also need domain refactoring for:
+
+- explicit job state machine
+- provider challenge states
+- session ownership and persistence
+- richer audit events
+- canonical content and provider availability mapping
+
+## 19. Repository Changes Required
 
 ## 9.1 Add Node workspace at repo root
 
@@ -409,7 +893,7 @@ Create shared packages only after real duplication appears.
 
 Early extraction often creates more churn than clarity.
 
-## 10. API Integration Strategy
+## 20. API Integration Strategy
 
 AniBridge should treat the FastAPI OpenAPI schema as the contract source for the
 Web UI.
@@ -442,7 +926,7 @@ Rule:
 - the frontend consumes them
 - contract drift should be caught in CI
 
-## 11. Local Development Model
+## 21. Local Development Model
 
 AniBridge should support this development flow:
 
@@ -460,7 +944,16 @@ Recommendation:
 - use a Vite dev proxy for the common local path to avoid CORS friction
 - still support an explicit API base URL env var for advanced setups
 
-## 12. Configuration Requirements
+Additional local-dev mode to support later:
+
+- API running locally
+- browser-resolver container running via Docker
+- optional noVNC/browser viewer attached
+- frontend running locally
+
+This mixed local-dev mode is probably the most realistic verification workflow.
+
+## 22. Configuration Requirements
 
 The Web UI will need its own environment model.
 
@@ -477,7 +970,7 @@ Policy:
 - document frontend env vars in docs
 - keep backend env changes reflected in `apps/api/.env.example`
 
-## 13. CI/CD Implications
+## 23. CI/CD Implications
 
 The Web UI should expand CI in a path-aware way.
 
@@ -526,11 +1019,11 @@ Add a CI check that fails if:
 
 This prevents backend/frontend mismatch from creeping in silently.
 
-## 14. Docker And Deployment Implications
+## 24. Docker And Deployment Implications
 
 AniBridge should not overcomplicate frontend delivery in the first iteration.
 
-## 14.1 Development Docker
+## 24.1 Development Docker
 
 Add a frontend service to development compose only when the Web UI exists.
 
@@ -540,7 +1033,39 @@ Suggested future service model:
 - proxies API calls to `api`
 - can be enabled only in dev-oriented compose files
 
-## 14.2 Production deployment options
+AniBridge will also likely need a browser-resolver service in dev and possibly
+production.
+
+Potential future compose services:
+
+- `api`
+- `web`
+- `browser-resolver`
+- `novnc` or equivalent viewer
+
+## 24.2 Browser resolver deployment options
+
+### Option A: bundled inside the API container
+
+Not recommended.
+
+This mixes browser runtime concerns into the Python API image and makes scaling,
+debugging, and sandboxing worse.
+
+### Option B: dedicated browser-resolver container
+
+Recommended default.
+
+This keeps browser automation isolated and lets AniBridge mount persistent
+browser profile storage explicitly.
+
+### Option C: external managed browser service
+
+Possible later, but not the default.
+
+This adds dependency and cost concerns that are probably premature.
+
+## 24.3 Production deployment options
 
 Two viable models exist.
 
@@ -580,7 +1105,7 @@ Recommendation:
 - start with static deployment or reverse-proxy static hosting
 - do not introduce a frontend SSR server by default
 
-## 14.3 Dockerfile strategy
+## 24.4 Dockerfile strategy
 
 Do not merge the frontend into the Python image.
 
@@ -591,7 +1116,7 @@ Preferred future approach:
 
 This keeps runtime responsibilities explicit.
 
-## 15. Release And Versioning Implications
+## 25. Release And Versioning Implications
 
 AniBridge needs to decide whether the Web UI version is:
 
@@ -612,7 +1137,7 @@ Why:
 If the Web UI later becomes independently deployable at a different cadence,
 revisit this.
 
-## 16. Testing Strategy
+## 26. Testing Strategy
 
 AniBridge should test the Web UI at three levels.
 
@@ -642,7 +1167,7 @@ Use MSW for:
 - component and integration tests
 - deterministic frontend test behavior
 
-## 17. Design-System Guidance
+## 27. Design-System Guidance
 
 The first Web UI should not try to become a giant abstract design system.
 
@@ -655,7 +1180,7 @@ Recommended approach:
 
 This preserves speed while still giving the frontend a clean internal structure.
 
-## 18. Security And Auth Considerations
+## 28. Security And Auth Considerations
 
 The Web UI decision affects auth and deployment.
 
@@ -670,8 +1195,43 @@ Required follow-up once the UI starts:
 - define auth model
 - define CSRF/session/token expectations
 - define cross-origin or same-origin deployment strategy
+- define verification session permissions
+- define notification configuration permissions
+- define safe path restrictions for manual download targets
 
-## 19. Recommended Implementation Sequence
+## 29. Suggested Implementation Tracks
+
+The work is now too broad for a single linear sequence. AniBridge should likely
+split the future work into tracks.
+
+### Track A: frontend foundation
+
+- root pnpm workspace
+- `apps/web` bootstrap
+- routing, query, forms, styling
+- app shell and auth/bootstrap
+
+### Track B: API platform expansion
+
+- dashboard endpoints
+- verification session endpoints
+- notification endpoints
+- manual download endpoints
+
+### Track C: browser resolver subsystem
+
+- persistent browser container
+- session lifecycle
+- storage model
+- noVNC or equivalent viewer
+
+### Track D: metadata/discovery
+
+- trending/recent source integration
+- canonical ID strategy
+- availability annotations
+
+## 30. Recommended Implementation Sequence
 
 1. Approve this platform decision
 2. Add root Node workspace (`package.json`, `pnpm-workspace.yaml`)
@@ -686,33 +1246,58 @@ Required follow-up once the UI starts:
 8. Expand CI to include frontend jobs
 9. Add frontend Docker/deployment path as needed
 
-## 20. Explicit Decisions
+## 31. Explicit Decisions
 
 ### Adopt now
 
 - `apps/web` as the Web UI location
 - React + TypeScript + Vite
-- TanStack Router
+- TanStack Router as the default starting point
 - TanStack Query
 - pnpm for Node workspace management
 - generated API client from OpenAPI
 - Vitest + Playwright + MSW
+
+### Keep open for near-term evaluation
+
+- Base UI vs Radix UI
+- TanStack Router vs TanStack Start
+- whether Zustand is needed after the verification center takes shape
+- how the live browser viewer is delivered
+- whether landing discovery data should be global or provider-aware
 
 ### Defer until concrete need exists
 
 - Storybook
 - charting library
 - shared `packages/*`
-- SSR framework adoption
+- SSR/full-stack frontend framework adoption
 - frontend independent versioning
 
-## 21. Final Recommendation
+## 32. Final Recommendation For The Current Moment
 
 AniBridge should build its first Web UI as a Vite-powered React application in
-`apps/web`, backed by TanStack Router, TanStack Query, and an OpenAPI-generated
-client.
+`apps/web`, backed initially by TanStack Router, TanStack Query, and an
+OpenAPI-generated client.
 
-This is the cleanest architecture for the current product because it:
+However, the product scope should now be understood as much larger than a basic
+dashboard. The Web UI should be planned as an operator platform that can grow
+toward:
+
+- challenge/verification workflows
+- live browser steering
+- notifications
+- discovery surfaces
+- manual media operations
+
+So the right next move is not "finalize every library forever". The right next
+move is:
+
+- lock the initial bootstrap direction
+- identify which decisions require implementation spikes
+- keep the larger product/system vision explicit
+
+This remains the cleanest architecture for the current product because it:
 
 - respects the existing FastAPI backend
 - avoids duplicating server responsibilities
@@ -721,18 +1306,31 @@ This is the cleanest architecture for the current product because it:
 - keeps deployment and local development simpler than a full-stack React
   meta-framework
 
-If the product later grows into a public, SEO-heavy, SSR-dependent web surface,
-that should trigger a new architecture decision. It should not be assumed now.
+If the frontend later proves it needs server functions, middleware, SSR, or a
+frontend-owned BFF layer, AniBridge should revisit TanStack Start explicitly
+instead of drifting into it accidentally.
 
-## 22. References
+## 33. References
 
 - Vite getting started: https://vite.dev/guide/
 - Vite SSR guide: https://vite.dev/guide/ssr.html
 - TanStack Router overview: https://tanstack.com/router/learn/docs/framework/react/overview
+- TanStack Router search params guide: https://tanstack.com/router/latest/docs/guide/search-params
 - TanStack Query docs: https://tanstack.com/query/latest/docs/react/
-- React Query guide on queries: https://tanstack.com/query/v5/docs/framework/react/guides/queries
+- TanStack Start overview: https://tanstack.com/start/latest/docs/framework/react/overview
+- TanStack Start comparison: https://tanstack.com/start/latest/docs/framework/react/comparison
 - Orval React Query generation: https://orval.dev/docs/guides/react-query
+- Base UI overview: https://base-ui.com/react/overview/about
+- Base UI accessibility: https://base-ui.com/react/overview/accessibility
+- Base UI CSP provider: https://base-ui.com/react/utils/csp-provider
+- Radix Primitives intro: https://www.radix-ui.com/primitives/docs/overview/introduction
+- Zustand introduction: https://zustand.docs.pmnd.rs/getting-started/introduction
 - Vitest docs: https://main.vitest.dev/
 - Playwright docs: https://playwright.dev/
 - MSW docs: https://mswjs.io/
 - Storybook docs: https://storybook.js.org/docs
+- TMDb trending movies: https://developer.themoviedb.org/reference/trending-movies
+- TMDb trending TV: https://developer.themoviedb.org/reference/trending-tv
+- AniList API docs: https://anilist.gitbook.io/anilist-apiv2-docs
+- AniList terms of use: https://anilist.gitbook.io/anilist-apiv2-docs/docs/guide/terms-of-use
+- AniList rate limiting: https://anilist.gitbook.io/anilist-apiv2-docs/docs/guide/rate-limiting
