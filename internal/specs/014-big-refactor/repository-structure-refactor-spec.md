@@ -269,7 +269,7 @@ the canonical docs page.
 
 ### Rationale
 
-- The legal content already lives canonically in `docs/src/legal.md`.
+- The legal content already lives canonically in `docs/src/legal/`.
 - Keeping a root pointer adds one more root file without adding new content.
 - The repository README and docs can link directly to the published legal page.
 

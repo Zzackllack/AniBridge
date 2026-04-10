@@ -5,8 +5,6 @@ outline: deep
 
 # AniBridge Legal Notice
 
-Version: 2026-03-23
-
 AniBridge is open source software. This notice explains the project's legal
 boundaries, notice-routing expectations, and baseline responsibilities for
 maintainers, contributors, redistributors, operators, and users.
@@ -16,9 +14,11 @@ takedown procedures, platform enforcement, civil claims, or mandatory law.
 
 Related documents:
 
-- [Acceptable Use](/acceptable-use)
-- [Rights-Holder Notice](/rights-holder-notice)
-- [Contributor IP and Submission Rules](/contributor-ip)
+- [Legal and Compliance Index](/legal)
+- [Acceptable Use](/legal/acceptable-use)
+- [DMCA and Rights-Holder Contact](/legal/dmca)
+- [Rights-Holder Notice](/legal/rights-holder-notice)
+- [Contributor IP and Submission Rules](/legal/contributor-ip)
 
 ## 1. Purpose and Scope
 
@@ -137,7 +137,8 @@ code, documentation, images, and other project assets. They cannot remove or
 disable third-party hosted media or third-party services they do not control.
 
 If a complaint concerns repository-contained materials, use the process
-described in [Rights-Holder Notice](/rights-holder-notice).
+described in [DMCA and Rights-Holder Contact](/legal/dmca) and
+[Rights-Holder Notice](/legal/rights-holder-notice).
 
 If a complaint concerns GitHub-hosted repository content, GitHub's own legal and
 platform processes may apply independently of this document. This notice does
@@ -163,7 +164,7 @@ Redistributors must preserve the applicable software license notices and must
 not misrepresent AniBridge as affiliated with or endorsed by third parties.
 
 Contributor expectations for provenance, prohibited submissions, and remediation
-are stated in [Contributor IP and Submission Rules](/contributor-ip).
+are stated in [Contributor IP and Submission Rules](/legal/contributor-ip).
 
 ## 11. Warranty and Liability
 

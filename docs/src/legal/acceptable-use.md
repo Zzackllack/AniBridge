@@ -5,10 +5,8 @@ outline: deep
 
 # AniBridge Acceptable Use
 
-Version: 2026-03-23
-
-This page supplements the [Legal Notice](/legal). It describes deployment and
-usage patterns that the project does not endorse.
+This page supplements the [Legal Notice](/legal/legal-notice). It describes
+deployment and usage patterns that the project does not endorse.
 
 ## 1. Purpose
 
@@ -51,7 +49,8 @@ Operators are expected to:
 
 Project maintainers may decline support, remove repository-contained materials,
 or refuse project association where a contribution or distribution is plainly
-inconsistent with this page or the [Legal Notice](/legal).
+inconsistent with this page or the
+[Legal Notice](/legal/legal-notice).
 
 Maintainership of this repository does not create control over third-party
 services or third-party hosted media, and it does not create an obligation to
