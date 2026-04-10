@@ -17,9 +17,14 @@
 ## Legal Considerations
 
 - Legal docs live under `docs/src/`.
-- `docs/src/legal.md` is the main legal notice and boundary statement.
-- `docs/src/acceptable-use.md` describes unsupported and disallowed use
+- `docs/src/legal/index.md` is the legal/compliance landing page.
+- `docs/src/legal/legal-notice.md` is the main legal notice and boundary
+  statement.
+- `docs/src/legal/acceptable-use.md` describes unsupported and disallowed use
   patterns.
-- `docs/src/rights-holder-notice.md` routes repository-specific complaints.
-- `docs/src/contributor-ip.md` states contributor provenance expectations.
+- `docs/src/legal/dmca.md` provides the project-facing DMCA contact route.
+- `docs/src/legal/rights-holder-notice.md` routes repository-specific
+  complaints.
+- `docs/src/legal/contributor-ip.md` states contributor provenance
+  expectations.
 - In-app outbound proxying was removed; use external VPN routing for compliance.

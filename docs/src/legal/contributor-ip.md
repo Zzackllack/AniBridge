@@ -5,11 +5,10 @@ outline: deep
 
 # Contributor IP and Submission Rules
 
-Version: 2026-03-23
-
-This page supplements the [Legal Notice](/legal), the repository license, and
-the contribution process. It states baseline provenance expectations for code,
-documentation, assets, and release inputs submitted to AniBridge.
+This page supplements the [Legal Notice](/legal/legal-notice), the repository
+license, and the contribution process. It states baseline provenance
+expectations for code, documentation, assets, and release inputs submitted to
+AniBridge.
 
 ## 1. Core Representation
 

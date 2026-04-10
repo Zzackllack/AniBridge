@@ -6,7 +6,8 @@ outline: deep
 # Radarr Integration
 
 ::: danger Legal Disclaimer
-Read the [Legal Disclaimer](/legal) before using clients. You are responsible for ensuring lawful use.
+Read the [Legal and Compliance overview](/legal) before using clients. You are
+responsible for ensuring lawful use.
 :::
 
 Point Radarr at AniBridge’s qBittorrent-compatible API.

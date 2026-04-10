@@ -6,7 +6,8 @@ outline: deep
 # AniBridge Overview
 
 ::: danger Legal Disclaimer
-Before you start, read the [Legal Disclaimer](/legal). You are responsible for lawful use and compliance with third‑party terms.
+Before you start, read the [Legal and Compliance overview](/legal). You are
+responsible for lawful use and compliance with third-party terms.
 :::
 
 AniBridge is a FastAPI-based bridge that exposes:

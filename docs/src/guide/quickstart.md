@@ -22,7 +22,9 @@ Get AniBridge running in minutes. Pick one of the methods below.
 </div>
 
 ::: danger Legal & Ethics
-Read the short [Legal Disclaimer](/legal) before continuing. AniBridge does not host or provide content. You are responsible for compliance with laws and site terms in your jurisdiction.
+Read the short [Legal and Compliance overview](/legal) before continuing.
+AniBridge does not host or provide content. You are responsible for compliance
+with laws and site terms in your jurisdiction.
 :::
 
 ## Option A — Docker (recommended)

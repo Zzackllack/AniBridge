@@ -41,10 +41,13 @@
 
 - `.vitepress/` — VitePress config and theme.
 - `src/` — Markdown and Vue content.
-- `src/legal.md` — main legal notice and project boundary statement.
-- `src/acceptable-use.md` — disallowed use and deployment patterns.
-- `src/rights-holder-notice.md` — repository-specific notice routing.
-- `src/contributor-ip.md` — contributor provenance requirements.
+- `src/legal/index.md` — legal/compliance landing page.
+- `src/legal/legal-notice.md` — main legal notice and project boundary
+  statement.
+- `src/legal/acceptable-use.md` — disallowed use and deployment patterns.
+- `src/legal/dmca.md` — project-facing DMCA contact page.
+- `src/legal/rights-holder-notice.md` — repository-specific notice routing.
+- `src/legal/contributor-ip.md` — contributor provenance requirements.
 - `worker.ts` — Cloudflare Worker entry for docs hosting.
 - `package.json`, lockfiles — docs dependencies.
 

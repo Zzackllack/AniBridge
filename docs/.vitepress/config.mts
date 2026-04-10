@@ -346,6 +346,25 @@ export default defineConfig({
           ],
         },
       ],
+      "/legal": [
+        {
+          text: "Legal and Compliance",
+          items: [
+            { text: "Overview", link: "/legal" },
+            { text: "Legal Notice", link: "/legal/legal-notice" },
+            { text: "Acceptable Use", link: "/legal/acceptable-use" },
+            { text: "DMCA Contact", link: "/legal/dmca" },
+            {
+              text: "Rights-Holder Notice",
+              link: "/legal/rights-holder-notice",
+            },
+            {
+              text: "Contributor IP Rules",
+              link: "/legal/contributor-ip",
+            },
+          ],
+        },
+      ],
     },
     search: { provider: "local" },
     socialLinks: [

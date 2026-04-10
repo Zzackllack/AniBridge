@@ -2,7 +2,8 @@
 
 ## Orientation Checklist
 
-1. Read `.github/README.md`, `docs/src/legal.md`, and `.github/CODE_OF_CONDUCT.md`.
+1. Read `.github/README.md`, `docs/src/legal/index.md`, and
+   `.github/CODE_OF_CONDUCT.md`.
 2. Set up the local environment (see `internal/agents/dev-workflows.md`).
 3. Run tests: `cd apps/api && pytest`.
 4. Start the API and check `/health`.
