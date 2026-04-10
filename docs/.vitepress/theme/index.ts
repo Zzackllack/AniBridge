@@ -1,11 +1,8 @@
 import DefaultTheme from 'vitepress/theme'
 import type { Theme } from 'vitepress'
-import { theme as OpenAPITheme, useOpenapi } from 'vitepress-openapi/client'
-import 'vitepress-openapi/dist/style.css'
+import { defineAsyncComponent, type App, type Component } from 'vue'
 import './custom.css'
 import VideoPlayer from './components/VideoPlayer.vue'
-import ApiOperations from './components/ApiOperations.vue'
-import spec from '../../src/openapi.json'
 
 const MERMAID_MODULE_URL =
   'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'
@@ -14,6 +11,47 @@ let mermaidModulePromise: Promise<any> | null = null
 let mermaidRenderScheduled = false
 let mermaidObserverAttached = false
 let lastRoutePathKey = ''
+let openApiClientPromise: Promise<void> | null = null
+
+function isApiRoute(path: string) {
+  return path === '/api' || path.startsWith('/api/')
+}
+
+async function ensureOpenApiClient(app: App) {
+  if (!openApiClientPromise) {
+    openApiClientPromise = (async () => {
+      const [{ default: spec }, openApiClient] = await Promise.all([
+        import('../../src/openapi.json'),
+        import('vitepress-openapi/client'),
+        import('vitepress-openapi/dist/style.css'),
+      ])
+
+      openApiClient.useOpenapi({
+        spec,
+        config: {
+          spec: {
+            groupByTags: true,
+            defaultTag: 'General',
+          },
+        },
+      })
+
+      await openApiClient.theme.enhanceApp?.({ app })
+    })()
+  }
+
+  return openApiClientPromise
+}
+
+function createOpenApiAsyncComponent(
+  app: App,
+  loader: () => Promise<Component>,
+) {
+  return defineAsyncComponent(async () => {
+    await ensureOpenApiClient(app)
+    return loader()
+  })
+}
 
 function currentMermaidTheme() {
   if (typeof document === 'undefined') return 'default'
@@ -184,22 +222,40 @@ function normalizeTitles() {
 
 const theme: Theme = {
   ...DefaultTheme,
-  enhanceApp(ctx) {
+  async enhanceApp(ctx) {
     DefaultTheme.enhanceApp?.(ctx)
     const { app, router } = ctx
-    useOpenapi({
-      spec,
-      config: {
-        spec: {
-          groupByTags: true,
-          defaultTag: 'General',
-        },
-      },
-    })
-    OpenAPITheme.enhanceApp?.({ app })
+    if (typeof window === 'undefined') {
+      const [{ default: ApiOperations }, { default: ApiOperationPage }] =
+        await Promise.all([
+          import('./components/ApiOperations.vue'),
+          import('./components/ApiOperationPage.vue'),
+        ])
+
+      app.component('VideoPlayer', VideoPlayer)
+      app.component('ApiOperations', ApiOperations)
+      app.component('ApiOperationPage', ApiOperationPage)
+      return
+    }
     app.component('VideoPlayer', VideoPlayer)
-    app.component('ApiOperations', ApiOperations)
+    app.component(
+      'ApiOperations',
+      createOpenApiAsyncComponent(
+        app,
+        async () => (await import('./components/ApiOperations.vue')).default,
+      ),
+    )
+    app.component(
+      'ApiOperationPage',
+      createOpenApiAsyncComponent(
+        app,
+        async () => (await import('./components/ApiOperationPage.vue')).default,
+      ),
+    )
     if (typeof window !== 'undefined') {
+      if (isApiRoute(window.location.pathname)) {
+        await ensureOpenApiClient(app)
+      }
       lastRoutePathKey = window.location.pathname + window.location.search
       // Attach initial listeners after hydration
       setTimeout(() => {
@@ -217,6 +273,9 @@ const theme: Theme = {
         const isHashOnlyNavigation = routePathKey === lastRoutePathKey
         lastRoutePathKey = routePathKey
         const url = routePathKey + window.location.hash
+        if (isApiRoute(window.location.pathname)) {
+          void ensureOpenApiClient(app)
+        }
         if (w.umami?.trackView) {
           w.umami.trackView(url, document.referrer)
         } else if (w.umami?.track) {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vitepress'
+import { OAOperationLink } from 'vitepress-openapi/client'
 
 import spec from '../../../src/openapi.json'
 
@@ -130,28 +131,33 @@ onMounted(() => {
       Redirecting to the first operation…
     </p>
 
-    <template v-if="groupedByTag.length">
-      <details v-for="g in groupedByTag" :key="g.tag" class="group" :open="shouldOpenGroups">
-        <summary class="groupTitle">
-          {{ g.tag }} <span class="count">({{ g.ops.length }})</span>
-        </summary>
-        <ul class="items">
-          <li v-for="op in g.ops" :key="op.operationId" class="item">
-            <!-- Provided globally by vitepress-openapi via OpenAPITheme.enhanceApp -->
-            <OAOperationLink
-              :href="hrefFor(op.operationId)"
-              :method="op.method"
-              :title="op.summary || `${op.method.toUpperCase()} ${op.path}`"
-            />
-            <span v-if="showSummary && op.summary" class="summary">
-              — {{ op.summary }}
-            </span>
-          </li>
-        </ul>
-      </details>
-    </template>
+    <ClientOnly>
+      <template #fallback>
+        <p class="hint">Loading API operations…</p>
+      </template>
 
-    <p v-else class="empty">No operations found.</p>
+      <template v-if="groupedByTag.length">
+        <details v-for="g in groupedByTag" :key="g.tag" class="group" :open="shouldOpenGroups">
+          <summary class="groupTitle">
+            {{ g.tag }} <span class="count">({{ g.ops.length }})</span>
+          </summary>
+          <ul class="items">
+            <li v-for="op in g.ops" :key="op.operationId" class="item">
+              <OAOperationLink
+                :href="hrefFor(op.operationId)"
+                :method="op.method"
+                :title="op.summary || `${op.method.toUpperCase()} ${op.path}`"
+              />
+              <span v-if="showSummary && op.summary" class="summary">
+                — {{ op.summary }}
+              </span>
+            </li>
+          </ul>
+        </details>
+      </template>
+
+      <p v-else class="empty">No operations found.</p>
+    </ClientOnly>
   </div>
 </template>
 
