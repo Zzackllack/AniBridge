@@ -273,7 +273,7 @@ export default defineConfig({
     nav: [
       { text: "Guide", link: "/guide/overview" },
       { text: "API", link: "/api/overview" },
-      { text: "Integrations", link: "/integrations/clients/prowlarr" },
+      { text: "Integrations", link: "/integrations" },
       { text: "Developer", link: "/developer/architecture" },
       { text: "Legal", link: "/legal" },
       {
@@ -316,6 +316,10 @@ export default defineConfig({
         },
       ],
       "/integrations/": [
+        {
+          text: "Overview",
+          items: [{ text: "Integrations Overview", link: "/integrations" }],
+        },
         {
           text: "Clients",
           items: [
