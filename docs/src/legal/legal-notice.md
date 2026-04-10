@@ -9,9 +9,6 @@ AniBridge is open source software. This notice explains the project's legal
 boundaries, notice-routing expectations, and baseline responsibilities for
 maintainers, contributors, redistributors, operators, and users.
 
-This document does not create immunity from
-takedown procedures, platform enforcement, civil claims, or mandatory law.
-
 Related documents:
 
 - [Legal and Compliance Index](/legal)
@@ -37,10 +34,11 @@ AniBridge is distributed under the repository's stated software license,
 currently BSD 3-Clause unless a specific component states otherwise.
 
 This notice is a policy and boundary-setting document. It does not amend,
-replace, narrow, or expand the software license grants for the project code,
-except where mandatory law requires a different result. If there is a conflict
-between this notice and the applicable software license on questions of copying,
-modification, or redistribution of repository code, the license controls.
+replace, narrow, or enlarge the software license grants applicable to the
+project code, except to the extent mandatory law compels a different result. If
+there is any inconsistency between this notice and the applicable software
+license on questions of copying, modification, or redistribution of
+repository-controlled code, the license governs.
 
 ## 3. Non-Affiliation and No Endorsement
 
@@ -140,10 +138,11 @@ If a complaint concerns repository-contained materials, use the process
 described in [DMCA and Rights-Holder Contact](/legal/dmca) and
 [Rights-Holder Notice](/legal/rights-holder-notice).
 
-If a complaint concerns GitHub-hosted repository content, GitHub's own legal and
-platform processes may apply independently of this document. This notice does
-not prevent a claimant from using GitHub's reporting channels, and maintainers
-cannot promise any particular platform outcome.
+If a complaint concerns GitHub-hosted repository content, GitHub's own legal
+and platform processes may apply independently of this document. This notice
+does not prevent a claimant from using GitHub's reporting channels, including
+where the claimant seeks platform action under 17 U.S.C. § 512, and
+maintainers cannot promise any particular platform outcome.
 
 ## 9. Logs, Metadata, and Operational Data
 

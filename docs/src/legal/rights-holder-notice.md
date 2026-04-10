@@ -5,8 +5,6 @@ outline: deep
 
 # Rights-Holder Notice for Repository Materials
 
-Version: 2026-03-23
-
 This page explains how repository-specific complaints should be routed. It is
 limited to materials controlled in the AniBridge repository and official
 project-maintained distributions.
@@ -38,8 +36,9 @@ third-party content because the project does not control that infrastructure.
 
 ## 3. What to Include in a Repository-Specific Notice
 
-A repository-specific notice should include enough detail to evaluate the
-request responsibly:
+A repository-specific notice should include enough detail to permit a
+responsible threshold assessment of the claim, the material identified, and the
+relief sought:
 
 - your name and contact information;
 - the capacity in which you are acting, including authority to act for the
@@ -55,7 +54,7 @@ request responsibly:
 Do not send passwords, raw secrets, session credentials, or unrelated personal
 data unless strictly necessary for the request.
 
-## 4. Optional Pre-Notice Contact
+## 4. Preferred Initial Contact
 
 For concerns relating to repository-contained material, the preferred initial
 contact route is [dmca@zacklack.de](mailto:dmca@zacklack.de). Where
@@ -66,9 +65,10 @@ without avoidable escalation.
 
 This request is intended as a practical, good-faith resolution path for
 repository-controlled material only. It is voluntary, not mandatory. It does
-not require any claimant to delay or forgo a platform notice, legal notice, or
-other available remedy, and it does not apply to third-party hosted media,
-third-party services, or infrastructure outside repository control.
+not require any claimant to delay or forgo a platform notice, statutory notice,
+formal legal notice, or any other available remedy, and it does not apply to
+third-party hosted media, third-party services, or infrastructure outside
+repository control.
 
 ## 5. GitHub Platform Process
 
@@ -78,7 +78,10 @@ legal reporting channels may be the appropriate process and may operate
 independently of any direct notice to project maintainers.
 
 A project-facing notice does not replace GitHub's own review, takedown, counter
-notice, or reinstatement procedures.
+notice, or reinstatement procedures. To the extent a claimant seeks platform
+action under the Digital Millennium Copyright Act, the relevant statutory
+framework is generally 17 U.S.C. § 512, and GitHub's published DMCA procedures
+remain the operative platform reference point.
 
 ## 6. Project-Level Handling
 
