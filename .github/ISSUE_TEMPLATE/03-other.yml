@@ -1,6 +1,6 @@
 name: Other issue
 description: Report something that is not a bug report or feature request.
-title: "[Other]: "
+title: "[OTHER] "
 body:
   - type: markdown
     attributes:
