@@ -1,0 +1,57 @@
+name: Other issue
+description: Report something that is not a bug report or feature request.
+title: "[Other]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for issues that do not fit the dedicated bug report or feature
+        request templates.
+
+        For security problems, do not open a public issue. Use the private reporting
+        path linked in the template chooser.
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: Which category best matches this issue?
+      options:
+        - Documentation problem
+        - Maintenance or cleanup
+        - Provider/site change
+        - Regression report
+        - Integration question
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is the issue or request?
+      placeholder: Describe the problem, gap, or task.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and details
+      description: Add the background, relevant links, screenshots, or affected files and endpoints.
+      placeholder: Share the details someone would need to understand the issue.
+    validations:
+      required: false
+  - type: textarea
+    id: proposed-next-step
+    attributes:
+      label: Suggested next step
+      description: If you already have an idea for how to handle this, describe it here.
+      placeholder: Optional, but helpful for maintainers.
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I checked the other templates and this issue does not fit them better.
+          required: true

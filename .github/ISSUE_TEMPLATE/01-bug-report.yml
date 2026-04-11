@@ -1,0 +1,109 @@
+name: Bug report
+description: Report a reproducible problem in AniBridge.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+
+        Please provide enough detail for someone else to reproduce the problem.
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of the problem.
+      placeholder: Tell us what is broken and why it is a problem.
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps needed to reproduce the issue.
+      placeholder: |
+        1. Start AniBridge with ...
+        2. Open ...
+        3. Trigger ...
+        4. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen instead?
+      placeholder: Describe the expected result.
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+      description: What happened instead?
+      placeholder: Describe the observed result, including visible errors.
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment-method
+    attributes:
+      label: Deployment method
+      description: How are you running AniBridge?
+      options:
+        - Docker
+        - Source checkout
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: anibridge-version
+    attributes:
+      label: AniBridge version
+      description: Which version, image tag, or commit are you running?
+      placeholder: e.g. v1.2.3, latest, or a git SHA
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: The operating system or container host where AniBridge runs.
+      placeholder: e.g. Debian 12, Ubuntu 24.04, Unraid 7, Windows 11
+    validations:
+      required: true
+  - type: input
+    id: client-app
+    attributes:
+      label: Client integration
+      description: Which client or integration exposed the problem?
+      placeholder: e.g. Sonarr, Prowlarr, qBittorrent, direct API call
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or trace output
+      description: Paste any relevant logs, tracebacks, or response payloads.
+      placeholder: Paste logs here.
+      render: shell
+    validations:
+      required: false
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add anything else that may help diagnose the issue.
+      placeholder: Include screenshots, configuration details, or related links.
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched for existing issues before opening this report.
+          required: true
+        - label: I removed secrets, tokens, and private URLs from the details above.
+          required: true

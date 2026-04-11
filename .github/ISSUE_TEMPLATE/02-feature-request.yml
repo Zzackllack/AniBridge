@@ -1,0 +1,75 @@
+name: Feature request
+description: Suggest an improvement or new capability for AniBridge.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement.
+
+        Please focus on the problem you are trying to solve and what a good outcome
+        looks like.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem, friction, or missing capability led to this request?
+      placeholder: Describe the current limitation or user problem.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed solution
+      description: What would you like AniBridge to do?
+      placeholder: Describe the behavior, API, or workflow you want.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What alternatives, workarounds, or competing approaches have you considered?
+      placeholder: Describe any alternatives you evaluated.
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which area would this request affect the most?
+      options:
+        - Provider integrations
+        - Torznab API
+        - qBittorrent API
+        - STRM / proxy streaming
+        - Documentation
+        - Deployment / operations
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case and impact
+      description: Who benefits from this and how would it improve their workflow?
+      placeholder: Explain the practical benefit and expected impact.
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add screenshots, examples, related issues, or external references.
+      placeholder: Share any extra context that would help evaluate the request.
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched for existing issues before opening this request.
+          required: true

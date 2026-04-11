@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation and setup guides
+    url: https://anibridge-docs.zacklack.de/guide/quickstart
+    about: Read the AniBridge docs before opening a support issue.
+  - name: Security vulnerability reporting
+    url: https://github.com/zzackllack/AniBridge/security/policy
+    about: Report security vulnerabilities privately according to the repository security policy.
