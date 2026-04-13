@@ -4,8 +4,8 @@ from typing import Callable, Literal
 
 # Supported human-readable language labels.
 Language = Literal["German Dub", "German Sub", "English Sub", "English Dub"]
-# Supported provider identifiers in resolver order.
-Provider = Literal[
+# Supported direct video-host identifiers in resolver order.
+Host = Literal[
     "VOE",
     "Vidoza",
     "Doodstream",
@@ -15,5 +15,7 @@ Provider = Literal[
     "LoadX",
     "Luluvdo",
 ]
+# Backwards-compatible alias used by older downloader call sites.
+Provider = Host
 # Callback invoked with yt-dlp progress dictionaries.
 ProgressCb = Callable[[dict], None]
