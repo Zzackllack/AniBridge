@@ -6,11 +6,12 @@ from .download import download_episode  # noqa: E402
 from .episode import build_episode  # noqa: E402
 from .errors import DownloadError, LanguageUnavailableError  # noqa: E402
 from .provider_resolution import get_direct_url_with_fallback  # noqa: E402
-from .types import Language, Provider, ProgressCb  # noqa: E402
+from .types import Host, Language, Provider, ProgressCb  # noqa: E402
 
 __all__ = [
     "DownloadError",
     "LanguageUnavailableError",
+    "Host",
     "Language",
     "Provider",
     "ProgressCb",

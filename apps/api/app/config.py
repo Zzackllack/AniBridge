@@ -297,17 +297,20 @@ for site in CATALOG_SITES_LIST:
         continue
     CATALOG_SITE_CONFIGS[site] = deepcopy(base_cfg)
 
-# ---- Provider-Fallback ----
-# Kommagetrennte Liste, z. B. "VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza"
-# Reihenfolge = Priorität
+# ---- Video-host fallback ----
+# Comma-separated list of direct video hosts, for example:
+# "VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza"
+# Order = priority.
 _default_order = "VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza"
 _raw = os.getenv("PROVIDER_ORDER", _default_order)
 logger.debug(f"PROVIDER_ORDER raw string: {_raw}")
 
-# normalisieren: split, trim, nur nicht-leere nehmen, Groß/Kleinschreibung egal
-PROVIDER_ORDER = [p.strip() for p in _raw.split(",") if p.strip()]
-logger.debug(f"PROVIDER_ORDER normalized: {PROVIDER_ORDER}")
-_VALID_PROVIDERS = {
+# Keep the historical PROVIDER_ORDER env var for compatibility, but use
+# "host" internally for the actual video platforms that expose embeds.
+VIDEO_HOST_ORDER = [name.strip() for name in _raw.split(",") if name.strip()]
+PROVIDER_ORDER = VIDEO_HOST_ORDER
+logger.debug(f"VIDEO_HOST_ORDER normalized: {VIDEO_HOST_ORDER}")
+_VALID_VIDEO_HOSTS = {
     "VOE",
     "Vidoza",
     "Doodstream",
@@ -317,12 +320,12 @@ _VALID_PROVIDERS = {
     "LoadX",
     "Luluvdo",
 }
-for provider_name in PROVIDER_ORDER:
-    if provider_name not in _VALID_PROVIDERS:
+for host_name in VIDEO_HOST_ORDER:
+    if host_name not in _VALID_VIDEO_HOSTS:
         logger.warning(
-            "Unknown provider '{}' configured in PROVIDER_ORDER. Valid values: {}",
-            provider_name,
-            sorted(_VALID_PROVIDERS),
+            "Unknown video host '{}' configured in PROVIDER_ORDER. Valid values: {}",
+            host_name,
+            sorted(_VALID_VIDEO_HOSTS),
         )
 
 # Provider redirect resolution can be slower than direct extractor fetches,

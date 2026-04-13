@@ -163,7 +163,7 @@ def get_direct_url_with_fallback(
     language: str,
 ) -> Tuple[str, str]:
     """
-    Resolve a direct download URL for an episode, trying a preferred provider first and falling back to the configured provider order.
+    Resolve a direct download URL for an episode, trying a preferred video host first and falling back to the configured host order.
 
     Parameters:
         ep (Episode): Episode object to resolve the direct link for.

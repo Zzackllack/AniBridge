@@ -67,7 +67,7 @@ def probe_episode_quality(
         season (int): Season number.
         episode (int): Episode number.
         language (str): Desired audio/subtitle language code.
-        preferred_provider (Optional[str]): Provider to try first, if any.
+        preferred_provider (Optional[str]): Video host to try first, if any.
         timeout (float): Socket/metadata probe timeout in seconds.
         site (str): Site identifier used when building the episode object.
 
@@ -87,7 +87,7 @@ def probe_episode_quality(
         try:
             client = get_default_client()
             direct, provider_used = client.resolve_direct_url(
-                slug=slug, preferred_provider=preferred_provider
+                slug=slug, preferred_host=preferred_provider
             )
         except Exception as exc:
             logger.warning(

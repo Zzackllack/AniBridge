@@ -92,5 +92,5 @@ def test_megakino_resolve_direct_url_filters_speedfiles(monkeypatch):
         lambda html: ["https://speedfiles.example/embed/123"],
     )
 
-    with pytest.raises(ValueError, match="No provider iframes found"):
+    with pytest.raises(ValueError, match="No video host iframes found"):
         client.resolve_direct_url("slug")

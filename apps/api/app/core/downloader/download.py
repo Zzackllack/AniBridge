@@ -31,10 +31,10 @@ def download_episode(
     site: str = "aniworld.to",
 ) -> Path:
     """
-    Download an episode to the specified directory, resolving a direct stream URL with provider fallback logic.
+    Download an episode to the specified directory, resolving a direct stream URL with video-host fallback logic.
 
     This function builds an Episode from the provided identifiers, attempts to
-    resolve a direct download URL (optionally preferring a provider), downloads
+    resolve a direct download URL (optionally preferring a video host), downloads
     the media via yt-dlp with progress callbacks and cancellation support, and
     renames the downloaded file into the repository's release naming schema. If
     extraction or download fails, controlled fallback attempts are performed
@@ -97,17 +97,17 @@ def download_episode(
 
         def _attempt_download(
             *,
-            preferred_provider: Optional[str],
+            preferred_host: Optional[str],
         ) -> Optional[Path]:
             """
-            Resolve Megakino direct URL and download once for one provider.
+            Resolve a Megakino direct URL and download once for one video host.
 
             Resolves a direct URL for the preferred provider, downloads to
             `dest_dir` via yt-dlp, then renames the file to the release schema
             (movie vs episode aware).
 
             Parameters:
-                preferred_provider (Optional[str]): Preferred provider; `None`
+                preferred_host (Optional[str]): Preferred video host; `None`
                     lets the resolver choose.
 
             Returns:
@@ -115,7 +115,7 @@ def download_episode(
                 direct URL was already tried.
             """
             direct, chosen = client.resolve_direct_url(
-                slug=slug, preferred_provider=preferred_provider
+                slug=slug, preferred_host=preferred_host
             )
             if direct in tried_direct:
                 logger.debug("Megakino direct URL already tried; skipping: {}", direct)
@@ -153,16 +153,16 @@ def download_episode(
             logger.success("Final file path: {}", final_path)
             return final_path
 
-        for preferred_provider in provider_candidates:
+        for preferred_host in provider_candidates:
             try:
-                result = _attempt_download(preferred_provider=preferred_provider)
+                result = _attempt_download(preferred_host=preferred_host)
                 if result is not None:
                     return result
             except Exception as exc:
                 last_error = exc
                 logger.warning(
-                    "Megakino download attempt failed (provider={}): {}",
-                    preferred_provider,
+                    "Megakino download attempt failed (host={}): {}",
+                    preferred_host,
                     exc,
                 )
 

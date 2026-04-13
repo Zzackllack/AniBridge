@@ -13,6 +13,7 @@ from app.config import (
     PROVIDER_REDIRECT_TIMEOUT_SECONDS,
 )
 from app.core.downloader.extractors import voe as voe_extractor
+from app.hosts import get_host
 from app.utils.aniworld_compat import prepare_aniworld_home
 
 if TYPE_CHECKING:
@@ -403,28 +404,22 @@ class EpisodeCompat:
                 f"Provider '{provider_name}' did not return a redirect URL for {self.link}"
             )
 
-        prepare_aniworld_home()
-        from aniworld.extractors import provider_functions  # type: ignore
         from niquests import RequestException, Timeout  # type: ignore
 
-        extractor = provider_functions.get(
-            f"get_direct_link_from_{provider_name.lower()}"
-        )
-        if extractor is None:
-            raise ValueError(
-                f"The provider '{provider_name}' is not implemented in aniworld>=4."
-            )
+        host = get_host(provider_name)
+        if host is None:
+            raise ValueError(f"The video host '{provider_name}' is not implemented.")
 
         try:
             return _get_direct_link_with_retries(
                 provider_name=provider_name,
                 redirect_url=redirect_url,
-                extractor=extractor,
+                extractor=host.resolve,
                 site=self.site,
             )
         except (Timeout, RequestException, ValueError) as exc:
             raise ValueError(
-                f"Failed to resolve provider '{provider_name}' at {redirect_url}: {exc}"
+                f"Failed to resolve video host '{provider_name}' at {redirect_url}: {exc}"
             ) from exc
 
 
