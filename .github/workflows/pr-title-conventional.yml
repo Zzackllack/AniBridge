@@ -55,7 +55,7 @@ jobs:
 
       - name: Sync pull request guidance comment
         if: always()
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           COMMENT_MARKER: "<!-- anibridge-pr-title-conventional -->"
           COMMENT_BODY: |

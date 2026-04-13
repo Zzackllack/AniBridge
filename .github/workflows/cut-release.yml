@@ -501,7 +501,7 @@ jobs:
 
       - name: Publish release with Gemini notes
         if: needs.generate-release-notes.outputs.notes_available == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.publish-ref.outputs.release_tag }}
           files: release-assets/*
@@ -513,7 +513,7 @@ jobs:
 
       - name: Publish release with GitHub generated notes
         if: needs.generate-release-notes.outputs.notes_available != 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.publish-ref.outputs.release_tag }}
           files: release-assets/*

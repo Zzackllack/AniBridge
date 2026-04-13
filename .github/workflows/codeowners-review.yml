@@ -28,7 +28,7 @@ jobs:
       - name: Validate CODEOWNERS coverage
         id: validate
         continue-on-error: true
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           COMMENT_MARKER: "<!-- anibridge-pr-codeowners -->"
         with:
@@ -239,7 +239,7 @@ jobs:
 
       - name: Sync pull request CODEOWNERS comment
         if: always()
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           COMMENT_MARKER: "<!-- anibridge-pr-codeowners -->"
         with:

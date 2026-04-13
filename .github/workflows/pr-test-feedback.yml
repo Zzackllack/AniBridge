@@ -24,7 +24,7 @@ jobs:
     steps:
       - name: Resolve workflow run context
         id: context
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const pullRequest = context.payload.workflow_run.pull_requests?.[0];
@@ -106,7 +106,7 @@ jobs:
 
       - name: Sync pull request feedback comment
         if: steps.context.outputs.pr_number != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           COMMENT_MARKER: "<!-- anibridge-pr-pytest-feedback -->"
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
