@@ -1,5 +1,7 @@
 # Change Log
 
+- 2026-04-13: Documented the new `app/hosts` package and clarified the naming
+  split between catalogue-site providers and direct video hosts.
 - 2026-03-22: Documented automatic Serienstream Turnstile handling for protected
   `/r?t=...` redirect tokens, including browser-like headers and configurable
   backoff via `PROVIDER_CHALLENGE_BACKOFF_SECONDS`.

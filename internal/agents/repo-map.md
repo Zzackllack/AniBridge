@@ -27,8 +27,9 @@
 
 - `api/` — endpoint routers grouped by domain.
 - `core/` — bootstrap, scheduler, downloader, lifespan.
+- `hosts/` — direct-video host wrappers and extraction registry.
 - `core/downloader/extractors/` — local extractor overrides for fragile
-  upstream provider logic such as VOE.
+  upstream host logic such as VOE.
 - `db/` — SQLModel definitions and helpers.
 - `domain/` — domain-level models.
 - `infrastructure/` — logging, networking helpers, system diagnostics.
@@ -67,6 +68,7 @@
 - `apps/api/app/core/lifespan.py` — FastAPI lifespan manager.
 - `apps/api/app/core/scheduler.py` — thread pool management.
 - `apps/api/app/core/downloader/*` — download orchestration.
+- `apps/api/app/hosts/*` — direct-video host wrappers and registry.
 - `apps/api/app/api/health.py` — health check router.
 - `apps/api/app/api/legacy_downloader.py` — legacy download endpoint.
 - `apps/api/app/api/torznab/api.py` — Torznab handlers.

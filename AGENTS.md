@@ -10,6 +10,9 @@ Essentials
 - Database: SQLite with Alembic migrations in `apps/api/app/db/migrations`.
 - Use of Context7 for up-to-date external documentation.
 - On change of any environment variable, update `apps/api/.env.example`.
+- Keep the code vocabulary explicit: `providers/` means catalogue sites
+  (`aniworld.to`, `s.to`, `megakino`), while direct video hosts belong under
+  `apps/api/app/hosts/`.
 
 Common pitfalls
 
