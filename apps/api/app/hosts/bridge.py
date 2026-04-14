@@ -8,6 +8,19 @@ from loguru import logger
 from app.utils.aniworld_compat import prepare_aniworld_home
 
 
+def _get_registry_extractor(function_name: str):
+    try:
+        extractors_module = import_module("aniworld.extractors")
+    except ImportError:
+        return None
+
+    provider_functions = getattr(extractors_module, "provider_functions", {})
+    extractor = provider_functions.get(function_name)
+    if callable(extractor):
+        return extractor
+    return None
+
+
 def resolve_via_aniworld(
     *,
     module_name: str,
@@ -17,6 +30,10 @@ def resolve_via_aniworld(
 ) -> Optional[str]:
     """Call an upstream aniworld extractor through a thin local host wrapper."""
     prepare_aniworld_home()
+
+    extractor = _get_registry_extractor(function_name)
+    if extractor is not None:
+        return extractor(url)
 
     try:
         module = import_module(f"aniworld.extractors.provider.{module_name}")
@@ -28,9 +45,7 @@ def resolve_via_aniworld(
             url,
             exc,
         )
-        extractors_module = import_module("aniworld.extractors")
-        provider_functions = getattr(extractors_module, "provider_functions", {})
-        extractor = provider_functions.get(function_name)
+        extractor = _get_registry_extractor(function_name)
         if extractor is None:
             return None
 

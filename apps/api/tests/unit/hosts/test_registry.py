@@ -97,6 +97,37 @@ def test_resolve_via_aniworld_falls_back_to_provider_functions(monkeypatch):
     assert resolved == "https://voe.sx/e/abc123/fallback"
 
 
+def test_resolve_via_aniworld_prefers_provider_function_registry(monkeypatch):
+    class ExtractorsModule:
+        provider_functions = {"get_direct_link_from_voe": lambda url: f"{url}/registry"}
+
+    class ProviderModule:
+        @staticmethod
+        def get_direct_link_from_voe(url: str) -> str:
+            return f"{url}/module"
+
+    monkeypatch.setattr("app.hosts.bridge.prepare_aniworld_home", lambda: None)
+    monkeypatch.setattr(
+        "app.hosts.bridge.import_module",
+        lambda name: (
+            ExtractorsModule()
+            if name == "aniworld.extractors"
+            else ProviderModule()
+            if name == "aniworld.extractors.provider.voe"
+            else None
+        ),
+    )
+
+    resolved = resolve_via_aniworld(
+        module_name="voe",
+        function_name="get_direct_link_from_voe",
+        url="https://voe.sx/e/abc123",
+        host_name="VOE",
+    )
+
+    assert resolved == "https://voe.sx/e/abc123/registry"
+
+
 def test_resolve_via_aniworld_propagates_extractor_errors(monkeypatch):
     class ProviderModule:
         @staticmethod
