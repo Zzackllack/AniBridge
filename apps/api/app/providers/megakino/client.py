@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple
 import threading
 import re
 import time
+import warnings
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup  # type: ignore
@@ -160,8 +161,16 @@ class MegakinoClient:
             tuple: (`url`, `host_name`) where `url` is the direct media URL (or an iframe URL fallback) and `host_name` is the inferred video-host label (for example, `"EMBED"`).
 
         Raises:
-            ValueError: If the slug does not map to a Megakino page, if no provider iframes are found, or if no provider yields a resolvable URL.
+            ValueError: If the slug does not map to a Megakino page, if no video-host iframes are found, or if no video host yields a resolvable URL.
         """
+        if preferred_host is None and preferred_provider is not None:
+            warnings.warn(
+                "preferred_provider is deprecated; use preferred_host instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            preferred_host = preferred_provider
+
         page_url = self.resolve_url(slug)
         if not page_url:
             raise ValueError(f"Megakino page not found for slug '{slug}'")
@@ -183,8 +192,7 @@ class MegakinoClient:
             raise ValueError("No video host iframes found on megakino page")
         logger.debug("Megakino video hosts extracted: {}", host_urls)
 
-        preferred_name = preferred_host or preferred_provider
-        preferred = (preferred_name or "").lower()
+        preferred = (preferred_host or "").lower()
         ordered = host_urls
         if preferred:
             ordered = sorted(

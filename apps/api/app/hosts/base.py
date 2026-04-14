@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Callable, Optional
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 
 HostResolver = Callable[[str], Optional[str]]
@@ -18,9 +18,10 @@ class VideoHost:
 
     def matches(self, url: str) -> bool:
         """Return whether this host can handle the given embed URL."""
-        host = urlparse(url).netloc.lower()
+        host = urlsplit(url).hostname
         if not host:
             return False
+        host = host.lower()
         return any(hint in host for hint in self.hints)
 
     def resolve(self, url: str) -> Optional[str]:

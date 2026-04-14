@@ -319,6 +319,7 @@ _VALID_VIDEO_HOSTS = {
     "Streamtape",
     "LoadX",
     "Luluvdo",
+    "GXPlayer",
 }
 for host_name in VIDEO_HOST_ORDER:
     if host_name not in _VALID_VIDEO_HOSTS:

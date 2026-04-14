@@ -102,7 +102,7 @@ def download_episode(
             """
             Resolve a Megakino direct URL and download once for one video host.
 
-            Resolves a direct URL for the preferred provider, downloads to
+            Resolves a direct URL for the preferred host, downloads to
             `dest_dir` via yt-dlp, then renames the file to the release schema
             (movie vs episode aware).
 

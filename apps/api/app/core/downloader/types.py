@@ -14,6 +14,7 @@ Host = Literal[
     "Streamtape",
     "LoadX",
     "Luluvdo",
+    "GXPlayer",
 ]
 # Backwards-compatible alias used by older downloader call sites.
 Provider = Host

@@ -17,25 +17,21 @@ def resolve_via_aniworld(
 ) -> Optional[str]:
     """Call an upstream aniworld extractor through a thin local host wrapper."""
     prepare_aniworld_home()
+
     try:
         module = import_module(f"aniworld.extractors.provider.{module_name}")
         extractor = getattr(module, function_name)
-        return extractor(url)
-    except Exception as exc:
+    except (ImportError, AttributeError) as exc:
         logger.debug(
             "{} host module import failed for {}: {}; trying provider_functions fallback",
             host_name,
             url,
             exc,
         )
-
-    try:
         extractors_module = import_module("aniworld.extractors")
         provider_functions = getattr(extractors_module, "provider_functions", {})
         extractor = provider_functions.get(function_name)
         if extractor is None:
             return None
-        return extractor(url)
-    except Exception as exc:
-        logger.warning("{} host extraction failed for {}: {}", host_name, url, exc)
-        return None
+
+    return extractor(url)
