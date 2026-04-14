@@ -11,6 +11,7 @@ permissions:
   actions: read
   contents: read
   issues: write
+  pull-requests: write
 
 concurrency:
   group: pr-test-feedback-${{ github.event.workflow_run.id }}
@@ -131,29 +132,39 @@ jobs:
               comment.user?.type === 'Bot' && comment.body?.includes(marker),
             );
 
-            if (shouldComment) {
+            try {
+              if (shouldComment) {
+                if (existing) {
+                  await github.rest.issues.updateComment({
+                    owner,
+                    repo,
+                    comment_id: existing.id,
+                    body,
+                  });
+                } else {
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number,
+                    body,
+                  });
+                }
+                return;
+              }
+
               if (existing) {
-                await github.rest.issues.updateComment({
+                await github.rest.issues.deleteComment({
                   owner,
                   repo,
                   comment_id: existing.id,
-                  body,
-                });
-              } else {
-                await github.rest.issues.createComment({
-                  owner,
-                  repo,
-                  issue_number,
-                  body,
                 });
               }
-              return;
-            }
-
-            if (existing) {
-              await github.rest.issues.deleteComment({
-                owner,
-                repo,
-                comment_id: existing.id,
-              });
+            } catch (error) {
+              if (error?.status === 403) {
+                core.warning(
+                  `Skipping PR feedback comment sync because the workflow token cannot comment on PR #${issue_number}: ${error.message}`,
+                );
+                return;
+              }
+              throw error;
             }
