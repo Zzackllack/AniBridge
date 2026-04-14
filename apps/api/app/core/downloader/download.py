@@ -121,9 +121,7 @@ def download_episode(
                 logger.debug("Megakino direct URL already tried; skipping: {}", direct)
                 return None
             tried_direct.add(direct)
-            logger.debug(
-                "Megakino download direct URL: provider={} url={}", chosen, direct
-            )
+            logger.debug("Megakino download direct URL: host={} url={}", chosen, direct)
             base_hint = title_hint
             if not base_hint:
                 if is_movie:

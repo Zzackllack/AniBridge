@@ -40,13 +40,11 @@ def resolve_via_aniworld(
         extractor = getattr(module, function_name)
     except (ImportError, AttributeError) as exc:
         logger.debug(
-            "{} host module import failed for {}: {}; trying provider_functions fallback",
+            "{} host module import failed for {}: {}",
             host_name,
             url,
             exc,
         )
-        extractor = _get_registry_extractor(function_name)
-        if extractor is None:
-            return None
+        return None
 
     return extractor(url)

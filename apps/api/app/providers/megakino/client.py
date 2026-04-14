@@ -32,7 +32,7 @@ _MEGAKINO_TOKEN_TTL_SECONDS = 30 * 60
 _DEFAULT_CLIENT_LOCK = threading.Lock()
 
 
-def _is_disabled_provider_url(url: str) -> bool:
+def _is_disabled_host_url(url: str) -> bool:
     """Return whether a host URL points to a disabled extractor host."""
 
     return "speedfiles" in urlparse(url).netloc.lower()
@@ -185,19 +185,19 @@ class MegakinoClient:
         resp.raise_for_status()
         host_urls = [
             url
-            for url in _extract_provider_links(resp.text)
-            if not _is_disabled_provider_url(url)
+            for url in _extract_host_links(resp.text)
+            if not _is_disabled_host_url(url)
         ]
         if not host_urls:
             raise ValueError("No video host iframes found on megakino page")
         logger.debug("Megakino video hosts extracted: {}", host_urls)
 
-        preferred = (preferred_host or "").lower()
+        preferred = _normalize_host_preference(preferred_host)
         ordered = host_urls
         if preferred:
             ordered = sorted(
                 host_urls,
-                key=lambda url: 0 if preferred in url.lower() else 1,
+                key=lambda url: 0 if preferred in _host_match_candidates(url) else 1,
             )
 
         for url in ordered:
@@ -210,8 +210,8 @@ class MegakinoClient:
             )
 
         # Fallback to first iframe URL for yt-dlp to try if supported.
-        if host_urls:
-            fallback = _normalize_url(host_urls[0])
+        if ordered:
+            fallback = _normalize_url(ordered[0])
             logger.debug("Megakino fallback to iframe URL '{}'", fallback)
             return fallback, "EMBED"
 
@@ -312,7 +312,7 @@ def _score_tokens(query_tokens: List[str], title_tokens: List[str]) -> int:
     return len(intersection)
 
 
-def _extract_provider_links(html: str) -> List[str]:
+def _extract_host_links(html: str) -> List[str]:
     """
     Extract iframe provider URLs from the given HTML.
 
@@ -320,7 +320,7 @@ def _extract_provider_links(html: str) -> List[str]:
         html (str): HTML content to parse.
 
     Returns:
-        List[str]: Provider URLs extracted from iframe `data-src` or `src` attributes, in document order.
+        List[str]: Host URLs extracted from iframe `data-src` or `src` attributes, in document order.
     """
     soup = BeautifulSoup(html, "html.parser")
     links: List[str] = []
@@ -341,28 +341,55 @@ def _extract_provider_links(html: str) -> List[str]:
 
     if links:
         host_links = [
-            link for link in links if _looks_like_provider_url(_normalize_url(link))
+            link for link in links if _looks_like_host_url(_normalize_url(link))
         ]
         return host_links or links
 
     for attr in ("data-src", "data-iframe", "data-embed", "data-player"):
         for tag in soup.find_all(attrs={attr: True}):
             candidate = tag.get(attr)
-            if candidate and _looks_like_provider_url(_normalize_url(candidate)):
+            if candidate and _looks_like_host_url(_normalize_url(candidate)):
                 _add_link(candidate)
 
     if links:
         return links
 
     for match in re.findall(r"https?://[^\s'\"<>]+", html):
-        if _looks_like_provider_url(match):
+        if _looks_like_host_url(match):
             _add_link(match)
 
     return links
 
 
-def _looks_like_provider_url(url: str) -> bool:
+def _looks_like_host_url(url: str) -> bool:
     return detect_host(url) is not None or "speedfiles" in urlparse(url).netloc.lower()
+
+
+def _normalize_host_preference(preferred_host: Optional[str]) -> str:
+    if not preferred_host:
+        return ""
+    preferred = preferred_host.strip().lower()
+    if not preferred:
+        return ""
+    parsed = urlparse(preferred if "://" in preferred else f"https://{preferred}")
+    return (parsed.hostname or preferred).lower().strip(".")
+
+
+def _host_match_candidates(url: str) -> set[str]:
+    normalized_url = _normalize_url(url)
+    parsed = urlparse(normalized_url)
+    hostname = (parsed.hostname or "").lower().strip(".")
+    candidates: set[str] = set()
+    if hostname:
+        candidates.add(hostname)
+        candidates.add(hostname.removeprefix("www."))
+        parts = hostname.split(".")
+        if len(parts) >= 2:
+            candidates.add(".".join(parts[-2:]))
+    detected_host = detect_host(normalized_url)
+    if detected_host is not None:
+        candidates.add(detected_host.name.lower())
+    return {candidate for candidate in candidates if candidate}
 
 
 def _megakino_headers(*, referer: Optional[str] = None) -> Dict[str, str]:
