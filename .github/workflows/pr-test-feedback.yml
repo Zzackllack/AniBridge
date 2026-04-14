@@ -11,7 +11,6 @@ permissions:
   actions: read
   contents: read
   issues: write
-  pull-requests: write
 
 concurrency:
   group: pr-test-feedback-${{ github.event.workflow_run.id }}
