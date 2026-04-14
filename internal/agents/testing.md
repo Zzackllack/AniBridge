@@ -17,8 +17,9 @@
 - `tests/unit/api/` contains non-request unit coverage for API helper modules.
 - `tests/unit/core/` groups downloader, scheduler, and STRM proxy logic.
 - `tests/unit/db/` covers SQLModel behavior and Alembic migrations.
-- `tests/unit/providers/` groups provider-specific logic by source
+- `tests/unit/providers/` groups catalogue-site-specific logic by source
   (`aniworld`, `megakino`, `sto`).
+- `tests/unit/hosts/` covers direct-video host detection and wrapper behavior.
 - `tests/unit/scripts/` covers repository automation scripts.
 - `tests/unit/utils/` contains utility coverage, including nested
   `title_resolver/` tests.

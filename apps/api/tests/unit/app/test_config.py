@@ -14,6 +14,22 @@ def test_provider_order_parsing(monkeypatch):
     assert cfg.PROVIDER_ORDER == ["VOE", "Filemoon", "Streamtape"]
 
 
+def test_provider_order_normalizes_case_and_drops_invalid(monkeypatch):
+    monkeypatch.setenv("PROVIDER_ORDER", " voe , filemoon,invalid,gxplayer ")
+    import importlib
+    import sys
+    import app
+
+    if "app.config" in sys.modules:
+        del sys.modules["app.config"]
+    if hasattr(app, "config"):
+        delattr(app, "config")
+    cfg = importlib.import_module("app.config")
+
+    assert cfg.VIDEO_HOST_ORDER == ["VOE", "Filemoon", "GXPlayer"]
+    assert cfg.PROVIDER_ORDER == ["VOE", "Filemoon", "GXPlayer"]
+
+
 def test_repo_root_defaults_anchor_local_data_paths() -> None:
     import app.config as cfg
 

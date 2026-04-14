@@ -5,12 +5,13 @@ from typing import Dict, List, Optional, Tuple
 import threading
 import re
 import time
+import warnings
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup  # type: ignore
 from loguru import logger
 
-from app.utils.aniworld_compat import prepare_aniworld_home
+from app.hosts import detect_host, resolve_host_url
 from app.utils.http_client import get as http_get
 from app.utils.domain_resolver import get_megakino_base_url
 from app.config import MEGAKINO_TITLES_REFRESH_HOURS
@@ -29,24 +30,10 @@ _MEGAKINO_TOKEN_LOCK = threading.Lock()
 _MEGAKINO_TOKEN_AT = 0.0
 _MEGAKINO_TOKEN_TTL_SECONDS = 30 * 60
 _DEFAULT_CLIENT_LOCK = threading.Lock()
-_MEGAKINO_PROVIDER_HOSTS = (
-    "voe",
-    "dood",
-    "d0000d",
-    "filemoon",
-    "streamtape",
-    "streamta.pe",
-    "vidmoly",
-    "speedfiles",
-    "loadx",
-    "luluvdo",
-    "vidoza",
-    "gxplayer",
-)
 
 
-def _is_disabled_provider_url(url: str) -> bool:
-    """Return whether a provider URL points to a disabled extractor host."""
+def _is_disabled_host_url(url: str) -> bool:
+    """Return whether a host URL points to a disabled extractor host."""
 
     return "speedfiles" in urlparse(url).netloc.lower()
 
@@ -156,21 +143,34 @@ class MegakinoClient:
         return None
 
     def resolve_direct_url(
-        self, slug: str, preferred_provider: Optional[str] = None
+        self,
+        slug: str,
+        preferred_host: Optional[str] = None,
+        *,
+        preferred_provider: Optional[str] = None,
     ) -> Tuple[str, str]:
         """
-        Resolve a direct media URL and its provider name for a given Megakino slug.
+        Resolve a direct media URL and its host name for a given Megakino slug.
 
         Parameters:
             slug (str): Megakino page slug to resolve.
-            preferred_provider (Optional[str]): Optional provider identifier to prefer when multiple providers are available.
+            preferred_host (Optional[str]): Optional video-host identifier to prefer when multiple embeds are available.
+            preferred_provider (Optional[str]): Deprecated alias for `preferred_host`.
 
         Returns:
-            tuple: (`url`, `provider_name`) where `url` is the direct media URL (or an iframe URL fallback) and `provider_name` is the inferred provider label (for example, `"EMBED"`).
+            tuple: (`url`, `host_name`) where `url` is the direct media URL (or an iframe URL fallback) and `host_name` is the inferred video-host label (for example, `"EMBED"`).
 
         Raises:
-            ValueError: If the slug does not map to a Megakino page, if no provider iframes are found, or if no provider yields a resolvable URL.
+            ValueError: If the slug does not map to a Megakino page, if no video-host iframes are found, or if no video host yields a resolvable URL.
         """
+        if preferred_host is None and preferred_provider is not None:
+            warnings.warn(
+                "preferred_provider is deprecated; use preferred_host instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            preferred_host = preferred_provider
+
         page_url = self.resolve_url(slug)
         if not page_url:
             raise ValueError(f"Megakino page not found for slug '{slug}'")
@@ -183,54 +183,64 @@ class MegakinoClient:
             headers=_megakino_headers(referer=base_url),
         )
         resp.raise_for_status()
-        providers = [
+        host_urls = [
             url
-            for url in _extract_provider_links(resp.text)
-            if not _is_disabled_provider_url(url)
+            for url in _extract_host_links(resp.text)
+            if not _is_disabled_host_url(url)
         ]
-        if not providers:
-            raise ValueError("No provider iframes found on megakino page")
-        logger.debug("Megakino providers extracted: {}", providers)
+        if not host_urls:
+            raise ValueError("No video host iframes found on megakino page")
+        logger.debug("Megakino video hosts extracted: {}", host_urls)
 
-        preferred = (preferred_provider or "").lower()
-        ordered = providers
+        preferred = _normalize_host_preference(preferred_host)
+        ordered = host_urls
         if preferred:
             ordered = sorted(
-                providers,
-                key=lambda url: 0 if preferred in url.lower() else 1,
+                host_urls,
+                key=lambda url: 0 if preferred in _host_match_candidates(url) else 1,
             )
 
         for url in ordered:
-            direct = _extract_provider_direct(url)
+            direct, host_name = resolve_host_url(url)
             if direct:
                 logger.debug("Megakino direct link resolved via '{}'", url)
-                return direct, _provider_name_from_url(url)
-            logger.debug("Megakino extractor did not return direct URL for '{}'", url)
+                return direct, host_name
+            logger.debug(
+                "Megakino host resolver did not return a direct URL for '{}'", url
+            )
 
         # Fallback to first iframe URL for yt-dlp to try if supported.
-        if providers:
-            fallback = _normalize_url(providers[0])
+        if ordered:
+            fallback = _normalize_url(ordered[0])
             logger.debug("Megakino fallback to iframe URL '{}'", fallback)
             return fallback, "EMBED"
 
-        raise ValueError("No direct megakino provider URL resolved")
+        raise ValueError("No direct megakino host URL resolved")
 
 
 def resolve_direct_url(
-    slug: str, preferred_provider: Optional[str] = None
+    slug: str,
+    preferred_host: Optional[str] = None,
+    *,
+    preferred_provider: Optional[str] = None,
 ) -> Tuple[str, str]:
     """
     Resolve a slug to a direct media URL using the default shared MegakinoClient.
 
     Parameters:
         slug (str): Megakino slug identifying the media page.
-        preferred_provider (Optional[str]): Optional provider name to prefer when multiple providers are available.
+        preferred_host (Optional[str]): Optional video-host name to prefer when multiple embeds are available.
+        preferred_provider (Optional[str]): Deprecated alias for `preferred_host`.
 
     Returns:
-        Tuple[str, str]: A tuple containing the resolved direct media URL and the provider label used (e.g., `"EMBED"` when falling back to an embed URL).
+        Tuple[str, str]: A tuple containing the resolved direct media URL and the host label used (e.g., `"EMBED"` when falling back to an embed URL).
     """
     client = get_default_client()
-    return client.resolve_direct_url(slug, preferred_provider=preferred_provider)
+    return client.resolve_direct_url(
+        slug,
+        preferred_host=preferred_host,
+        preferred_provider=preferred_provider,
+    )
 
 
 def time_now() -> float:
@@ -302,7 +312,7 @@ def _score_tokens(query_tokens: List[str], title_tokens: List[str]) -> int:
     return len(intersection)
 
 
-def _extract_provider_links(html: str) -> List[str]:
+def _extract_host_links(html: str) -> List[str]:
     """
     Extract iframe provider URLs from the given HTML.
 
@@ -310,7 +320,7 @@ def _extract_provider_links(html: str) -> List[str]:
         html (str): HTML content to parse.
 
     Returns:
-        List[str]: Provider URLs extracted from iframe `data-src` or `src` attributes, in document order.
+        List[str]: Host URLs extracted from iframe `data-src` or `src` attributes, in document order.
     """
     soup = BeautifulSoup(html, "html.parser")
     links: List[str] = []
@@ -330,32 +340,56 @@ def _extract_provider_links(html: str) -> List[str]:
             _add_link(src)
 
     if links:
-        provider_links = [
-            link for link in links if _looks_like_provider_url(_normalize_url(link))
+        host_links = [
+            link for link in links if _looks_like_host_url(_normalize_url(link))
         ]
-        return provider_links or links
+        return host_links or links
 
     for attr in ("data-src", "data-iframe", "data-embed", "data-player"):
         for tag in soup.find_all(attrs={attr: True}):
             candidate = tag.get(attr)
-            if candidate and _looks_like_provider_url(_normalize_url(candidate)):
+            if candidate and _looks_like_host_url(_normalize_url(candidate)):
                 _add_link(candidate)
 
     if links:
         return links
 
     for match in re.findall(r"https?://[^\s'\"<>]+", html):
-        if _looks_like_provider_url(match):
+        if _looks_like_host_url(match):
             _add_link(match)
 
     return links
 
 
-def _looks_like_provider_url(url: str) -> bool:
-    host = urlparse(url).netloc.lower()
-    if not host:
-        return False
-    return any(hint in host for hint in _MEGAKINO_PROVIDER_HOSTS)
+def _looks_like_host_url(url: str) -> bool:
+    return detect_host(url) is not None or "speedfiles" in urlparse(url).netloc.lower()
+
+
+def _normalize_host_preference(preferred_host: Optional[str]) -> str:
+    if not preferred_host:
+        return ""
+    preferred = preferred_host.strip().lower()
+    if not preferred:
+        return ""
+    parsed = urlparse(preferred if "://" in preferred else f"https://{preferred}")
+    return (parsed.hostname or preferred).lower().strip(".")
+
+
+def _host_match_candidates(url: str) -> set[str]:
+    normalized_url = _normalize_url(url)
+    parsed = urlparse(normalized_url)
+    hostname = (parsed.hostname or "").lower().strip(".")
+    candidates: set[str] = set()
+    if hostname:
+        candidates.add(hostname)
+        candidates.add(hostname.removeprefix("www."))
+        parts = hostname.split(".")
+        if len(parts) >= 2:
+            candidates.add(".".join(parts[-2:]))
+    detected_host = detect_host(normalized_url)
+    if detected_host is not None:
+        candidates.add(detected_host.name.lower())
+    return {candidate for candidate in candidates if candidate}
 
 
 def _megakino_headers(*, referer: Optional[str] = None) -> Dict[str, str]:
@@ -389,148 +423,6 @@ def _warm_megakino_session(base_url: str) -> None:
             logger.debug("Megakino token request ok")
         except Exception as exc:
             logger.debug("Megakino token request failed: {}", exc)
-
-
-def _megakino_get_direct_link(link: str) -> Optional[str]:
-    """
-    Probe a Megakino provider page and construct a gxplayer direct media URL when the page exposes the required identifiers.
-
-    Parameters:
-        link (str): URL of the provider page to fetch and inspect.
-
-    Returns:
-        str: Constructed gxplayer m3u8 URL when `uid`, `md5`, and `id` are present in the page, `None` otherwise.
-    """
-    logger.debug("Megakino direct link probe: {}", link)
-    try:
-        resp = http_get(
-            link,
-            timeout=20,
-            headers=_megakino_headers(referer=get_megakino_base_url().rstrip("/")),
-        )
-    except Exception as exc:
-        logger.warning("Megakino provider fetch failed: {}", exc)
-        return None
-    uid_match = re.search(r'"uid":"(.*?)"', resp.text)
-    md5_match = re.search(r'"md5":"(.*?)"', resp.text)
-    id_match = re.search(r'"id":"(.*?)"', resp.text)
-    if not all([uid_match, md5_match, id_match]):
-        return None
-    uid = uid_match.group(1)
-    md5 = md5_match.group(1)
-    video_id = id_match.group(1)
-    return f"https://watch.gxplayer.xyz/m3u8/{uid}/{md5}/master.txt?s=1&id={video_id}&cache=1"
-
-
-def _provider_name_from_url(url: str) -> str:
-    """
-    Infer the canonical provider name from a provider or embed URL.
-
-    Parameters:
-        url (str): The provider or iframe URL to inspect.
-
-    Returns:
-        provider_name (str): One of the known provider identifiers (e.g., "VOE", "Doodstream", "Filemoon", "Streamtape", "Vidmoly", "LoadX", "Luluvdo", "Vidoza"; `SpeedFiles` is detected but extraction is disabled); returns "EMBED" if no known provider is detected.
-    """
-    host = urlparse(url).netloc.lower()
-    if "voe" in host:
-        return "VOE"
-    if "dood" in host or "d0000d" in host:
-        return "Doodstream"
-    if "filemoon" in host:
-        return "Filemoon"
-    if "streamtape" in host or "streamta.pe" in host:
-        return "Streamtape"
-    if "vidmoly" in host:
-        return "Vidmoly"
-    if "speedfiles" in host:
-        return "SpeedFiles"
-    if "loadx" in host:
-        return "LoadX"
-    if "luluvdo" in host:
-        return "Luluvdo"
-    if "vidoza" in host:
-        return "Vidoza"
-    return "EMBED"
-
-
-def _extract_provider_direct(url: str) -> Optional[str]:
-    """
-    Determine and return a direct media URL for a provider iframe URL by selecting and invoking a provider-specific extractor.
-
-    The function inspects the host part of `url` to choose a provider extractor (e.g., Voe, Doodstream, Filemoon, Streamtape, Vidmoly, Loadx, Luluvdo, Vidoza). If a matching extractor is available it is imported and called; if the host contains "gxplayer" a legacy GXPlayer extraction is attempted. Any extraction error is caught and results in `None`.
-
-    Parameters:
-        url (str): The provider iframe URL to resolve.
-
-    Returns:
-        str | None: The direct media URL produced by the provider extractor, or `None` if no extractor matches or extraction fails.
-    """
-    host = urlparse(url).netloc.lower()
-    prepare_aniworld_home()
-    try:
-        if "voe" in host:
-            from aniworld.extractors.provider.voe import (  # type: ignore
-                get_direct_link_from_voe,
-            )
-
-            return get_direct_link_from_voe(url)
-        if "dood" in host or "d0000d" in host:
-            from aniworld.extractors.provider.doodstream import (  # type: ignore
-                get_direct_link_from_doodstream,
-            )
-
-            return get_direct_link_from_doodstream(url)
-        if "filemoon" in host:
-            from aniworld.extractors.provider.filemoon import (  # type: ignore
-                get_direct_link_from_filemoon,
-            )
-
-            return get_direct_link_from_filemoon(url)
-        if "streamtape" in host or "streamta.pe" in host:
-            from aniworld.extractors.provider.streamtape import (  # type: ignore
-                get_direct_link_from_streamtape,
-            )
-
-            return get_direct_link_from_streamtape(url)
-        if "vidmoly" in host:
-            from aniworld.extractors.provider.vidmoly import (  # type: ignore
-                get_direct_link_from_vidmoly,
-            )
-
-            return get_direct_link_from_vidmoly(url)
-        if "speedfiles" in host:
-            logger.warning(
-                "SpeedFiles extractor was removed from aniworld>=4; skipping {}",
-                url,
-            )
-            return None
-        if "loadx" in host:
-            from aniworld.extractors.provider.loadx import (  # type: ignore
-                get_direct_link_from_loadx,
-            )
-
-            return get_direct_link_from_loadx(url)
-        if "luluvdo" in host:
-            from aniworld.extractors.provider.luluvdo import (  # type: ignore
-                get_direct_link_from_luluvdo,
-            )
-
-            return get_direct_link_from_luluvdo(url)
-        if "vidoza" in host:
-            from aniworld.extractors.provider.vidoza import (  # type: ignore
-                get_direct_link_from_vidoza,
-            )
-
-            return get_direct_link_from_vidoza(url)
-    except Exception as exc:
-        logger.warning("Megakino provider extraction failed for {}: {}", url, exc)
-        return None
-    # Try the legacy gxplayer extractor for direct links if present.
-    if "gxplayer" in host:
-        direct = _megakino_get_direct_link(url)
-        return direct
-    return None
 
 
 _DEFAULT_CLIENT: Optional[MegakinoClient] = None

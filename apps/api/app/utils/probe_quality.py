@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Optional, Dict, Any, List, cast
+import warnings
 from loguru import logger
 import yt_dlp
 
@@ -55,39 +56,49 @@ def probe_episode_quality(
     season: int,
     episode: int,
     language: str,
+    preferred_host: Optional[str] = None,
     preferred_provider: Optional[str] = None,
     timeout: float = 6.0,
     site: str = "aniworld.to",
 ) -> tuple[bool, Optional[int], Optional[str], Optional[str], Dict[str, Any] | None]:
     """
-    Probe whether an episode is available in the requested language and return the provider used along with reported video quality.
+    Probe whether an episode is available in the requested language and return the host used along with reported video quality.
 
     Parameters:
         slug (str): Episode identifier (series slug).
         season (int): Season number.
         episode (int): Episode number.
         language (str): Desired audio/subtitle language code.
-        preferred_provider (Optional[str]): Provider to try first, if any.
+        preferred_host (Optional[str]): Video host to try first, if any.
+        preferred_provider (Optional[str]): Deprecated alias for `preferred_host`.
         timeout (float): Socket/metadata probe timeout in seconds.
         site (str): Site identifier used when building the episode object.
 
     Returns:
         tuple[bool, Optional[int], Optional[str], Optional[str], Dict[str, Any] | None]:
-            - available (bool): True if a provider yielded playable metadata for the requested language, False otherwise.
+            - available (bool): True if a host yielded playable metadata for the requested language, False otherwise.
             - height (Optional[int]): Reported video height in pixels, or None if unavailable.
             - vcodec (Optional[str]): Reported video codec string, or None if unavailable.
-            - provider_used (Optional[str]): Name of the provider that succeeded, or None if none succeeded.
+            - host_used (Optional[str]): Name of the video host that succeeded, or None if none succeeded.
             - raw_info (Dict[str, Any] | None): Raw metadata returned by the probe, or None if unavailable.
     """
+    if preferred_host is None and preferred_provider is not None:
+        warnings.warn(
+            "preferred_provider is deprecated; use preferred_host instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        preferred_host = preferred_provider
+
     logger.info(
         f"Probing episode quality for slug={slug}, season={season}, episode={episode}, language={language}, "
-        f"preferred_provider={preferred_provider}, timeout={timeout}, site={site}"
+        f"preferred_host={preferred_host}, timeout={timeout}, site={site}"
     )
     if "megakino" in site:
         try:
             client = get_default_client()
             direct, provider_used = client.resolve_direct_url(
-                slug=slug, preferred_provider=preferred_provider
+                slug=slug, preferred_host=preferred_host
             )
         except Exception as exc:
             logger.warning(
@@ -111,32 +122,32 @@ def probe_episode_quality(
     ep = build_episode(slug=slug, season=season, episode=episode, site=site)
     logger.debug(f"Built episode object: {ep}")
     candidates: List[str] = []
-    if preferred_provider:
-        candidates.append(preferred_provider)
-        logger.debug(f"Preferred provider added: {preferred_provider}")
+    if preferred_host:
+        candidates.append(preferred_host)
+        logger.debug(f"Preferred host added: {preferred_host}")
     for p in PROVIDER_ORDER:
         if p not in candidates:
             candidates.append(p)
-    logger.debug(f"Provider candidates: {candidates}")
+    logger.debug(f"Host candidates: {candidates}")
     for prov in candidates:
-        logger.info(f"Trying provider: {prov}")
+        logger.info(f"Trying host: {prov}")
         try:
             direct, chosen = get_direct_url_with_fallback(
                 ep, preferred=prov, language=language
             )
-            logger.debug(f"Got direct URL: {direct} (chosen provider: {chosen})")
+            logger.debug(f"Got direct URL: {direct} (chosen host: {chosen})")
             h, vc, info = probe_episode_quality_once(direct, timeout=timeout)
             logger.info(
-                f"Provider '{chosen}' succeeded: available=True, height={h}, vcodec={vc}"
+                f"Host '{chosen}' succeeded: available=True, height={h}, vcodec={vc}"
             )
             return (True, h, vc, chosen, info)
         except Exception as e:
             logger.warning(
-                "Provider '{}' failed ({}): {}",
+                "Host '{}' failed ({}): {}",
                 prov,
                 type(e).__name__,
                 e,
             )
             continue
-    logger.error("No provider succeeded for this episode/language.")
+    logger.error("No host succeeded for this episode/language.")
     return (False, None, None, None, None)

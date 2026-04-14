@@ -26,7 +26,7 @@ AniBridge is a FastAPI service that bridges anime/series streaming catalogs (Ani
 | ORM/DB | SQLModel + SQLAlchemy | SQLite persistence for jobs and availability cache | `apps/api/app/db/models.py` |
 | Migrations | Alembic | Schema migration management | `apps/api/app/db/migrations/*`, `apps/api/alembic.ini` |
 | Background Jobs | ThreadPoolExecutor | Download orchestration, TTL cleanup, IP monitor | `apps/api/app/core/scheduler.py`, `apps/api/app/core/lifespan.py` |
-| Downloader | yt-dlp, AniWorld lib | Episode retrieval and provider fallback | `apps/api/app/core/downloader/*` |
+| Downloader | yt-dlp, AniWorld lib | Episode retrieval and video-host fallback | `apps/api/app/core/downloader/*`, `apps/api/app/hosts/*` |
 | Logging | Loguru | Structured logs and file mirroring | `apps/api/app/utils/logger.py`, `apps/api/app/infrastructure/terminal_logger.py` |
 | Configuration | dotenv + env vars | Centralized config resolution | `apps/api/app/config.py` |
 | Docs Site | VitePress | Static documentation | `docs/.vitepress/*`, `docs/src/*` |

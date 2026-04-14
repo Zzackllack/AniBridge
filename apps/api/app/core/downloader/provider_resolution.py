@@ -163,19 +163,19 @@ def get_direct_url_with_fallback(
     language: str,
 ) -> Tuple[str, str]:
     """
-    Resolve a direct download URL for an episode, trying a preferred provider first and falling back to the configured provider order.
+    Resolve a direct download URL for an episode, trying a preferred video host first and falling back to the configured host order.
 
     Parameters:
         ep (Episode): Episode object to resolve the direct link for.
-        preferred (Optional[str]): Provider name to try first; ignored if empty or None.
+        preferred (Optional[str]): Video host name to try first; ignored if empty or None.
         language (str): Desired language label; will be normalized before use.
 
     Returns:
-        tuple: (direct_url, provider_name) where `direct_url` is the resolved URL and `provider_name` is the provider that supplied it.
+        tuple: (direct_url, host_name) where `direct_url` is the resolved URL and `host_name` is the video host that supplied it.
 
     Raises:
-        LanguageUnavailableError: If the requested language is not offered by the episode or a provider indicates the language is unavailable.
-        DownloadError: If no provider yields a direct URL after all fallbacks.
+        LanguageUnavailableError: If the requested language is not offered by the episode or a host indicates the language is unavailable.
+        DownloadError: If no host yields a direct URL after all fallbacks.
     """
     language = normalize_language(language)
     logger.info(

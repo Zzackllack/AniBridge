@@ -28,12 +28,16 @@
 
 - Jobs created in DB via `apps/api/app/db/models.create_job`.
 - `apps/api/app/core/scheduler` manages a thread pool respecting `MAX_CONCURRENCY`.
-- `apps/api/app/core/downloader` orchestrates provider fallback and progress updates.
+- `apps/api/app/core/downloader` orchestrates video-host fallback and progress updates.
+- `apps/api/app/hosts` wraps direct-video hosts (VOE, Filemoon, Streamtape,
+  Vidmoly, Doodstream, LoadX, Luluvdo, Vidoza, GXPlayer) separately from
+  catalogue-site providers.
 - Completion updates job and client task states for qBittorrent shim.
 
-## Download Pipeline and Providers
+## Download Pipeline and Video Hosts
 
-- Provider ordering is controlled by `PROVIDER_ORDER`.
+- Video-host ordering is controlled by `PROVIDER_ORDER` (internally exposed as
+  `VIDEO_HOST_ORDER` for clearer code-level naming).
 - Quality probing uses `apps/api/app/utils/probe_quality.py` (yt-dlp metadata).
 - Results stored under `DOWNLOAD_DIR`, optionally mapped to a public save path.
 - TTL cleanup removes old downloads when `DOWNLOADS_TTL_HOURS` > 0.

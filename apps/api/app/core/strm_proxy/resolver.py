@@ -37,7 +37,7 @@ def resolve_direct_url(identity: StrmIdentity) -> tuple[str, str | None]:
         for prov_name in provider_candidates:
             try:
                 direct_url, provider_used = client.resolve_direct_url(
-                    slug=slug, preferred_provider=prov_name
+                    slug=slug, preferred_host=prov_name
                 )
                 logger.debug(
                     "Megakino resolved direct URL provider={} url={}",

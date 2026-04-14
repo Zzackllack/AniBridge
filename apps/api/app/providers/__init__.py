@@ -1,4 +1,4 @@
-"""Provider implementations."""
+"""Catalogue site provider implementations."""
 
 from typing import Optional
 

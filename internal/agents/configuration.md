@@ -7,13 +7,13 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 - Paths: `DATA_DIR`, `DOWNLOAD_DIR`, `QBIT_PUBLIC_SAVE_PATH`
 - Migrations: `DB_MIGRATE_ON_STARTUP`
 - Torznab: `INDEXER_NAME`, `INDEXER_API_KEY`, `TORZNAB_*`
-- Downloader: `PROVIDER_ORDER`, `PROVIDER_REDIRECT_TIMEOUT_SECONDS`,
+- Downloader: `PROVIDER_ORDER` (input env var, mapped at runtime to `VIDEO_HOST_ORDER`), `PROVIDER_REDIRECT_TIMEOUT_SECONDS`,
   `PROVIDER_REDIRECT_RETRIES`, `PROVIDER_CHALLENGE_BACKOFF_SECONDS`,
   `MAX_CONCURRENCY`, `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC`,
   `DOWNLOADS_TTL_HOURS`, `CLEANUP_SCAN_INTERVAL_MIN`
 - STRM: `STRM_FILES_MODE`, `STRM_PROXY_*`
 - Networking policy: external VPN/VPN-sidecar routing only + `PUBLIC_IP_CHECK_*`
-- Provider order default: `VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza`
+- Video-host order default: `VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza` via `PROVIDER_ORDER`, mapped at runtime to `VIDEO_HOST_ORDER`
 - s.to/VOE note: if Sonarr shows `qBittorrent is reporting an error` for items
   that never started downloading, inspect logs for provider redirect timeouts and
   tune `PROVIDER_REDIRECT_TIMEOUT_SECONDS` / `PROVIDER_REDIRECT_RETRIES`
@@ -50,9 +50,9 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 21. `RELEASE_GROUP` — Release group label (default `aniworld`).
 22. `RELEASE_GROUP_ANIWORLD` — AniWorld release group override.
 23. `RELEASE_GROUP_STO` — s.to release group override.
-24. `PROVIDER_ORDER` — Comma-separated provider priority list.
-25. `PROVIDER_REDIRECT_TIMEOUT_SECONDS` — Timeout for resolving catalogue redirect tokens into provider URLs (default `12`).
-26. `PROVIDER_REDIRECT_RETRIES` — Extra retry attempts for transient provider redirect failures (default `2`).
+24. `PROVIDER_ORDER` — Comma-separated video-host priority input; mapped at runtime to `VIDEO_HOST_ORDER`.
+25. `PROVIDER_REDIRECT_TIMEOUT_SECONDS` — Timeout for resolving catalogue redirect tokens into video-host URLs (default `12`).
+26. `PROVIDER_REDIRECT_RETRIES` — Extra retry attempts for transient video-host redirect failures (default `2`).
 27. `PROVIDER_CHALLENGE_BACKOFF_SECONDS` — Base cool-down for Turnstile challenge retries (default `300`).
 28. `MAX_CONCURRENCY` — Thread pool size (default `3`).
 29. `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC` — Per-download yt-dlp rate cap (`0` disables).
