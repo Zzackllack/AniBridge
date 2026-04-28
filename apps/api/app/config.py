@@ -188,6 +188,23 @@ data_candidates.extend(
 DOWNLOAD_DIR = _ensure_dir(download_candidates, "DOWNLOAD_DIR")
 DATA_DIR = _ensure_dir(data_candidates, "DATA_DIR")
 
+
+def _ensure_runtime_home() -> Path:
+    runtime_home = DATA_DIR / "home"
+    runtime_home.mkdir(parents=True, exist_ok=True)
+    current_home = os.environ.get("HOME", "").strip()
+    if not current_home or current_home == "/nonexistent":
+        os.environ["HOME"] = str(runtime_home)
+    os.environ.setdefault("XDG_CONFIG_HOME", str(runtime_home / ".config"))
+    os.environ.setdefault("XDG_CACHE_HOME", str(runtime_home / ".cache"))
+    Path(os.environ["XDG_CONFIG_HOME"]).mkdir(parents=True, exist_ok=True)
+    Path(os.environ["XDG_CACHE_HOME"]).mkdir(parents=True, exist_ok=True)
+    logger.debug("RUNTIME_HOME using: {}", os.environ["HOME"])
+    return runtime_home
+
+
+RUNTIME_HOME = _ensure_runtime_home()
+
 # Optional override: path reported to clients (e.g. Sonarr) as qBittorrent save path.
 # Useful when AniBridge runs on host but Sonarr runs in a container with a different mount point.
 # Normalize to absolute for reporting if it points into container
