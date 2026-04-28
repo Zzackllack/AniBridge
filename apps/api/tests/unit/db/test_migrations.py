@@ -9,9 +9,7 @@ from sqlalchemy import inspect
 def _head_revision() -> str:
     config = Config(
         str(
-            Path(__file__)
-            .resolve()
-            .parents[3]
+            Path(__file__).resolve().parents[3]
             / "app"
             / "db"
             / "migrations"

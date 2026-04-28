@@ -206,7 +206,10 @@ def upgrade() -> None:
             sa.Column("indexed_generation", sa.String(), nullable=False),
             sa.Column("last_indexed_at", sa.DateTime(), nullable=False),
             sa.PrimaryKeyConstraint(
-                "provider", "slug", "season", "episode",
+                "provider",
+                "slug",
+                "season",
+                "episode",
                 name="pk_providercatalogepisode",
             ),
         )
@@ -242,7 +245,11 @@ def upgrade() -> None:
             sa.Column("indexed_generation", sa.String(), nullable=False),
             sa.Column("last_indexed_at", sa.DateTime(), nullable=False),
             sa.PrimaryKeyConstraint(
-                "provider", "slug", "season", "episode", "language",
+                "provider",
+                "slug",
+                "season",
+                "episode",
+                "language",
                 name="pk_providerepisodelanguage",
             ),
         )
@@ -322,9 +329,7 @@ def upgrade() -> None:
             sa.Column("tvdb_id", sa.Integer(), nullable=False),
             sa.Column("alias", sa.String(), nullable=False),
             sa.Column("normalized_alias", sa.String(), nullable=False),
-            sa.PrimaryKeyConstraint(
-                "tvdb_id", "alias", name="pk_canonicalseriesalias"
-            ),
+            sa.PrimaryKeyConstraint("tvdb_id", "alias", name="pk_canonicalseriesalias"),
         )
         op.create_index(
             "ix_canonicalseriesalias_normalized_alias",

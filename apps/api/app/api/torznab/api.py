@@ -410,9 +410,15 @@ def _indexed_preview_results(
                 season=target.season,
                 episode=target.episode,
             )
-            language_values = [item.language for item in languages] or _default_languages_for_site(provider)
-            season_i = mapping.canonical_season if mapping is not None else target.season
-            episode_i = mapping.canonical_episode if mapping is not None else target.episode
+            language_values = [
+                item.language for item in languages
+            ] or _default_languages_for_site(provider)
+            season_i = (
+                mapping.canonical_season if mapping is not None else target.season
+            )
+            episode_i = (
+                mapping.canonical_episode if mapping is not None else target.episode
+            )
             provider_season_i = target.season
             provider_episode_i = target.episode
         else:
@@ -672,7 +678,9 @@ def torznab_api(
                     q_str=q_str,
                     channel=channel,
                     cat_id=TORZNAB_CAT_ANIME,
-                    providers=[site for site in CATALOG_SITES_LIST if site != "megakino"],
+                    providers=[
+                        site for site in CATALOG_SITES_LIST if site != "megakino"
+                    ],
                     limit=limit,
                     strm_suffix=strm_suffix,
                 )
@@ -730,6 +738,7 @@ def torznab_api(
         raise HTTPException(status_code=400, detail="invalid t")
 
     import app.api.torznab as tn
+
     try:
         require_catalog_ready()
     except CatalogNotReadyError as exc:
