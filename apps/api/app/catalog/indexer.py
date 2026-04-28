@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 import threading
 from dataclasses import dataclass
 from datetime import timedelta
@@ -42,6 +43,7 @@ from app.utils.terminal import ProgressReporter, ProgressSnapshot
 _INDEXER: "ProviderCatalogIndexer | None" = None
 _INDEXER_LOCK = threading.Lock()
 _UNSET = object()
+_DISCOVERY_HEARTBEAT_SECONDS = 15.0
 
 
 @dataclass(slots=True)
@@ -218,11 +220,13 @@ class ProviderCatalogIndexer:
         }
 
     def _run_loop(self) -> None:
-        while not self._stop_event.wait(PROVIDER_INDEX_SCHEDULER_POLL_SECONDS):
+        while not self._stop_event.is_set():
             try:
                 self.run_due_once()
             except Exception as exc:
                 logger.exception("Provider catalog scheduler loop failed: {}", exc)
+            if self._stop_event.wait(PROVIDER_INDEX_SCHEDULER_POLL_SECONDS):
+                break
 
     def _ensure_status_rows(self) -> None:
         with Session(engine) as session:
@@ -283,7 +287,12 @@ class ProviderCatalogIndexer:
             )
 
         try:
-            titles = crawl_provider_catalog(provider)
+            titles = self._crawl_provider_catalog_with_heartbeat(provider)
+            logger.info(
+                "Provider catalog {}: discovered {} titles",
+                provider,
+                len(titles),
+            )
             reporter = ProgressReporter(
                 label=f"Catalog {provider}",
                 unit="title",
@@ -471,6 +480,23 @@ class ProviderCatalogIndexer:
                 phase="failed",
                 current_slug="",
             )
+
+    def _crawl_provider_catalog_with_heartbeat(
+        self, provider: str
+    ) -> list[object]:
+        elapsed_seconds = 0.0
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(crawl_provider_catalog, provider)
+            while True:
+                try:
+                    return future.result(timeout=_DISCOVERY_HEARTBEAT_SECONDS)
+                except FutureTimeoutError:
+                    elapsed_seconds += _DISCOVERY_HEARTBEAT_SECONDS
+                    logger.info(
+                        "Provider catalog {}: still discovering titles after {}s",
+                        provider,
+                        int(elapsed_seconds),
+                    )
 
     def _set_progress(
         self,
