@@ -1133,7 +1133,11 @@ def upsert_canonical_series(
     rec.mal_id = mal_id
     rec.last_synced_at = utcnow()
     session.add(rec)
-    session.exec(CanonicalSeriesAlias.__table__.delete().where(CanonicalSeriesAlias.tvdb_id == tvdb_id))
+    session.exec(
+        CanonicalSeriesAlias.__table__.delete().where(
+            CanonicalSeriesAlias.tvdb_id == tvdb_id
+        )
+    )
     for alias in aliases or []:
         alias_clean = (alias or "").strip()
         if not alias_clean:
@@ -1183,7 +1187,9 @@ def is_catalog_bootstrap_ready(
     statuses = {
         row.provider: row
         for row in session.exec(
-            select(ProviderIndexStatus).where(ProviderIndexStatus.provider.in_(providers))
+            select(ProviderIndexStatus).where(
+                ProviderIndexStatus.provider.in_(providers)
+            )
         ).all()
     }
     return all(
@@ -1233,7 +1239,9 @@ def search_indexed_provider_titles(
     visible_generations = _visible_generation_map(session, providers=providers)
     if not visible_generations:
         return []
-    stmt = select(ProviderCatalogTitle).where(ProviderCatalogTitle.provider.in_(providers))
+    stmt = select(ProviderCatalogTitle).where(
+        ProviderCatalogTitle.provider.in_(providers)
+    )
     if media_type_hint is not None:
         stmt = stmt.where(ProviderCatalogTitle.media_type_hint == media_type_hint)
     rows = [
@@ -1402,7 +1410,9 @@ def find_canonical_series_by_ids_or_title(
     if row is not None:
         return row
     alias = session.exec(
-        select(CanonicalSeriesAlias).where(CanonicalSeriesAlias.normalized_alias == q_norm)
+        select(CanonicalSeriesAlias).where(
+            CanonicalSeriesAlias.normalized_alias == q_norm
+        )
     ).first()
     if alias is not None:
         return session.get(CanonicalSeries, alias.tvdb_id)

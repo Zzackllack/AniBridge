@@ -85,9 +85,7 @@ def get_catalog_readiness_error() -> str | None:
             return None
         pending: list[str] = []
         snapshot = indexer.get_progress_snapshot()
-        by_provider = {
-            item["provider"]: item for item in snapshot.get("providers", [])
-        }
+        by_provider = {item["provider"]: item for item in snapshot.get("providers", [])}
         for provider in CATALOG_SITES_LIST:
             status = get_provider_index_status(session, provider=provider)
             if status is None or not status.bootstrap_completed:
@@ -239,7 +237,9 @@ class ProviderCatalogIndexer:
                     "provider": provider,
                     "status": status.status if status is not None else "pending",
                     "bootstrap_completed": (
-                        bool(status.bootstrap_completed) if status is not None else False
+                        bool(status.bootstrap_completed)
+                        if status is not None
+                        else False
                     ),
                     "phase": phase,
                     "processed_titles": progress.processed_titles,
@@ -343,7 +343,9 @@ class ProviderCatalogIndexer:
 
     def _refresh_provider(self, provider: str) -> None:
         refresh_interval_hours = float(
-            CATALOG_SITE_CONFIGS.get(provider, {}).get("provider_index_refresh_hours", 24.0)
+            CATALOG_SITE_CONFIGS.get(provider, {}).get(
+                "provider_index_refresh_hours", 24.0
+            )
         )
         generation = uuid4().hex
         reporter: ProgressReporter | None = None
@@ -535,7 +537,9 @@ class ProviderCatalogIndexer:
             if reporter is not None:
                 reporter.close()
         except Exception as exc:
-            logger.exception("Provider catalog refresh failed for {}: {}", provider, exc)
+            logger.exception(
+                "Provider catalog refresh failed for {}: {}", provider, exc
+            )
             if reporter is not None:
                 reporter.close()
             completed_at = utcnow()
@@ -564,9 +568,7 @@ class ProviderCatalogIndexer:
                 current_slug="",
             )
 
-    def _crawl_provider_catalog_with_heartbeat(
-        self, provider: str
-    ) -> list[object]:
+    def _crawl_provider_catalog_with_heartbeat(self, provider: str) -> list[object]:
         elapsed_seconds = 0.0
         with ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(crawl_provider_catalog, provider)
@@ -592,12 +594,16 @@ class ProviderCatalogIndexer:
                 session, providers=CATALOG_SITES_LIST
             )
         if not statuses:
-            logger.warning("Provider catalog bootstrap: no provider status rows exist yet")
+            logger.warning(
+                "Provider catalog bootstrap: no provider status rows exist yet"
+            )
             return
         if bootstrap_ready:
             logger.info("Provider catalog bootstrap: already complete")
         else:
-            logger.warning("Provider catalog bootstrap: incomplete, requests may be gated")
+            logger.warning(
+                "Provider catalog bootstrap: incomplete, requests may be gated"
+            )
         for status in sorted(statuses, key=lambda item: item.provider):
             logger.info(
                 "Provider catalog bootstrap state: provider={} status={} bootstrap_completed={} latest_success_generation={} latest_started_at={} latest_completed_at={} next_refresh_after={} cursor_slug={} last_error={}",

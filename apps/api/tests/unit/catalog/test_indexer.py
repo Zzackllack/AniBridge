@@ -92,8 +92,14 @@ def test_catalog_recovers_interrupted_running_state(monkeypatch):
         return None
 
     monkeypatch.setattr(indexer_module, "Session", lambda _engine: FakeSession())
-    monkeypatch.setattr(indexer_module, "get_provider_index_status", fake_get_provider_index_status)
-    monkeypatch.setattr(indexer_module, "upsert_provider_index_status", fake_upsert_provider_index_status)
+    monkeypatch.setattr(
+        indexer_module, "get_provider_index_status", fake_get_provider_index_status
+    )
+    monkeypatch.setattr(
+        indexer_module,
+        "upsert_provider_index_status",
+        fake_upsert_provider_index_status,
+    )
     monkeypatch.setattr(indexer_module.logger, "warning", fake_warning)
 
     ProviderCatalogIndexer()._ensure_status_rows()

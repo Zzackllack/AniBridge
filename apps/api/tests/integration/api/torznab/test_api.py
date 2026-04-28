@@ -150,7 +150,9 @@ def test_tvsearch_happy_path(client, monkeypatch):
     monkeypatch.setattr(
         tn,
         "probe_episode_quality",
-        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected live probe")),
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("unexpected live probe")
+        ),
     )
 
     resp = client.get(
@@ -198,7 +200,9 @@ def test_tvsearch_uses_id_resolved_query_when_q_missing(client, monkeypatch):
     monkeypatch.setattr(
         tn,
         "probe_episode_quality",
-        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected live probe")),
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("unexpected live probe")
+        ),
     )
 
     resp = client.get(
@@ -221,7 +225,9 @@ def test_tvsearch_season_search_emits_multiple_episodes(client, monkeypatch) -> 
     monkeypatch.setattr(
         tn,
         "probe_episode_quality",
-        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected live probe")),
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("unexpected live probe")
+        ),
     )
 
     resp = client.get(
@@ -258,7 +264,9 @@ def test_tvsearch_season_search_fallback_stops_on_consecutive_misses(
     monkeypatch.setattr(
         tn,
         "probe_episode_quality",
-        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected live probe")),
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("unexpected live probe")
+        ),
     )
 
     resp = client.get(
@@ -282,7 +290,9 @@ def test_tvsearch_ep_zero_is_treated_as_season_search(client, monkeypatch) -> No
     monkeypatch.setattr(
         tn,
         "probe_episode_quality",
-        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected live probe")),
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("unexpected live probe")
+        ),
     )
 
     resp = client.get(
@@ -316,7 +326,9 @@ def test_tvsearch_fast_season_mode_avoids_live_probe(client, monkeypatch) -> Non
     monkeypatch.setattr(
         tn,
         "probe_episode_quality",
-        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected live probe")),
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("unexpected live probe")
+        ),
     )
 
     resp = client.get(

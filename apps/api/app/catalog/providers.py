@@ -72,9 +72,13 @@ def _normalize_provider_data(raw: Any, *, site: str) -> list[EpisodeLanguageReco
     languages: list[EpisodeLanguageRecord] = []
     for key, provider_map in raw.items():
         if site == "aniworld.to":
-            audio = getattr(key[0], "value", str(key[0])) if isinstance(key, tuple) else ""
+            audio = (
+                getattr(key[0], "value", str(key[0])) if isinstance(key, tuple) else ""
+            )
             subtitles = (
-                getattr(key[1], "value", str(key[1])) if isinstance(key, tuple) and len(key) > 1 else ""
+                getattr(key[1], "value", str(key[1]))
+                if isinstance(key, tuple) and len(key) > 1
+                else ""
             )
             if audio == "German" and subtitles == "None":
                 language = "German Dub"
@@ -95,7 +99,9 @@ def _normalize_provider_data(raw: Any, *, site: str) -> list[EpisodeLanguageReco
             else:
                 language = str(key)
         host_hints = sorted(str(name) for name in (provider_map or {}).keys())
-        languages.append(EpisodeLanguageRecord(language=language, host_hints=host_hints))
+        languages.append(
+            EpisodeLanguageRecord(language=language, host_hints=host_hints)
+        )
     languages.sort(key=lambda entry: entry.language)
     return languages
 
@@ -140,7 +146,11 @@ def _build_tv_canonical_payload(
         season_number = item.get("seasonNumber")
         episode_number = item.get("episodeNumber")
         episode_title = str(item.get("title") or "").strip()
-        if not isinstance(season_number, int) or not isinstance(episode_number, int) or not episode_title:
+        if (
+            not isinstance(season_number, int)
+            or not isinstance(episode_number, int)
+            or not episode_title
+        ):
             continue
         canonical_episodes.append(
             {
@@ -153,9 +163,13 @@ def _build_tv_canonical_payload(
     series_payload = {
         "tvdb_id": match.tvdb_id,
         "title": match.title,
-        "tmdb_id": payload.get("tmdbId") if isinstance(payload.get("tmdbId"), int) else None,
+        "tmdb_id": payload.get("tmdbId")
+        if isinstance(payload.get("tmdbId"), int)
+        else None,
         "imdb_id": imdb_id or str(payload.get("imdbId") or "").strip() or None,
-        "tvmaze_id": payload.get("tvMazeId") if isinstance(payload.get("tvMazeId"), int) else None,
+        "tvmaze_id": payload.get("tvMazeId")
+        if isinstance(payload.get("tvMazeId"), int)
+        else None,
         "anilist_id": None,
         "mal_id": mal_id,
         "aliases": aliases,
@@ -169,9 +183,7 @@ def _build_tv_canonical_payload(
         }
     ]
 
-    by_number = {
-        (item["season"], item["episode"]): item for item in canonical_episodes
-    }
+    by_number = {(item["season"], item["episode"]): item for item in canonical_episodes}
     by_season: dict[int, list[dict[str, Any]]] = {}
     for item in canonical_episodes:
         by_season.setdefault(int(item["season"]), []).append(item)
@@ -198,12 +210,18 @@ def _build_tv_canonical_payload(
         scored: list[tuple[float, dict[str, Any]]] = []
         search_titles = [
             value
-            for value in [provider_episode.title_primary, provider_episode.title_secondary]
+            for value in [
+                provider_episode.title_primary,
+                provider_episode.title_secondary,
+            ]
             if value
         ]
         for candidate in candidate_pool:
             score = max(
-                (_score_episode_title(search_title, candidate["title"]) for search_title in search_titles),
+                (
+                    _score_episode_title(search_title, candidate["title"])
+                    for search_title in search_titles
+                ),
                 default=0.0,
             )
             if score >= 0.65:
@@ -213,9 +231,7 @@ def _build_tv_canonical_payload(
             continue
         top_score = scored[0][0]
         plausible = [
-            candidate
-            for score, candidate in scored
-            if score >= top_score - 0.05
+            candidate for score, candidate in scored if score >= top_score - 0.05
         ]
         confidence = "high_confidence" if top_score >= 0.85 else "low_confidence"
         for candidate in plausible:
@@ -263,7 +279,7 @@ def _crawl_aniworld_like_title(
         if isinstance(raw_mal, list) and raw_mal:
             try:
                 mal_id = int(raw_mal[0])
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 mal_id = None
     else:
         from aniworld.models import SerienstreamSeries
@@ -286,9 +302,12 @@ def _crawl_aniworld_like_title(
                     title_primary=getattr(episode, "title_de", None),
                     title_secondary=getattr(episode, "title_en", None),
                     media_type_hint="movie"
-                    if provider_key == "aniworld.to" and getattr(episode, "is_movie", False)
+                    if provider_key == "aniworld.to"
+                    and getattr(episode, "is_movie", False)
                     else "episode",
-                    languages=_normalize_provider_data(provider_data, site=provider_key),
+                    languages=_normalize_provider_data(
+                        provider_data, site=provider_key
+                    ),
                 )
             )
 
@@ -347,7 +366,9 @@ def crawl_provider_catalog(provider_key: str) -> list[TitleRecord]:
                 if live_title:
                     parsed_title = live_title
             except Exception as exc:
-                logger.debug("Megakino metadata fetch failed for {}: {}", entry.url, exc)
+                logger.debug(
+                    "Megakino metadata fetch failed for {}: {}", entry.url, exc
+                )
             titles.append(
                 TitleRecord(
                     provider=provider_key,
@@ -364,7 +385,9 @@ def crawl_provider_catalog(provider_key: str) -> list[TitleRecord]:
 
     index = provider.load_or_refresh_index()
     alternatives = provider.load_or_refresh_alternatives()
-    workers = int(CATALOG_SITE_CONFIGS[provider_key].get("provider_index_concurrency", 1))
+    workers = int(
+        CATALOG_SITE_CONFIGS[provider_key].get("provider_index_concurrency", 1)
+    )
     futures = []
     results: list[TitleRecord] = []
     with ThreadPoolExecutor(max_workers=max(1, workers)) as executor:
