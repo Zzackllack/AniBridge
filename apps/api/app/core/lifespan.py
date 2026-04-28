@@ -130,6 +130,11 @@ async def lifespan(app: FastAPI):
         if cleaned:
             logger.warning(f"Reset {cleaned} dangling jobs to 'failed'")
     init_executor()
+    if "megakino" in CATALOG_SITE_CONFIGS and not ANIBRIDGE_TEST_MODE:
+        try:
+            resolve_megakino_base_url()
+        except Exception as e:
+            logger.warning(f"megakino domain resolution failed: {e}")
     try:
         get_catalog_indexer().start()
     except Exception as e:
@@ -139,11 +144,6 @@ async def lifespan(app: FastAPI):
     cleanup_stop = threading.Event()
     ip_stop = threading.Event()
     megakino_stop = threading.Event()
-    if "megakino" in CATALOG_SITE_CONFIGS and not ANIBRIDGE_TEST_MODE:
-        try:
-            resolve_megakino_base_url()
-        except Exception as e:
-            logger.warning(f"megakino domain resolution failed: {e}")
     try:
         _start_ttl_cleanup_thread(cleanup_stop)
     except Exception as e:
