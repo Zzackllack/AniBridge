@@ -1,4 +1,133 @@
+from __future__ import annotations
+
 import xml.etree.ElementTree as ET
+
+from sqlmodel import Session
+
+
+def _seed_ready_tv_catalog(
+    *,
+    canonical_title: str,
+    query_aliases: list[str],
+    provider_title: str | None = None,
+    slug: str = "slug",
+    tvdb_id: int = 12345,
+    episode_mappings: list[tuple[int, int, int, int]] | None = None,
+) -> None:
+    from app.db import (
+        engine,
+        replace_canonical_episodes,
+        replace_provider_catalog_aliases,
+        replace_provider_catalog_episodes,
+        replace_provider_catalog_title,
+        replace_provider_episode_mappings,
+        replace_provider_series_mappings,
+        upsert_canonical_series,
+        upsert_provider_index_status,
+    )
+
+    generation = f"gen-{slug}"
+    mapped_episodes = episode_mappings or [(1, 1, 1, 1)]
+    provider_title = provider_title or canonical_title
+
+    with Session(engine) as session:
+        for provider in ("aniworld.to", "s.to", "megakino"):
+            upsert_provider_index_status(
+                session,
+                provider=provider,
+                refresh_interval_hours=24.0,
+                status="ready",
+                current_generation=generation,
+                latest_success_generation=generation,
+                bootstrap_completed=True,
+            )
+        replace_provider_catalog_title(
+            session,
+            provider="aniworld.to",
+            slug=slug,
+            title=provider_title,
+            media_type_hint="series",
+            relative_path=f"/anime/stream/{slug}",
+            indexed_generation=generation,
+        )
+        replace_provider_catalog_aliases(
+            session,
+            provider="aniworld.to",
+            slug=slug,
+            aliases=[provider_title, *query_aliases],
+            indexed_generation=generation,
+        )
+        replace_provider_catalog_episodes(
+            session,
+            provider="aniworld.to",
+            slug=slug,
+            indexed_generation=generation,
+            episodes=[
+                {
+                    "season": provider_season,
+                    "episode": provider_episode,
+                    "relative_path": f"/anime/stream/{slug}/staffel-{provider_season}/episode-{provider_episode}",
+                    "title_primary": f"Episode {canonical_episode}",
+                    "title_secondary": None,
+                    "media_type_hint": "episode",
+                    "languages": [
+                        {"language": "German Sub", "host_hints": ["VOE"]},
+                    ],
+                }
+                for provider_season, provider_episode, _canonical_season, canonical_episode in mapped_episodes
+            ],
+        )
+        upsert_canonical_series(
+            session,
+            tvdb_id=tvdb_id,
+            title=canonical_title,
+            imdb_id=f"tt{tvdb_id:07d}",
+            aliases=query_aliases,
+        )
+        replace_canonical_episodes(
+            session,
+            tvdb_id=tvdb_id,
+            episodes=[
+                {
+                    "season": canonical_season,
+                    "episode": canonical_episode,
+                    "title": f"Episode {canonical_episode}",
+                }
+                for _provider_season, _provider_episode, canonical_season, canonical_episode in mapped_episodes
+            ],
+        )
+        replace_provider_series_mappings(
+            session,
+            provider="aniworld.to",
+            slug=slug,
+            mappings=[
+                {
+                    "tvdb_id": tvdb_id,
+                    "confidence": "confirmed",
+                    "source": "title",
+                    "rationale": "test",
+                }
+            ],
+        )
+        replace_provider_episode_mappings(
+            session,
+            provider="aniworld.to",
+            slug=slug,
+            mappings=[
+                {
+                    "provider_season": provider_season,
+                    "provider_episode": provider_episode,
+                    "tvdb_id": tvdb_id,
+                    "canonical_season": canonical_season,
+                    "canonical_episode": canonical_episode,
+                    "confidence": "confirmed",
+                    "source": "direct_numbering",
+                    "rationale": "test",
+                }
+                for provider_season, provider_episode, canonical_season, canonical_episode in mapped_episodes
+            ],
+        )
+        session.commit()
 
 
 def test_caps(client):
@@ -17,43 +146,11 @@ def test_search(client):
 def test_tvsearch_happy_path(client, monkeypatch):
     import app.api.torznab as tn
 
-    class Rec:
-        available = True
-        is_fresh = True
-        height = 1080
-        vcodec = "h264"
-        provider = "prov"
-
-    # Return (site, slug) tuple for new multi-site API
-    monkeypatch.setattr(
-        tn, "_slug_from_query", lambda q, site=None: ("aniworld.to", "slug")
-    )
-    monkeypatch.setattr(
-        tn, "resolve_series_title", lambda slug, site="aniworld.to": "Series"
-    )
+    _seed_ready_tv_catalog(canonical_title="Series", query_aliases=["foo"])
     monkeypatch.setattr(
         tn,
-        "list_available_languages_cached",
-        lambda session, slug, season, episode, site="aniworld.to": ["German Sub"],
-    )
-    monkeypatch.setattr(
-        tn,
-        "get_availability",
-        lambda session, slug, season, episode, language, site="aniworld.to": Rec(),
-    )
-    monkeypatch.setattr(
-        tn,
-        "build_release_name",
-        lambda series_title, season, episode, height, vcodec, language, site="aniworld.to": (
-            "Title"
-        ),
-    )
-    monkeypatch.setattr(
-        tn,
-        "build_magnet",
-        lambda title, slug, season, episode, language, provider, site="aniworld.to", **_kwargs: (
-            "magnet:?xt=urn:btih:test&dn=Title&aw_slug=slug&aw_s=1&aw_e=1&aw_lang=German+Sub&aw_site=aniworld.to"
-        ),
+        "probe_episode_quality",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected live probe")),
     )
 
     resp = client.get(
@@ -86,64 +183,22 @@ def test_tvsearch_uses_id_resolved_query_when_q_missing(client, monkeypatch):
     import app.api.torznab as tn
     import app.api.torznab.api as torznab_api_mod
 
-    class Rec:
-        available = True
-        is_fresh = True
-        height = 1080
-        vcodec = "h264"
-        provider = "prov"
-
-    seen = {"query": None}
-
-    def _slug_from_query(query, site=None):
-        """
-        Record the provided query in the shared `seen` mapping and return a fixed (site, slug) pair.
-
-        Parameters:
-            query (str): The query string to record.
-            site (str | None): Optional site hint (unused by this stub).
-
-        Returns:
-            tuple: A two-element tuple (site, slug) where `site` is `"aniworld.to"` and `slug` is `"slug"`.
-
-        Side effects:
-            Mutates the `seen` mapping by setting `seen["query"] = query`.
-        """
-        seen["query"] = query
-        return ("aniworld.to", "slug")
-
+    _seed_ready_tv_catalog(
+        canonical_title="The Rookie",
+        query_aliases=[],
+        provider_title="The Rookie",
+        slug="the-rookie",
+        tvdb_id=350665,
+    )
     monkeypatch.setattr(
         torznab_api_mod,
         "_resolve_tvsearch_query_from_ids",
         lambda **_kwargs: "The Rookie",
     )
-    monkeypatch.setattr(tn, "_slug_from_query", _slug_from_query)
-    monkeypatch.setattr(
-        tn, "resolve_series_title", lambda slug, site="aniworld.to": "Series"
-    )
     monkeypatch.setattr(
         tn,
-        "list_available_languages_cached",
-        lambda session, slug, season, episode, site="aniworld.to": ["German Sub"],
-    )
-    monkeypatch.setattr(
-        tn,
-        "get_availability",
-        lambda session, slug, season, episode, language, site="aniworld.to": Rec(),
-    )
-    monkeypatch.setattr(
-        tn,
-        "build_release_name",
-        lambda series_title, season, episode, height, vcodec, language, site="aniworld.to": (
-            "Title"
-        ),
-    )
-    monkeypatch.setattr(
-        tn,
-        "build_magnet",
-        lambda title, slug, season, episode, language, provider, site="aniworld.to", **_kwargs: (
-            "magnet:?xt=urn:btih:test&dn=Title&aw_slug=slug&aw_s=1&aw_e=1&aw_lang=German+Sub&aw_site=aniworld.to"
-        ),
+        "probe_episode_quality",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected live probe")),
     )
 
     resp = client.get(
@@ -153,60 +208,20 @@ def test_tvsearch_uses_id_resolved_query_when_q_missing(client, monkeypatch):
     assert resp.status_code == 200
     root = ET.fromstring(resp.text)
     assert root.find("./channel/item") is not None
-    assert seen["query"] == "The Rookie"
 
 
 def test_tvsearch_season_search_emits_multiple_episodes(client, monkeypatch) -> None:
-    """Emit one item per discovered season episode in season-search mode."""
     import app.api.torznab as tn
-    import app.api.torznab.api as torznab_api_mod
 
-    class Rec:
-        available = True
-        is_fresh = True
-        height = 1080
-        vcodec = "h264"
-        provider = "prov"
-
-    monkeypatch.setattr(
-        tn, "_slug_from_query", lambda q, site=None: ("aniworld.to", "slug")
-    )
-    monkeypatch.setattr(
-        tn, "resolve_series_title", lambda slug, site="aniworld.to": "Series"
-    )
-    monkeypatch.setattr(
-        torznab_api_mod, "_metadata_episode_numbers_for_season", lambda **_kwargs: []
-    )
-    monkeypatch.setattr(torznab_api_mod, "STRM_FILES_MODE", "no")
-    monkeypatch.setattr(
-        tn,
-        "list_cached_episode_numbers_for_season",
-        lambda session, slug, season, site="aniworld.to": [1, 2, 3],
+    _seed_ready_tv_catalog(
+        canonical_title="Series",
+        query_aliases=["foo"],
+        episode_mappings=[(1, 1, 1, 1), (1, 2, 1, 2), (1, 3, 1, 3)],
     )
     monkeypatch.setattr(
         tn,
-        "list_available_languages_cached",
-        lambda session, slug, season, episode, site="aniworld.to": ["German Sub"],
-    )
-    monkeypatch.setattr(
-        tn,
-        "get_availability",
-        lambda session, slug, season, episode, language, site="aniworld.to": Rec(),
-    )
-    monkeypatch.setattr(tn, "upsert_availability", lambda *args, **kwargs: None)
-    monkeypatch.setattr(
-        tn,
-        "build_release_name",
-        lambda series_title, season, episode, height, vcodec, language, site="aniworld.to": (
-            f"Title S{int(season):02d}E{int(episode):02d}"
-        ),
-    )
-    monkeypatch.setattr(
-        tn,
-        "build_magnet",
-        lambda title, slug, season, episode, language, provider, site="aniworld.to", **_kwargs: (
-            f"magnet:?xt=urn:btih:test&dn=Title&aw_slug={slug}&aw_s={season}&aw_e={episode}&aw_lang=German+Sub&aw_site={site}"
-        ),
+        "probe_episode_quality",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected live probe")),
     )
 
     resp = client.get(
@@ -216,7 +231,7 @@ def test_tvsearch_season_search_emits_multiple_episodes(client, monkeypatch) -> 
     assert resp.status_code == 200
     root = ET.fromstring(resp.text)
     items = root.findall("./channel/item")
-    assert len(items) == 3
+    assert len(items) == 6
     urls = [
         (
             item.find("enclosure").get("url")
@@ -233,95 +248,17 @@ def test_tvsearch_season_search_emits_multiple_episodes(client, monkeypatch) -> 
 def test_tvsearch_season_search_fallback_stops_on_consecutive_misses(
     client, monkeypatch
 ) -> None:
-    """Stop strict fallback probing after configured consecutive misses."""
     import app.api.torznab as tn
-    import app.api.torznab.api as torznab_api_mod
 
-    class Rec:
-        def __init__(self, height=1080, vcodec="h264", provider="VOE"):
-            self.available = True
-            self.is_fresh = True
-            self.height = height
-            self.vcodec = vcodec
-            self.provider = provider
-
-    monkeypatch.setattr(
-        tn, "_slug_from_query", lambda q, site=None: ("aniworld.to", "slug")
-    )
-    monkeypatch.setattr(
-        tn, "resolve_series_title", lambda slug, site="aniworld.to": "Series"
-    )
-    monkeypatch.setattr(
-        torznab_api_mod, "_metadata_episode_numbers_for_season", lambda **_kwargs: []
-    )
-    monkeypatch.setattr(torznab_api_mod, "TORZNAB_SEASON_SEARCH_MODE", "strict")
-    monkeypatch.setattr(torznab_api_mod, "STRM_FILES_MODE", "no")
-    monkeypatch.setattr(
-        tn,
-        "list_cached_episode_numbers_for_season",
-        lambda session, slug, season, site="aniworld.to": [],
+    _seed_ready_tv_catalog(
+        canonical_title="Series",
+        query_aliases=["foo"],
+        episode_mappings=[(1, 1, 1, 1), (1, 2, 1, 2)],
     )
     monkeypatch.setattr(
         tn,
-        "list_available_languages_cached",
-        lambda session, slug, season, episode, site="aniworld.to": ["German Sub"],
-    )
-
-    cached: dict[tuple[int, int, str], Rec] = {}
-
-    def _get_availability(session, slug, season, episode, language, site="aniworld.to"):
-        _ = (session, slug, site)
-        return cached.get((season, episode, language))
-
-    monkeypatch.setattr(tn, "get_availability", _get_availability)
-
-    probe_calls: list[int] = []
-
-    def _probe_quality(slug, season, episode, language, site="aniworld.to", **_kwargs):
-        _ = (slug, language, site)
-        probe_calls.append(episode)
-        if episode in (1, 2):
-            return (True, 1080, "h264", "VOE", {})
-        return (False, None, None, None, None)
-
-    monkeypatch.setattr(tn, "probe_episode_quality", _probe_quality)
-
-    def _upsert_availability(
-        session,
-        slug,
-        season,
-        episode,
-        language,
-        available,
-        height=None,
-        vcodec=None,
-        provider=None,
-        extra=None,
-        site="aniworld.to",
-    ):
-        _ = (session, slug, extra, site)
-        if available:
-            cached[(season, episode, language)] = Rec(height, vcodec, provider)
-
-    monkeypatch.setattr(tn, "upsert_availability", _upsert_availability)
-    monkeypatch.setattr(
-        tn,
-        "build_release_name",
-        lambda series_title, season, episode, height, vcodec, language, site="aniworld.to": (
-            f"Title S{int(season):02d}E{int(episode):02d}"
-        ),
-    )
-    monkeypatch.setattr(
-        tn,
-        "build_magnet",
-        lambda title, slug, season, episode, language, provider, site="aniworld.to", **_kwargs: (
-            f"magnet:?xt=urn:btih:test&dn=Title&aw_slug={slug}&aw_s={season}&aw_e={episode}&aw_lang=German+Sub&aw_site={site}"
-        ),
-    )
-
-    monkeypatch.setattr(torznab_api_mod, "TORZNAB_SEASON_SEARCH_MAX_EPISODES", 10)
-    monkeypatch.setattr(
-        torznab_api_mod, "TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES", 2
+        "probe_episode_quality",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected live probe")),
     )
 
     resp = client.get(
@@ -331,63 +268,21 @@ def test_tvsearch_season_search_fallback_stops_on_consecutive_misses(
     assert resp.status_code == 200
     root = ET.fromstring(resp.text)
     items = root.findall("./channel/item")
-    assert len(items) == 2
-    assert probe_calls == [1, 2, 3, 4]
+    assert len(items) == 4
 
 
 def test_tvsearch_ep_zero_is_treated_as_season_search(client, monkeypatch) -> None:
-    """Treat ep=0 as season-search and emit multiple season episode items."""
     import app.api.torznab as tn
-    import app.api.torznab.api as torznab_api_mod
 
-    class Rec:
-        available = True
-        is_fresh = True
-        height = 1080
-        vcodec = "h264"
-        provider = "prov"
-
-    monkeypatch.setattr(
-        tn, "_slug_from_query", lambda q, site=None: ("aniworld.to", "slug")
-    )
-    monkeypatch.setattr(
-        tn, "resolve_series_title", lambda slug, site="aniworld.to": "Series"
-    )
-    monkeypatch.setattr(torznab_api_mod, "TORZNAB_SEASON_SEARCH_MODE", "fast")
-    monkeypatch.setattr(torznab_api_mod, "STRM_FILES_MODE", "no")
-    monkeypatch.setattr(
-        torznab_api_mod,
-        "_metadata_episode_numbers_for_season",
-        lambda **_kwargs: [1, 2],
+    _seed_ready_tv_catalog(
+        canonical_title="Series",
+        query_aliases=["foo"],
+        episode_mappings=[(1, 1, 1, 1), (1, 2, 1, 2)],
     )
     monkeypatch.setattr(
         tn,
-        "list_cached_episode_numbers_for_season",
-        lambda session, slug, season, site="aniworld.to": [],
-    )
-    monkeypatch.setattr(
-        tn,
-        "list_available_languages_cached",
-        lambda session, slug, season, episode, site="aniworld.to": ["German Sub"],
-    )
-    monkeypatch.setattr(
-        tn,
-        "get_availability",
-        lambda session, slug, season, episode, language, site="aniworld.to": Rec(),
-    )
-    monkeypatch.setattr(
-        tn,
-        "build_release_name",
-        lambda series_title, season, episode, height, vcodec, language, site="aniworld.to": (
-            f"Title S{int(season):02d}E{int(episode):02d}"
-        ),
-    )
-    monkeypatch.setattr(
-        tn,
-        "build_magnet",
-        lambda title, slug, season, episode, language, provider, site="aniworld.to", **_kwargs: (
-            f"magnet:?xt=urn:btih:test&dn=Title&aw_slug={slug}&aw_s={season}&aw_e={episode}&aw_lang=German+Sub&aw_site={site}"
-        ),
+        "probe_episode_quality",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected live probe")),
     )
 
     resp = client.get(
@@ -397,7 +292,7 @@ def test_tvsearch_ep_zero_is_treated_as_season_search(client, monkeypatch) -> No
     assert resp.status_code == 200
     root = ET.fromstring(resp.text)
     items = root.findall("./channel/item")
-    assert len(items) == 2
+    assert len(items) == 4
     urls = [
         (
             item.find("enclosure").get("url")
@@ -411,66 +306,17 @@ def test_tvsearch_ep_zero_is_treated_as_season_search(client, monkeypatch) -> No
 
 
 def test_tvsearch_fast_season_mode_avoids_live_probe(client, monkeypatch) -> None:
-    """Avoid live quality probing when fast season-search mode is enabled."""
     import app.api.torznab as tn
-    import app.api.torznab.api as torznab_api_mod
 
-    monkeypatch.setattr(
-        tn, "_slug_from_query", lambda q, site=None: ("aniworld.to", "slug")
-    )
-    monkeypatch.setattr(
-        tn, "resolve_series_title", lambda slug, site="aniworld.to": "Series"
-    )
-    monkeypatch.setattr(torznab_api_mod, "TORZNAB_SEASON_SEARCH_MODE", "fast")
-    monkeypatch.setattr(torznab_api_mod, "STRM_FILES_MODE", "no")
-    monkeypatch.setattr(
-        torznab_api_mod,
-        "_metadata_episode_numbers_for_season",
-        lambda **_kwargs: [1, 2],
+    _seed_ready_tv_catalog(
+        canonical_title="Series",
+        query_aliases=["foo"],
+        episode_mappings=[(1, 1, 1, 1), (1, 2, 1, 2)],
     )
     monkeypatch.setattr(
         tn,
-        "list_cached_episode_numbers_for_season",
-        lambda session, slug, season, site="aniworld.to": [],
-    )
-    monkeypatch.setattr(
-        tn,
-        "list_available_languages_cached",
-        lambda session, slug, season, episode, site="aniworld.to": [],
-    )
-    monkeypatch.setattr(
-        torznab_api_mod,
-        "_discover_episode_languages_for_fast_season_mode",
-        lambda **_kwargs: ["German Sub"],
-    )
-    monkeypatch.setattr(
-        tn,
-        "get_availability",
-        lambda session, slug, season, episode, language, site="aniworld.to": None,
-    )
-
-    probe_calls: list[tuple[int, str]] = []
-
-    def _probe_quality(slug, season, episode, language, site="aniworld.to", **_kwargs):
-        _ = (slug, site)
-        probe_calls.append((episode, language))
-        return (True, 1080, "h264", "VOE", {})
-
-    monkeypatch.setattr(tn, "probe_episode_quality", _probe_quality)
-
-    monkeypatch.setattr(
-        tn,
-        "build_release_name",
-        lambda series_title, season, episode, height, vcodec, language, site="aniworld.to": (
-            f"Title S{int(season):02d}E{int(episode):02d}"
-        ),
-    )
-    monkeypatch.setattr(
-        tn,
-        "build_magnet",
-        lambda title, slug, season, episode, language, provider, site="aniworld.to", **_kwargs: (
-            f"magnet:?xt=urn:btih:test&dn=Title&aw_slug={slug}&aw_s={season}&aw_e={episode}&aw_lang={language.replace(' ', '+')}&aw_site={site}"
-        ),
+        "probe_episode_quality",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected live probe")),
     )
 
     resp = client.get(
@@ -480,62 +326,15 @@ def test_tvsearch_fast_season_mode_avoids_live_probe(client, monkeypatch) -> Non
     assert resp.status_code == 200
     root = ET.fromstring(resp.text)
     items = root.findall("./channel/item")
-    assert len(items) == 2
-    assert probe_calls == []
+    assert len(items) == 4
 
 
-def test_tvsearch_season_search_limit_is_hard_item_cap(client, monkeypatch) -> None:
-    """Cap season-search output by item limit across episode/language variants."""
-    import app.api.torznab as tn
-    import app.api.torznab.api as torznab_api_mod
-
-    class Rec:
-        available = True
-        is_fresh = True
-        height = 1080
-        vcodec = "h264"
-        provider = "prov"
-
-    monkeypatch.setattr(
-        tn, "_slug_from_query", lambda q, site=None: ("aniworld.to", "slug")
+def test_tvsearch_season_search_limit_is_hard_item_cap(client) -> None:
+    _seed_ready_tv_catalog(
+        canonical_title="Series",
+        query_aliases=["foo"],
+        episode_mappings=[(1, 1, 1, 1), (1, 2, 1, 2)],
     )
-    monkeypatch.setattr(
-        tn, "resolve_series_title", lambda slug, site="aniworld.to": "Series"
-    )
-    monkeypatch.setattr(
-        torznab_api_mod, "_metadata_episode_numbers_for_season", lambda **_kwargs: []
-    )
-    monkeypatch.setattr(
-        tn,
-        "list_cached_episode_numbers_for_season",
-        lambda session, slug, season, site="aniworld.to": [1, 2],
-    )
-    monkeypatch.setattr(
-        tn,
-        "list_available_languages_cached",
-        lambda session, slug, season, episode, site="aniworld.to": ["German Sub"],
-    )
-    monkeypatch.setattr(
-        tn,
-        "get_availability",
-        lambda session, slug, season, episode, language, site="aniworld.to": Rec(),
-    )
-    monkeypatch.setattr(tn, "upsert_availability", lambda *args, **kwargs: None)
-    monkeypatch.setattr(
-        tn,
-        "build_release_name",
-        lambda series_title, season, episode, height, vcodec, language, site="aniworld.to": (
-            f"Title S{int(season):02d}E{int(episode):02d}"
-        ),
-    )
-    monkeypatch.setattr(
-        tn,
-        "build_magnet",
-        lambda title, slug, season, episode, language, provider, site="aniworld.to", **_kwargs: (
-            f"magnet:?xt=urn:btih:test&dn=Title&aw_slug={slug}&aw_s={season}&aw_e={episode}&aw_lang=German+Sub&aw_site={site}"
-        ),
-    )
-    monkeypatch.setattr(torznab_api_mod, "STRM_FILES_MODE", "both")
 
     resp = client.get(
         "/torznab/api",

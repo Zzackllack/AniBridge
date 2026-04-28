@@ -1,10 +1,28 @@
 from __future__ import annotations
 
 from pathlib import Path
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import inspect
 
 
-HEAD_REVISION = "20260204_0003"
+def _head_revision() -> str:
+    config = Config(
+        str(
+            Path(__file__)
+            .resolve()
+            .parents[3]
+            / "app"
+            / "db"
+            / "migrations"
+            / "alembic.ini"
+        )
+    )
+    config.set_main_option(
+        "script_location",
+        str(Path(__file__).resolve().parents[3] / "app" / "db" / "migrations"),
+    )
+    return ScriptDirectory.from_config(config).get_current_head()
 
 
 def _load_db(tmp_path: Path, monkeypatch):
@@ -62,7 +80,7 @@ def test_apply_migrations_fresh_db(tmp_path, monkeypatch):
     assert "clienttask" in tables
     assert "strmurlmapping" in tables
     assert "alembic_version" in tables
-    assert _get_version(models) == HEAD_REVISION
+    assert _get_version(models) == _head_revision()
 
 
 def test_apply_migrations_legacy_db(tmp_path, monkeypatch):
@@ -74,7 +92,7 @@ def test_apply_migrations_legacy_db(tmp_path, monkeypatch):
     inspector = inspect(models.engine)
     tables = set(inspector.get_table_names())
     assert "alembic_version" in tables
-    assert _get_version(models) == HEAD_REVISION
+    assert _get_version(models) == _head_revision()
 
 
 def test_apply_migrations_empty_version_table(tmp_path, monkeypatch):
@@ -97,4 +115,4 @@ def test_apply_migrations_empty_version_table(tmp_path, monkeypatch):
     assert "job" in tables
     assert "strmurlmapping" in tables
     assert "alembic_version" in tables
-    assert _get_version(models) == HEAD_REVISION
+    assert _get_version(models) == _head_revision()
