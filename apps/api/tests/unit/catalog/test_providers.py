@@ -1,6 +1,12 @@
+import time
 from types import SimpleNamespace
 
-from app.catalog.providers import _parse_aniworld_season_rows, _parse_sto_season_rows
+from app.catalog.providers import (
+    _fallback_title_record,
+    _parse_aniworld_season_rows,
+    _parse_sto_season_rows,
+    _run_with_timeout,
+)
 
 
 def test_parse_aniworld_season_rows_uses_season_html_only():
@@ -70,3 +76,28 @@ def test_parse_sto_season_rows_extracts_episode_links_without_episode_pages():
         (2, 2, "/serie/demo/staffel-2/episode-2"),
     ]
     assert all(item.languages == [] for item in episodes)
+
+
+def test_run_with_timeout_raises_for_hung_title_crawl():
+    def slow() -> object:
+        time.sleep(0.05)
+        return object()
+
+    try:
+        _run_with_timeout(0.01, slow)
+        assert False, "expected timeout"
+    except TimeoutError as exc:
+        assert "title crawl exceeded" in str(exc)
+
+
+def test_fallback_title_record_uses_provider_relative_path():
+    record = _fallback_title_record(
+        provider_key="s.to",
+        slug="demo-show",
+        title="Demo Show",
+        aliases=["Demo Show"],
+    )
+
+    assert record.relative_path == "/serie/demo-show"
+    assert record.title == "Demo Show"
+    assert record.episodes == []

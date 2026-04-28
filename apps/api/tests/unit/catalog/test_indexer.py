@@ -1,4 +1,5 @@
 import time
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 
@@ -28,7 +29,8 @@ def test_catalog_discovery_logs_heartbeat(monkeypatch):
     def fake_info(message: str, *args) -> None:
         messages.append(message.format(*args))
 
-    def fake_crawl(_provider: str) -> list[object]:
+    def fake_crawl(_provider: str, *, observer=None) -> list[object]:
+        assert observer is not None
         time.sleep(0.03)
         return []
 
@@ -42,6 +44,32 @@ def test_catalog_discovery_logs_heartbeat(monkeypatch):
 
     assert titles == []
     assert any("still discovering titles after" in message for message in messages)
+
+
+def test_catalog_discovery_logs_title_crawl_counts(monkeypatch):
+    import app.catalog.indexer as indexer_module
+    from app.catalog.indexer import ProviderCatalogIndexer
+
+    messages: list[str] = []
+
+    def fake_info(message: str, *args) -> None:
+        messages.append(message.format(*args))
+
+    def fake_crawl(_provider: str, *, observer=None) -> list[object]:
+        assert observer is not None
+        observer.on_index_loaded(10)
+        observer.on_title_crawled("slug-1")
+        time.sleep(0.03)
+        return []
+
+    monkeypatch.setattr(indexer_module, "_DISCOVERY_HEARTBEAT_SECONDS", 0.01)
+    monkeypatch.setattr(indexer_module, "crawl_provider_catalog", fake_crawl)
+    monkeypatch.setattr(indexer_module.logger, "info", fake_info)
+
+    ProviderCatalogIndexer()._crawl_provider_catalog_with_heartbeat("aniworld.to")
+
+    assert any("loaded title index with 10 titles" in message for message in messages)
+    assert any("crawling title details 1/10 (10.0%)" in message for message in messages)
 
 
 def test_catalog_recovers_interrupted_running_state(monkeypatch):
@@ -131,3 +159,15 @@ def test_refresh_provider_starts_background_worker(monkeypatch):
     indexer.stop()
 
     assert called == ["aniworld.to"]
+
+
+def test_is_due_handles_naive_next_refresh_after():
+    from app.catalog.indexer import ProviderCatalogIndexer
+
+    status = SimpleNamespace(
+        status="ready",
+        latest_success_at=datetime.now(timezone.utc),
+        next_refresh_after=datetime(2000, 1, 1, 0, 0, 0),
+    )
+
+    assert ProviderCatalogIndexer()._is_due(status) is True
