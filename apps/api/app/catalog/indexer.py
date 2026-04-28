@@ -122,6 +122,8 @@ class ProviderCatalogIndexer:
         self._active = threading.Semaphore(PROVIDER_INDEX_GLOBAL_CONCURRENCY)
         self._progress_lock = threading.Lock()
         self._progress: dict[str, ProviderCatalogProgress] = {}
+        self._workers_lock = threading.Lock()
+        self._workers: dict[str, threading.Thread] = {}
 
     def start(self) -> None:
         self._ensure_status_rows()
@@ -147,6 +149,10 @@ class ProviderCatalogIndexer:
         self._stop_event.set()
         if self._thread is not None:
             self._thread.join(timeout=5)
+        with self._workers_lock:
+            workers = list(self._workers.values())
+        for worker in workers:
+            worker.join(timeout=5)
 
     def run_due_once(self) -> None:
         with Session(engine) as session:
@@ -192,17 +198,31 @@ class ProviderCatalogIndexer:
                 )
 
     def refresh_provider(self, provider: str) -> None:
+        with self._workers_lock:
+            existing = self._workers.get(provider)
+            if existing is not None and existing.is_alive():
+                logger.debug(
+                    "Provider catalog scheduler: {} already running in worker {}",
+                    provider,
+                    existing.name,
+                )
+                return
         if not self._active.acquire(blocking=False):
             logger.warning(
                 "Provider catalog scheduler: concurrency exhausted, skipping {} for now",
                 provider,
             )
             return
-        try:
-            logger.info("Provider catalog scheduler: starting refresh for {}", provider)
-            self._refresh_provider(provider)
-        finally:
-            self._active.release()
+        logger.info("Provider catalog scheduler: starting refresh for {}", provider)
+        worker = threading.Thread(
+            target=self._run_provider_refresh,
+            name=f"provider-index-{provider}",
+            args=(provider,),
+            daemon=True,
+        )
+        with self._workers_lock:
+            self._workers[provider] = worker
+        worker.start()
 
     def get_progress_snapshot(self) -> dict[str, object]:
         with Session(engine) as session:
@@ -275,6 +295,14 @@ class ProviderCatalogIndexer:
                 logger.exception("Provider catalog scheduler loop failed: {}", exc)
             if self._stop_event.wait(PROVIDER_INDEX_SCHEDULER_POLL_SECONDS):
                 break
+
+    def _run_provider_refresh(self, provider: str) -> None:
+        try:
+            self._refresh_provider(provider)
+        finally:
+            self._active.release()
+            with self._workers_lock:
+                self._workers.pop(provider, None)
 
     def _ensure_status_rows(self) -> None:
         with Session(engine) as session:
