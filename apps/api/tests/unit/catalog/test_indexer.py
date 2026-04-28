@@ -114,3 +114,20 @@ def test_catalog_recovers_interrupted_running_state(monkeypatch):
         update.get("provider") == "s.to" and update.get("status") == "pending"
         for update in updates
     )
+
+
+def test_refresh_provider_starts_background_worker(monkeypatch):
+    from app.catalog.indexer import ProviderCatalogIndexer
+
+    indexer = ProviderCatalogIndexer()
+    called: list[str] = []
+
+    def fake_refresh(provider: str) -> None:
+        called.append(provider)
+
+    monkeypatch.setattr(indexer, "_refresh_provider", fake_refresh)
+
+    indexer.refresh_provider("aniworld.to")
+    indexer.stop()
+
+    assert called == ["aniworld.to"]
