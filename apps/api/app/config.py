@@ -285,6 +285,10 @@ PROVIDER_INDEX_CONCURRENCY_MEGAKINO = _as_non_negative_int(
 )
 if PROVIDER_INDEX_CONCURRENCY_MEGAKINO < 1:
     PROVIDER_INDEX_CONCURRENCY_MEGAKINO = 1
+PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS = max(
+    5,
+    _as_non_negative_int(os.getenv("PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS"), 45),
+)
 
 logger.debug(
     f"ANIWORLD_ALPHABET_HTML={ANIWORLD_ALPHABET_HTML}, ANIWORLD_ALPHABET_URL={ANIWORLD_ALPHABET_URL}"
@@ -309,6 +313,10 @@ logger.debug(
     PROVIDER_INDEX_CONCURRENCY_ANIWORLD,
     PROVIDER_INDEX_CONCURRENCY_STO,
     PROVIDER_INDEX_CONCURRENCY_MEGAKINO,
+)
+logger.debug(
+    "Provider index title timeout: {}s",
+    PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS,
 )
 
 # TTL (Stunden) für Live-Index; 0 = nie neu laden (nur einmal pro Prozess)
@@ -339,6 +347,7 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "titles_refresh_hours": ANIWORLD_TITLES_REFRESH_HOURS,
         "provider_index_refresh_hours": PROVIDER_INDEX_REFRESH_HOURS_ANIWORLD,
         "provider_index_concurrency": PROVIDER_INDEX_CONCURRENCY_ANIWORLD,
+        "provider_index_title_timeout_seconds": PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS,
         "default_languages": ["German Dub", "German Sub", "English Sub"],
         "release_group": RELEASE_GROUP_ANIWORLD,
     },
@@ -349,6 +358,7 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "titles_refresh_hours": STO_TITLES_REFRESH_HOURS,
         "provider_index_refresh_hours": PROVIDER_INDEX_REFRESH_HOURS_STO,
         "provider_index_concurrency": PROVIDER_INDEX_CONCURRENCY_STO,
+        "provider_index_title_timeout_seconds": PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS,
         "default_languages": ["German Dub", "English Dub"],
         "release_group": RELEASE_GROUP_STO,
     },
@@ -359,6 +369,7 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "titles_refresh_hours": MEGAKINO_TITLES_REFRESH_HOURS,
         "provider_index_refresh_hours": PROVIDER_INDEX_REFRESH_HOURS_MEGAKINO,
         "provider_index_concurrency": PROVIDER_INDEX_CONCURRENCY_MEGAKINO,
+        "provider_index_title_timeout_seconds": PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS,
         "default_languages": ["Deutsch", "German Dub"],
         "release_group": "megakino",
     },

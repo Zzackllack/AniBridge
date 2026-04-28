@@ -3,15 +3,16 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
+import threading
 import re
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup  # type: ignore
 from loguru import logger
 
 from app.catalog.metadata import resolve_tv_canonical_match
-from app.config import CATALOG_SITE_CONFIGS
+from app.config import CATALOG_SITE_CONFIGS, PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS
 from app.db import normalize_catalog_text
 from app.providers import get_provider
 from app.providers.megakino.client import (
@@ -59,12 +60,73 @@ class TitleRecord:
     canonical: CanonicalPayload = field(default_factory=CanonicalPayload)
 
 
+@dataclass(slots=True)
+class CatalogCrawlObserver:
+    on_index_loaded: Callable[[int], None] | None = None
+    on_title_started: Callable[[str], None] | None = None
+    on_title_crawled: Callable[[str], None] | None = None
+
+
+class ProviderTitleCrawlTimeoutError(TimeoutError):
+    pass
+
+
 def _relative_path(url: str) -> str:
     parsed = urlparse(url)
     path = parsed.path or "/"
     if parsed.query:
         return f"{path}?{parsed.query}"
     return path
+
+
+def _run_with_timeout(
+    timeout_seconds: float,
+    fn: Callable[..., TitleRecord],
+    /,
+    *args: Any,
+    **kwargs: Any,
+) -> TitleRecord:
+    result: dict[str, TitleRecord] = {}
+    err: dict[str, BaseException] = {}
+
+    def _target() -> None:
+        try:
+            result["value"] = fn(*args, **kwargs)
+        except BaseException as exc:
+            err["exc"] = exc
+
+    thread = threading.Thread(target=_target, name="provider-title-crawl", daemon=True)
+    thread.start()
+    thread.join(float(timeout_seconds))
+    if thread.is_alive():
+        raise ProviderTitleCrawlTimeoutError(
+            f"title crawl exceeded {int(timeout_seconds)}s"
+        )
+    if "exc" in err:
+        raise err["exc"]
+    return result["value"]
+
+
+def _fallback_title_record(
+    *,
+    provider_key: str,
+    slug: str,
+    title: str,
+    aliases: list[str],
+) -> TitleRecord:
+    relative_root = (
+        f"/anime/stream/{slug}" if provider_key == "aniworld.to" else f"/serie/{slug}"
+    )
+    return TitleRecord(
+        provider=provider_key,
+        slug=slug,
+        title=title,
+        aliases=aliases,
+        media_type_hint="series",
+        relative_path=relative_root,
+        episodes=[],
+        canonical=CanonicalPayload(),
+    )
 
 
 def _normalize_provider_data(raw: Any, *, site: str) -> list[EpisodeLanguageRecord]:
@@ -447,6 +509,27 @@ def _crawl_aniworld_like_title(
     )
 
 
+def _crawl_title_job(
+    *,
+    provider_key: str,
+    slug: str,
+    title: str,
+    aliases: list[str],
+    observer: CatalogCrawlObserver | None,
+    title_timeout_seconds: float,
+) -> TitleRecord:
+    if observer is not None and observer.on_title_started is not None:
+        observer.on_title_started(slug)
+    return _run_with_timeout(
+        title_timeout_seconds,
+        _crawl_aniworld_like_title,
+        provider_key=provider_key,
+        slug=slug,
+        title=title,
+        aliases=aliases,
+    )
+
+
 def _parse_megakino_page_metadata(url: str) -> tuple[str | None, int | None]:
     base_url = get_megakino_base_url().rstrip("/")
     response = http_get(url, timeout=20, headers={"Referer": base_url})
@@ -465,7 +548,11 @@ def _parse_megakino_page_metadata(url: str) -> tuple[str | None, int | None]:
     return title, year
 
 
-def crawl_provider_catalog(provider_key: str) -> list[TitleRecord]:
+def crawl_provider_catalog(
+    provider_key: str,
+    *,
+    observer: CatalogCrawlObserver | None = None,
+) -> list[TitleRecord]:
     provider = get_provider(provider_key)
     if provider is None:
         return []
@@ -473,6 +560,8 @@ def crawl_provider_catalog(provider_key: str) -> list[TitleRecord]:
     if provider_key == "megakino":
         client = get_default_megakino_client()
         entries = client.load_index()
+        if observer is not None and observer.on_index_loaded is not None:
+            observer.on_index_loaded(len(entries))
         titles: list[TitleRecord] = []
         for entry in entries.values():
             parsed_title = entry.slug.replace("-", " ").title()
@@ -496,28 +585,81 @@ def crawl_provider_catalog(provider_key: str) -> list[TitleRecord]:
                     canonical=CanonicalPayload(),
                 )
             )
+            if observer is not None and observer.on_title_crawled is not None:
+                observer.on_title_crawled(entry.slug)
         return titles
 
+    logger.info("Provider catalog {}: loading title index", provider_key)
     index = provider.load_or_refresh_index()
+    logger.info("Provider catalog {}: title index loaded ({} titles)", provider_key, len(index))
+    logger.info("Provider catalog {}: loading title alternatives", provider_key)
     alternatives = provider.load_or_refresh_alternatives()
+    logger.info(
+        "Provider catalog {}: title alternatives loaded ({} titles with aliases)",
+        provider_key,
+        len(alternatives),
+    )
+    if observer is not None and observer.on_index_loaded is not None:
+        observer.on_index_loaded(len(index))
     workers = int(
         CATALOG_SITE_CONFIGS[provider_key].get("provider_index_concurrency", 1)
     )
-    futures = []
+    title_timeout_seconds = float(
+        CATALOG_SITE_CONFIGS[provider_key].get(
+            "provider_index_title_timeout_seconds",
+            PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS,
+        )
+    )
+    futures: dict[object, tuple[str, str, list[str]]] = {}
     results: list[TitleRecord] = []
     with ThreadPoolExecutor(max_workers=max(1, workers)) as executor:
         for slug, title in index.items():
             aliases = list(dict.fromkeys(alternatives.get(slug, []) or [title]))
-            futures.append(
-                executor.submit(
-                    _crawl_aniworld_like_title,
+            future = executor.submit(
+                _crawl_title_job,
+                provider_key=provider_key,
+                slug=slug,
+                title=title,
+                aliases=aliases,
+                observer=observer,
+                title_timeout_seconds=title_timeout_seconds,
+            )
+            futures[future] = (slug, title, aliases)
+        for future in as_completed(futures):
+            slug, title, aliases = futures[future]
+            try:
+                record = future.result()
+            except ProviderTitleCrawlTimeoutError as exc:
+                logger.warning(
+                    "Provider catalog {}: title crawl timed out after {}s slug={} title={}: {}",
+                    provider_key,
+                    int(title_timeout_seconds),
+                    slug,
+                    title,
+                    exc,
+                )
+                record = _fallback_title_record(
                     provider_key=provider_key,
                     slug=slug,
                     title=title,
                     aliases=aliases,
                 )
-            )
-        for future in as_completed(futures):
-            results.append(future.result())
+            except Exception as exc:
+                logger.warning(
+                    "Provider catalog {}: title crawl failed slug={} title={}: {}",
+                    provider_key,
+                    slug,
+                    title,
+                    exc,
+                )
+                record = _fallback_title_record(
+                    provider_key=provider_key,
+                    slug=slug,
+                    title=title,
+                    aliases=aliases,
+                )
+            results.append(record)
+            if observer is not None and observer.on_title_crawled is not None:
+                observer.on_title_crawled(record.slug)
     results.sort(key=lambda item: item.slug)
     return results
