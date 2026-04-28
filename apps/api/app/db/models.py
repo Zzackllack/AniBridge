@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Optional, Literal, Generator, Any, Dict, List, TYPE_CHECKING
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
+import re
+import unicodedata
 from loguru import logger
 from fastapi import HTTPException
 
@@ -18,6 +20,19 @@ if TYPE_CHECKING:
 from app.config import AVAILABILITY_TTL_HOURS, DATA_DIR
 
 JobStatus = Literal["queued", "downloading", "completed", "failed", "cancelled"]
+CatalogRefreshStatus = Literal[
+    "pending",
+    "running",
+    "ready",
+    "failed",
+]
+CatalogMappingConfidence = Literal[
+    "confirmed",
+    "high_confidence",
+    "low_confidence",
+    "unresolved",
+    "conflict",
+]
 
 
 # ---- Datetime Helpers
@@ -162,6 +177,150 @@ class ClientTask(ModelBase, table=True):
     state: str = Field(
         default="queued", index=True
     )  # queued/downloading/paused/completed/error
+
+
+# ---------------- Provider Catalog Index
+class ProviderIndexStatus(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    refresh_interval_hours: float = 24.0
+    status: str = Field(default="pending", index=True)
+    current_generation: Optional[str] = None
+    latest_success_generation: Optional[str] = None
+    latest_started_at: Optional[datetime] = Field(default=None, index=True)
+    latest_completed_at: Optional[datetime] = Field(default=None, index=True)
+    latest_success_at: Optional[datetime] = Field(default=None, index=True)
+    next_refresh_after: Optional[datetime] = Field(default=None, index=True)
+    bootstrap_completed: bool = Field(default=False, index=True)
+    failure_count: int = 0
+    last_error_summary: Optional[str] = None
+    cursor_title_slug: Optional[str] = None
+    updated_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderTitleIndexState(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    last_attempted_at: Optional[datetime] = Field(default=None, index=True)
+    last_success_at: Optional[datetime] = Field(default=None, index=True)
+    failure_count: int = 0
+    last_error_summary: Optional[str] = None
+    updated_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderCatalogTitle(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    title: str = Field(index=True)
+    normalized_title: str = Field(index=True)
+    media_type_hint: str = Field(default="series", index=True)
+    relative_path: str
+    indexed_generation: str = Field(index=True)
+    last_indexed_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderCatalogAlias(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    alias: str = Field(primary_key=True)
+    normalized_alias: str = Field(index=True)
+    indexed_generation: str = Field(index=True)
+    last_indexed_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderCatalogEpisode(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    season: int = Field(primary_key=True)
+    episode: int = Field(primary_key=True)
+    title_primary: Optional[str] = None
+    title_secondary: Optional[str] = None
+    relative_path: str
+    media_type_hint: str = Field(default="episode", index=True)
+    indexed_generation: str = Field(index=True)
+    last_indexed_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderEpisodeLanguage(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    season: int = Field(primary_key=True)
+    episode: int = Field(primary_key=True)
+    language: str = Field(primary_key=True)
+    normalized_language: str = Field(index=True)
+    host_hints: Optional[list[str]] = Field(sa_column=Column(JSON), default=None)
+    indexed_generation: str = Field(index=True)
+    last_indexed_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class CanonicalSeries(ModelBase, table=True):
+    tvdb_id: int = Field(primary_key=True)
+    title: str = Field(index=True)
+    normalized_title: str = Field(index=True)
+    tmdb_id: Optional[int] = Field(default=None, index=True)
+    imdb_id: Optional[str] = Field(default=None, index=True)
+    tvmaze_id: Optional[int] = Field(default=None, index=True)
+    anilist_id: Optional[int] = Field(default=None, index=True)
+    mal_id: Optional[int] = Field(default=None, index=True)
+    last_synced_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class CanonicalSeriesAlias(ModelBase, table=True):
+    tvdb_id: int = Field(primary_key=True)
+    alias: str = Field(primary_key=True)
+    normalized_alias: str = Field(index=True)
+
+
+class CanonicalEpisode(ModelBase, table=True):
+    tvdb_id: int = Field(primary_key=True)
+    season: int = Field(primary_key=True)
+    episode: int = Field(primary_key=True)
+    title: str = Field(index=True)
+    normalized_title: str = Field(index=True)
+    last_synced_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class CanonicalMovie(ModelBase, table=True):
+    tmdb_id: int = Field(primary_key=True)
+    title: str = Field(index=True)
+    normalized_title: str = Field(index=True)
+    release_year: int = Field(index=True)
+    imdb_id: Optional[str] = Field(default=None, index=True)
+    tvdb_id: Optional[int] = Field(default=None, index=True)
+    last_synced_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderSeriesMapping(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    tvdb_id: int = Field(primary_key=True)
+    confidence: str = Field(default="unresolved", index=True)
+    source: str = Field(default="title_match", index=True)
+    rationale: Optional[str] = None
+    last_verified_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderEpisodeMapping(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    provider_season: int = Field(primary_key=True)
+    provider_episode: int = Field(primary_key=True)
+    tvdb_id: int = Field(primary_key=True)
+    canonical_season: int = Field(primary_key=True)
+    canonical_episode: int = Field(primary_key=True)
+    confidence: str = Field(default="unresolved", index=True)
+    source: str = Field(default="numbering", index=True)
+    rationale: Optional[str] = None
+    last_verified_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderMovieMapping(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    tmdb_id: int = Field(primary_key=True)
+    confidence: str = Field(default="unresolved", index=True)
+    source: str = Field(default="title_year", index=True)
+    rationale: Optional[str] = None
+    last_verified_at: datetime = Field(default_factory=utcnow, index=True)
 
 
 # ---------------- Engine and Session utilities
@@ -556,6 +715,763 @@ def list_cached_episode_numbers_for_season(
         episodes,
     )
     return episodes
+
+
+def normalize_catalog_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value or "")
+    normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    normalized = normalized.replace("’", "'").replace("`", "'")
+    normalized = re.sub(r"[^a-zA-Z0-9]+", " ", normalized)
+    return normalized.lower().strip()
+
+
+def upsert_provider_index_status(
+    session: Session,
+    *,
+    provider: str,
+    refresh_interval_hours: float,
+    status: Optional[str] = None,
+    current_generation: Optional[str] = None,
+    latest_success_generation: Optional[str] = None,
+    latest_started_at: Optional[datetime] = None,
+    latest_completed_at: Optional[datetime] = None,
+    latest_success_at: Optional[datetime] = None,
+    next_refresh_after: Optional[datetime] = None,
+    bootstrap_completed: Optional[bool] = None,
+    failure_count: Optional[int] = None,
+    last_error_summary: Optional[str] = None,
+    cursor_title_slug: Optional[str] = None,
+) -> ProviderIndexStatus:
+    rec = session.get(ProviderIndexStatus, provider)
+    if rec is None:
+        rec = ProviderIndexStatus(
+            provider=provider,
+            refresh_interval_hours=refresh_interval_hours,
+        )
+    rec.refresh_interval_hours = refresh_interval_hours
+    if status is not None:
+        rec.status = status
+    if current_generation is not None:
+        rec.current_generation = current_generation
+    if latest_success_generation is not None:
+        rec.latest_success_generation = latest_success_generation
+    if latest_started_at is not None:
+        rec.latest_started_at = latest_started_at
+    if latest_completed_at is not None:
+        rec.latest_completed_at = latest_completed_at
+    if latest_success_at is not None:
+        rec.latest_success_at = latest_success_at
+    if next_refresh_after is not None:
+        rec.next_refresh_after = next_refresh_after
+    if bootstrap_completed is not None:
+        rec.bootstrap_completed = bootstrap_completed
+    if failure_count is not None:
+        rec.failure_count = failure_count
+    if last_error_summary is not None:
+        rec.last_error_summary = last_error_summary
+    if cursor_title_slug is not None or status == "ready":
+        rec.cursor_title_slug = cursor_title_slug
+    rec.updated_at = utcnow()
+    session.add(rec)
+    session.commit()
+    session.refresh(rec)
+    return rec
+
+
+def get_provider_index_status(
+    session: Session,
+    *,
+    provider: str,
+) -> Optional[ProviderIndexStatus]:
+    return session.get(ProviderIndexStatus, provider)
+
+
+def list_provider_index_statuses(session: Session) -> List[ProviderIndexStatus]:
+    return list(session.exec(select(ProviderIndexStatus)).all())
+
+
+def upsert_provider_title_index_state(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    attempted_at: Optional[datetime] = None,
+    succeeded_at: Optional[datetime] = None,
+    failure_count: Optional[int] = None,
+    last_error_summary: Optional[str] = None,
+) -> ProviderTitleIndexState:
+    rec = session.get(ProviderTitleIndexState, (provider, slug))
+    if rec is None:
+        rec = ProviderTitleIndexState(provider=provider, slug=slug)
+    if attempted_at is not None:
+        rec.last_attempted_at = attempted_at
+    if succeeded_at is not None:
+        rec.last_success_at = succeeded_at
+    if failure_count is not None:
+        rec.failure_count = failure_count
+    if last_error_summary is not None:
+        rec.last_error_summary = last_error_summary
+    rec.updated_at = utcnow()
+    session.add(rec)
+    session.commit()
+    session.refresh(rec)
+    return rec
+
+
+def replace_provider_catalog_title(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    title: str,
+    media_type_hint: str,
+    relative_path: str,
+    indexed_generation: str,
+) -> ProviderCatalogTitle:
+    rec = session.get(ProviderCatalogTitle, (provider, slug))
+    if rec is None:
+        rec = ProviderCatalogTitle(
+            provider=provider,
+            slug=slug,
+            title=title,
+            normalized_title=normalize_catalog_text(title),
+            media_type_hint=media_type_hint,
+            relative_path=relative_path,
+            indexed_generation=indexed_generation,
+            last_indexed_at=utcnow(),
+        )
+    else:
+        rec.title = title
+        rec.normalized_title = normalize_catalog_text(title)
+        rec.media_type_hint = media_type_hint
+        rec.relative_path = relative_path
+        rec.indexed_generation = indexed_generation
+        rec.last_indexed_at = utcnow()
+    session.add(rec)
+    return rec
+
+
+def replace_provider_catalog_aliases(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    aliases: List[str],
+    indexed_generation: str,
+) -> None:
+    session.exec(
+        select(ProviderCatalogAlias).where(
+            (ProviderCatalogAlias.provider == provider)
+            & (ProviderCatalogAlias.slug == slug)
+        )
+    ).all()
+    session.exec(
+        ProviderCatalogAlias.__table__.delete().where(
+            (ProviderCatalogAlias.provider == provider)
+            & (ProviderCatalogAlias.slug == slug)
+        )
+    )
+    seen: set[str] = set()
+    for alias in aliases:
+        alias_clean = (alias or "").strip()
+        if not alias_clean or alias_clean in seen:
+            continue
+        seen.add(alias_clean)
+        session.add(
+            ProviderCatalogAlias(
+                provider=provider,
+                slug=slug,
+                alias=alias_clean,
+                normalized_alias=normalize_catalog_text(alias_clean),
+                indexed_generation=indexed_generation,
+                last_indexed_at=utcnow(),
+            )
+        )
+
+
+def replace_provider_catalog_episodes(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    episodes: List[dict[str, Any]],
+    indexed_generation: str,
+) -> None:
+    session.exec(
+        ProviderEpisodeLanguage.__table__.delete().where(
+            (ProviderEpisodeLanguage.provider == provider)
+            & (ProviderEpisodeLanguage.slug == slug)
+        )
+    )
+    session.exec(
+        ProviderCatalogEpisode.__table__.delete().where(
+            (ProviderCatalogEpisode.provider == provider)
+            & (ProviderCatalogEpisode.slug == slug)
+        )
+    )
+    for item in episodes:
+        session.add(
+            ProviderCatalogEpisode(
+                provider=provider,
+                slug=slug,
+                season=int(item["season"]),
+                episode=int(item["episode"]),
+                title_primary=item.get("title_primary"),
+                title_secondary=item.get("title_secondary"),
+                relative_path=item["relative_path"],
+                media_type_hint=item.get("media_type_hint", "episode"),
+                indexed_generation=indexed_generation,
+                last_indexed_at=utcnow(),
+            )
+        )
+        for language_payload in item.get("languages", []):
+            language = str(language_payload.get("language") or "").strip()
+            if not language:
+                continue
+            session.add(
+                ProviderEpisodeLanguage(
+                    provider=provider,
+                    slug=slug,
+                    season=int(item["season"]),
+                    episode=int(item["episode"]),
+                    language=language,
+                    normalized_language=normalize_catalog_text(language),
+                    host_hints=list(language_payload.get("host_hints") or []),
+                    indexed_generation=indexed_generation,
+                    last_indexed_at=utcnow(),
+                )
+            )
+
+
+def prune_provider_generation(
+    session: Session,
+    *,
+    provider: str,
+    keep_generation: str,
+) -> None:
+    session.exec(
+        ProviderCatalogAlias.__table__.delete().where(
+            (ProviderCatalogAlias.provider == provider)
+            & (ProviderCatalogAlias.indexed_generation != keep_generation)
+        )
+    )
+    session.exec(
+        ProviderEpisodeLanguage.__table__.delete().where(
+            (ProviderEpisodeLanguage.provider == provider)
+            & (ProviderEpisodeLanguage.indexed_generation != keep_generation)
+        )
+    )
+    session.exec(
+        ProviderCatalogEpisode.__table__.delete().where(
+            (ProviderCatalogEpisode.provider == provider)
+            & (ProviderCatalogEpisode.indexed_generation != keep_generation)
+        )
+    )
+    session.exec(
+        ProviderCatalogTitle.__table__.delete().where(
+            (ProviderCatalogTitle.provider == provider)
+            & (ProviderCatalogTitle.indexed_generation != keep_generation)
+        )
+    )
+    session.commit()
+
+
+def delete_provider_generation(
+    session: Session,
+    *,
+    provider: str,
+    generation: str,
+) -> None:
+    session.exec(
+        ProviderCatalogAlias.__table__.delete().where(
+            (ProviderCatalogAlias.provider == provider)
+            & (ProviderCatalogAlias.indexed_generation == generation)
+        )
+    )
+    session.exec(
+        ProviderEpisodeLanguage.__table__.delete().where(
+            (ProviderEpisodeLanguage.provider == provider)
+            & (ProviderEpisodeLanguage.indexed_generation == generation)
+        )
+    )
+    session.exec(
+        ProviderCatalogEpisode.__table__.delete().where(
+            (ProviderCatalogEpisode.provider == provider)
+            & (ProviderCatalogEpisode.indexed_generation == generation)
+        )
+    )
+    session.exec(
+        ProviderCatalogTitle.__table__.delete().where(
+            (ProviderCatalogTitle.provider == provider)
+            & (ProviderCatalogTitle.indexed_generation == generation)
+        )
+    )
+    session.commit()
+
+
+def _visible_generation_map(
+    session: Session,
+    *,
+    providers: List[str],
+) -> dict[str, str]:
+    rows = session.exec(
+        select(ProviderIndexStatus).where(ProviderIndexStatus.provider.in_(providers))
+    ).all()
+    return {
+        row.provider: row.latest_success_generation
+        for row in rows
+        if row.latest_success_generation
+    }
+
+
+def replace_provider_series_mappings(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    mappings: List[dict[str, Any]],
+) -> None:
+    session.exec(
+        ProviderSeriesMapping.__table__.delete().where(
+            (ProviderSeriesMapping.provider == provider)
+            & (ProviderSeriesMapping.slug == slug)
+        )
+    )
+    for mapping in mappings:
+        session.add(
+            ProviderSeriesMapping(
+                provider=provider,
+                slug=slug,
+                tvdb_id=int(mapping["tvdb_id"]),
+                confidence=str(mapping.get("confidence", "unresolved")),
+                source=str(mapping.get("source", "title_match")),
+                rationale=mapping.get("rationale"),
+                last_verified_at=utcnow(),
+            )
+        )
+
+
+def replace_provider_episode_mappings(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    mappings: List[dict[str, Any]],
+) -> None:
+    session.exec(
+        ProviderEpisodeMapping.__table__.delete().where(
+            (ProviderEpisodeMapping.provider == provider)
+            & (ProviderEpisodeMapping.slug == slug)
+        )
+    )
+    for mapping in mappings:
+        session.add(
+            ProviderEpisodeMapping(
+                provider=provider,
+                slug=slug,
+                provider_season=int(mapping["provider_season"]),
+                provider_episode=int(mapping["provider_episode"]),
+                tvdb_id=int(mapping["tvdb_id"]),
+                canonical_season=int(mapping["canonical_season"]),
+                canonical_episode=int(mapping["canonical_episode"]),
+                confidence=str(mapping.get("confidence", "unresolved")),
+                source=str(mapping.get("source", "numbering")),
+                rationale=mapping.get("rationale"),
+                last_verified_at=utcnow(),
+            )
+        )
+
+
+def replace_provider_movie_mappings(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    mappings: List[dict[str, Any]],
+) -> None:
+    session.exec(
+        ProviderMovieMapping.__table__.delete().where(
+            (ProviderMovieMapping.provider == provider)
+            & (ProviderMovieMapping.slug == slug)
+        )
+    )
+    for mapping in mappings:
+        session.add(
+            ProviderMovieMapping(
+                provider=provider,
+                slug=slug,
+                tmdb_id=int(mapping["tmdb_id"]),
+                confidence=str(mapping.get("confidence", "unresolved")),
+                source=str(mapping.get("source", "title_year")),
+                rationale=mapping.get("rationale"),
+                last_verified_at=utcnow(),
+            )
+        )
+
+
+def upsert_canonical_series(
+    session: Session,
+    *,
+    tvdb_id: int,
+    title: str,
+    tmdb_id: Optional[int] = None,
+    imdb_id: Optional[str] = None,
+    tvmaze_id: Optional[int] = None,
+    anilist_id: Optional[int] = None,
+    mal_id: Optional[int] = None,
+    aliases: Optional[List[str]] = None,
+) -> CanonicalSeries:
+    rec = session.get(CanonicalSeries, tvdb_id)
+    if rec is None:
+        rec = CanonicalSeries(tvdb_id=tvdb_id, title=title, normalized_title="")
+    rec.title = title
+    rec.normalized_title = normalize_catalog_text(title)
+    rec.tmdb_id = tmdb_id
+    rec.imdb_id = imdb_id
+    rec.tvmaze_id = tvmaze_id
+    rec.anilist_id = anilist_id
+    rec.mal_id = mal_id
+    rec.last_synced_at = utcnow()
+    session.add(rec)
+    session.exec(CanonicalSeriesAlias.__table__.delete().where(CanonicalSeriesAlias.tvdb_id == tvdb_id))
+    for alias in aliases or []:
+        alias_clean = (alias or "").strip()
+        if not alias_clean:
+            continue
+        session.add(
+            CanonicalSeriesAlias(
+                tvdb_id=tvdb_id,
+                alias=alias_clean,
+                normalized_alias=normalize_catalog_text(alias_clean),
+            )
+        )
+    return rec
+
+
+def replace_canonical_episodes(
+    session: Session,
+    *,
+    tvdb_id: int,
+    episodes: List[dict[str, Any]],
+) -> None:
+    session.exec(
+        CanonicalEpisode.__table__.delete().where(CanonicalEpisode.tvdb_id == tvdb_id)
+    )
+    for episode in episodes:
+        title = str(episode.get("title") or "").strip()
+        if not title:
+            continue
+        session.add(
+            CanonicalEpisode(
+                tvdb_id=tvdb_id,
+                season=int(episode["season"]),
+                episode=int(episode["episode"]),
+                title=title,
+                normalized_title=normalize_catalog_text(title),
+                last_synced_at=utcnow(),
+            )
+        )
+
+
+def is_catalog_bootstrap_ready(
+    session: Session,
+    *,
+    providers: List[str],
+) -> bool:
+    if not providers:
+        return True
+    statuses = {
+        row.provider: row
+        for row in session.exec(
+            select(ProviderIndexStatus).where(ProviderIndexStatus.provider.in_(providers))
+        ).all()
+    }
+    return all(
+        status is not None
+        and status.bootstrap_completed
+        and bool(status.latest_success_generation)
+        for status in (statuses.get(provider) for provider in providers)
+    )
+
+
+def catalog_title_count(session: Session, *, provider: Optional[str] = None) -> int:
+    stmt = select(ProviderCatalogTitle)
+    if provider:
+        stmt = stmt.where(ProviderCatalogTitle.provider == provider)
+    return len(session.exec(stmt).all())
+
+
+def resolve_indexed_title(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+) -> Optional[str]:
+    status = session.get(ProviderIndexStatus, provider)
+    if status is None or not status.latest_success_generation:
+        return None
+    row = session.get(ProviderCatalogTitle, (provider, slug))
+    if row is None or row.indexed_generation != status.latest_success_generation:
+        return None
+    return row.title if row else None
+
+
+def search_indexed_provider_titles(
+    session: Session,
+    *,
+    query: str,
+    providers: List[str],
+    media_type_hint: Optional[str] = None,
+    limit: int = 20,
+) -> List[ProviderCatalogTitle]:
+    q_norm = normalize_catalog_text(query)
+    if not q_norm:
+        return []
+    tokens = [token for token in q_norm.split(" ") if token]
+    if not tokens:
+        return []
+    visible_generations = _visible_generation_map(session, providers=providers)
+    if not visible_generations:
+        return []
+    stmt = select(ProviderCatalogTitle).where(ProviderCatalogTitle.provider.in_(providers))
+    if media_type_hint is not None:
+        stmt = stmt.where(ProviderCatalogTitle.media_type_hint == media_type_hint)
+    rows = [
+        row
+        for row in session.exec(stmt).all()
+        if visible_generations.get(row.provider) == row.indexed_generation
+    ]
+
+    def _score(row: ProviderCatalogTitle) -> tuple[int, int]:
+        names = [row.normalized_title]
+        alias_rows = session.exec(
+            select(ProviderCatalogAlias).where(
+                (ProviderCatalogAlias.provider == row.provider)
+                & (ProviderCatalogAlias.slug == row.slug)
+            )
+        ).all()
+        names.extend(alias.normalized_alias for alias in alias_rows)
+        best = 0
+        exact = 0
+        for name in names:
+            name_tokens = set(token for token in name.split(" ") if token)
+            overlap = len(name_tokens & set(tokens))
+            if name == q_norm:
+                exact = 1
+            if overlap > best:
+                best = overlap
+        return (exact, best)
+
+    ranked = sorted(
+        rows,
+        key=lambda row: _score(row),
+        reverse=True,
+    )
+    filtered = [row for row in ranked if _score(row)[1] > 0 or _score(row)[0] > 0]
+    return filtered[: max(1, limit)]
+
+
+def list_indexed_titles_for_provider(
+    session: Session,
+    *,
+    provider: str,
+) -> List[ProviderCatalogTitle]:
+    status = session.get(ProviderIndexStatus, provider)
+    if status is None or not status.latest_success_generation:
+        return []
+    return list(
+        session.exec(
+            select(ProviderCatalogTitle).where(
+                (ProviderCatalogTitle.provider == provider)
+                & (
+                    ProviderCatalogTitle.indexed_generation
+                    == status.latest_success_generation
+                )
+            )
+        ).all()
+    )
+
+
+def get_indexed_episode_languages(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    season: int,
+    episode: int,
+) -> List[ProviderEpisodeLanguage]:
+    status = session.get(ProviderIndexStatus, provider)
+    if status is None or not status.latest_success_generation:
+        return []
+    return list(
+        session.exec(
+            select(ProviderEpisodeLanguage).where(
+                (ProviderEpisodeLanguage.provider == provider)
+                & (ProviderEpisodeLanguage.slug == slug)
+                & (ProviderEpisodeLanguage.season == season)
+                & (ProviderEpisodeLanguage.episode == episode)
+                & (
+                    ProviderEpisodeLanguage.indexed_generation
+                    == status.latest_success_generation
+                )
+            )
+        ).all()
+    )
+
+
+def list_indexed_provider_episodes(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+) -> List[ProviderCatalogEpisode]:
+    status = session.get(ProviderIndexStatus, provider)
+    if status is None or not status.latest_success_generation:
+        return []
+    return list(
+        session.exec(
+            select(ProviderCatalogEpisode).where(
+                (ProviderCatalogEpisode.provider == provider)
+                & (ProviderCatalogEpisode.slug == slug)
+                & (
+                    ProviderCatalogEpisode.indexed_generation
+                    == status.latest_success_generation
+                )
+            )
+        ).all()
+    )
+
+
+def list_indexed_episode_numbers_for_season(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    season: int,
+) -> List[int]:
+    status = session.get(ProviderIndexStatus, provider)
+    if status is None or not status.latest_success_generation:
+        return []
+    episodes = [
+        int(row.episode)
+        for row in session.exec(
+            select(ProviderCatalogEpisode).where(
+                (ProviderCatalogEpisode.provider == provider)
+                & (ProviderCatalogEpisode.slug == slug)
+                & (ProviderCatalogEpisode.season == season)
+                & (
+                    ProviderCatalogEpisode.indexed_generation
+                    == status.latest_success_generation
+                )
+            )
+        ).all()
+    ]
+    return sorted(set(episodes))
+
+
+def find_canonical_series_by_ids_or_title(
+    session: Session,
+    *,
+    tvdb_id: Optional[int] = None,
+    tmdb_id: Optional[int] = None,
+    imdb_id: Optional[str] = None,
+    query: Optional[str] = None,
+) -> Optional[CanonicalSeries]:
+    if tvdb_id:
+        row = session.get(CanonicalSeries, tvdb_id)
+        if row is not None:
+            return row
+    if tmdb_id:
+        row = session.exec(
+            select(CanonicalSeries).where(CanonicalSeries.tmdb_id == tmdb_id)
+        ).first()
+        if row is not None:
+            return row
+    if imdb_id:
+        row = session.exec(
+            select(CanonicalSeries).where(CanonicalSeries.imdb_id == imdb_id)
+        ).first()
+        if row is not None:
+            return row
+    q_norm = normalize_catalog_text(query or "")
+    if not q_norm:
+        return None
+    row = session.exec(
+        select(CanonicalSeries).where(CanonicalSeries.normalized_title == q_norm)
+    ).first()
+    if row is not None:
+        return row
+    alias = session.exec(
+        select(CanonicalSeriesAlias).where(CanonicalSeriesAlias.normalized_alias == q_norm)
+    ).first()
+    if alias is not None:
+        return session.get(CanonicalSeries, alias.tvdb_id)
+    return None
+
+
+def find_provider_episode_mappings_for_canonical_episode(
+    session: Session,
+    *,
+    tvdb_id: int,
+    canonical_season: int,
+    canonical_episode: int,
+    providers: List[str],
+) -> List[ProviderEpisodeMapping]:
+    return list(
+        session.exec(
+            select(ProviderEpisodeMapping).where(
+                (ProviderEpisodeMapping.tvdb_id == tvdb_id)
+                & (ProviderEpisodeMapping.canonical_season == canonical_season)
+                & (ProviderEpisodeMapping.canonical_episode == canonical_episode)
+                & (ProviderEpisodeMapping.provider.in_(providers))
+                & ProviderEpisodeMapping.confidence.in_(
+                    ["confirmed", "high_confidence", "low_confidence"]
+                )
+            )
+        ).all()
+    )
+
+
+def find_provider_episode_mappings_for_canonical_season(
+    session: Session,
+    *,
+    tvdb_id: int,
+    canonical_season: int,
+    providers: List[str],
+) -> List[ProviderEpisodeMapping]:
+    return list(
+        session.exec(
+            select(ProviderEpisodeMapping).where(
+                (ProviderEpisodeMapping.tvdb_id == tvdb_id)
+                & (ProviderEpisodeMapping.canonical_season == canonical_season)
+                & (ProviderEpisodeMapping.provider.in_(providers))
+                & ProviderEpisodeMapping.confidence.in_(
+                    ["confirmed", "high_confidence", "low_confidence"]
+                )
+            )
+        ).all()
+    )
+
+
+def find_provider_episode_mapping(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    provider_season: int,
+    provider_episode: int,
+) -> Optional[ProviderEpisodeMapping]:
+    return session.exec(
+        select(ProviderEpisodeMapping).where(
+            (ProviderEpisodeMapping.provider == provider)
+            & (ProviderEpisodeMapping.slug == slug)
+            & (ProviderEpisodeMapping.provider_season == provider_season)
+            & (ProviderEpisodeMapping.provider_episode == provider_episode)
+            & ProviderEpisodeMapping.confidence.in_(
+                ["confirmed", "high_confidence", "low_confidence"]
+            )
+        )
+    ).first()
 
 
 # --- STRM URL Mapping CRUD

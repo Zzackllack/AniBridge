@@ -229,6 +229,47 @@ MEGAKINO_TITLES_REFRESH_HOURS = float(os.getenv("MEGAKINO_TITLES_REFRESH_HOURS",
 MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN = int(
     os.getenv("MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN", "100")
 )
+PROVIDER_INDEX_REFRESH_HOURS = float(
+    os.getenv("PROVIDER_INDEX_REFRESH_HOURS", "24")
+)
+PROVIDER_INDEX_REFRESH_HOURS_ANIWORLD = float(
+    os.getenv(
+        "PROVIDER_INDEX_REFRESH_HOURS_ANIWORLD", str(PROVIDER_INDEX_REFRESH_HOURS)
+    )
+)
+PROVIDER_INDEX_REFRESH_HOURS_STO = float(
+    os.getenv("PROVIDER_INDEX_REFRESH_HOURS_STO", str(PROVIDER_INDEX_REFRESH_HOURS))
+)
+PROVIDER_INDEX_REFRESH_HOURS_MEGAKINO = float(
+    os.getenv(
+        "PROVIDER_INDEX_REFRESH_HOURS_MEGAKINO", str(PROVIDER_INDEX_REFRESH_HOURS)
+    )
+)
+PROVIDER_INDEX_SCHEDULER_POLL_SECONDS = _as_non_negative_int(
+    os.getenv("PROVIDER_INDEX_SCHEDULER_POLL_SECONDS"), 60
+)
+if PROVIDER_INDEX_SCHEDULER_POLL_SECONDS < 5:
+    PROVIDER_INDEX_SCHEDULER_POLL_SECONDS = 5
+PROVIDER_INDEX_GLOBAL_CONCURRENCY = _as_non_negative_int(
+    os.getenv("PROVIDER_INDEX_GLOBAL_CONCURRENCY"), 1
+)
+if PROVIDER_INDEX_GLOBAL_CONCURRENCY < 1:
+    PROVIDER_INDEX_GLOBAL_CONCURRENCY = 1
+PROVIDER_INDEX_CONCURRENCY_ANIWORLD = _as_non_negative_int(
+    os.getenv("PROVIDER_INDEX_CONCURRENCY_ANIWORLD"), 1
+)
+if PROVIDER_INDEX_CONCURRENCY_ANIWORLD < 1:
+    PROVIDER_INDEX_CONCURRENCY_ANIWORLD = 1
+PROVIDER_INDEX_CONCURRENCY_STO = _as_non_negative_int(
+    os.getenv("PROVIDER_INDEX_CONCURRENCY_STO"), 1
+)
+if PROVIDER_INDEX_CONCURRENCY_STO < 1:
+    PROVIDER_INDEX_CONCURRENCY_STO = 1
+PROVIDER_INDEX_CONCURRENCY_MEGAKINO = _as_non_negative_int(
+    os.getenv("PROVIDER_INDEX_CONCURRENCY_MEGAKINO"), 1
+)
+if PROVIDER_INDEX_CONCURRENCY_MEGAKINO < 1:
+    PROVIDER_INDEX_CONCURRENCY_MEGAKINO = 1
 
 logger.debug(
     f"ANIWORLD_ALPHABET_HTML={ANIWORLD_ALPHABET_HTML}, ANIWORLD_ALPHABET_URL={ANIWORLD_ALPHABET_URL}"
@@ -239,6 +280,21 @@ logger.debug(
 logger.debug(f"MEGAKINO_BASE_URL={MEGAKINO_BASE_URL}")
 logger.debug(f"MEGAKINO_TITLES_REFRESH_HOURS={MEGAKINO_TITLES_REFRESH_HOURS}")
 logger.debug(f"MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN={MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN}")
+logger.debug("PROVIDER_INDEX_REFRESH_HOURS={}", PROVIDER_INDEX_REFRESH_HOURS)
+logger.debug(
+    "Provider index refresh overrides: aniworld={} sto={} megakino={}",
+    PROVIDER_INDEX_REFRESH_HOURS_ANIWORLD,
+    PROVIDER_INDEX_REFRESH_HOURS_STO,
+    PROVIDER_INDEX_REFRESH_HOURS_MEGAKINO,
+)
+logger.debug(
+    "Provider index scheduler: poll_seconds={} global_concurrency={} per_provider=({}, {}, {})",
+    PROVIDER_INDEX_SCHEDULER_POLL_SECONDS,
+    PROVIDER_INDEX_GLOBAL_CONCURRENCY,
+    PROVIDER_INDEX_CONCURRENCY_ANIWORLD,
+    PROVIDER_INDEX_CONCURRENCY_STO,
+    PROVIDER_INDEX_CONCURRENCY_MEGAKINO,
+)
 
 # TTL (Stunden) für Live-Index; 0 = nie neu laden (nur einmal pro Prozess)
 ANIWORLD_TITLES_REFRESH_HOURS = float(os.getenv("ANIWORLD_TITLES_REFRESH_HOURS", "24"))
@@ -266,6 +322,8 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "alphabet_html": ANIWORLD_ALPHABET_HTML,
         "alphabet_url": ANIWORLD_ALPHABET_URL,
         "titles_refresh_hours": ANIWORLD_TITLES_REFRESH_HOURS,
+        "provider_index_refresh_hours": PROVIDER_INDEX_REFRESH_HOURS_ANIWORLD,
+        "provider_index_concurrency": PROVIDER_INDEX_CONCURRENCY_ANIWORLD,
         "default_languages": ["German Dub", "German Sub", "English Sub"],
         "release_group": RELEASE_GROUP_ANIWORLD,
     },
@@ -274,6 +332,8 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "alphabet_html": STO_ALPHABET_HTML,
         "alphabet_url": STO_ALPHABET_URL,
         "titles_refresh_hours": STO_TITLES_REFRESH_HOURS,
+        "provider_index_refresh_hours": PROVIDER_INDEX_REFRESH_HOURS_STO,
+        "provider_index_concurrency": PROVIDER_INDEX_CONCURRENCY_STO,
         "default_languages": ["German Dub", "English Dub"],
         "release_group": RELEASE_GROUP_STO,
     },
@@ -282,6 +342,8 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "alphabet_html": None,
         "alphabet_url": None,
         "titles_refresh_hours": MEGAKINO_TITLES_REFRESH_HOURS,
+        "provider_index_refresh_hours": PROVIDER_INDEX_REFRESH_HOURS_MEGAKINO,
+        "provider_index_concurrency": PROVIDER_INDEX_CONCURRENCY_MEGAKINO,
         "default_languages": ["Deutsch", "German Dub"],
         "release_group": "megakino",
     },

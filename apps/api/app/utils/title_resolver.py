@@ -11,9 +11,17 @@ from typing import Dict, List, Optional, Set, Tuple
 import requests.exceptions
 from bs4 import BeautifulSoup  # type: ignore
 from loguru import logger
+from sqlmodel import Session
 
 from app.utils.logger import config as configure_logger
 from app.utils.http_client import get as http_get  # type: ignore
+from app.catalog import get_catalog_readiness_error
+from app.db import (
+    engine,
+    list_indexed_titles_for_provider,
+    resolve_indexed_title,
+    search_indexed_provider_titles,
+)
 
 from app.config import (
     CATALOG_SITES_LIST,
@@ -490,6 +498,18 @@ def resolve_series_title(
     if not slug:
         logger.warning("No slug provided to resolve_series_title.")
         return None
+    with Session(engine) as session:
+        title = resolve_indexed_title(session, provider=site, slug=slug)
+        if title:
+            logger.info(f"Resolved title for slug '{slug}' on {site}: {title}")
+            return title
+    if get_catalog_readiness_error() is None:
+        logger.warning(
+            "No indexed title found for slug '{}' on {} after catalog bootstrap.",
+            slug,
+            site,
+        )
+        return None
     index = load_or_refresh_index(site)
     title = index.get(slug)
     if title:
@@ -508,6 +528,14 @@ def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[st
         Dict[str, List[str]]: Mapping from slug to list of alternative titles (primary title first).
     """
     global _cached_alts
+    readiness_error = get_catalog_readiness_error()
+    if readiness_error is None:
+        with Session(engine) as session:
+            rows = list_indexed_titles_for_provider(session, provider=site)
+            if rows:
+                # The indexed request path no longer needs a full alternatives dump.
+                # Keep a minimal compatibility shape for older helper call sites.
+                return {row.slug: [row.title] for row in rows}
     now = time.time()
     site_cfg = _get_site_cfg(site) or CATALOG_SITE_CONFIGS.get("aniworld.to", {})
     refresh_hours = float(site_cfg.get("titles_refresh_hours", 24.0))
@@ -692,6 +720,23 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
     """
     if not q:
         return None
+    readiness_error = get_catalog_readiness_error()
+    if readiness_error is None:
+        providers = [site] if site else list(CATALOG_SITES_LIST)
+        preferred = [provider for provider in providers if provider != "megakino"]
+        fallback = [provider for provider in providers if provider == "megakino"]
+        with Session(engine) as session:
+            for batch in (preferred, fallback):
+                if not batch:
+                    continue
+                rows = search_indexed_provider_titles(
+                    session,
+                    query=q,
+                    providers=batch,
+                    limit=1,
+                )
+                if rows:
+                    return (rows[0].provider, rows[0].slug)
 
     def _search_sites(sites: List[str]) -> Optional[Tuple[str, str]]:
         """
