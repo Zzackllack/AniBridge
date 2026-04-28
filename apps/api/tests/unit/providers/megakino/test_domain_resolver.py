@@ -58,7 +58,7 @@ def test_fetch_megakino_mirror_domains_skips_html(monkeypatch):
         "MEGAKINO_DOMAIN_CANDIDATES",
         ["first.example", "second.example"],
     )
-    monkeypatch.setattr(domain_resolver, "http_get", fake_get)
+    monkeypatch.setattr(domain_resolver.requests, "get", fake_get)
 
     domains = domain_resolver.fetch_megakino_mirror_domains(timeout=1)
     assert domains == ["megakino1.to", "megakino1.fit"]
@@ -86,25 +86,21 @@ def test_fetch_megakino_mirror_domains_falls_back_to_sitemap(monkeypatch):
         "MEGAKINO_DOMAIN_CANDIDATES",
         ["first.example"],
     )
-    monkeypatch.setattr(domain_resolver, "http_get", fake_get)
+    monkeypatch.setattr(domain_resolver.requests, "get", fake_get)
 
     domains = domain_resolver.fetch_megakino_mirror_domains(timeout=1)
     assert domains == ["megakino1.org"]
     assert any("/sitemap.xml" in call for call in calls)
 
 
-def test_fetch_megakino_domain_dedupes_and_prefers_candidate_order(monkeypatch):
+def test_fetch_megakino_domain_prefers_seed_order(monkeypatch):
     probed: list[str] = []
 
+    monkeypatch.setattr(domain_resolver, "MEGAKINO_REDIRECT_SEEDS", ["first.example", "second.example"])
     monkeypatch.setattr(
         domain_resolver,
-        "MEGAKINO_DOMAIN_CANDIDATES",
-        ["second.example", "third.example"],
-    )
-    monkeypatch.setattr(
-        domain_resolver,
-        "fetch_megakino_mirror_domains",
-        lambda timeout=0, **kwargs: ["first.example", "second.example"],
+        "_fetch_github_domain_hint",
+        lambda timeout=0: "third.example",
     )
 
     def fake_probe(base_url: str, timeout=0):
@@ -118,19 +114,16 @@ def test_fetch_megakino_domain_dedupes_and_prefers_candidate_order(monkeypatch):
 
     resolved = domain_resolver.fetch_megakino_domain(timeout=1)
     assert resolved == "second.example"
+    assert probed == ["first.example", "second.example"]
     assert probed.count("second.example") == 1
 
 
 def test_fetch_megakino_domain_returns_none_when_all_candidates_fail(monkeypatch):
+    monkeypatch.setattr(domain_resolver, "MEGAKINO_REDIRECT_SEEDS", ["first.example", "second.example"])
     monkeypatch.setattr(
         domain_resolver,
-        "MEGAKINO_DOMAIN_CANDIDATES",
-        ["first.example", "second.example"],
-    )
-    monkeypatch.setattr(
-        domain_resolver,
-        "fetch_megakino_mirror_domains",
-        lambda timeout=0, **kwargs: [],
+        "_fetch_github_domain_hint",
+        lambda timeout=0: None,
     )
     monkeypatch.setattr(
         domain_resolver, "_probe_megakino_sitemap", lambda *a, **k: None
@@ -145,7 +138,7 @@ def test_resolver_http_get_applies_hard_wall_time(monkeypatch):
         time.sleep(1.0)
         raise RuntimeError("late failure")
 
-    monkeypatch.setattr(domain_resolver, "http_get", fake_get)
+    monkeypatch.setattr(domain_resolver.requests, "get", fake_get)
 
     started = time.monotonic()
     try:
@@ -162,20 +155,25 @@ def test_resolver_http_get_applies_hard_wall_time(monkeypatch):
         assert elapsed < 0.5
 
 
-def test_fetch_megakino_domain_disables_mirror_sitemap_fallback(monkeypatch):
-    seen_kwargs: dict[str, object] = {}
+def test_fetch_megakino_domain_uses_github_hint_after_seed_failures(monkeypatch):
+    probed: list[str] = []
 
-    def fake_mirrors(timeout=0, **kwargs):
-        seen_kwargs.update(kwargs)
-        return []
-
+    monkeypatch.setattr(domain_resolver, "MEGAKINO_REDIRECT_SEEDS", ["first.example"])
     monkeypatch.setattr(
         domain_resolver,
-        "MEGAKINO_DOMAIN_CANDIDATES",
-        [],
+        "_fetch_github_domain_hint",
+        lambda timeout=0: "hint.example",
     )
-    monkeypatch.setattr(domain_resolver, "fetch_megakino_mirror_domains", fake_mirrors)
+
+    def fake_probe(base_url: str, timeout=0):
+        domain = domain_resolver._normalize_domain(base_url)
+        probed.append(domain)
+        if domain == "hint.example":
+            return "hint.example"
+        return None
+
+    monkeypatch.setattr(domain_resolver, "_probe_megakino_sitemap", fake_probe)
 
     resolved = domain_resolver.fetch_megakino_domain(timeout=1)
-    assert resolved is None
-    assert seen_kwargs.get("include_sitemap_fallback") is False
+    assert resolved == "hint.example"
+    assert probed == ["first.example", "hint.example"]

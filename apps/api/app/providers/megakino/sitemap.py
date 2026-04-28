@@ -10,7 +10,10 @@ from defusedxml import ElementTree as ET
 
 from loguru import logger
 
-from app.utils.http_client import get as http_get
+MEGAKINO_SITEMAP_USER_AGENT = (
+    "Mozilla/5.0 (AniBridge Megakino Indexer; "
+    "+https://github.com/Zzackllack/AniBridge)"
+)
 
 
 @dataclass(frozen=True)
@@ -199,11 +202,20 @@ def _fetch_sitemap(url: str, timeout: float = 20.0) -> str:
         HTTPError: If the HTTP response status indicates a failure.
     """
     logger.debug("Megakino sitemap fetch: {}", url)
-    resp = http_get(url, timeout=timeout)
+    resp = requests.get(
+        url,
+        timeout=timeout,
+        allow_redirects=True,
+        headers={
+            "User-Agent": MEGAKINO_SITEMAP_USER_AGENT,
+            "Accept-Encoding": "identity",
+        },
+    )
     resp.raise_for_status()
     logger.debug(
-        "Megakino sitemap response: status={} bytes={}",
+        "Megakino sitemap response: status={} final_url={} bytes={}",
         resp.status_code,
+        resp.url,
         len(resp.text or ""),
     )
     return resp.text
