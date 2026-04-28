@@ -37,19 +37,14 @@ CatalogMappingConfidence = Literal[
 
 # ---- Datetime Helpers
 def utcnow() -> datetime:
-    logger.trace("utcnow() called.")
     return datetime.now(timezone.utc)
 
 
 def as_aware_utc(dt: Optional[datetime]) -> datetime:
-    logger.debug(f"as_aware_utc() called with dt={dt}")
     if dt is None:
-        logger.debug("Datetime is None, returning utcnow().")
         return utcnow()
     if dt.tzinfo is None:
-        logger.debug("Datetime is naive, setting tzinfo to UTC.")
         return dt.replace(tzinfo=timezone.utc)
-    logger.debug("Datetime is aware, converting to UTC.")
     return dt.astimezone(timezone.utc)
 
 

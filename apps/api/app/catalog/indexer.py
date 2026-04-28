@@ -10,7 +10,7 @@ from loguru import logger
 from sqlmodel import Session
 
 from app.catalog.exceptions import CatalogNotReadyError
-from app.catalog.providers import crawl_provider_catalog
+from app.catalog.providers import CatalogCrawlObserver, crawl_provider_catalog
 from app.config import (
     ANIBRIDGE_TEST_MODE,
     CATALOG_SITES_LIST,
@@ -20,6 +20,7 @@ from app.config import (
     PROVIDER_INDEX_SCHEDULER_POLL_SECONDS,
 )
 from app.db import (
+    as_aware_utc,
     delete_provider_generation,
     engine,
     get_provider_index_status,
@@ -367,7 +368,7 @@ class ProviderCatalogIndexer:
             return True
         if status.next_refresh_after is None:
             return True
-        return status.next_refresh_after <= utcnow()
+        return as_aware_utc(status.next_refresh_after) <= utcnow()
 
     def _refresh_provider(self, provider: str) -> None:
         refresh_interval_hours = float(
@@ -415,12 +416,12 @@ class ProviderCatalogIndexer:
                 ProgressSnapshot(
                     downloaded=0,
                     total=len(titles),
-                    status="indexing_titles",
+                    status="persisting_titles",
                 )
             )
             self._set_progress(
                 provider,
-                phase="indexing_titles",
+                phase="persisting_titles",
                 total_titles=len(titles),
                 processed_titles=0,
                 current_slug="",
@@ -531,7 +532,7 @@ class ProviderCatalogIndexer:
                     ProgressSnapshot(
                         downloaded=min(len(titles), processed_titles),
                         total=len(titles),
-                        status="indexing_titles",
+                        status="persisting_titles",
                     )
                 )
             completed_at = utcnow()
@@ -598,18 +599,68 @@ class ProviderCatalogIndexer:
 
     def _crawl_provider_catalog_with_heartbeat(self, provider: str) -> list[object]:
         elapsed_seconds = 0.0
+        observer = CatalogCrawlObserver(
+            on_index_loaded=lambda total: self._on_title_index_loaded(provider, total),
+            on_title_started=lambda slug: self._on_title_started(provider, slug),
+            on_title_crawled=lambda slug: self._on_title_crawled(provider, slug),
+        )
         with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(crawl_provider_catalog, provider)
+            future = executor.submit(
+                crawl_provider_catalog,
+                provider,
+                observer=observer,
+            )
             while True:
                 try:
                     return future.result(timeout=_DISCOVERY_HEARTBEAT_SECONDS)
                 except FutureTimeoutError:
                     elapsed_seconds += _DISCOVERY_HEARTBEAT_SECONDS
-                    logger.info(
-                        "Provider catalog {}: still discovering titles after {}s",
-                        provider,
-                        int(elapsed_seconds),
-                    )
+                    processed = self._get_processed_titles(provider)
+                    total = self._get_total_titles(provider)
+                    current_slug = self._get_current_slug(provider)
+                    if total is not None:
+                        percent = 100.0 if total <= 0 else round(processed / total * 100.0, 1)
+                        logger.info(
+                            "Provider catalog {}: crawling title details {}/{} ({}%) after {}s current={}",
+                            provider,
+                            processed,
+                            total,
+                            percent,
+                            int(elapsed_seconds),
+                            current_slug or "-",
+                        )
+                    else:
+                        logger.info(
+                            "Provider catalog {}: still discovering titles after {}s current={}",
+                            provider,
+                            int(elapsed_seconds),
+                            current_slug or "-",
+                        )
+
+    def _on_title_index_loaded(self, provider: str, total_titles: int) -> None:
+        self._set_progress(
+            provider,
+            phase="crawling_titles",
+            total_titles=total_titles,
+            processed_titles=0,
+            current_slug="",
+            reset_log_step=True,
+        )
+        logger.info(
+            "Provider catalog {}: loaded title index with {} titles",
+            provider,
+            total_titles,
+        )
+
+    def _on_title_started(self, provider: str, slug: str) -> None:
+        self._set_progress(
+            provider,
+            phase="crawling_titles",
+            current_slug=slug,
+        )
+
+    def _on_title_crawled(self, provider: str, slug: str) -> None:
+        self._advance_progress(provider, current_slug=slug)
 
     def _is_bootstrap_ready(self) -> bool:
         with Session(engine) as session:
@@ -696,8 +747,9 @@ class ProviderCatalogIndexer:
                 return
             snapshot.last_logged_step = current_step
             logger.info(
-                "Provider catalog {} progress: {}/{} ({}%) current={}",
+                "Provider catalog {} progress [{}]: {}/{} ({}%) current={}",
                 provider,
+                snapshot.phase,
                 snapshot.processed_titles,
                 total,
                 percent,
@@ -710,3 +762,17 @@ class ProviderCatalogIndexer:
             if snapshot is None:
                 return 0
             return snapshot.processed_titles
+
+    def _get_total_titles(self, provider: str) -> int | None:
+        with self._progress_lock:
+            snapshot = self._progress.get(provider)
+            if snapshot is None:
+                return None
+            return snapshot.total_titles
+
+    def _get_current_slug(self, provider: str) -> str:
+        with self._progress_lock:
+            snapshot = self._progress.get(provider)
+            if snapshot is None:
+                return ""
+            return snapshot.current_slug
