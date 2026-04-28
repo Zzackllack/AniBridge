@@ -1,0 +1,532 @@
+from __future__ import annotations
+
+import threading
+from dataclasses import dataclass
+from datetime import timedelta
+from uuid import uuid4
+
+from loguru import logger
+from sqlmodel import Session
+
+from app.catalog.exceptions import CatalogNotReadyError
+from app.catalog.providers import crawl_provider_catalog
+from app.config import (
+    ANIBRIDGE_TEST_MODE,
+    CATALOG_SITES_LIST,
+    CATALOG_SITE_CONFIGS,
+    PROGRESS_STEP_PERCENT,
+    PROVIDER_INDEX_GLOBAL_CONCURRENCY,
+    PROVIDER_INDEX_SCHEDULER_POLL_SECONDS,
+)
+from app.db import (
+    delete_provider_generation,
+    engine,
+    get_provider_index_status,
+    is_catalog_bootstrap_ready,
+    list_provider_index_statuses,
+    prune_provider_generation,
+    replace_canonical_episodes,
+    replace_provider_catalog_aliases,
+    replace_provider_catalog_episodes,
+    replace_provider_catalog_title,
+    replace_provider_episode_mappings,
+    replace_provider_movie_mappings,
+    replace_provider_series_mappings,
+    upsert_canonical_series,
+    upsert_provider_index_status,
+    upsert_provider_title_index_state,
+    utcnow,
+)
+from app.utils.terminal import ProgressReporter, ProgressSnapshot
+
+_INDEXER: "ProviderCatalogIndexer | None" = None
+_INDEXER_LOCK = threading.Lock()
+_UNSET = object()
+
+
+@dataclass(slots=True)
+class ProviderCatalogProgress:
+    provider: str
+    phase: str = "pending"
+    processed_titles: int = 0
+    total_titles: int | None = None
+    current_slug: str = ""
+    last_logged_step: int = -1
+
+    @property
+    def progress_percent(self) -> float | None:
+        if not self.total_titles:
+            return None
+        if self.total_titles <= 0:
+            return 100.0
+        return round(
+            max(0.0, min(100.0, self.processed_titles / self.total_titles * 100.0)),
+            1,
+        )
+
+
+def get_catalog_indexer() -> "ProviderCatalogIndexer":
+    global _INDEXER
+    with _INDEXER_LOCK:
+        if _INDEXER is None:
+            _INDEXER = ProviderCatalogIndexer()
+        return _INDEXER
+
+
+def get_catalog_readiness_error() -> str | None:
+    indexer = get_catalog_indexer()
+    with Session(engine) as session:
+        statuses = list_provider_index_statuses(session)
+        if ANIBRIDGE_TEST_MODE and not statuses:
+            return None
+        if is_catalog_bootstrap_ready(session, providers=CATALOG_SITES_LIST):
+            return None
+        pending: list[str] = []
+        snapshot = indexer.get_progress_snapshot()
+        by_provider = {
+            item["provider"]: item for item in snapshot.get("providers", [])
+        }
+        for provider in CATALOG_SITES_LIST:
+            status = get_provider_index_status(session, provider=provider)
+            if status is None or not status.bootstrap_completed:
+                progress = by_provider.get(provider, {})
+                processed = progress.get("processed_titles")
+                total = progress.get("total_titles")
+                percent = progress.get("progress_percent")
+                phase = progress.get("phase") or "pending"
+                if isinstance(processed, int) and isinstance(total, int) and total > 0:
+                    pending.append(
+                        f"{provider} ({processed}/{total}, {percent:.1f}%, {phase})"
+                    )
+                else:
+                    pending.append(f"{provider} ({phase})")
+        if not pending:
+            return None
+        return (
+            "Provider catalog bootstrap is still running. "
+            f"Pending providers: {', '.join(pending)}."
+        )
+
+
+def require_catalog_ready() -> None:
+    message = get_catalog_readiness_error()
+    if message:
+        logger.warning("Catalog-dependent request blocked: {}", message)
+        raise CatalogNotReadyError(message)
+
+
+class ProviderCatalogIndexer:
+    def __init__(self) -> None:
+        self._stop_event = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._active = threading.Semaphore(PROVIDER_INDEX_GLOBAL_CONCURRENCY)
+        self._progress_lock = threading.Lock()
+        self._progress: dict[str, ProviderCatalogProgress] = {}
+
+    def start(self) -> None:
+        self._ensure_status_rows()
+        if ANIBRIDGE_TEST_MODE:
+            return
+        if self._thread is not None and self._thread.is_alive():
+            return
+        self._thread = threading.Thread(
+            target=self._run_loop,
+            name="provider-catalog-indexer",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop_event.set()
+        if self._thread is not None:
+            self._thread.join(timeout=5)
+
+    def run_due_once(self) -> None:
+        with Session(engine) as session:
+            statuses = list_provider_index_statuses(session)
+        for status in statuses:
+            if self._is_due(status):
+                self.refresh_provider(status.provider)
+
+    def refresh_provider(self, provider: str) -> None:
+        if not self._active.acquire(blocking=False):
+            return
+        try:
+            self._refresh_provider(provider)
+        finally:
+            self._active.release()
+
+    def get_progress_snapshot(self) -> dict[str, object]:
+        with Session(engine) as session:
+            statuses = {
+                status.provider: status
+                for status in list_provider_index_statuses(session)
+            }
+            bootstrap_ready = is_catalog_bootstrap_ready(
+                session, providers=CATALOG_SITES_LIST
+            )
+        with self._progress_lock:
+            runtime = {
+                provider: ProviderCatalogProgress(
+                    provider=snapshot.provider,
+                    phase=snapshot.phase,
+                    processed_titles=snapshot.processed_titles,
+                    total_titles=snapshot.total_titles,
+                    current_slug=snapshot.current_slug,
+                    last_logged_step=snapshot.last_logged_step,
+                )
+                for provider, snapshot in self._progress.items()
+            }
+        providers: list[dict[str, object]] = []
+        for provider in CATALOG_SITES_LIST:
+            status = statuses.get(provider)
+            progress = runtime.get(provider, ProviderCatalogProgress(provider=provider))
+            phase = progress.phase
+            if phase == "pending" and status is not None:
+                phase = status.status
+            providers.append(
+                {
+                    "provider": provider,
+                    "status": status.status if status is not None else "pending",
+                    "bootstrap_completed": (
+                        bool(status.bootstrap_completed) if status is not None else False
+                    ),
+                    "phase": phase,
+                    "processed_titles": progress.processed_titles,
+                    "total_titles": progress.total_titles,
+                    "progress_percent": progress.progress_percent,
+                    "current_slug": progress.current_slug or None,
+                    "last_error_summary": (
+                        status.last_error_summary if status is not None else ""
+                    ),
+                    "latest_started_at": (
+                        status.latest_started_at.isoformat()
+                        if status is not None and status.latest_started_at is not None
+                        else None
+                    ),
+                    "latest_completed_at": (
+                        status.latest_completed_at.isoformat()
+                        if status is not None and status.latest_completed_at is not None
+                        else None
+                    ),
+                }
+            )
+        return {
+            "bootstrap_ready": bootstrap_ready,
+            "bootstrapping": not bootstrap_ready,
+            "providers": providers,
+        }
+
+    def _run_loop(self) -> None:
+        while not self._stop_event.wait(PROVIDER_INDEX_SCHEDULER_POLL_SECONDS):
+            try:
+                self.run_due_once()
+            except Exception as exc:
+                logger.exception("Provider catalog scheduler loop failed: {}", exc)
+
+    def _ensure_status_rows(self) -> None:
+        with Session(engine) as session:
+            now = None
+            for provider in CATALOG_SITES_LIST:
+                self._set_progress(provider, phase="pending")
+                hours = float(
+                    CATALOG_SITE_CONFIGS.get(provider, {}).get(
+                        "provider_index_refresh_hours", 24.0
+                    )
+                )
+                status = get_provider_index_status(session, provider=provider)
+                if status is None:
+                    upsert_provider_index_status(
+                        session,
+                        provider=provider,
+                        refresh_interval_hours=hours,
+                        status="pending",
+                        bootstrap_completed=False,
+                        next_refresh_after=now,
+                    )
+
+    def _is_due(self, status) -> bool:
+        if status.status == "running":
+            return False
+        if status.latest_success_at is None:
+            return True
+        if status.next_refresh_after is None:
+            return True
+        return status.next_refresh_after <= utcnow()
+
+    def _refresh_provider(self, provider: str) -> None:
+        refresh_interval_hours = float(
+            CATALOG_SITE_CONFIGS.get(provider, {}).get("provider_index_refresh_hours", 24.0)
+        )
+        generation = uuid4().hex
+        reporter: ProgressReporter | None = None
+        self._set_progress(
+            provider,
+            phase="discovering_titles",
+            processed_titles=0,
+            total_titles=None,
+            current_slug="",
+            reset_log_step=True,
+        )
+        logger.info("Provider catalog {}: discovering titles", provider)
+        with Session(engine) as session:
+            current = get_provider_index_status(session, provider=provider)
+            failure_count = 0 if current is None else current.failure_count
+            _ = failure_count
+            upsert_provider_index_status(
+                session,
+                provider=provider,
+                refresh_interval_hours=refresh_interval_hours,
+                status="running",
+                current_generation=generation,
+                latest_started_at=utcnow(),
+            )
+
+        try:
+            titles = crawl_provider_catalog(provider)
+            reporter = ProgressReporter(
+                label=f"Catalog {provider}",
+                unit="title",
+                unit_scale=False,
+            )
+            reporter.update(
+                ProgressSnapshot(
+                    downloaded=0,
+                    total=len(titles),
+                    status="indexing_titles",
+                )
+            )
+            self._set_progress(
+                provider,
+                phase="indexing_titles",
+                total_titles=len(titles),
+                processed_titles=0,
+                current_slug="",
+                reset_log_step=True,
+            )
+            for title_record in titles:
+                with Session(engine) as session:
+                    upsert_provider_index_status(
+                        session,
+                        provider=provider,
+                        refresh_interval_hours=refresh_interval_hours,
+                        cursor_title_slug=title_record.slug,
+                    )
+                    upsert_provider_title_index_state(
+                        session,
+                        provider=provider,
+                        slug=title_record.slug,
+                        attempted_at=utcnow(),
+                    )
+                    replace_provider_catalog_title(
+                        session,
+                        provider=provider,
+                        slug=title_record.slug,
+                        title=title_record.title,
+                        media_type_hint=title_record.media_type_hint,
+                        relative_path=title_record.relative_path,
+                        indexed_generation=generation,
+                    )
+                    replace_provider_catalog_aliases(
+                        session,
+                        provider=provider,
+                        slug=title_record.slug,
+                        aliases=title_record.aliases,
+                        indexed_generation=generation,
+                    )
+                    replace_provider_catalog_episodes(
+                        session,
+                        provider=provider,
+                        slug=title_record.slug,
+                        episodes=[
+                            {
+                                "season": episode.season,
+                                "episode": episode.episode,
+                                "relative_path": episode.relative_path,
+                                "title_primary": episode.title_primary,
+                                "title_secondary": episode.title_secondary,
+                                "media_type_hint": episode.media_type_hint,
+                                "languages": [
+                                    {
+                                        "language": lang.language,
+                                        "host_hints": lang.host_hints,
+                                    }
+                                    for lang in episode.languages
+                                ],
+                            }
+                            for episode in title_record.episodes
+                        ],
+                        indexed_generation=generation,
+                    )
+                    if title_record.canonical.series is not None:
+                        series = title_record.canonical.series
+                        upsert_canonical_series(
+                            session,
+                            tvdb_id=int(series["tvdb_id"]),
+                            title=str(series["title"]),
+                            tmdb_id=series.get("tmdb_id"),
+                            imdb_id=series.get("imdb_id"),
+                            tvmaze_id=series.get("tvmaze_id"),
+                            anilist_id=series.get("anilist_id"),
+                            mal_id=series.get("mal_id"),
+                            aliases=list(series.get("aliases") or []),
+                        )
+                        replace_canonical_episodes(
+                            session,
+                            tvdb_id=int(series["tvdb_id"]),
+                            episodes=title_record.canonical.episodes,
+                        )
+                    replace_provider_series_mappings(
+                        session,
+                        provider=provider,
+                        slug=title_record.slug,
+                        mappings=title_record.canonical.series_mappings,
+                    )
+                    replace_provider_episode_mappings(
+                        session,
+                        provider=provider,
+                        slug=title_record.slug,
+                        mappings=title_record.canonical.episode_mappings,
+                    )
+                    replace_provider_movie_mappings(
+                        session,
+                        provider=provider,
+                        slug=title_record.slug,
+                        mappings=title_record.canonical.movie_mappings,
+                    )
+                    upsert_provider_title_index_state(
+                        session,
+                        provider=provider,
+                        slug=title_record.slug,
+                        succeeded_at=utcnow(),
+                        failure_count=0,
+                        last_error_summary="",
+                    )
+                    session.commit()
+                self._advance_progress(provider, current_slug=title_record.slug)
+                processed_titles = self._get_processed_titles(provider)
+                reporter.update(
+                    ProgressSnapshot(
+                        downloaded=min(len(titles), processed_titles),
+                        total=len(titles),
+                        status="indexing_titles",
+                    )
+                )
+            completed_at = utcnow()
+            with Session(engine) as session:
+                prune_provider_generation(
+                    session,
+                    provider=provider,
+                    keep_generation=generation,
+                )
+                upsert_provider_index_status(
+                    session,
+                    provider=provider,
+                    refresh_interval_hours=refresh_interval_hours,
+                    status="ready",
+                    current_generation=generation,
+                    latest_success_generation=generation,
+                    latest_completed_at=completed_at,
+                    latest_success_at=completed_at,
+                    next_refresh_after=completed_at
+                    + timedelta(hours=refresh_interval_hours),
+                    bootstrap_completed=True,
+                    failure_count=0,
+                    last_error_summary="",
+                    cursor_title_slug="",
+                )
+            self._set_progress(
+                provider,
+                phase="ready",
+                current_slug="",
+            )
+            if reporter is not None:
+                reporter.close()
+        except Exception as exc:
+            logger.exception("Provider catalog refresh failed for {}: {}", provider, exc)
+            if reporter is not None:
+                reporter.close()
+            completed_at = utcnow()
+            with Session(engine) as session:
+                delete_provider_generation(
+                    session,
+                    provider=provider,
+                    generation=generation,
+                )
+                current = get_provider_index_status(session, provider=provider)
+                failure_count = 1 if current is None else current.failure_count + 1
+                upsert_provider_index_status(
+                    session,
+                    provider=provider,
+                    refresh_interval_hours=refresh_interval_hours,
+                    status="failed",
+                    latest_completed_at=completed_at,
+                    next_refresh_after=completed_at
+                    + timedelta(hours=refresh_interval_hours),
+                    failure_count=failure_count,
+                    last_error_summary=str(exc)[:500],
+                )
+            self._set_progress(
+                provider,
+                phase="failed",
+                current_slug="",
+            )
+
+    def _set_progress(
+        self,
+        provider: str,
+        *,
+        phase: str | None = None,
+        processed_titles: int | None = None,
+        total_titles: int | None | object = _UNSET,
+        current_slug: str | None = None,
+        reset_log_step: bool = False,
+    ) -> None:
+        with self._progress_lock:
+            snapshot = self._progress.get(provider)
+            if snapshot is None:
+                snapshot = ProviderCatalogProgress(provider=provider)
+                self._progress[provider] = snapshot
+            if phase is not None:
+                snapshot.phase = phase
+            if processed_titles is not None:
+                snapshot.processed_titles = processed_titles
+            if total_titles is not _UNSET:
+                snapshot.total_titles = total_titles
+            if current_slug is not None:
+                snapshot.current_slug = current_slug
+            if reset_log_step:
+                snapshot.last_logged_step = -1
+
+    def _advance_progress(self, provider: str, *, current_slug: str) -> None:
+        with self._progress_lock:
+            snapshot = self._progress.get(provider)
+            if snapshot is None:
+                snapshot = ProviderCatalogProgress(provider=provider)
+                self._progress[provider] = snapshot
+            snapshot.processed_titles += 1
+            snapshot.current_slug = current_slug
+            total = snapshot.total_titles
+            percent = snapshot.progress_percent
+            if total is None or percent is None:
+                return
+            step = max(1, int(PROGRESS_STEP_PERCENT))
+            current_step = int(percent) // step
+            if percent < 100.0 and current_step <= snapshot.last_logged_step:
+                return
+            snapshot.last_logged_step = current_step
+            logger.info(
+                "Provider catalog {} progress: {}/{} ({}%) current={}",
+                provider,
+                snapshot.processed_titles,
+                total,
+                percent,
+                current_slug,
+            )
+
+    def _get_processed_titles(self, provider: str) -> int:
+        with self._progress_lock:
+            snapshot = self._progress.get(provider)
+            if snapshot is None:
+                return 0
+            return snapshot.processed_titles

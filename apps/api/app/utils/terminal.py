@@ -41,8 +41,16 @@ class ProgressReporter:
     - Non-interactive: print an info line every PROGRESS_STEP_PERCENT.
     """
 
-    def __init__(self, label: str) -> None:
+    def __init__(
+        self,
+        label: str,
+        *,
+        unit: str = "B",
+        unit_scale: bool = True,
+    ) -> None:
         self.label = label
+        self.unit = unit
+        self.unit_scale = unit_scale
         self._bar = None
         self._last_step_pct = -1  # last printed step percentage (integer)
         self._interactive = is_interactive_terminal()
@@ -64,8 +72,8 @@ class ProgressReporter:
                 self._bar = tqdm(
                     total=int(total),
                     desc=self.label,
-                    unit="B",
-                    unit_scale=True,
+                    unit=self.unit,
+                    unit_scale=self.unit_scale,
                     leave=True,
                     file=bar_file,
                     ascii=False,  # force unicode blocks (█▉▊▌ etc.)
@@ -106,15 +114,21 @@ class ProgressReporter:
                         else "-"
                     )
                     eta = f"{int(snap.eta)}s" if snap.eta is not None else "-"
+                    progress_text = (
+                        f"{downloaded}/{total} bytes"
+                        if self.unit == "B"
+                        else f"{downloaded}/{total} {self.unit}"
+                    )
                     logger.info(
-                        f"{self.label}: {pct}% ({downloaded}/{total} bytes) speed={speed} eta={eta}"
+                        f"{self.label}: {pct}% ({progress_text}) speed={speed} eta={eta}"
                     )
             else:
                 # Total unknown: avoid spamming; print on large increments
                 threshold = 8 * 1024 * 1024  # 8 MiB
                 if downloaded // threshold > self._last_step_pct:
                     self._last_step_pct = downloaded // threshold
-                    logger.info(f"{self.label}: downloaded {downloaded} bytes...")
+                    suffix = "bytes" if self.unit == "B" else self.unit
+                    logger.info(f"{self.label}: downloaded {downloaded} {suffix}...")
 
     def close(self) -> None:
         if self._bar is not None:

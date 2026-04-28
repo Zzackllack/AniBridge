@@ -9,8 +9,11 @@ from fastapi.responses import Response as FastAPIResponse
 from loguru import logger
 from sqlmodel import Session
 
+from app.catalog import require_catalog_ready
+from app.catalog.exceptions import CatalogNotReadyError
 from app.config import (
     ANIBRIDGE_TEST_MODE,
+    CATALOG_SITES_LIST,
     SPECIALS_METADATA_ENABLED,
     STRM_FILES_MODE,
     TORZNAB_CAT_ANIME,
@@ -18,14 +21,23 @@ from app.config import (
     TORZNAB_RETURN_TEST_RESULT,
     TORZNAB_SEASON_SEARCH_MAX_CONSECUTIVE_MISSES,
     TORZNAB_SEASON_SEARCH_MAX_EPISODES,
-    TORZNAB_SEASON_SEARCH_MODE,
     TORZNAB_TEST_EPISODE,
     TORZNAB_TEST_LANGUAGE,
     TORZNAB_TEST_SEASON,
     TORZNAB_TEST_SLUG,
     TORZNAB_TEST_TITLE,
 )
-from app.db import get_session
+from app.db import (
+    find_canonical_series_by_ids_or_title,
+    find_provider_episode_mapping,
+    find_provider_episode_mappings_for_canonical_episode,
+    find_provider_episode_mappings_for_canonical_season,
+    get_indexed_episode_languages,
+    get_session,
+    list_indexed_provider_episodes,
+    resolve_indexed_title,
+    search_indexed_provider_titles,
+)
 from app.providers.aniworld.specials import (
     SpecialIds,
     resolve_special_mapping_from_episode_request,
@@ -355,6 +367,212 @@ def _rss_response(rss: ET.Element) -> Response:
     return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
 
 
+def _indexed_preview_results(
+    *,
+    tn_module,
+    session: Session,
+    q_str: str,
+    channel: ET.Element,
+    cat_id: int,
+    providers: list[str],
+    limit: int,
+    strm_suffix: str,
+) -> int:
+    rows = search_indexed_provider_titles(
+        session,
+        query=q_str,
+        providers=providers,
+        limit=max(1, limit),
+    )
+    now = datetime.now(timezone.utc)
+    count = 0
+    for row in rows:
+        provider = row.provider
+        title = row.title
+        episodes = list_indexed_provider_episodes(
+            session,
+            provider=provider,
+            slug=row.slug,
+        )
+        if episodes:
+            target = sorted(episodes, key=lambda item: (item.season, item.episode))[0]
+            mapping = find_provider_episode_mapping(
+                session,
+                provider=provider,
+                slug=row.slug,
+                provider_season=target.season,
+                provider_episode=target.episode,
+            )
+            languages = get_indexed_episode_languages(
+                session,
+                provider=provider,
+                slug=row.slug,
+                season=target.season,
+                episode=target.episode,
+            )
+            language_values = [item.language for item in languages] or _default_languages_for_site(provider)
+            season_i = mapping.canonical_season if mapping is not None else target.season
+            episode_i = mapping.canonical_episode if mapping is not None else target.episode
+            provider_season_i = target.season
+            provider_episode_i = target.episode
+        else:
+            language_values = _default_languages_for_site(provider)
+            season_i = 1
+            episode_i = 1
+            provider_season_i = 1
+            provider_episode_i = 1
+        for language in language_values:
+            release_title = tn_module.build_release_name(
+                series_title=title,
+                season=None if cat_id == TORZNAB_CAT_MOVIE else season_i,
+                episode=None if cat_id == TORZNAB_CAT_MOVIE else episode_i,
+                height=None,
+                vcodec=None,
+                language=language,
+                site=provider,
+            )
+            magnet = tn_module.build_magnet(
+                title=release_title,
+                slug=row.slug,
+                season=provider_season_i,
+                episode=provider_episode_i,
+                language=language,
+                provider=None,
+                site=provider,
+            )
+            _build_item(
+                channel=channel,
+                title=release_title,
+                magnet=magnet,
+                pubdate=now,
+                cat_id=cat_id,
+                guid_str=f"{provider}:{row.slug}:{season_i}:{episode_i}:{language}",
+                language=language,
+            )
+            count += 1
+            if count >= max(1, limit):
+                return count
+            if STRM_FILES_MODE in ("only", "both"):
+                magnet_strm = tn_module.build_magnet(
+                    title=release_title + strm_suffix,
+                    slug=row.slug,
+                    season=provider_season_i,
+                    episode=provider_episode_i,
+                    language=language,
+                    provider=None,
+                    site=provider,
+                    mode="strm",
+                )
+                _build_item(
+                    channel=channel,
+                    title=release_title + strm_suffix,
+                    magnet=magnet_strm,
+                    pubdate=now,
+                    cat_id=cat_id,
+                    guid_str=f"{provider}:{row.slug}:{season_i}:{episode_i}:{language}:strm",
+                    language=language,
+                )
+                count += 1
+            if count >= max(1, limit):
+                return count
+    return count
+
+
+def _emit_indexed_mapped_episode(
+    *,
+    tn_module,
+    session: Session,
+    channel: ET.Element,
+    provider: str,
+    slug: str,
+    title: str,
+    canonical_season: int,
+    canonical_episode: int,
+    provider_season: int,
+    provider_episode: int,
+    cat_id: int,
+    now: datetime,
+    strm_suffix: str,
+    max_items: int,
+) -> int:
+    languages = get_indexed_episode_languages(
+        session,
+        provider=provider,
+        slug=slug,
+        season=provider_season,
+        episode=provider_episode,
+    )
+    emitted = 0
+    for language_row in languages or []:
+        release_title = tn_module.build_release_name(
+            series_title=title,
+            season=canonical_season,
+            episode=canonical_episode,
+            height=None,
+            vcodec=None,
+            language=language_row.language,
+            site=provider,
+        )
+        magnet = tn_module.build_magnet(
+            title=release_title,
+            slug=slug,
+            season=provider_season,
+            episode=provider_episode,
+            language=language_row.language,
+            provider=None,
+            site=provider,
+        )
+        _build_item(
+            channel=channel,
+            title=release_title,
+            magnet=magnet,
+            pubdate=now,
+            cat_id=cat_id,
+            guid_str=f"{provider}:{slug}:S{canonical_season}E{canonical_episode}:{language_row.language}",
+            language=language_row.language,
+        )
+        emitted += 1
+        if emitted >= max_items:
+            return emitted
+        if STRM_FILES_MODE in ("only", "both"):
+            magnet_strm = tn_module.build_magnet(
+                title=release_title + strm_suffix,
+                slug=slug,
+                season=provider_season,
+                episode=provider_episode,
+                language=language_row.language,
+                provider=None,
+                site=provider,
+                mode="strm",
+            )
+            _build_item(
+                channel=channel,
+                title=release_title + strm_suffix,
+                magnet=magnet_strm,
+                pubdate=now,
+                cat_id=cat_id,
+                guid_str=f"{provider}:{slug}:S{canonical_season}E{canonical_episode}:{language_row.language}:strm",
+                language=language_row.language,
+            )
+            emitted += 1
+        if emitted >= max_items:
+            return emitted
+    return emitted
+
+
+def _indexed_display_title(
+    *,
+    session: Session,
+    provider: str,
+    slug: str,
+    fallback_title: str,
+) -> str:
+    title = resolve_indexed_title(session, provider=provider, slug=slug)
+    if title:
+        return title
+    return fallback_title
+
+
 @router.get("/api", response_class=FastAPIResponse)
 def torznab_api(
     request: Request,
@@ -406,6 +624,13 @@ def torznab_api(
     if t == "search":
         import app.api.torznab as tn
 
+        try:
+            require_catalog_ready()
+        except CatalogNotReadyError as exc:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
         rss, channel = _rss_root()
         q_str = (q or "").strip()
         strm_suffix = " [STRM]"
@@ -430,54 +655,50 @@ def torznab_api(
             return _rss_response(rss)
 
         if movie_preferred:
-            count = _handle_preview_search(
-                session,
-                q_str,
-                channel,
-                TORZNAB_CAT_MOVIE,
-                site="megakino",
+            count = _indexed_preview_results(
+                tn_module=tn,
+                session=session,
+                q_str=q_str,
+                channel=channel,
+                cat_id=TORZNAB_CAT_MOVIE,
+                providers=["megakino"],
                 limit=limit,
                 strm_suffix=strm_suffix,
             )
             if count == 0:
-                _handle_preview_search(
-                    session,
-                    q_str,
-                    channel,
-                    TORZNAB_CAT_ANIME,
+                _indexed_preview_results(
+                    tn_module=tn,
+                    session=session,
+                    q_str=q_str,
+                    channel=channel,
+                    cat_id=TORZNAB_CAT_ANIME,
+                    providers=[site for site in CATALOG_SITES_LIST if site != "megakino"],
                     limit=limit,
                     strm_suffix=strm_suffix,
                 )
             return _rss_response(rss)
 
-        special_count = _handle_special_search(
-            session,
-            q_str,
-            channel,
-            cat_id,
-            ids=SpecialIds(
-                tvdbid=tvdbid,
-                tmdbid=tmdbid,
-                imdbid=imdbid,
-                rid=rid,
-                tvmazeid=tvmazeid,
-            ),
+        _indexed_preview_results(
+            tn_module=tn,
+            session=session,
+            q_str=q_str,
+            channel=channel,
+            cat_id=cat_id,
+            providers=[site for site in CATALOG_SITES_LIST if site != "megakino"],
             limit=limit,
             strm_suffix=strm_suffix,
         )
-        if special_count == 0:
-            _handle_preview_search(
-                session,
-                q_str,
-                channel,
-                cat_id,
-                limit=limit,
-                strm_suffix=strm_suffix,
-            )
         return _rss_response(rss)
 
     if t in ("movie", "movie-search"):
         import app.api.torznab as tn
+
+        try:
+            require_catalog_ready()
+        except CatalogNotReadyError as exc:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
 
         rss, channel = _rss_root()
         q_str = (q or "").strip()
@@ -491,12 +712,13 @@ def torznab_api(
             )
             return _rss_response(rss)
         if q_str:
-            _handle_preview_search(
-                session,
-                q_str,
-                channel,
-                TORZNAB_CAT_MOVIE,
-                site="megakino",
+            _indexed_preview_results(
+                tn_module=tn,
+                session=session,
+                q_str=q_str,
+                channel=channel,
+                cat_id=TORZNAB_CAT_MOVIE,
+                providers=["megakino"],
                 limit=limit,
                 strm_suffix=strm_suffix,
             )
@@ -508,6 +730,12 @@ def torznab_api(
         raise HTTPException(status_code=400, detail="invalid t")
 
     import app.api.torznab as tn
+    try:
+        require_catalog_ready()
+    except CatalogNotReadyError as exc:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     if season is None:
         logger.debug("Returning empty RSS feed due to missing season.")
@@ -530,100 +758,97 @@ def torznab_api(
         logger.debug("Returning empty RSS feed due to unresolved tvsearch query.")
         return _empty_rss_response()
 
-    result = tn._slug_from_query(q_str)
-    if not result:
-        logger.warning("No slug found for query '{}'. Returning empty RSS feed.", q_str)
+    canonical_series = find_canonical_series_by_ids_or_title(
+        session,
+        tvdb_id=tvdbid,
+        tmdb_id=tmdbid,
+        imdb_id=imdbid,
+        query=q_str,
+    )
+    if canonical_series is None:
+        logger.warning(
+            "No canonical series found for query '{}'. Returning empty RSS feed.",
+            q_str,
+        )
         return _empty_rss_response()
-
-    site_found, slug = result
-    display_title = tn.resolve_series_title(slug, site_found) or q_str
     rss, channel = _rss_root()
-    count = 0
     limit_i = max(1, int(limit))
     now = datetime.now(timezone.utc)
     strm_suffix = " [STRM]"
-    ids = SpecialIds(
-        tvdbid=tvdbid,
-        tmdbid=tmdbid,
-        imdbid=imdbid,
-        rid=rid,
-        tvmazeid=tvmazeid,
-    )
 
     if search_mode == "episode-search":
         assert ep_i is not None
-        emitted, limit_hit = emit_tvsearch_episode_items(
-            tn_module=tn,
-            session=session,
-            channel=channel,
-            slug=slug,
-            site_found=site_found,
-            display_title=display_title,
-            q_str=q_str,
-            request_season=season_i,
-            request_episode=ep_i,
-            ids=ids,
-            now=now,
-            strm_suffix=strm_suffix,
-            max_items=limit_i,
-            allow_live_probe=True,
-        )
-        count += emitted
-        if limit_hit:
-            logger.info(
-                "tvsearch episode-search terminated due to limit hit (limit={})",
-                limit_i,
+        count = 0
+        for mapping in find_provider_episode_mappings_for_canonical_episode(
+            session,
+            tvdb_id=canonical_series.tvdb_id,
+            canonical_season=season_i,
+            canonical_episode=ep_i,
+            providers=CATALOG_SITES_LIST,
+        ):
+            display_title = _indexed_display_title(
+                session=session,
+                provider=mapping.provider,
+                slug=mapping.slug,
+                fallback_title=canonical_series.title,
+            )
+            remaining = limit_i - count
+            if remaining <= 0:
+                break
+            count += _emit_indexed_mapped_episode(
+                tn_module=tn,
+                session=session,
+                channel=channel,
+                provider=mapping.provider,
+                slug=mapping.slug,
+                title=display_title,
+                canonical_season=season_i,
+                canonical_episode=ep_i,
+                provider_season=mapping.provider_season,
+                provider_episode=mapping.provider_episode,
+                cat_id=TORZNAB_CAT_ANIME,
+                now=now,
+                strm_suffix=strm_suffix,
+                max_items=remaining,
             )
         return _rss_response(rss)
 
-    fast_season_mode = TORZNAB_SEASON_SEARCH_MODE == "fast"
-    episode_numbers = resolve_season_episode_numbers(
-        tn_module=tn,
-        session=session,
-        slug=slug,
-        season_i=season_i,
-        site_found=site_found,
-        q_str=q_str,
-        ids=ids,
-        allow_fallback_probe=not fast_season_mode,
+    count = 0
+    season_mappings = sorted(
+        find_provider_episode_mappings_for_canonical_season(
+            session,
+            tvdb_id=canonical_series.tvdb_id,
+            canonical_season=season_i,
+            providers=CATALOG_SITES_LIST,
+        ),
+        key=lambda item: (item.canonical_episode, item.provider, item.slug),
     )
-    for episode_i in episode_numbers:
+    for mapping in season_mappings:
         remaining = limit_i - count
         if remaining <= 0:
-            logger.info(
-                "tvsearch season-search termination reason=limit hit limit={}",
-                limit_i,
-            )
             break
-
-        emitted, limit_hit = emit_tvsearch_episode_items(
+        display_title = _indexed_display_title(
+            session=session,
+            provider=mapping.provider,
+            slug=mapping.slug,
+            fallback_title=canonical_series.title,
+        )
+        count += _emit_indexed_mapped_episode(
             tn_module=tn,
             session=session,
             channel=channel,
-            slug=slug,
-            site_found=site_found,
-            display_title=display_title,
-            q_str=q_str,
-            request_season=season_i,
-            request_episode=episode_i,
-            ids=ids,
+            provider=mapping.provider,
+            slug=mapping.slug,
+            title=display_title,
+            canonical_season=season_i,
+            canonical_episode=mapping.canonical_episode,
+            provider_season=mapping.provider_season,
+            provider_episode=mapping.provider_episode,
+            cat_id=TORZNAB_CAT_ANIME,
             now=now,
             strm_suffix=strm_suffix,
             max_items=remaining,
-            allow_live_probe=not fast_season_mode,
-            fast_episode_languages=None,
         )
-        count += emitted
-        if limit_hit:
-            logger.info(
-                (
-                    "tvsearch season-search termination reason=limit hit "
-                    "limit={} emitted_items={}"
-                ),
-                limit_i,
-                count,
-            )
-            break
 
     logger.info("Returning RSS feed with {} items.", count)
     return _rss_response(rss)

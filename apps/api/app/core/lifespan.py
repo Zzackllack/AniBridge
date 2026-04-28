@@ -30,6 +30,7 @@ from app.config import (
 )
 
 from app.core.scheduler import init_executor, shutdown_executor
+from app.catalog import get_catalog_indexer
 from app.db import (
     engine,
     dispose_engine,
@@ -129,6 +130,10 @@ async def lifespan(app: FastAPI):
         if cleaned:
             logger.warning(f"Reset {cleaned} dangling jobs to 'failed'")
     init_executor()
+    try:
+        get_catalog_indexer().start()
+    except Exception as e:
+        logger.warning("provider catalog indexer start failed: {}", e)
 
     # Start background workers
     cleanup_stop = threading.Event()
@@ -159,6 +164,10 @@ async def lifespan(app: FastAPI):
     finally:
         # Shutdown services
         shutdown_executor()
+        try:
+            get_catalog_indexer().stop()
+        except Exception as e:
+            logger.warning("provider catalog indexer stop failed: {}", e)
         try:
             from app.api import strm as strm_api
 
