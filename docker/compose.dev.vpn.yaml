@@ -10,10 +10,11 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: anibridge-dev-vpn
     env_file:
-    # You will need to set port to something other than 8000 in the .env file since this is already used in this stack
       - ../.env
     environment:
       - ANIBRIDGE_RELOAD=true
+          # You will need to set port to something other than 8000 since this is already used in this stack
+      - ANIBRIDGE_PORT=8001
       - DATA_DIR=/data
       - DOWNLOAD_DIR=/downloads
     volumes:
@@ -46,7 +47,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl --fail --silent \"http://localhost:${ANIBRIDGE_PORT:-8000}/health\" >/dev/null && curl --fail --silent https://1.1.1.1 >/dev/null",
+          "curl --fail --silent \"http://localhost:8001/health\" >/dev/null && curl --fail --silent https://1.1.1.1 >/dev/null",
         ]
       interval: 30s
       timeout: 5s
