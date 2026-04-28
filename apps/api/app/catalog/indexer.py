@@ -127,10 +127,17 @@ class ProviderCatalogIndexer:
 
     def start(self) -> None:
         self._ensure_status_rows()
+        self._log_bootstrap_state()
         if ANIBRIDGE_TEST_MODE:
             return
         if self._thread is not None and self._thread.is_alive():
             return
+        logger.info(
+            "Provider catalog scheduler starting: poll={}s global_concurrency={} providers={}",
+            PROVIDER_INDEX_SCHEDULER_POLL_SECONDS,
+            PROVIDER_INDEX_GLOBAL_CONCURRENCY,
+            ", ".join(CATALOG_SITES_LIST),
+        )
         self._thread = threading.Thread(
             target=self._run_loop,
             name="provider-catalog-indexer",
@@ -146,14 +153,55 @@ class ProviderCatalogIndexer:
     def run_due_once(self) -> None:
         with Session(engine) as session:
             statuses = list_provider_index_statuses(session)
+        if not statuses:
+            logger.warning("Provider catalog scheduler: no provider status rows found")
+            return
+        logger.debug(
+            "Provider catalog scheduler pass: bootstrap_ready={} providers={}",
+            self._is_bootstrap_ready(),
+            ", ".join(
+                f"{status.provider}={status.status}"
+                for status in sorted(statuses, key=lambda item: item.provider)
+            ),
+        )
         for status in statuses:
             if self._is_due(status):
+                logger.info(
+                    "Provider catalog scheduler: {} is due (status={} bootstrap_completed={} next_refresh_after={} latest_success_at={})",
+                    status.provider,
+                    status.status,
+                    status.bootstrap_completed,
+                    status.next_refresh_after.isoformat()
+                    if status.next_refresh_after is not None
+                    else None,
+                    status.latest_success_at.isoformat()
+                    if status.latest_success_at is not None
+                    else None,
+                )
                 self.refresh_provider(status.provider)
+            else:
+                logger.debug(
+                    "Provider catalog scheduler: {} not due (status={} bootstrap_completed={} next_refresh_after={} latest_success_at={})",
+                    status.provider,
+                    status.status,
+                    status.bootstrap_completed,
+                    status.next_refresh_after.isoformat()
+                    if status.next_refresh_after is not None
+                    else None,
+                    status.latest_success_at.isoformat()
+                    if status.latest_success_at is not None
+                    else None,
+                )
 
     def refresh_provider(self, provider: str) -> None:
         if not self._active.acquire(blocking=False):
+            logger.warning(
+                "Provider catalog scheduler: concurrency exhausted, skipping {} for now",
+                provider,
+            )
             return
         try:
+            logger.info("Provider catalog scheduler: starting refresh for {}", provider)
             self._refresh_provider(provider)
         finally:
             self._active.release()
@@ -240,6 +288,10 @@ class ProviderCatalogIndexer:
                 )
                 status = get_provider_index_status(session, provider=provider)
                 if status is None:
+                    logger.warning(
+                        "Provider catalog bootstrap: no persisted index state for {}. Initial bootstrap required.",
+                        provider,
+                    )
                     upsert_provider_index_status(
                         session,
                         provider=provider,
@@ -247,6 +299,37 @@ class ProviderCatalogIndexer:
                         status="pending",
                         bootstrap_completed=False,
                         next_refresh_after=now,
+                    )
+                    continue
+                if status.status == "running":
+                    logger.warning(
+                        "Provider catalog bootstrap: recovered interrupted run for {} started_at={} cursor_slug={}. Marking it pending for retry.",
+                        provider,
+                        status.latest_started_at.isoformat()
+                        if status.latest_started_at is not None
+                        else None,
+                        status.cursor_title_slug or None,
+                    )
+                    upsert_provider_index_status(
+                        session,
+                        provider=provider,
+                        refresh_interval_hours=hours,
+                        status="pending",
+                        latest_completed_at=utcnow(),
+                        next_refresh_after=now,
+                        failure_count=status.failure_count + 1,
+                        last_error_summary="Interrupted by process restart before completion.",
+                    )
+                else:
+                    logger.debug(
+                        "Provider catalog bootstrap: loaded persisted state for {} status={} bootstrap_completed={} latest_success_generation={} next_refresh_after={}",
+                        provider,
+                        status.status,
+                        status.bootstrap_completed,
+                        status.latest_success_generation,
+                        status.next_refresh_after.isoformat()
+                        if status.next_refresh_after is not None
+                        else None,
                     )
 
     def _is_due(self, status) -> bool:
@@ -497,6 +580,43 @@ class ProviderCatalogIndexer:
                         provider,
                         int(elapsed_seconds),
                     )
+
+    def _is_bootstrap_ready(self) -> bool:
+        with Session(engine) as session:
+            return is_catalog_bootstrap_ready(session, providers=CATALOG_SITES_LIST)
+
+    def _log_bootstrap_state(self) -> None:
+        with Session(engine) as session:
+            statuses = list_provider_index_statuses(session)
+            bootstrap_ready = is_catalog_bootstrap_ready(
+                session, providers=CATALOG_SITES_LIST
+            )
+        if not statuses:
+            logger.warning("Provider catalog bootstrap: no provider status rows exist yet")
+            return
+        if bootstrap_ready:
+            logger.info("Provider catalog bootstrap: already complete")
+        else:
+            logger.warning("Provider catalog bootstrap: incomplete, requests may be gated")
+        for status in sorted(statuses, key=lambda item: item.provider):
+            logger.info(
+                "Provider catalog bootstrap state: provider={} status={} bootstrap_completed={} latest_success_generation={} latest_started_at={} latest_completed_at={} next_refresh_after={} cursor_slug={} last_error={}",
+                status.provider,
+                status.status,
+                status.bootstrap_completed,
+                status.latest_success_generation,
+                status.latest_started_at.isoformat()
+                if status.latest_started_at is not None
+                else None,
+                status.latest_completed_at.isoformat()
+                if status.latest_completed_at is not None
+                else None,
+                status.next_refresh_after.isoformat()
+                if status.next_refresh_after is not None
+                else None,
+                status.cursor_title_slug or None,
+                status.last_error_summary or None,
+            )
 
     def _set_progress(
         self,
