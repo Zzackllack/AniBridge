@@ -3,6 +3,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
+import re
 from typing import Any, Optional
 from urllib.parse import urlparse
 
@@ -104,6 +105,142 @@ def _normalize_provider_data(raw: Any, *, site: str) -> list[EpisodeLanguageReco
         )
     languages.sort(key=lambda entry: entry.language)
     return languages
+
+
+def _dedupe_languages(
+    languages: list[EpisodeLanguageRecord],
+) -> list[EpisodeLanguageRecord]:
+    deduped: dict[str, set[str]] = {}
+    for item in languages:
+        bucket = deduped.setdefault(item.language, set())
+        bucket.update(item.host_hints)
+    return [
+        EpisodeLanguageRecord(language=language, host_hints=sorted(host_hints))
+        for language, host_hints in sorted(deduped.items())
+    ]
+
+
+def _aniworld_languages_from_flags(host_hints: list[str], row: BeautifulSoup) -> list[EpisodeLanguageRecord]:
+    languages: list[EpisodeLanguageRecord] = []
+    for image in row.select("td.editFunctions img.flag"):
+        src = str(image.get("src") or "").lower()
+        title = str(image.get("title") or "").lower()
+        alt = str(image.get("alt") or "").lower()
+        text = " ".join([src, title, alt])
+        if "japanese-german" in text or "deutsch" in text and "untertitel" in text:
+            languages.append(
+                EpisodeLanguageRecord(
+                    language="German Sub",
+                    host_hints=host_hints,
+                )
+            )
+        elif "japanese-english" in text or "englisch" in text:
+            languages.append(
+                EpisodeLanguageRecord(
+                    language="English Sub",
+                    host_hints=host_hints,
+                )
+            )
+        elif "german.svg" in src or "deutsche sprache" in text or "deutsch/german" in text:
+            languages.append(
+                EpisodeLanguageRecord(
+                    language="German Dub",
+                    host_hints=host_hints,
+                )
+            )
+    return _dedupe_languages(languages)
+
+
+def _host_hints_from_row(row: BeautifulSoup) -> list[str]:
+    names: list[str] = []
+    for icon in row.select("i.icon"):
+        classes = [cls for cls in icon.get("class", []) if cls != "icon"]
+        if classes:
+            names.append(str(classes[-1]))
+            continue
+        title = str(icon.get("title") or "").strip()
+        if title:
+            names.append(title.replace("Hoster ", "").strip())
+    return sorted(dict.fromkeys(name for name in names if name))
+
+
+def _parse_aniworld_season_rows(season) -> list[EpisodeRecord]:
+    soup = BeautifulSoup(season._html, "html.parser")
+    episodes: list[EpisodeRecord] = []
+    for row in soup.select('tr[itemtype="http://schema.org/Episode"]'):
+        link = row.select_one('a[itemprop="url"]')
+        if link is None:
+            continue
+        href = str(link.get("href") or "").strip()
+        if not href:
+            continue
+        relative_path = _relative_path(href)
+        episode_number = 0
+        number_meta = row.select_one('meta[itemprop="episodeNumber"]')
+        if number_meta is not None:
+            content = str(number_meta.get("content") or "").strip()
+            if content.isdigit():
+                episode_number = int(content)
+        if episode_number <= 0:
+            match = re.search(r"(?:episode|film)-(\d+)", href)
+            if match:
+                episode_number = int(match.group(1))
+        if episode_number <= 0:
+            continue
+        title_primary = None
+        title_secondary = None
+        title_cell = row.select_one("td.seasonEpisodeTitle")
+        if title_cell is not None:
+            strong = title_cell.select_one("strong")
+            span = title_cell.select_one("span")
+            title_primary = strong.get_text(" ", strip=True) if strong is not None else None
+            title_secondary = span.get_text(" ", strip=True) if span is not None else None
+        host_hints = _host_hints_from_row(row)
+        languages = _aniworld_languages_from_flags(host_hints, row)
+        episodes.append(
+            EpisodeRecord(
+                season=int(getattr(season, "season_number", 0) or 0),
+                episode=episode_number,
+                relative_path=relative_path,
+                title_primary=title_primary,
+                title_secondary=title_secondary,
+                media_type_hint="movie" if getattr(season, "are_movies", False) else "episode",
+                languages=languages,
+            )
+        )
+    return episodes
+
+
+def _parse_sto_season_rows(season) -> list[EpisodeRecord]:
+    html = season._html
+    season_number = int(getattr(season, "season_number", 0) or 0)
+    pattern = re.compile(
+        r'href="(?P<href>(?:https?://(?:serienstream|s)\.to)?/serie/[^"\s]+/staffel-'
+        + str(season_number)
+        + r'/episode-(?P<episode>\d+))/?\"'
+    )
+    episodes: list[EpisodeRecord] = []
+    seen: set[tuple[int, str]] = set()
+    for match in pattern.finditer(html):
+        episode_number = int(match.group("episode"))
+        href = match.group("href")
+        relative_path = _relative_path(href)
+        key = (episode_number, relative_path)
+        if key in seen:
+            continue
+        seen.add(key)
+        episodes.append(
+            EpisodeRecord(
+                season=season_number,
+                episode=episode_number,
+                relative_path=relative_path,
+                title_primary=None,
+                title_secondary=None,
+                media_type_hint="episode",
+                languages=[],
+            )
+        )
+    return episodes
 
 
 def _score_episode_title(left: str, right: str) -> float:
@@ -275,12 +412,6 @@ def _crawl_aniworld_like_title(
         series = AniworldSeries(url)
         imdb_id = series.imdb
         mal_id = None
-        raw_mal = series.mal_id
-        if isinstance(raw_mal, list) and raw_mal:
-            try:
-                mal_id = int(raw_mal[0])
-            except TypeError, ValueError:
-                mal_id = None
     else:
         from aniworld.models import SerienstreamSeries
 
@@ -290,26 +421,10 @@ def _crawl_aniworld_like_title(
 
     episodes: list[EpisodeRecord] = []
     for season in series.seasons:
-        for episode in season.episodes:
-            provider_data = getattr(episode.provider_data, "_data", None)
-            if provider_data is None:
-                provider_data = getattr(episode.provider_data, "data", None)
-            episodes.append(
-                EpisodeRecord(
-                    season=int(getattr(season, "season_number", 0) or 0),
-                    episode=int(getattr(episode, "episode_number", 0) or 0),
-                    relative_path=_relative_path(episode.url),
-                    title_primary=getattr(episode, "title_de", None),
-                    title_secondary=getattr(episode, "title_en", None),
-                    media_type_hint="movie"
-                    if provider_key == "aniworld.to"
-                    and getattr(episode, "is_movie", False)
-                    else "episode",
-                    languages=_normalize_provider_data(
-                        provider_data, site=provider_key
-                    ),
-                )
-            )
+        if provider_key == "aniworld.to":
+            episodes.extend(_parse_aniworld_season_rows(season))
+        else:
+            episodes.extend(_parse_sto_season_rows(season))
 
     canonical = _build_tv_canonical_payload(
         provider=provider_key,
