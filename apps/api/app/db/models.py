@@ -11,6 +11,7 @@ from fastapi import HTTPException
 # Defer logger configuration to application startup
 
 from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JSON
+from sqlalchemy import tuple_
 from sqlalchemy.orm import registry as sa_registry
 from sqlalchemy.pool import NullPool
 
@@ -288,6 +289,7 @@ class ProviderSeriesMapping(ModelBase, table=True):
     provider: str = Field(primary_key=True)
     slug: str = Field(primary_key=True)
     tvdb_id: int = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
     confidence: str = Field(default="unresolved", index=True)
     source: str = Field(default="title_match", index=True)
     rationale: Optional[str] = None
@@ -302,6 +304,7 @@ class ProviderEpisodeMapping(ModelBase, table=True):
     tvdb_id: int = Field(primary_key=True)
     canonical_season: int = Field(primary_key=True)
     canonical_episode: int = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
     confidence: str = Field(default="unresolved", index=True)
     source: str = Field(default="numbering", index=True)
     rationale: Optional[str] = None
@@ -312,6 +315,7 @@ class ProviderMovieMapping(ModelBase, table=True):
     provider: str = Field(primary_key=True)
     slug: str = Field(primary_key=True)
     tmdb_id: int = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
     confidence: str = Field(default="unresolved", index=True)
     source: str = Field(default="title_year", index=True)
     rationale: Optional[str] = None
@@ -720,22 +724,26 @@ def normalize_catalog_text(value: str) -> str:
     return normalized.lower().strip()
 
 
+_UNSET = object()
+
+
 def upsert_provider_index_status(
     session: Session,
     *,
     provider: str,
     refresh_interval_hours: float,
     status: Optional[str] = None,
-    current_generation: Optional[str] = None,
-    latest_success_generation: Optional[str] = None,
-    latest_started_at: Optional[datetime] = None,
-    latest_completed_at: Optional[datetime] = None,
-    latest_success_at: Optional[datetime] = None,
-    next_refresh_after: Optional[datetime] = None,
+    current_generation: Optional[str] | object = _UNSET,
+    latest_success_generation: Optional[str] | object = _UNSET,
+    latest_started_at: Optional[datetime] | object = _UNSET,
+    latest_completed_at: Optional[datetime] | object = _UNSET,
+    latest_success_at: Optional[datetime] | object = _UNSET,
+    next_refresh_after: Optional[datetime] | object = _UNSET,
     bootstrap_completed: Optional[bool] = None,
     failure_count: Optional[int] = None,
-    last_error_summary: Optional[str] = None,
-    cursor_title_slug: Optional[str] = None,
+    last_error_summary: Optional[str] | object = _UNSET,
+    cursor_title_slug: Optional[str] | object = _UNSET,
+    commit: bool = True,
 ) -> ProviderIndexStatus:
     rec = session.get(ProviderIndexStatus, provider)
     if rec is None:
@@ -746,30 +754,33 @@ def upsert_provider_index_status(
     rec.refresh_interval_hours = refresh_interval_hours
     if status is not None:
         rec.status = status
-    if current_generation is not None:
+    if current_generation is not _UNSET:
         rec.current_generation = current_generation
-    if latest_success_generation is not None:
+    if latest_success_generation is not _UNSET:
         rec.latest_success_generation = latest_success_generation
-    if latest_started_at is not None:
+    if latest_started_at is not _UNSET:
         rec.latest_started_at = latest_started_at
-    if latest_completed_at is not None:
+    if latest_completed_at is not _UNSET:
         rec.latest_completed_at = latest_completed_at
-    if latest_success_at is not None:
+    if latest_success_at is not _UNSET:
         rec.latest_success_at = latest_success_at
-    if next_refresh_after is not None:
+    if next_refresh_after is not _UNSET:
         rec.next_refresh_after = next_refresh_after
     if bootstrap_completed is not None:
         rec.bootstrap_completed = bootstrap_completed
     if failure_count is not None:
         rec.failure_count = failure_count
-    if last_error_summary is not None:
+    if last_error_summary is not _UNSET:
         rec.last_error_summary = last_error_summary
-    if cursor_title_slug is not None or status == "ready":
+    if cursor_title_slug is not _UNSET:
         rec.cursor_title_slug = cursor_title_slug
+    elif status == "ready":
+        rec.cursor_title_slug = None
     rec.updated_at = utcnow()
     session.add(rec)
-    session.commit()
-    session.refresh(rec)
+    if commit:
+        session.commit()
+        session.refresh(rec)
     return rec
 
 
@@ -794,6 +805,7 @@ def upsert_provider_title_index_state(
     succeeded_at: Optional[datetime] = None,
     failure_count: Optional[int] = None,
     last_error_summary: Optional[str] = None,
+    commit: bool = True,
 ) -> ProviderTitleIndexState:
     rec = session.get(ProviderTitleIndexState, (provider, slug))
     if rec is None:
@@ -808,8 +820,9 @@ def upsert_provider_title_index_state(
         rec.last_error_summary = last_error_summary
     rec.updated_at = utcnow()
     session.add(rec)
-    session.commit()
-    session.refresh(rec)
+    if commit:
+        session.commit()
+        session.refresh(rec)
     return rec
 
 
@@ -968,6 +981,24 @@ def prune_provider_generation(
             & (ProviderCatalogTitle.indexed_generation != keep_generation)
         )
     )
+    session.exec(
+        ProviderSeriesMapping.__table__.delete().where(
+            (ProviderSeriesMapping.provider == provider)
+            & (ProviderSeriesMapping.indexed_generation != keep_generation)
+        )
+    )
+    session.exec(
+        ProviderEpisodeMapping.__table__.delete().where(
+            (ProviderEpisodeMapping.provider == provider)
+            & (ProviderEpisodeMapping.indexed_generation != keep_generation)
+        )
+    )
+    session.exec(
+        ProviderMovieMapping.__table__.delete().where(
+            (ProviderMovieMapping.provider == provider)
+            & (ProviderMovieMapping.indexed_generation != keep_generation)
+        )
+    )
     session.commit()
 
 
@@ -1001,6 +1032,24 @@ def delete_provider_generation(
             & (ProviderCatalogTitle.indexed_generation == generation)
         )
     )
+    session.exec(
+        ProviderSeriesMapping.__table__.delete().where(
+            (ProviderSeriesMapping.provider == provider)
+            & (ProviderSeriesMapping.indexed_generation == generation)
+        )
+    )
+    session.exec(
+        ProviderEpisodeMapping.__table__.delete().where(
+            (ProviderEpisodeMapping.provider == provider)
+            & (ProviderEpisodeMapping.indexed_generation == generation)
+        )
+    )
+    session.exec(
+        ProviderMovieMapping.__table__.delete().where(
+            (ProviderMovieMapping.provider == provider)
+            & (ProviderMovieMapping.indexed_generation == generation)
+        )
+    )
     session.commit()
 
 
@@ -1025,11 +1074,13 @@ def replace_provider_series_mappings(
     provider: str,
     slug: str,
     mappings: List[dict[str, Any]],
+    indexed_generation: str,
 ) -> None:
     session.exec(
         ProviderSeriesMapping.__table__.delete().where(
             (ProviderSeriesMapping.provider == provider)
             & (ProviderSeriesMapping.slug == slug)
+            & (ProviderSeriesMapping.indexed_generation == indexed_generation)
         )
     )
     for mapping in mappings:
@@ -1038,6 +1089,7 @@ def replace_provider_series_mappings(
                 provider=provider,
                 slug=slug,
                 tvdb_id=int(mapping["tvdb_id"]),
+                indexed_generation=indexed_generation,
                 confidence=str(mapping.get("confidence", "unresolved")),
                 source=str(mapping.get("source", "title_match")),
                 rationale=mapping.get("rationale"),
@@ -1052,11 +1104,13 @@ def replace_provider_episode_mappings(
     provider: str,
     slug: str,
     mappings: List[dict[str, Any]],
+    indexed_generation: str,
 ) -> None:
     session.exec(
         ProviderEpisodeMapping.__table__.delete().where(
             (ProviderEpisodeMapping.provider == provider)
             & (ProviderEpisodeMapping.slug == slug)
+            & (ProviderEpisodeMapping.indexed_generation == indexed_generation)
         )
     )
     for mapping in mappings:
@@ -1069,6 +1123,7 @@ def replace_provider_episode_mappings(
                 tvdb_id=int(mapping["tvdb_id"]),
                 canonical_season=int(mapping["canonical_season"]),
                 canonical_episode=int(mapping["canonical_episode"]),
+                indexed_generation=indexed_generation,
                 confidence=str(mapping.get("confidence", "unresolved")),
                 source=str(mapping.get("source", "numbering")),
                 rationale=mapping.get("rationale"),
@@ -1083,11 +1138,13 @@ def replace_provider_movie_mappings(
     provider: str,
     slug: str,
     mappings: List[dict[str, Any]],
+    indexed_generation: str,
 ) -> None:
     session.exec(
         ProviderMovieMapping.__table__.delete().where(
             (ProviderMovieMapping.provider == provider)
             & (ProviderMovieMapping.slug == slug)
+            & (ProviderMovieMapping.indexed_generation == indexed_generation)
         )
     )
     for mapping in mappings:
@@ -1096,6 +1153,7 @@ def replace_provider_movie_mappings(
                 provider=provider,
                 slug=slug,
                 tmdb_id=int(mapping["tmdb_id"]),
+                indexed_generation=indexed_generation,
                 confidence=str(mapping.get("confidence", "unresolved")),
                 source=str(mapping.get("source", "title_year")),
                 rationale=mapping.get("rationale"),
@@ -1429,6 +1487,9 @@ def find_provider_episode_mappings_for_canonical_episode(
     canonical_episode: int,
     providers: List[str],
 ) -> List[ProviderEpisodeMapping]:
+    visible_generations = _visible_generation_map(session, providers=providers)
+    if not visible_generations:
+        return []
     return list(
         session.exec(
             select(ProviderEpisodeMapping).where(
@@ -1436,6 +1497,12 @@ def find_provider_episode_mappings_for_canonical_episode(
                 & (ProviderEpisodeMapping.canonical_season == canonical_season)
                 & (ProviderEpisodeMapping.canonical_episode == canonical_episode)
                 & (ProviderEpisodeMapping.provider.in_(providers))
+                & (
+                    tuple_(
+                        ProviderEpisodeMapping.provider,
+                        ProviderEpisodeMapping.indexed_generation,
+                    ).in_(list(visible_generations.items()))
+                )
                 & ProviderEpisodeMapping.confidence.in_(
                     ["confirmed", "high_confidence", "low_confidence"]
                 )
@@ -1451,12 +1518,21 @@ def find_provider_episode_mappings_for_canonical_season(
     canonical_season: int,
     providers: List[str],
 ) -> List[ProviderEpisodeMapping]:
+    visible_generations = _visible_generation_map(session, providers=providers)
+    if not visible_generations:
+        return []
     return list(
         session.exec(
             select(ProviderEpisodeMapping).where(
                 (ProviderEpisodeMapping.tvdb_id == tvdb_id)
                 & (ProviderEpisodeMapping.canonical_season == canonical_season)
                 & (ProviderEpisodeMapping.provider.in_(providers))
+                & (
+                    tuple_(
+                        ProviderEpisodeMapping.provider,
+                        ProviderEpisodeMapping.indexed_generation,
+                    ).in_(list(visible_generations.items()))
+                )
                 & ProviderEpisodeMapping.confidence.in_(
                     ["confirmed", "high_confidence", "low_confidence"]
                 )
@@ -1473,12 +1549,19 @@ def find_provider_episode_mapping(
     provider_season: int,
     provider_episode: int,
 ) -> Optional[ProviderEpisodeMapping]:
+    status = session.get(ProviderIndexStatus, provider)
+    if status is None or not status.latest_success_generation:
+        return None
     return session.exec(
         select(ProviderEpisodeMapping).where(
             (ProviderEpisodeMapping.provider == provider)
             & (ProviderEpisodeMapping.slug == slug)
             & (ProviderEpisodeMapping.provider_season == provider_season)
             & (ProviderEpisodeMapping.provider_episode == provider_episode)
+            & (
+                ProviderEpisodeMapping.indexed_generation
+                == status.latest_success_generation
+            )
             & ProviderEpisodeMapping.confidence.in_(
                 ["confirmed", "high_confidence", "low_confidence"]
             )

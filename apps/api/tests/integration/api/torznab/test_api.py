@@ -100,6 +100,7 @@ def _seed_ready_tv_catalog(
             session,
             provider="aniworld.to",
             slug=slug,
+            indexed_generation=generation,
             mappings=[
                 {
                     "tvdb_id": tvdb_id,
@@ -113,6 +114,7 @@ def _seed_ready_tv_catalog(
             session,
             provider="aniworld.to",
             slug=slug,
+            indexed_generation=generation,
             mappings=[
                 {
                     "provider_season": provider_season,

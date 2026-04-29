@@ -66,6 +66,21 @@ def _as_non_negative_int(val: str | None, default: int) -> int:
     return parsed
 
 
+def _as_non_negative_float(val: str | None, default: float) -> float:
+    """Parse *val* as a non-negative float, returning *default* on failure."""
+    if val is None:
+        return default
+    try:
+        parsed = float(val.strip())
+    except TypeError, ValueError:
+        logger.warning("Invalid non-negative float value {!r}; using {}", val, default)
+        return default
+    if parsed < 0:
+        logger.warning("Negative value {} is not allowed; using {}", parsed, default)
+        return default
+    return parsed
+
+
 # Always-on public IP monitor.
 PUBLIC_IP_CHECK_ENABLED = _as_bool(os.getenv("PUBLIC_IP_CHECK_ENABLED", None), False)
 PUBLIC_IP_CHECK_INTERVAL_MIN = int(os.getenv("PUBLIC_IP_CHECK_INTERVAL_MIN", "30") or 0)
@@ -289,6 +304,35 @@ PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS = max(
     5,
     _as_non_negative_int(os.getenv("PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS"), 45),
 )
+PROVIDER_INDEX_QUEUE_SIZE = max(
+    1,
+    _as_non_negative_int(os.getenv("PROVIDER_INDEX_QUEUE_SIZE"), 32),
+)
+PROVIDER_INDEX_WRITER_BATCH_SIZE = max(
+    1,
+    _as_non_negative_int(os.getenv("PROVIDER_INDEX_WRITER_BATCH_SIZE"), 8),
+)
+PROVIDER_INDEX_WRITER_FLUSH_SECONDS = max(
+    0.1,
+    _as_non_negative_float(os.getenv("PROVIDER_INDEX_WRITER_FLUSH_SECONDS"), 1.0),
+)
+PROVIDER_INDEX_FAILURE_THRESHOLD_PERCENT = min(
+    100.0,
+    max(
+        0.0,
+        _as_non_negative_float(
+            os.getenv("PROVIDER_INDEX_FAILURE_THRESHOLD_PERCENT"),
+            20.0,
+        ),
+    ),
+)
+PROVIDER_INDEX_BACKPRESSURE_LOG_SECONDS = max(
+    1.0,
+    _as_non_negative_float(
+        os.getenv("PROVIDER_INDEX_BACKPRESSURE_LOG_SECONDS"),
+        15.0,
+    ),
+)
 
 logger.debug(
     f"ANIWORLD_ALPHABET_HTML={ANIWORLD_ALPHABET_HTML}, ANIWORLD_ALPHABET_URL={ANIWORLD_ALPHABET_URL}"
@@ -317,6 +361,14 @@ logger.debug(
 logger.debug(
     "Provider index title timeout: {}s",
     PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS,
+)
+logger.debug(
+    "Provider index writer: queue_size={} batch_size={} flush_seconds={} failure_threshold_percent={} backpressure_log_seconds={}",
+    PROVIDER_INDEX_QUEUE_SIZE,
+    PROVIDER_INDEX_WRITER_BATCH_SIZE,
+    PROVIDER_INDEX_WRITER_FLUSH_SECONDS,
+    PROVIDER_INDEX_FAILURE_THRESHOLD_PERCENT,
+    PROVIDER_INDEX_BACKPRESSURE_LOG_SECONDS,
 )
 
 # TTL (Stunden) für Live-Index; 0 = nie neu laden (nur einmal pro Prozess)

@@ -81,6 +81,7 @@ def _seed_ready_catalog() -> None:
             session,
             provider="aniworld.to",
             slug="kaguya-sama",
+            indexed_generation=generation,
             mappings=[
                 {
                     "tvdb_id": 12345,
@@ -94,6 +95,7 @@ def _seed_ready_catalog() -> None:
             session,
             provider="aniworld.to",
             slug="kaguya-sama",
+            indexed_generation=generation,
             mappings=[
                 {
                     "provider_season": 1,
