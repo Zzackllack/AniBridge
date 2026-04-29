@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from threading import Event, Thread
 from types import SimpleNamespace
 
 
@@ -201,3 +202,225 @@ def test_is_due_handles_naive_next_refresh_after():
     )
 
     assert ProviderCatalogIndexer()._is_due(status) is True
+
+
+def test_failed_first_bootstrap_respects_future_retry_backoff():
+    from datetime import timedelta
+
+    from app.catalog.indexer import ProviderCatalogIndexer
+    from app.db import utcnow
+
+    now = utcnow()
+    status = SimpleNamespace(
+        provider="aniworld.to",
+        status="failed",
+        latest_success_generation=None,
+        title_index_status="failed",
+        title_index_next_retry_after=now + timedelta(hours=2),
+        next_refresh_after=None,
+    )
+
+    assert ProviderCatalogIndexer()._is_due(status) is False
+
+
+def test_pick_due_stage_prefers_detail_then_canonical(monkeypatch):
+    from app.catalog.indexer import ProviderCatalogIndexer
+
+    indexer = ProviderCatalogIndexer()
+    monkeypatch.setattr(indexer, "_detail_stage_has_due_work", lambda provider: True)
+    monkeypatch.setattr(indexer, "_canonical_stage_has_due_work", lambda provider: True)
+
+    status = SimpleNamespace(
+        provider="aniworld.to",
+        status="partial",
+        latest_success_generation="gen-1",
+        title_index_status="ready",
+        detail_enrichment_status="pending",
+        detail_next_retry_after=None,
+        canonical_enrichment_status="pending",
+        canonical_next_retry_after=None,
+        next_refresh_after=None,
+        title_index_next_retry_after=None,
+    )
+
+    assert indexer._pick_due_stage(status) == "detail_enrichment"
+
+
+def test_progress_snapshot_exposes_staged_readiness(client):
+    from app.catalog.indexer import get_catalog_indexer
+    from app.db import engine, upsert_provider_index_status
+    from sqlmodel import Session
+
+    with Session(engine) as session:
+        upsert_provider_index_status(
+            session,
+            provider="aniworld.to",
+            refresh_interval_hours=24.0,
+            status="partial",
+            latest_success_generation="gen-1",
+            current_generation="gen-1",
+            bootstrap_completed=True,
+            title_index_status="ready",
+            detail_enrichment_status="pending",
+            canonical_enrichment_status="failed",
+        )
+        upsert_provider_index_status(
+            session,
+            provider="s.to",
+            refresh_interval_hours=24.0,
+            status="ready",
+            latest_success_generation="gen-1",
+            current_generation="gen-1",
+            bootstrap_completed=True,
+            title_index_status="ready",
+            detail_enrichment_status="ready",
+            canonical_enrichment_status="ready",
+        )
+        upsert_provider_index_status(
+            session,
+            provider="megakino",
+            refresh_interval_hours=24.0,
+            status="ready",
+            latest_success_generation="gen-1",
+            current_generation="gen-1",
+            bootstrap_completed=True,
+            title_index_status="ready",
+            detail_enrichment_status="ready",
+            canonical_enrichment_status="ready",
+        )
+
+    snapshot = get_catalog_indexer().get_progress_snapshot()
+    by_provider = {item["provider"]: item for item in snapshot["providers"]}
+
+    assert snapshot["bootstrap_ready"] is True
+    assert by_provider["aniworld.to"]["search_ready"] is True
+    assert by_provider["aniworld.to"]["full_ready"] is False
+    assert by_provider["aniworld.to"]["detail_enrichment_status"] == "pending"
+    assert by_provider["aniworld.to"]["canonical_enrichment_status"] == "failed"
+
+
+def test_write_coordinator_serializes_callbacks(monkeypatch):
+    import app.catalog.indexer as indexer_module
+    from app.catalog.indexer import CatalogIndexWriteCoordinator
+
+    started = Event()
+    release = Event()
+    order: list[str] = []
+
+    class FakeSession:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def commit(self):
+            return None
+
+    monkeypatch.setattr(indexer_module, "Session", lambda _engine: FakeSession())
+
+    coordinator = CatalogIndexWriteCoordinator()
+
+    def first() -> None:
+        coordinator.run(
+            lambda _session: (order.append("first"), started.set(), release.wait(1))
+        )
+
+    def second() -> None:
+        started.wait(1)
+        coordinator.run(lambda _session: order.append("second"))
+
+    t1 = Thread(target=first)
+    t2 = Thread(target=second)
+    t1.start()
+    t2.start()
+    started.wait(1)
+    assert order == ["first"]
+    release.set()
+    t1.join()
+    t2.join()
+
+    assert order == ["first", "second"]
+
+
+def test_detail_stage_persists_one_title_incrementally(client):
+    from app.catalog.indexer import ProviderCatalogIndexer
+    from app.catalog.providers import EpisodeLanguageRecord, EpisodeRecord, TitleRecord
+    from app.db import (
+        ProviderCatalogEpisode,
+        ProviderTitleIndexState,
+        engine,
+        replace_provider_catalog_title,
+        upsert_provider_index_status,
+        upsert_provider_title_index_state,
+    )
+    from sqlmodel import Session, select
+
+    with Session(engine) as session:
+        upsert_provider_index_status(
+            session,
+            provider="aniworld.to",
+            refresh_interval_hours=24.0,
+            status="partial",
+            latest_success_generation="gen-1",
+            current_generation="gen-1",
+            bootstrap_completed=True,
+            title_index_status="ready",
+            detail_enrichment_status="pending",
+            canonical_enrichment_status="pending",
+        )
+        replace_provider_catalog_title(
+            session,
+            provider="aniworld.to",
+            slug="demo",
+            title="Demo",
+            media_type_hint="series",
+            relative_path="/anime/stream/demo",
+            indexed_generation="gen-1",
+        )
+        upsert_provider_title_index_state(
+            session,
+            provider="aniworld.to",
+            slug="demo",
+            detail_status="pending",
+        )
+        session.commit()
+
+    indexer = ProviderCatalogIndexer()
+    indexer._persist_stage_success(
+        provider="aniworld.to",
+        stage="detail_enrichment",
+        title_row=SimpleNamespace(slug="demo"),
+        payload=TitleRecord(
+            provider="aniworld.to",
+            slug="demo",
+            title="Demo",
+            aliases=["Demo"],
+            media_type_hint="series",
+            relative_path="/anime/stream/demo",
+            episodes=[
+                EpisodeRecord(
+                    season=1,
+                    episode=1,
+                    relative_path="/anime/stream/demo/staffel-1/episode-1",
+                    title_primary="Episode 1",
+                    title_secondary=None,
+                    media_type_hint="episode",
+                    languages=[
+                        EpisodeLanguageRecord(
+                            language="German Dub",
+                            host_hints=["VOE"],
+                        )
+                    ],
+                )
+            ],
+        ),
+    )
+
+    with Session(engine) as session:
+        episodes = session.exec(select(ProviderCatalogEpisode)).all()
+        state = session.get(ProviderTitleIndexState, ("aniworld.to", "demo"))
+
+    assert len(episodes) == 1
+    assert state is not None
+    assert state.detail_status == "ready"

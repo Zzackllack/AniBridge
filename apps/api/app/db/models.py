@@ -11,7 +11,7 @@ from fastapi import HTTPException
 # Defer logger configuration to application startup
 
 from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JSON
-from sqlalchemy import tuple_
+from sqlalchemy import event, tuple_
 from sqlalchemy.orm import registry as sa_registry
 from sqlalchemy.pool import NullPool
 
@@ -22,6 +22,12 @@ from app.config import AVAILABILITY_TTL_HOURS, DATA_DIR
 
 JobStatus = Literal["queued", "downloading", "completed", "failed", "cancelled"]
 CatalogRefreshStatus = Literal[
+    "pending",
+    "running",
+    "ready",
+    "failed",
+]
+CatalogStageStatus = Literal[
     "pending",
     "running",
     "ready",
@@ -180,6 +186,7 @@ class ProviderIndexStatus(ModelBase, table=True):
     provider: str = Field(primary_key=True)
     refresh_interval_hours: float = 24.0
     status: str = Field(default="pending", index=True)
+    active_stage: Optional[str] = Field(default=None, index=True)
     current_generation: Optional[str] = None
     latest_success_generation: Optional[str] = None
     latest_started_at: Optional[datetime] = Field(default=None, index=True)
@@ -187,6 +194,18 @@ class ProviderIndexStatus(ModelBase, table=True):
     latest_success_at: Optional[datetime] = Field(default=None, index=True)
     next_refresh_after: Optional[datetime] = Field(default=None, index=True)
     bootstrap_completed: bool = Field(default=False, index=True)
+    title_index_status: str = Field(default="pending", index=True)
+    title_index_ready_at: Optional[datetime] = Field(default=None, index=True)
+    title_index_next_retry_after: Optional[datetime] = Field(default=None, index=True)
+    detail_enrichment_status: str = Field(default="pending", index=True)
+    detail_ready_at: Optional[datetime] = Field(default=None, index=True)
+    detail_next_retry_after: Optional[datetime] = Field(default=None, index=True)
+    canonical_enrichment_status: str = Field(default="pending", index=True)
+    canonical_ready_at: Optional[datetime] = Field(default=None, index=True)
+    canonical_next_retry_after: Optional[datetime] = Field(
+        default=None,
+        index=True,
+    )
     failure_count: int = 0
     last_error_summary: Optional[str] = None
     cursor_title_slug: Optional[str] = None
@@ -200,6 +219,18 @@ class ProviderTitleIndexState(ModelBase, table=True):
     last_success_at: Optional[datetime] = Field(default=None, index=True)
     failure_count: int = 0
     last_error_summary: Optional[str] = None
+    detail_status: str = Field(default="pending", index=True)
+    detail_last_attempted_at: Optional[datetime] = Field(default=None, index=True)
+    detail_last_success_at: Optional[datetime] = Field(default=None, index=True)
+    detail_next_retry_after: Optional[datetime] = Field(default=None, index=True)
+    detail_failure_count: int = 0
+    detail_last_error_summary: Optional[str] = None
+    canonical_status: str = Field(default="pending", index=True)
+    canonical_last_attempted_at: Optional[datetime] = Field(default=None, index=True)
+    canonical_last_success_at: Optional[datetime] = Field(default=None, index=True)
+    canonical_next_retry_after: Optional[datetime] = Field(default=None, index=True)
+    canonical_failure_count: int = 0
+    canonical_last_error_summary: Optional[str] = None
     updated_at: datetime = Field(default_factory=utcnow, index=True)
 
 
@@ -328,10 +359,29 @@ logger.debug(f"DATABASE_URL: {DATABASE_URL}")
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False},
+    connect_args={
+        "check_same_thread": False,
+        "timeout": 30,
+        "autocommit": False,
+    },
     poolclass=NullPool,  # ensure connections are closed when sessions end
 )
 logger.debug("SQLModel engine created.")
+
+
+@event.listens_for(engine, "connect")
+def _configure_sqlite_connection(dbapi_connection, _connection_record) -> None:
+    autocommit = getattr(dbapi_connection, "autocommit", None)
+    if autocommit is not None:
+        dbapi_connection.autocommit = True
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA busy_timeout=30000")
+    cursor.close()
+    if autocommit is not None:
+        dbapi_connection.autocommit = autocommit
+
 
 MIGRATION_BASE_REVISION = "20260203_0001"
 
@@ -733,6 +783,7 @@ def upsert_provider_index_status(
     provider: str,
     refresh_interval_hours: float,
     status: Optional[str] = None,
+    active_stage: Optional[str] | object = _UNSET,
     current_generation: Optional[str] | object = _UNSET,
     latest_success_generation: Optional[str] | object = _UNSET,
     latest_started_at: Optional[datetime] | object = _UNSET,
@@ -740,6 +791,15 @@ def upsert_provider_index_status(
     latest_success_at: Optional[datetime] | object = _UNSET,
     next_refresh_after: Optional[datetime] | object = _UNSET,
     bootstrap_completed: Optional[bool] = None,
+    title_index_status: Optional[str] = None,
+    title_index_ready_at: Optional[datetime] | object = _UNSET,
+    title_index_next_retry_after: Optional[datetime] | object = _UNSET,
+    detail_enrichment_status: Optional[str] = None,
+    detail_ready_at: Optional[datetime] | object = _UNSET,
+    detail_next_retry_after: Optional[datetime] | object = _UNSET,
+    canonical_enrichment_status: Optional[str] = None,
+    canonical_ready_at: Optional[datetime] | object = _UNSET,
+    canonical_next_retry_after: Optional[datetime] | object = _UNSET,
     failure_count: Optional[int] = None,
     last_error_summary: Optional[str] | object = _UNSET,
     cursor_title_slug: Optional[str] | object = _UNSET,
@@ -754,6 +814,8 @@ def upsert_provider_index_status(
     rec.refresh_interval_hours = refresh_interval_hours
     if status is not None:
         rec.status = status
+    if active_stage is not _UNSET:
+        rec.active_stage = active_stage
     if current_generation is not _UNSET:
         rec.current_generation = current_generation
     if latest_success_generation is not _UNSET:
@@ -768,6 +830,24 @@ def upsert_provider_index_status(
         rec.next_refresh_after = next_refresh_after
     if bootstrap_completed is not None:
         rec.bootstrap_completed = bootstrap_completed
+    if title_index_status is not None:
+        rec.title_index_status = title_index_status
+    if title_index_ready_at is not _UNSET:
+        rec.title_index_ready_at = title_index_ready_at
+    if title_index_next_retry_after is not _UNSET:
+        rec.title_index_next_retry_after = title_index_next_retry_after
+    if detail_enrichment_status is not None:
+        rec.detail_enrichment_status = detail_enrichment_status
+    if detail_ready_at is not _UNSET:
+        rec.detail_ready_at = detail_ready_at
+    if detail_next_retry_after is not _UNSET:
+        rec.detail_next_retry_after = detail_next_retry_after
+    if canonical_enrichment_status is not None:
+        rec.canonical_enrichment_status = canonical_enrichment_status
+    if canonical_ready_at is not _UNSET:
+        rec.canonical_ready_at = canonical_ready_at
+    if canonical_next_retry_after is not _UNSET:
+        rec.canonical_next_retry_after = canonical_next_retry_after
     if failure_count is not None:
         rec.failure_count = failure_count
     if last_error_summary is not _UNSET:
@@ -805,6 +885,18 @@ def upsert_provider_title_index_state(
     succeeded_at: Optional[datetime] = None,
     failure_count: Optional[int] = None,
     last_error_summary: Optional[str] = None,
+    detail_status: Optional[str] = None,
+    detail_attempted_at: Optional[datetime] = None,
+    detail_succeeded_at: Optional[datetime] = None,
+    detail_next_retry_after: Optional[datetime] | object = _UNSET,
+    detail_failure_count: Optional[int] = None,
+    detail_last_error_summary: Optional[str] | object = _UNSET,
+    canonical_status: Optional[str] = None,
+    canonical_attempted_at: Optional[datetime] = None,
+    canonical_succeeded_at: Optional[datetime] = None,
+    canonical_next_retry_after: Optional[datetime] | object = _UNSET,
+    canonical_failure_count: Optional[int] = None,
+    canonical_last_error_summary: Optional[str] | object = _UNSET,
     commit: bool = True,
 ) -> ProviderTitleIndexState:
     rec = session.get(ProviderTitleIndexState, (provider, slug))
@@ -818,6 +910,30 @@ def upsert_provider_title_index_state(
         rec.failure_count = failure_count
     if last_error_summary is not None:
         rec.last_error_summary = last_error_summary
+    if detail_status is not None:
+        rec.detail_status = detail_status
+    if detail_attempted_at is not None:
+        rec.detail_last_attempted_at = detail_attempted_at
+    if detail_succeeded_at is not None:
+        rec.detail_last_success_at = detail_succeeded_at
+    if detail_next_retry_after is not _UNSET:
+        rec.detail_next_retry_after = detail_next_retry_after
+    if detail_failure_count is not None:
+        rec.detail_failure_count = detail_failure_count
+    if detail_last_error_summary is not _UNSET:
+        rec.detail_last_error_summary = detail_last_error_summary
+    if canonical_status is not None:
+        rec.canonical_status = canonical_status
+    if canonical_attempted_at is not None:
+        rec.canonical_last_attempted_at = canonical_attempted_at
+    if canonical_succeeded_at is not None:
+        rec.canonical_last_success_at = canonical_succeeded_at
+    if canonical_next_retry_after is not _UNSET:
+        rec.canonical_next_retry_after = canonical_next_retry_after
+    if canonical_failure_count is not None:
+        rec.canonical_failure_count = canonical_failure_count
+    if canonical_last_error_summary is not _UNSET:
+        rec.canonical_last_error_summary = canonical_last_error_summary
     rec.updated_at = utcnow()
     session.add(rec)
     if commit:
@@ -867,12 +983,6 @@ def replace_provider_catalog_aliases(
     aliases: List[str],
     indexed_generation: str,
 ) -> None:
-    session.exec(
-        select(ProviderCatalogAlias).where(
-            (ProviderCatalogAlias.provider == provider)
-            & (ProviderCatalogAlias.slug == slug)
-        )
-    ).all()
     session.exec(
         ProviderCatalogAlias.__table__.delete().where(
             (ProviderCatalogAlias.provider == provider)
@@ -1254,9 +1364,31 @@ def is_catalog_bootstrap_ready(
     }
     return all(
         status is not None
-        and status.bootstrap_completed
+        and (status.title_index_status == "ready" or status.bootstrap_completed)
         and bool(status.latest_success_generation)
         for status in (statuses.get(provider) for provider in providers)
+    )
+
+
+def is_provider_stage_ready(status: ProviderIndexStatus | None, *, stage: str) -> bool:
+    if status is None:
+        return False
+    if stage == "title_index":
+        return (
+            status.title_index_status == "ready" or status.bootstrap_completed
+        ) and bool(status.latest_success_generation)
+    if stage == "detail_enrichment":
+        return status.detail_enrichment_status == "ready"
+    if stage == "canonical_enrichment":
+        return status.canonical_enrichment_status == "ready"
+    raise ValueError(f"Unknown provider stage: {stage}")
+
+
+def is_provider_fully_ready(status: ProviderIndexStatus | None) -> bool:
+    return (
+        is_provider_stage_ready(status, stage="title_index")
+        and is_provider_stage_ready(status, stage="detail_enrichment")
+        and is_provider_stage_ready(status, stage="canonical_enrichment")
     )
 
 
