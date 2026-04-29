@@ -684,14 +684,15 @@ class ProviderCatalogIndexer:
             queue.put(_QUEUE_SENTINEL)
             writer.join(timeout=5)
             completed_at = utcnow()
+            error_text = str(exc)
             self._writer.run(
-                lambda session: self._finish_title_index_failure(
+                lambda session, error=error_text: self._finish_title_index_failure(
                     session,
                     provider=provider,
                     generation=generation,
                     refresh_interval_hours=refresh_interval_hours,
                     completed_at=completed_at,
-                    error=str(exc),
+                    error=error,
                 )
             )
             self._set_progress(
@@ -1014,12 +1015,13 @@ class ProviderCatalogIndexer:
                             )
                         except Exception as exc:
                             failure_count += 1
+                            error_text = str(exc)
                             self._persist_stage_failure(
                                 provider=provider,
                                 stage=stage,
                                 title_row=title_row,
                                 state=state,
-                                error=str(exc),
+                                error=error_text,
                             )
                             self._advance_failed_progress(
                                 provider,
@@ -1031,7 +1033,7 @@ class ProviderCatalogIndexer:
                                     remaining.cancel()
                                 completed_at = utcnow()
                                 self._writer.run(
-                                    lambda session, error=str(exc): (
+                                    lambda session, error=error_text: (
                                         self._mark_stage_failed(
                                             session,
                                             provider=provider,

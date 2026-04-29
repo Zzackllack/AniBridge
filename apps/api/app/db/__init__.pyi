@@ -3,4 +3,4 @@
 Python is fine with `globals().update(...)`; Pylance needs a little snack.
 """
 
-from .models import *
+from .models import *  # noqa: F403
