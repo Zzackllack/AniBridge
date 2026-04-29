@@ -1156,15 +1156,22 @@ def replace_canonical_episodes(
     session.exec(
         CanonicalEpisode.__table__.delete().where(CanonicalEpisode.tvdb_id == tvdb_id)
     )
+    deduped: dict[tuple[int, int], str] = {}
     for episode in episodes:
         title = str(episode.get("title") or "").strip()
         if not title:
             continue
+        season = int(episode["season"])
+        number = int(episode["episode"])
+        key = (season, number)
+        if key not in deduped:
+            deduped[key] = title
+    for (season, number), title in sorted(deduped.items()):
         session.add(
             CanonicalEpisode(
                 tvdb_id=tvdb_id,
-                season=int(episode["season"]),
-                episode=int(episode["episode"]),
+                season=season,
+                episode=number,
                 title=title,
                 normalized_title=normalize_catalog_text(title),
                 last_synced_at=utcnow(),
