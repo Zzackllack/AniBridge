@@ -20,7 +20,7 @@ from app.db import (
     delete_client_task,
     get_job,
 )
-from app.core.scheduler import schedule_download, cancel_job
+from app.core.scheduler import cancel_job, schedule_download, start_scheduled_job
 
 from . import router
 from .common import public_save_path
@@ -101,8 +101,8 @@ def torrents_add(
         req["provider"] = provider
     if mode:
         req["mode"] = mode
-    job_id = schedule_download(req)
-    logger.debug(f"Scheduled job_id: {job_id}")
+    job_id = schedule_download(req, autostart=False)
+    logger.debug(f"Created scheduled job_id: {job_id}")
 
     if not savepath:
         savepath = str(DOWNLOAD_DIR)
@@ -127,6 +127,9 @@ def torrents_add(
             btih, "queued" if paused else "downloading", site
         )
     )
+    if not paused:
+        start_scheduled_job(job_id, req)
+        logger.debug(f"Started background worker for job_id: {job_id}")
     return PlainTextResponse("Ok.")
 
 
