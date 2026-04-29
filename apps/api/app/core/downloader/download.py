@@ -172,7 +172,12 @@ def download_episode(
     direct, chosen = get_direct_url_with_fallback(
         ep, preferred=provider, language=language
     )
-    logger.info("Chosen provider: {}, direct URL: {}", chosen, direct)
+    logger.info(
+        "Resolved initial download host: preferred={} resolved={} direct_url={}",
+        provider,
+        chosen,
+        direct,
+    )
 
     base_hint = title_hint
     if not base_hint and slug and season is not None and episode is not None:
@@ -193,7 +198,11 @@ def download_episode(
         )
     except Exception as exc:
         msg = str(exc)
-        logger.warning("Primary download failed: {}", msg)
+        logger.warning(
+            "Download failed after resolving host {}: {}",
+            chosen,
+            msg,
+        )
 
         tried_alt = False
         providers_left = [
@@ -206,7 +215,13 @@ def download_episode(
                 direct3, chosen3 = get_direct_url_with_fallback(
                     ep, preferred=provider_name, language=language
                 )
-                logger.info("Retrying download via alternate provider {}", chosen3)
+                logger.info(
+                    "Retrying download after {} failed: next_preferred={} resolved={} direct_url={}",
+                    chosen,
+                    provider_name,
+                    chosen3,
+                    direct3,
+                )
                 temp_path, info = _ydl_download(
                     direct3,
                     dest_dir,
@@ -219,7 +234,8 @@ def download_episode(
                 break
             except Exception as exc3:
                 logger.warning(
-                    "Alternate provider {} failed to download: {}",
+                    "Retry attempt failed: next_preferred={} resolved_or_attempted={} error={}",
+                    provider_name,
                     provider_name,
                     exc3,
                 )

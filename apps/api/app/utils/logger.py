@@ -72,6 +72,9 @@ def config():
             handlers=[intercept_handler], level=stdlib_level, force=True
         )
         logging.captureWarnings(True)
+        # TODO: intercept this:
+        # INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+        # INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
         logging.lastResort = None
         for name in (
             "uvicorn",
