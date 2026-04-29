@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
-from time import monotonic
 import re
 from typing import Any, Callable, Optional
 from urllib.parse import urlparse
@@ -12,16 +11,13 @@ from bs4 import BeautifulSoup  # type: ignore
 from loguru import logger
 
 from app.catalog.metadata import resolve_tv_canonical_match
-from app.config import CATALOG_SITE_CONFIGS, PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS
-from app.db import normalize_catalog_text
+from app.config import CATALOG_SITE_CONFIGS
 from app.providers import get_provider
 from app.providers.megakino.client import (
     get_default_client as get_default_megakino_client,
 )
 from app.utils.domain_resolver import get_megakino_base_url
 from app.utils.http_client import get as http_get
-
-_CATALOG_STREAM_HEARTBEAT_SECONDS = 15.0
 
 
 @dataclass(slots=True)
@@ -77,21 +73,26 @@ class CatalogStreamSummary:
     failed_titles: int = 0
 
 
-@dataclass(slots=True)
-class _TitleJob:
-    slug: str
-    title: str
-    aliases: list[str]
-    started_at: float
-    timed_out: bool = False
-
-
 def _relative_path(url: str) -> str:
     parsed = urlparse(url)
     path = parsed.path or "/"
     if parsed.query:
         return f"{path}?{parsed.query}"
     return path
+
+
+def _run_with_timeout(
+    timeout_seconds: float, func: Callable[..., Any], *args, **kwargs
+):
+    executor = ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(func, *args, **kwargs)
+    try:
+        return future.result(timeout=max(0.001, timeout_seconds))
+    except FutureTimeoutError as exc:
+        future.cancel()
+        raise TimeoutError(f"title crawl exceeded {int(timeout_seconds)}s") from exc
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
 
 
 def _normalize_provider_data(raw: Any, *, site: str) -> list[EpisodeLanguageRecord]:
@@ -283,6 +284,8 @@ def _parse_sto_season_rows(season) -> list[EpisodeRecord]:
 
 
 def _score_episode_title(left: str, right: str) -> float:
+    from app.db import normalize_catalog_text
+
     a = normalize_catalog_text(left)
     b = normalize_catalog_text(right)
     if not a or not b:
@@ -432,31 +435,100 @@ def _build_tv_canonical_payload(
     )
 
 
-def _crawl_aniworld_like_title(
+def _fallback_title_record(
     *,
     provider_key: str,
     slug: str,
     title: str,
     aliases: list[str],
 ) -> TitleRecord:
-    site_cfg = CATALOG_SITE_CONFIGS[provider_key]
-    base_url = str(site_cfg["base_url"]).rstrip("/")
-    relative_root = (
-        f"/anime/stream/{slug}" if provider_key == "aniworld.to" else f"/serie/{slug}"
+    media_type_hint = "movie" if provider_key == "megakino" else "series"
+    if provider_key == "aniworld.to":
+        relative_path = f"/anime/stream/{slug}"
+    elif provider_key == "s.to":
+        relative_path = f"/serie/{slug}"
+    else:
+        relative_path = f"/{slug}"
+    return TitleRecord(
+        provider=provider_key,
+        slug=slug,
+        title=title,
+        aliases=aliases,
+        media_type_hint=media_type_hint,
+        relative_path=relative_path,
+        episodes=[],
+        canonical=CanonicalPayload(),
     )
-    url = f"{base_url}{relative_root}"
+
+
+def load_provider_title_index(
+    provider_key: str,
+    *,
+    observer: CatalogCrawlObserver | None = None,
+) -> list[TitleRecord]:
+    provider = get_provider(provider_key)
+    if provider is None:
+        return []
+
+    if provider_key == "megakino":
+        client = get_default_megakino_client()
+        entries = client.load_index()
+        if observer is not None and observer.on_index_loaded is not None:
+            observer.on_index_loaded(len(entries))
+        rows = [
+            TitleRecord(
+                provider=provider_key,
+                slug=entry.slug,
+                title=entry.slug.replace("-", " ").title(),
+                aliases=[],
+                media_type_hint="movie" if entry.kind == "film" else "series",
+                relative_path=_relative_path(entry.url),
+                episodes=[],
+                canonical=CanonicalPayload(),
+            )
+            for entry in entries.values()
+        ]
+        rows.sort(key=lambda item: item.slug)
+        return rows
+
+    logger.info("Provider catalog {}: loading title index", provider_key)
+    index = provider.load_or_refresh_index()
+    alternatives = provider.load_or_refresh_alternatives()
+    if observer is not None and observer.on_index_loaded is not None:
+        observer.on_index_loaded(len(index))
+    rows = []
+    for slug, title in index.items():
+        aliases = list(dict.fromkeys(alternatives.get(slug, []) or [title]))
+        rows.append(
+            _fallback_title_record(
+                provider_key=provider_key,
+                slug=slug,
+                title=title,
+                aliases=aliases,
+            )
+        )
+    rows.sort(key=lambda item: item.slug)
+    return rows
+
+
+def _crawl_aniworld_like_detail(
+    *,
+    provider_key: str,
+    slug: str,
+    title: str,
+    aliases: list[str],
+) -> TitleRecord:
+    base_url = str(CATALOG_SITE_CONFIGS[provider_key]["base_url"]).rstrip("/")
     if provider_key == "aniworld.to":
         from aniworld.models import AniworldSeries
 
-        series = AniworldSeries(url)
-        imdb_id = series.imdb
-        mal_id = None
+        relative_root = f"/anime/stream/{slug}"
+        series = AniworldSeries(f"{base_url}{relative_root}")
     else:
         from aniworld.models import SerienstreamSeries
 
-        series = SerienstreamSeries(url)
-        imdb_id = series.imdb
-        mal_id = None
+        relative_root = f"/serie/{slug}"
+        series = SerienstreamSeries(f"{base_url}{relative_root}")
 
     episodes: list[EpisodeRecord] = []
     for season in series.seasons:
@@ -465,15 +537,6 @@ def _crawl_aniworld_like_title(
         else:
             episodes.extend(_parse_sto_season_rows(season))
 
-    canonical = _build_tv_canonical_payload(
-        provider=provider_key,
-        slug=slug,
-        title=series.title or title,
-        aliases=aliases,
-        imdb_id=imdb_id,
-        mal_id=mal_id,
-        episodes=episodes,
-    )
     return TitleRecord(
         provider=provider_key,
         slug=slug,
@@ -482,25 +545,56 @@ def _crawl_aniworld_like_title(
         media_type_hint="series",
         relative_path=relative_root,
         episodes=episodes,
-        canonical=canonical,
+        canonical=CanonicalPayload(),
     )
 
 
-def _crawl_title_job(
+def crawl_provider_title_detail(
     *,
     provider_key: str,
     slug: str,
     title: str,
     aliases: list[str],
-    observer: CatalogCrawlObserver | None,
+    timeout_seconds: float,
 ) -> TitleRecord:
-    if observer is not None and observer.on_title_started is not None:
-        observer.on_title_started(slug)
-    return _crawl_aniworld_like_title(
+    if provider_key == "megakino":
+        return _fallback_title_record(
+            provider_key=provider_key,
+            slug=slug,
+            title=title,
+            aliases=aliases,
+        )
+    return _run_with_timeout(
+        timeout_seconds,
+        _crawl_aniworld_like_detail,
         provider_key=provider_key,
         slug=slug,
         title=title,
         aliases=aliases,
+    )
+
+
+def resolve_provider_canonical(
+    *,
+    provider_key: str,
+    slug: str,
+    title: str,
+    aliases: list[str],
+    media_type_hint: str,
+    episodes: list[EpisodeRecord],
+    imdb_id: Optional[str] = None,
+    mal_id: Optional[int] = None,
+) -> CanonicalPayload:
+    if provider_key == "megakino" or media_type_hint == "movie":
+        return CanonicalPayload()
+    return _build_tv_canonical_payload(
+        provider=provider_key,
+        slug=slug,
+        title=title,
+        aliases=aliases,
+        imdb_id=imdb_id,
+        mal_id=mal_id,
+        episodes=episodes,
     )
 
 
@@ -522,229 +616,13 @@ def _parse_megakino_page_metadata(url: str) -> tuple[str | None, int | None]:
     return title, year
 
 
-def _emit_title_failure(
-    *,
-    provider_key: str,
-    slug: str,
-    title: str,
-    reason: str,
-    observer: CatalogCrawlObserver | None,
-) -> None:
-    logger.warning(
-        "Provider catalog {}: title crawl failed slug={} title={}: {}",
-        provider_key,
-        slug,
-        title,
-        reason,
-    )
-    if observer is not None and observer.on_title_failed is not None:
-        observer.on_title_failed(slug, reason)
-
-
-def _stream_aniworld_like_catalog(
-    *,
-    provider_key: str,
-    index: dict[str, str],
-    alternatives: dict[str, list[str]],
-    emit_title: Callable[[TitleRecord], None],
-    observer: CatalogCrawlObserver | None,
-    title_timeout_seconds: float,
-) -> CatalogStreamSummary:
-    workers = int(
-        CATALOG_SITE_CONFIGS[provider_key].get("provider_index_concurrency", 1)
-    )
-    max_workers = max(1, workers)
-    summary = CatalogStreamSummary(discovered_titles=len(index))
-    pending: dict[Future[TitleRecord], _TitleJob] = {}
-    pending_iter = iter(index.items())
-
-    def _submit_next(executor: ThreadPoolExecutor) -> bool:
-        try:
-            slug, title = next(pending_iter)
-        except StopIteration:
-            return False
-        aliases = list(dict.fromkeys(alternatives.get(slug, []) or [title]))
-        future = executor.submit(
-            _crawl_title_job,
-            provider_key=provider_key,
-            slug=slug,
-            title=title,
-            aliases=aliases,
-            observer=observer,
-        )
-        pending[future] = _TitleJob(
-            slug=slug,
-            title=title,
-            aliases=aliases,
-            started_at=monotonic(),
-        )
-        return True
-
-    executor = ThreadPoolExecutor(max_workers=max_workers)
-    try:
-        while len(pending) < max_workers and _submit_next(executor):
-            pass
-
-        while pending:
-            done, _ = wait(
-                pending.keys(),
-                timeout=_CATALOG_STREAM_HEARTBEAT_SECONDS,
-                return_when=FIRST_COMPLETED,
-            )
-            if not done:
-                completed = summary.crawled_titles + summary.failed_titles
-                if summary.discovered_titles > 0:
-                    percent = round(completed / summary.discovered_titles * 100.0, 1)
-                    logger.info(
-                        "Provider catalog {}: crawling title details {}/{} ({}%) active={} queued={}",
-                        provider_key,
-                        completed,
-                        summary.discovered_titles,
-                        percent,
-                        len(pending),
-                        max(0, summary.discovered_titles - completed - len(pending)),
-                    )
-                else:
-                    logger.info(
-                        "Provider catalog {}: still discovering titles active={}",
-                        provider_key,
-                        len(pending),
-                    )
-                for future, job in list(pending.items()):
-                    if job.timed_out or future.done():
-                        continue
-                    elapsed = monotonic() - job.started_at
-                    if elapsed < title_timeout_seconds:
-                        continue
-                    job.timed_out = True
-                    _emit_title_failure(
-                        provider_key=provider_key,
-                        slug=job.slug,
-                        title=job.title,
-                        reason=(
-                            f"title crawl exceeded {int(title_timeout_seconds)}s; "
-                            "worker left running until underlying I/O returns"
-                        ),
-                        observer=observer,
-                    )
-                    summary.failed_titles += 1
-                continue
-
-            for future in done:
-                job = pending.pop(future)
-                try:
-                    record = future.result()
-                except Exception as exc:
-                    if not job.timed_out:
-                        summary.failed_titles += 1
-                        _emit_title_failure(
-                            provider_key=provider_key,
-                            slug=job.slug,
-                            title=job.title,
-                            reason=str(exc),
-                            observer=observer,
-                        )
-                else:
-                    if not job.timed_out:
-                        emit_title(record)
-                        summary.crawled_titles += 1
-                        if (
-                            observer is not None
-                            and observer.on_title_crawled is not None
-                        ):
-                            observer.on_title_crawled(record.slug)
-                while len(pending) < max_workers and _submit_next(executor):
-                    pass
-    finally:
-        executor.shutdown(wait=False, cancel_futures=True)
-    return summary
-
-
-def stream_provider_catalog(
-    provider_key: str,
-    *,
-    emit_title: Callable[[TitleRecord], None],
-    observer: CatalogCrawlObserver | None = None,
-) -> CatalogStreamSummary:
-    provider = get_provider(provider_key)
-    if provider is None:
-        return CatalogStreamSummary()
-
-    if provider_key == "megakino":
-        client = get_default_megakino_client()
-        entries = client.load_index()
-        if observer is not None and observer.on_index_loaded is not None:
-            observer.on_index_loaded(len(entries))
-        summary = CatalogStreamSummary(discovered_titles=len(entries))
-        for entry in entries.values():
-            parsed_title = entry.slug.replace("-", " ").title()
-            try:
-                live_title, _year = _parse_megakino_page_metadata(entry.url)
-                if live_title:
-                    parsed_title = live_title
-            except Exception as exc:
-                logger.debug(
-                    "Megakino metadata fetch failed for {}: {}", entry.url, exc
-                )
-            emit_title(
-                TitleRecord(
-                    provider=provider_key,
-                    slug=entry.slug,
-                    title=parsed_title,
-                    aliases=[],
-                    media_type_hint="movie" if entry.kind == "film" else "series",
-                    relative_path=_relative_path(entry.url),
-                    episodes=[],
-                    canonical=CanonicalPayload(),
-                )
-            )
-            summary.crawled_titles += 1
-            if observer is not None and observer.on_title_crawled is not None:
-                observer.on_title_crawled(entry.slug)
-        return summary
-
-    logger.info("Provider catalog {}: loading title index", provider_key)
-    index = provider.load_or_refresh_index()
-    logger.info(
-        "Provider catalog {}: title index loaded ({} titles)",
-        provider_key,
-        len(index),
-    )
-    logger.info("Provider catalog {}: loading title alternatives", provider_key)
-    alternatives = provider.load_or_refresh_alternatives()
-    logger.info(
-        "Provider catalog {}: title alternatives loaded ({} titles with aliases)",
-        provider_key,
-        len(alternatives),
-    )
-    if observer is not None and observer.on_index_loaded is not None:
-        observer.on_index_loaded(len(index))
-    title_timeout_seconds = float(
-        CATALOG_SITE_CONFIGS[provider_key].get(
-            "provider_index_title_timeout_seconds",
-            PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS,
-        )
-    )
-    return _stream_aniworld_like_catalog(
-        provider_key=provider_key,
-        index=index,
-        alternatives=alternatives,
-        emit_title=emit_title,
-        observer=observer,
-        title_timeout_seconds=title_timeout_seconds,
-    )
-
-
 def crawl_provider_catalog(
     provider_key: str,
     *,
     observer: CatalogCrawlObserver | None = None,
 ) -> list[TitleRecord]:
-    titles: list[TitleRecord] = []
-    stream_provider_catalog(
-        provider_key,
-        emit_title=titles.append,
-        observer=observer,
-    )
-    titles.sort(key=lambda item: item.slug)
-    return titles
+    rows = load_provider_title_index(provider_key, observer=observer)
+    for row in rows:
+        if observer is not None and observer.on_title_crawled is not None:
+            observer.on_title_crawled(row.slug)
+    return rows

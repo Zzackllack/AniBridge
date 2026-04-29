@@ -1,25 +1,62 @@
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import dataclass
 from difflib import SequenceMatcher
-from typing import Any, Optional
+from threading import Lock
+from time import time
+from typing import Any, Generic, Optional, TypeVar
 from urllib.parse import urlencode
-import threading
-import time
 
 from loguru import logger
 
+from app.config import (
+    CANONICAL_CACHE_MEMORY_MAX_SEARCH,
+    CANONICAL_CACHE_MEMORY_MAX_SHOW,
+    CANONICAL_CACHE_TTL_SECONDS,
+)
 from app.db import normalize_catalog_text
 from app.utils.http_client import get as http_get
 
 SKYHOOK_SEARCH_URL = "https://skyhook.sonarr.tv/v1/tvdb/search/en/"
 SKYHOOK_SHOW_URL = "https://skyhook.sonarr.tv/v1/tvdb/shows/en/{tvdb_id}"
 SKYHOOK_TIMEOUT_SECONDS = 4.0
-SKYHOOK_CACHE_TTL_SECONDS = 3600.0
 
-_cache_lock = threading.Lock()
-_search_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
-_show_cache: dict[int, tuple[float, dict[str, Any]]] = {}
+TKey = TypeVar("TKey")
+TValue = TypeVar("TValue")
+
+
+class TtlLruCache(Generic[TKey, TValue]):
+    def __init__(self, *, max_entries: int, ttl_seconds: int) -> None:
+        self._max_entries = max(1, int(max_entries))
+        self._ttl_seconds = max(1, int(ttl_seconds))
+        self._entries: OrderedDict[TKey, tuple[float, TValue]] = OrderedDict()
+        self._lock = Lock()
+
+    def get(self, key: TKey) -> TValue | None:
+        now = time()
+        with self._lock:
+            entry = self._entries.get(key)
+            if entry is None:
+                return None
+            expires_at, payload = entry
+            if expires_at <= now:
+                self._entries.pop(key, None)
+                return None
+            self._entries.move_to_end(key)
+            return payload
+
+    def set(self, key: TKey, value: TValue) -> None:
+        expires_at = time() + self._ttl_seconds
+        with self._lock:
+            self._entries[key] = (expires_at, value)
+            self._entries.move_to_end(key)
+            while len(self._entries) > self._max_entries:
+                self._entries.popitem(last=False)
+
+    def size(self) -> int:
+        with self._lock:
+            return len(self._entries)
 
 
 @dataclass(slots=True)
@@ -32,40 +69,21 @@ class TvCanonicalMatch:
     payload: dict[str, Any]
 
 
-def _cache_get_search(term: str) -> list[dict[str, Any]] | None:
-    now = time.time()
-    with _cache_lock:
-        entry = _search_cache.get(term)
-        if entry is None:
-            return None
-        cached_at, payload = entry
-        if now - cached_at > SKYHOOK_CACHE_TTL_SECONDS:
-            _search_cache.pop(term, None)
-            return None
-        return [dict(item) for item in payload]
+_search_cache: TtlLruCache[str, list[dict[str, Any]]] = TtlLruCache(
+    max_entries=CANONICAL_CACHE_MEMORY_MAX_SEARCH,
+    ttl_seconds=CANONICAL_CACHE_TTL_SECONDS,
+)
+_show_cache: TtlLruCache[int, dict[str, Any]] = TtlLruCache(
+    max_entries=CANONICAL_CACHE_MEMORY_MAX_SHOW,
+    ttl_seconds=CANONICAL_CACHE_TTL_SECONDS,
+)
 
 
-def _cache_set_search(term: str, payload: list[dict[str, Any]]) -> None:
-    with _cache_lock:
-        _search_cache[term] = (time.time(), [dict(item) for item in payload])
-
-
-def _cache_get_show(tvdb_id: int) -> dict[str, Any] | None:
-    now = time.time()
-    with _cache_lock:
-        entry = _show_cache.get(tvdb_id)
-        if entry is None:
-            return None
-        cached_at, payload = entry
-        if now - cached_at > SKYHOOK_CACHE_TTL_SECONDS:
-            _show_cache.pop(tvdb_id, None)
-            return None
-        return dict(payload)
-
-
-def _cache_set_show(tvdb_id: int, payload: dict[str, Any]) -> None:
-    with _cache_lock:
-        _show_cache[tvdb_id] = (time.time(), dict(payload))
+def canonical_cache_stats() -> dict[str, int]:
+    return {
+        "search_entries": _search_cache.size(),
+        "show_entries": _show_cache.size(),
+    }
 
 
 def _score_title(query: str, candidate: str) -> float:
@@ -120,7 +138,7 @@ def resolve_tv_canonical_match(
         imdb_id=imdb_id,
         tmdb_id=tmdb_id,
     ):
-        payload = _cache_get_search(term)
+        payload = _search_cache.get(term)
         if payload is None:
             try:
                 query = urlencode({"term": term})
@@ -136,15 +154,12 @@ def resolve_tv_canonical_match(
             if not isinstance(raw_payload, list):
                 continue
             payload = [item for item in raw_payload if isinstance(item, dict)]
-            _cache_set_search(term, payload)
-        try:
-            for item in payload:
-                copied = dict(item)
-                copied["_ab_source"] = source
-                copied["_ab_term"] = term
-                candidates.append(copied)
-        except Exception:
-            continue
+            _search_cache.set(term, [dict(item) for item in payload])
+        for item in payload:
+            copied = dict(item)
+            copied["_ab_source"] = source
+            copied["_ab_term"] = term
+            candidates.append(copied)
 
     best_match: Optional[tuple[float, dict[str, Any]]] = None
     for item in candidates:
@@ -166,7 +181,7 @@ def resolve_tv_canonical_match(
 
     score, item = best_match
     tvdb_id = int(item["tvdbId"])
-    payload = _cache_get_show(tvdb_id)
+    payload = _show_cache.get(tvdb_id)
     if payload is None:
         try:
             response = http_get(
@@ -180,8 +195,8 @@ def resolve_tv_canonical_match(
             return None
         if not isinstance(raw_payload, dict):
             return None
-        payload = raw_payload
-        _cache_set_show(tvdb_id, payload)
+        payload = dict(raw_payload)
+        _show_cache.set(tvdb_id, dict(payload))
 
     if score >= 0.99:
         confidence = "confirmed"
