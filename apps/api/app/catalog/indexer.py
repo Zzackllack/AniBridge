@@ -419,6 +419,58 @@ class ProviderCatalogIndexer:
                         )
                     )
                 )
+                continue
+            if self._needs_stage_backfill(status):
+                self._writer.run(
+                    lambda session, provider=provider, status=status, hours=hours: (
+                        self._backfill_legacy_stage_state(
+                            session,
+                            provider=provider,
+                            status=status,
+                            refresh_interval_hours=hours,
+                        )
+                    )
+                )
+
+    def _needs_stage_backfill(self, status: ProviderIndexStatus) -> bool:
+        return bool(
+            getattr(status, "bootstrap_completed", False)
+            and getattr(status, "latest_success_generation", None)
+            and getattr(status, "title_index_status", "pending") == "pending"
+        )
+
+    def _backfill_legacy_stage_state(
+        self,
+        session: Session,
+        *,
+        provider: str,
+        status: ProviderIndexStatus,
+        refresh_interval_hours: float,
+    ) -> None:
+        ready_at = (
+            getattr(status, "latest_completed_at", None)
+            or getattr(status, "latest_success_at", None)
+            or utcnow()
+        )
+        full_ready = getattr(status, "status", None) == "ready"
+        upsert_provider_index_status(
+            session,
+            provider=provider,
+            refresh_interval_hours=refresh_interval_hours,
+            title_index_status="ready",
+            title_index_ready_at=getattr(status, "title_index_ready_at", None)
+            or ready_at,
+            title_index_next_retry_after=None,
+            detail_enrichment_status="ready" if full_ready else "pending",
+            detail_ready_at=getattr(status, "detail_ready_at", None)
+            or (ready_at if full_ready else None),
+            detail_next_retry_after=None,
+            canonical_enrichment_status="ready" if full_ready else "pending",
+            canonical_ready_at=getattr(status, "canonical_ready_at", None)
+            or (ready_at if full_ready else None),
+            canonical_next_retry_after=None,
+            commit=False,
+        )
 
     def _cleanup_stale_generation(
         self,
