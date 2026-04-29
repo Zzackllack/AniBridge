@@ -82,10 +82,10 @@ def test_torrents_add_starts_worker_after_task_write(client, monkeypatch):
     monkeypatch.setattr(
         qb_torrents,
         "schedule_download",
-        lambda req, autostart=True: calls.append(
-            ("schedule", "autostart" if autostart else "deferred")
-        )
-        or "job-1",
+        lambda req, autostart=True: (
+            calls.append(("schedule", "autostart" if autostart else "deferred"))
+            or "job-1"
+        ),
     )
     monkeypatch.setattr(
         qb_torrents,

@@ -11,8 +11,7 @@ from defusedxml import ElementTree as ET
 from loguru import logger
 
 MEGAKINO_SITEMAP_USER_AGENT = (
-    "Mozilla/5.0 (AniBridge Megakino Indexer; "
-    "+https://github.com/Zzackllack/AniBridge)"
+    "Mozilla/5.0 (AniBridge Megakino Indexer; +https://github.com/Zzackllack/AniBridge)"
 )
 
 

@@ -96,7 +96,9 @@ def test_fetch_megakino_mirror_domains_falls_back_to_sitemap(monkeypatch):
 def test_fetch_megakino_domain_prefers_seed_order(monkeypatch):
     probed: list[str] = []
 
-    monkeypatch.setattr(domain_resolver, "MEGAKINO_REDIRECT_SEEDS", ["first.example", "second.example"])
+    monkeypatch.setattr(
+        domain_resolver, "MEGAKINO_REDIRECT_SEEDS", ["first.example", "second.example"]
+    )
     monkeypatch.setattr(
         domain_resolver,
         "_fetch_github_domain_hint",
@@ -119,7 +121,9 @@ def test_fetch_megakino_domain_prefers_seed_order(monkeypatch):
 
 
 def test_fetch_megakino_domain_returns_none_when_all_candidates_fail(monkeypatch):
-    monkeypatch.setattr(domain_resolver, "MEGAKINO_REDIRECT_SEEDS", ["first.example", "second.example"])
+    monkeypatch.setattr(
+        domain_resolver, "MEGAKINO_REDIRECT_SEEDS", ["first.example", "second.example"]
+    )
     monkeypatch.setattr(
         domain_resolver,
         "_fetch_github_domain_hint",

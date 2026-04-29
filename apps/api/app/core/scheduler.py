@@ -2,7 +2,7 @@ from __future__ import annotations
 import threading
 from concurrent.futures import ThreadPoolExecutor, Future
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple
 from loguru import logger
 from sqlmodel import Session
 import errno
