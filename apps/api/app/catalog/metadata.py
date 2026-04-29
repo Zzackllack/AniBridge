@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 from typing import Any, Optional
 from urllib.parse import urlencode
+import threading
+import time
 
 from loguru import logger
 
@@ -12,6 +14,12 @@ from app.utils.http_client import get as http_get
 
 SKYHOOK_SEARCH_URL = "https://skyhook.sonarr.tv/v1/tvdb/search/en/"
 SKYHOOK_SHOW_URL = "https://skyhook.sonarr.tv/v1/tvdb/shows/en/{tvdb_id}"
+SKYHOOK_TIMEOUT_SECONDS = 4.0
+SKYHOOK_CACHE_TTL_SECONDS = 3600.0
+
+_cache_lock = threading.Lock()
+_search_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+_show_cache: dict[int, tuple[float, dict[str, Any]]] = {}
 
 
 @dataclass(slots=True)
@@ -22,6 +30,42 @@ class TvCanonicalMatch:
     source: str
     rationale: str
     payload: dict[str, Any]
+
+
+def _cache_get_search(term: str) -> list[dict[str, Any]] | None:
+    now = time.time()
+    with _cache_lock:
+        entry = _search_cache.get(term)
+        if entry is None:
+            return None
+        cached_at, payload = entry
+        if now - cached_at > SKYHOOK_CACHE_TTL_SECONDS:
+            _search_cache.pop(term, None)
+            return None
+        return [dict(item) for item in payload]
+
+
+def _cache_set_search(term: str, payload: list[dict[str, Any]]) -> None:
+    with _cache_lock:
+        _search_cache[term] = (time.time(), [dict(item) for item in payload])
+
+
+def _cache_get_show(tvdb_id: int) -> dict[str, Any] | None:
+    now = time.time()
+    with _cache_lock:
+        entry = _show_cache.get(tvdb_id)
+        if entry is None:
+            return None
+        cached_at, payload = entry
+        if now - cached_at > SKYHOOK_CACHE_TTL_SECONDS:
+            _show_cache.pop(tvdb_id, None)
+            return None
+        return dict(payload)
+
+
+def _cache_set_show(tvdb_id: int, payload: dict[str, Any]) -> None:
+    with _cache_lock:
+        _show_cache[tvdb_id] = (time.time(), dict(payload))
 
 
 def _score_title(query: str, candidate: str) -> float:
@@ -76,21 +120,31 @@ def resolve_tv_canonical_match(
         imdb_id=imdb_id,
         tmdb_id=tmdb_id,
     ):
+        payload = _cache_get_search(term)
+        if payload is None:
+            try:
+                query = urlencode({"term": term})
+                response = http_get(
+                    f"{SKYHOOK_SEARCH_URL}?{query}",
+                    timeout=SKYHOOK_TIMEOUT_SECONDS,
+                )
+                response.raise_for_status()
+                raw_payload = response.json()
+            except Exception as exc:
+                logger.debug("SkyHook search failed for '{}': {}", term, exc)
+                continue
+            if not isinstance(raw_payload, list):
+                continue
+            payload = [item for item in raw_payload if isinstance(item, dict)]
+            _cache_set_search(term, payload)
         try:
-            query = urlencode({"term": term})
-            response = http_get(f"{SKYHOOK_SEARCH_URL}?{query}", timeout=8.0)
-            response.raise_for_status()
-            payload = response.json()
-        except Exception as exc:
-            logger.debug("SkyHook search failed for '{}': {}", term, exc)
+            for item in payload:
+                copied = dict(item)
+                copied["_ab_source"] = source
+                copied["_ab_term"] = term
+                candidates.append(copied)
+        except Exception:
             continue
-        if not isinstance(payload, list):
-            continue
-        for item in payload:
-            if isinstance(item, dict):
-                item["_ab_source"] = source
-                item["_ab_term"] = term
-                candidates.append(item)
 
     best_match: Optional[tuple[float, dict[str, Any]]] = None
     for item in candidates:
@@ -112,15 +166,22 @@ def resolve_tv_canonical_match(
 
     score, item = best_match
     tvdb_id = int(item["tvdbId"])
-    try:
-        response = http_get(SKYHOOK_SHOW_URL.format(tvdb_id=tvdb_id), timeout=8.0)
-        response.raise_for_status()
-        payload = response.json()
-    except Exception as exc:
-        logger.debug("SkyHook show fetch failed for tvdb {}: {}", tvdb_id, exc)
-        return None
-    if not isinstance(payload, dict):
-        return None
+    payload = _cache_get_show(tvdb_id)
+    if payload is None:
+        try:
+            response = http_get(
+                SKYHOOK_SHOW_URL.format(tvdb_id=tvdb_id),
+                timeout=SKYHOOK_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+            raw_payload = response.json()
+        except Exception as exc:
+            logger.debug("SkyHook show fetch failed for tvdb {}: {}", tvdb_id, exc)
+            return None
+        if not isinstance(raw_payload, dict):
+            return None
+        payload = raw_payload
+        _cache_set_show(tvdb_id, payload)
 
     if score >= 0.99:
         confidence = "confirmed"

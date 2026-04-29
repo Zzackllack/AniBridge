@@ -140,3 +140,38 @@ def test_availability_and_clienttask_crud(client):
         assert get_client_task(s, "abc")
         delete_client_task(s, "abc")
         assert get_client_task(s, "abc") is None
+
+
+def test_replace_canonical_episodes_dedupes_duplicate_numbers(client):
+    from sqlmodel import Session, select
+    from app.db import (
+        CanonicalEpisode,
+        engine,
+        replace_canonical_episodes,
+        upsert_canonical_series,
+    )
+
+    with Session(engine) as s:
+        upsert_canonical_series(
+            s,
+            tvdb_id=12345,
+            title="Demo Show",
+            aliases=["Demo Show"],
+        )
+        replace_canonical_episodes(
+            s,
+            tvdb_id=12345,
+            episodes=[
+                {"season": 1, "episode": 1, "title": "Pilot"},
+                {"season": 1, "episode": 1, "title": "Pilot Duplicate"},
+                {"season": 1, "episode": 2, "title": "Second"},
+            ],
+        )
+        s.commit()
+
+        rows = s.exec(
+            select(CanonicalEpisode).where(CanonicalEpisode.tvdb_id == 12345)
+        ).all()
+
+        assert len(rows) == 2
+        assert {(row.season, row.episode) for row in rows} == {(1, 1), (1, 2)}
