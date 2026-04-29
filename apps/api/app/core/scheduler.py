@@ -1,12 +1,18 @@
 from __future__ import annotations
 import threading
 from concurrent.futures import ThreadPoolExecutor, Future
-from typing import Dict, Tuple, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Tuple
 from loguru import logger
 from sqlmodel import Session
 import errno
 
-from app.config import MAX_CONCURRENCY, DOWNLOAD_DIR, STRM_PROXY_MODE
+from app.config import (
+    DOWNLOAD_DIR,
+    JOB_PROGRESS_FLUSH_SECONDS,
+    MAX_CONCURRENCY,
+    STRM_PROXY_MODE,
+)
 from app.utils.strm import allocate_unique_strm_path, build_strm_content
 from app.core.strm_proxy import StrmIdentity, resolve_direct_url, build_stream_url
 from app.utils.terminal import (
@@ -25,6 +31,76 @@ configure_logger()
 EXECUTOR: Optional[ThreadPoolExecutor] = None
 RUNNING: Dict[str, Tuple[Future, threading.Event]] = {}
 RUNNING_LOCK = threading.Lock()
+
+
+@dataclass(slots=True)
+class JobProgressSnapshot:
+    downloaded_bytes: int
+    total_bytes: int | None
+    speed: float | None
+    eta: int | None
+    progress: float
+
+
+class JobProgressWriter:
+    def __init__(self, job_id: str, flush_interval_seconds: float) -> None:
+        self._job_id = job_id
+        self._flush_interval_seconds = flush_interval_seconds
+        self._lock = threading.Lock()
+        self._wake_event = threading.Event()
+        self._stop_event = threading.Event()
+        self._pending: JobProgressSnapshot | None = None
+        self._thread = threading.Thread(
+            target=self._run,
+            name=f"job-progress-writer-{job_id}",
+            daemon=True,
+        )
+
+    def start(self) -> None:
+        self._thread.start()
+
+    def publish(self, snapshot: JobProgressSnapshot) -> None:
+        with self._lock:
+            self._pending = snapshot
+        self._wake_event.set()
+
+    def close(self, *, flush: bool) -> None:
+        self._stop_event.set()
+        if flush:
+            self._wake_event.set()
+        self._thread.join(timeout=5)
+
+    def _drain_pending(self) -> JobProgressSnapshot | None:
+        with self._lock:
+            snapshot = self._pending
+            self._pending = None
+        return snapshot
+
+    def _flush_snapshot(self, snapshot: JobProgressSnapshot) -> None:
+        with Session(engine) as session:
+            update_job(
+                session,
+                self._job_id,
+                status="downloading",
+                downloaded_bytes=snapshot.downloaded_bytes,
+                total_bytes=snapshot.total_bytes,
+                speed=snapshot.speed,
+                eta=snapshot.eta,
+                progress=snapshot.progress,
+            )
+
+    def _run(self) -> None:
+        while True:
+            self._wake_event.wait(self._flush_interval_seconds)
+            self._wake_event.clear()
+            snapshot = self._drain_pending()
+            if snapshot is not None:
+                self._flush_snapshot(snapshot)
+            if self._stop_event.is_set():
+                final_snapshot = self._drain_pending()
+                if final_snapshot is not None:
+                    self._flush_snapshot(final_snapshot)
+                return
 
 
 def init_executor() -> None:
@@ -49,70 +125,73 @@ def shutdown_executor() -> None:
 
 
 def _progress_updater(job_id: str, stop_event: threading.Event):
-    from sqlmodel import Session
-    from app.db import engine, update_job
-
     reporter: ProgressReporter | None = None
     last_db_n = -1
+    callback_lock = threading.Lock()
+    writer = JobProgressWriter(
+        job_id=job_id,
+        flush_interval_seconds=JOB_PROGRESS_FLUSH_SECONDS,
+    )
+    writer.start()
 
     def _cb(d: dict):
         nonlocal reporter, last_db_n
-        if stop_event.is_set():
-            if reporter:
-                reporter.close()
-            raise Exception("Cancelled")
+        with callback_lock:
+            if stop_event.is_set():
+                if reporter:
+                    reporter.close()
+                raise Exception("Cancelled")
 
-        status = d.get("status")
-        downloaded = int(d.get("downloaded_bytes") or 0)
-        total = d.get("total_bytes") or d.get("total_bytes_estimate")
-        speed = d.get("speed")
-        eta = d.get("eta")
+            status = d.get("status")
+            downloaded = int(d.get("downloaded_bytes") or 0)
+            total = d.get("total_bytes") or d.get("total_bytes_estimate")
+            speed = d.get("speed")
+            eta = d.get("eta")
+            total_i = int(total) if total else None
+            speed_f = float(speed) if speed else None
+            eta_i = int(eta) if eta else None
 
-        # Initialize reporter lazily (label contains job id)
-        if reporter is None:
-            reporter = ProgressReporter(label=f"Job {job_id}")
+            if reporter is None:
+                reporter = ProgressReporter(label=f"Job {job_id}")
 
-        # Render progress to terminal (TTY bar or stepped logs)
-        reporter.update(
-            ProgressSnapshot(
-                downloaded=downloaded,
-                total=int(total) if total else None,
-                speed=float(speed) if speed else None,
-                eta=int(eta) if eta else None,
-                status=str(status) if status else None,
+            reporter.update(
+                ProgressSnapshot(
+                    downloaded=downloaded,
+                    total=total_i,
+                    speed=speed_f,
+                    eta=eta_i,
+                    status=str(status) if status else None,
+                )
             )
-        )
 
-        # Throttle DB writes to ~1% steps (or on finish)
-        progress = 0.0
-        should_write = True
-        if total:
-            try:
-                total_i = int(total)
-                step = max(1, total_i // 100)
-                should_write = downloaded == total_i or downloaded // step != last_db_n
-                last_db_n = downloaded // step
-                progress = max(0.0, min(100.0, downloaded / total_i * 100.0))
-            except Exception:
-                should_write = True
+            progress = 0.0
+            should_write = True
+            if total_i:
+                try:
+                    step = max(1, total_i // 100)
+                    should_write = (
+                        downloaded == total_i or downloaded // step != last_db_n
+                    )
+                    last_db_n = downloaded // step
+                    progress = max(0.0, min(100.0, downloaded / total_i * 100.0))
+                except Exception:
+                    should_write = True
 
-        if should_write:
-            with Session(engine) as s:
-                update_job(
-                    s,
-                    job_id,
-                    status="downloading" if status != "finished" else "downloading",
-                    downloaded_bytes=downloaded,
-                    total_bytes=int(total) if total else None,
-                    speed=float(speed) if speed else None,
-                    eta=int(eta) if eta else None,
-                    progress=progress,
+            if should_write:
+                writer.publish(
+                    JobProgressSnapshot(
+                        downloaded_bytes=downloaded,
+                        total_bytes=total_i,
+                        speed=speed_f,
+                        eta=eta_i,
+                        progress=progress,
+                    )
                 )
 
-        if status == "finished" and reporter is not None:
-            reporter.close()
+            if status == "finished" and reporter is not None:
+                reporter.close()
 
-    return _cb
+    return _cb, writer
 
 
 def _run_download(job_id: str, req: dict, stop_event: threading.Event):
@@ -136,6 +215,7 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
             - 'site' (optional, defaults to "aniworld.to")
         stop_event (threading.Event): Event that, when set, requests cancellation of the download.
     """
+    progress_cb, progress_writer = _progress_updater(job_id, stop_event)
     try:
         with Session(engine) as s:
             site = req.get("site", "aniworld.to")
@@ -152,16 +232,18 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
             ),
             dest_dir=DOWNLOAD_DIR,
             title_hint=req.get("title_hint"),
-            progress_cb=_progress_updater(job_id, stop_event),
+            progress_cb=progress_cb,
             stop_event=stop_event,
             site=req.get("site", "aniworld.to"),
         )
 
+        progress_writer.close(flush=True)
         with Session(engine) as s:
             update_job(
                 s, job_id, status="completed", progress=100.0, result_path=str(dest)
             )
     except OSError as e:
+        progress_writer.close(flush=False)
         with Session(engine) as s:
             if e.errno in (errno.EACCES, errno.EROFS):
                 update_job(
@@ -173,6 +255,7 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
             else:
                 update_job(s, job_id, status="failed", message=str(e))
     except Exception as e:
+        progress_writer.close(flush=False)
         msg = str(e)
         status = "failed"
         if "Cancel" in msg or "cancel" in msg:

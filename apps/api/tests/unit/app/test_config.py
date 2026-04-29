@@ -101,6 +101,7 @@ def test_provider_redirect_settings(monkeypatch):
     monkeypatch.setenv("PROVIDER_REDIRECT_TIMEOUT_SECONDS", "15")
     monkeypatch.setenv("PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS", "9.5")
     monkeypatch.setenv("PROVIDER_REDIRECT_RETRIES", "4")
+    monkeypatch.setenv("JOB_PROGRESS_FLUSH_SECONDS", "0.25")
     monkeypatch.setenv("PROVIDER_CHALLENGE_BACKOFF_SECONDS", "120")
 
     if "app.config" in sys.modules:
@@ -113,6 +114,7 @@ def test_provider_redirect_settings(monkeypatch):
     assert cfg.PROVIDER_REDIRECT_TIMEOUT_SECONDS == 15
     assert cfg.PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS == 9.5
     assert cfg.PROVIDER_REDIRECT_RETRIES == 4
+    assert cfg.JOB_PROGRESS_FLUSH_SECONDS == 0.25
     assert cfg.PROVIDER_CHALLENGE_BACKOFF_SECONDS == 120
 
     monkeypatch.setenv("DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC", "not-a-number")

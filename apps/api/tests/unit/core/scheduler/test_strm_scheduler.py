@@ -1,5 +1,6 @@
 import errno
 import threading
+import time
 from pathlib import Path
 
 from sqlmodel import Session
@@ -212,3 +213,115 @@ def test_run_strm_creates_proxy_url(tmp_path, monkeypatch):
         assert mapping is not None
         assert mapping.resolved_url == "https://example.com/video.mp4"
         assert mapping.provider_used == "VOE"
+
+
+def test_progress_updater_coalesces_bursty_db_writes(tmp_path, monkeypatch):
+    scheduler = _setup_scheduler(tmp_path, monkeypatch, strm_proxy_mode="direct")
+    monkeypatch.setattr(scheduler, "JOB_PROGRESS_FLUSH_SECONDS", 60.0)
+
+    writes: list[dict[str, object]] = []
+
+    class FakeSession:
+        def __enter__(self):
+            return object()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeReporter:
+        def __init__(self, label: str):
+            self.label = label
+
+        def update(self, snapshot):
+            del snapshot
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(scheduler, "Session", lambda _engine: FakeSession())
+    monkeypatch.setattr(scheduler, "ProgressReporter", FakeReporter)
+    monkeypatch.setattr(
+        scheduler,
+        "update_job",
+        lambda _session, job_id, **fields: writes.append(
+            {"job_id": job_id, **fields}
+        ),
+    )
+
+    callback, writer = scheduler._progress_updater("job-1", threading.Event())
+    callback(
+        {
+            "status": "downloading",
+            "downloaded_bytes": 1024,
+            "total_bytes": 10_000,
+            "speed": 1000,
+        }
+    )
+    callback(
+        {
+            "status": "downloading",
+            "downloaded_bytes": 2048,
+            "total_bytes": 10_000,
+            "speed": 2000,
+            "eta": 5,
+        }
+    )
+    writer.close(flush=True)
+
+    assert len(writes) == 1
+    assert writes[0]["job_id"] == "job-1"
+    assert writes[0]["downloaded_bytes"] == 2048
+    assert writes[0]["total_bytes"] == 10_000
+    assert writes[0]["speed"] == 2000.0
+    assert writes[0]["eta"] == 5
+
+
+def test_progress_updater_flushes_without_final_close(tmp_path, monkeypatch):
+    scheduler = _setup_scheduler(tmp_path, monkeypatch, strm_proxy_mode="direct")
+    monkeypatch.setattr(scheduler, "JOB_PROGRESS_FLUSH_SECONDS", 0.01)
+
+    writes: list[dict[str, object]] = []
+
+    class FakeSession:
+        def __enter__(self):
+            return object()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeReporter:
+        def __init__(self, label: str):
+            self.label = label
+
+        def update(self, snapshot):
+            del snapshot
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(scheduler, "Session", lambda _engine: FakeSession())
+    monkeypatch.setattr(scheduler, "ProgressReporter", FakeReporter)
+    monkeypatch.setattr(
+        scheduler,
+        "update_job",
+        lambda _session, job_id, **fields: writes.append(
+            {"job_id": job_id, **fields}
+        ),
+    )
+
+    callback, writer = scheduler._progress_updater("job-2", threading.Event())
+    callback(
+        {
+            "status": "downloading",
+            "downloaded_bytes": 5000,
+            "total_bytes": 10_000,
+            "speed": 4000,
+            "eta": 1,
+        }
+    )
+    time.sleep(0.05)
+    writer.close(flush=False)
+
+    assert writes
+    assert writes[-1]["job_id"] == "job-2"
+    assert writes[-1]["downloaded_bytes"] == 5000
