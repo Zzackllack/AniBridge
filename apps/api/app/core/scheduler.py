@@ -309,7 +309,26 @@ def _run_strm(job_id: str, req: dict, stop_event: threading.Event) -> None:
             RUNNING.pop(job_id, None)
 
 
-def schedule_download(req: dict) -> str:
+def start_scheduled_job(job_id: str, req: dict) -> None:
+    init_executor()
+    if EXECUTOR is None:
+        raise RuntimeError("executor not available")
+
+    stop_event = threading.Event()
+    mode = str(req.get("mode") or "").strip().lower()
+    runner = _run_strm if mode == "strm" else _run_download
+    fut = EXECUTOR.submit(runner, job_id, req, stop_event)
+    with RUNNING_LOCK:
+        RUNNING[job_id] = (fut, stop_event)
+
+
+def create_scheduled_job(req: dict) -> str:
+    with Session(engine) as s:
+        job = create_job(s, source_site=req.get("site") or "aniworld.to")
+    return job.id
+
+
+def schedule_download(req: dict, *, autostart: bool = True) -> str:
     """
     Schedule a background download job and return its job identifier.
 
@@ -330,20 +349,10 @@ def schedule_download(req: dict) -> str:
     Raises:
         RuntimeError: If the thread pool executor is unavailable after initialization.
     """
-    init_executor()
-    if EXECUTOR is None:
-        raise RuntimeError("executor not available")
-
-    with Session(engine) as s:
-        job = create_job(s, source_site=req.get("site") or "aniworld.to")
-
-    stop_event = threading.Event()
-    mode = str(req.get("mode") or "").strip().lower()
-    runner = _run_strm if mode == "strm" else _run_download
-    fut = EXECUTOR.submit(runner, job.id, req, stop_event)
-    with RUNNING_LOCK:
-        RUNNING[job.id] = (fut, stop_event)
-    return job.id
+    job_id = create_scheduled_job(req)
+    if autostart:
+        start_scheduled_job(job_id, req)
+    return job_id
 
 
 def cancel_job(job_id: str) -> None:
