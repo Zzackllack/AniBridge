@@ -503,6 +503,15 @@ def resolve_series_title(
         if title:
             logger.info(f"Resolved title for slug '{slug}' on {site}: {title}")
             return title
+    # Attempt to resolve from the in-memory/indexed alphabet sources first
+    index = load_or_refresh_index(site)
+    title = index.get(slug)
+    if title:
+        logger.info(f"Resolved title for slug '{slug}' on {site}: {title}")
+        return title
+
+    # No title found in DB or in-memory index. If the provider catalog is
+    # already considered ready/bootstrapped, treat this as a definitive miss.
     if get_catalog_readiness_error() is None:
         logger.warning(
             "No indexed title found for slug '{}' on {} after catalog bootstrap.",
@@ -510,13 +519,10 @@ def resolve_series_title(
             site,
         )
         return None
-    index = load_or_refresh_index(site)
-    title = index.get(slug)
-    if title:
-        logger.info(f"Resolved title for slug '{slug}' on {site}: {title}")
-    else:
-        logger.warning(f"No title found for slug: {slug} on {site}")
-    return title
+
+    # Catalog is still bootstrapping and no in-memory title found.
+    logger.warning(f"No title found for slug: {slug} on {site}")
+    return None
 
 
 def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[str]]:
@@ -720,23 +726,10 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
     """
     if not q:
         return None
-    readiness_error = get_catalog_readiness_error()
-    if readiness_error is None:
-        providers = [site] if site else list(CATALOG_SITES_LIST)
-        preferred = [provider for provider in providers if provider != "megakino"]
-        fallback = [provider for provider in providers if provider == "megakino"]
-        with Session(engine) as session:
-            for batch in (preferred, fallback):
-                if not batch:
-                    continue
-                rows = search_indexed_provider_titles(
-                    session,
-                    query=q,
-                    providers=batch,
-                    limit=1,
-                )
-                if rows:
-                    return (rows[0].provider, rows[0].slug)
+    # Prefer searching the in-memory alphabet indexes first (fast, deterministic
+    # for unit tests and for recent file-based index loads). If no indexed
+    # match is found, fall back to the DB-backed provider index search when
+    # the catalog reports readiness.
 
     def _search_sites(sites: List[str]) -> Optional[Tuple[str, str]]:
         """
@@ -800,14 +793,61 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
                 return ("s.to", api_slug)
         return None
 
+    # 1) If a specific site was requested, only consult that site's in-memory
+    # index (and then its DB-backed index) — do NOT fall back to other sites.
     if site:
-        return _search_sites([site])
+        result = _search_sites([site])
+        if result:
+            return result
+        readiness_error = get_catalog_readiness_error()
+        if readiness_error is None:
+            with Session(engine) as session:
+                rows = search_indexed_provider_titles(
+                    session,
+                    query=q,
+                    providers=[site],
+                    limit=1,
+                )
+                if rows:
+                    candidate = rows[0]
+                    cand_score = _score_title_candidate(
+                        _match_tokens(q), _normalize_alnum(q), candidate.title
+                    )
+                    if cand_score >= _MIN_TITLE_MATCH_SCORE:
+                        return (candidate.provider, candidate.slug)
+        return None
 
+    # 2) No specific site requested: try index-based lookup across primary sites
     primary_sites = [s for s in CATALOG_SITES_LIST if s != "megakino"]
     result = _search_sites(primary_sites)
     if result:
         return result
 
+    # 3) If no index match, and the catalog is ready, try the DB-backed search
+    readiness_error = get_catalog_readiness_error()
+    if readiness_error is None:
+        providers = list(CATALOG_SITES_LIST)
+        preferred = [provider for provider in providers if provider != "megakino"]
+        fallback = [provider for provider in providers if provider == "megakino"]
+        with Session(engine) as session:
+            for batch in (preferred, fallback):
+                if not batch:
+                    continue
+                rows = search_indexed_provider_titles(
+                    session,
+                    query=q,
+                    providers=batch,
+                    limit=1,
+                )
+                if rows:
+                    candidate = rows[0]
+                    cand_score = _score_title_candidate(
+                        _match_tokens(q), _normalize_alnum(q), candidate.title
+                    )
+                    if cand_score >= _MIN_TITLE_MATCH_SCORE:
+                        return (candidate.provider, candidate.slug)
+
+    # 3) Megakino-specific direct slug/fallback handling
     if "megakino" in CATALOG_SITES_LIST or "megakino" in _PROVIDER_CACHE:
         raw = (q or "").strip()
         direct_slug = _extract_slug(raw, "megakino")
