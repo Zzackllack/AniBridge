@@ -1674,7 +1674,9 @@ class ProviderCatalogIndexer:
                 status.detail_enrichment_status,
                 status.canonical_enrichment_status,
                 status.latest_success_generation,
-                status.next_refresh_after.isoformat()
-                if status.next_refresh_after is not None
-                else None,
+                (
+                    status.next_refresh_after.isoformat()
+                    if status.next_refresh_after is not None
+                    else None
+                ),
             )

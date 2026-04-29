@@ -472,7 +472,9 @@ def fetch_megakino_domain(
         normalized_candidates.append(domain)
 
     if not normalized_candidates:
-        logger.warning("Megakino domain resolution failed; no candidate seeds available.")
+        logger.warning(
+            "Megakino domain resolution failed; no candidate seeds available."
+        )
         return None
 
     logger.info(

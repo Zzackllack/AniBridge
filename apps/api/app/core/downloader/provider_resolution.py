@@ -39,15 +39,15 @@ def _run_with_timeout(
     thread.start()
     thread.join(timeout_seconds)
     if thread.is_alive():
-        raise TimeoutError(
-            f"{operation} timed out after {timeout_seconds:.1f}s"
-        )
+        raise TimeoutError(f"{operation} timed out after {timeout_seconds:.1f}s")
 
     outcome, payload = result_queue.get()
     if outcome == "error":
         if isinstance(payload, BaseException):
             raise payload
-        raise RuntimeError(f"{operation} failed with non-exception payload: {payload!r}")
+        raise RuntimeError(
+            f"{operation} failed with non-exception payload: {payload!r}"
+        )
     return payload
 
 

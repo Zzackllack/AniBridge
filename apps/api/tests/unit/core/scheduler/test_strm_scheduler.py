@@ -243,9 +243,7 @@ def test_progress_updater_coalesces_bursty_db_writes(tmp_path, monkeypatch):
     monkeypatch.setattr(
         scheduler,
         "update_job",
-        lambda _session, job_id, **fields: writes.append(
-            {"job_id": job_id, **fields}
-        ),
+        lambda _session, job_id, **fields: writes.append({"job_id": job_id, **fields}),
     )
 
     callback, writer = scheduler._progress_updater("job-1", threading.Event())
@@ -304,9 +302,7 @@ def test_progress_updater_flushes_without_final_close(tmp_path, monkeypatch):
     monkeypatch.setattr(
         scheduler,
         "update_job",
-        lambda _session, job_id, **fields: writes.append(
-            {"job_id": job_id, **fields}
-        ),
+        lambda _session, job_id, **fields: writes.append({"job_id": job_id, **fields}),
     )
 
     callback, writer = scheduler._progress_updater("job-2", threading.Event())
