@@ -84,6 +84,7 @@ def _seed_special_mapping_catalog(*, languages: list[str]) -> None:
             session,
             provider="aniworld.to",
             slug="kaguya",
+            indexed_generation=generation,
             mappings=[
                 {
                     "tvdb_id": 12345,
@@ -97,6 +98,7 @@ def _seed_special_mapping_catalog(*, languages: list[str]) -> None:
             session,
             provider="aniworld.to",
             slug="kaguya",
+            indexed_generation=generation,
             mappings=[
                 {
                     "provider_season": 0,

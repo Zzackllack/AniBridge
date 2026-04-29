@@ -1,5 +1,8 @@
 # Change Log
 
+- 2026-04-29: Switched provider catalog refreshes to staged streaming
+  persistence with bounded queues, dedicated SQLite writer batches, explicit
+  interrupted-staging cleanup, and generation-aware provider mapping rows.
 - 2026-04-13: Documented the new `app/hosts` package and clarified the naming
   split between catalogue-site providers and direct video hosts.
 - 2026-03-22: Documented automatic Serienstream Turnstile handling for protected

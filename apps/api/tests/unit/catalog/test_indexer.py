@@ -1,4 +1,3 @@
-import time
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -20,56 +19,74 @@ def test_catalog_scheduler_runs_immediately(monkeypatch):
     assert calls == ["called"]
 
 
-def test_catalog_discovery_logs_heartbeat(monkeypatch):
-    import app.catalog.indexer as indexer_module
+def test_catalog_progress_tracks_crawl_and_persist_counts():
     from app.catalog.indexer import ProviderCatalogIndexer
 
-    messages: list[str] = []
-
-    def fake_info(message: str, *args) -> None:
-        messages.append(message.format(*args))
-
-    def fake_crawl(_provider: str, *, observer=None) -> list[object]:
-        assert observer is not None
-        time.sleep(0.03)
-        return []
-
-    monkeypatch.setattr(indexer_module, "_DISCOVERY_HEARTBEAT_SECONDS", 0.01)
-    monkeypatch.setattr(indexer_module, "crawl_provider_catalog", fake_crawl)
-    monkeypatch.setattr(indexer_module.logger, "info", fake_info)
-
-    titles = ProviderCatalogIndexer()._crawl_provider_catalog_with_heartbeat(
-        "aniworld.to"
+    indexer = ProviderCatalogIndexer()
+    indexer._set_progress(
+        "aniworld.to",
+        phase="crawling_titles",
+        total_titles=10,
+        reset_log_steps=True,
+    )
+    indexer._advance_crawl_progress(
+        "aniworld.to",
+        current_slug="slug-1",
+        queue_depth=3,
+    )
+    indexer._advance_failed_progress(
+        "aniworld.to",
+        current_slug="slug-2",
+        queue_depth=2,
+    )
+    indexer._advance_persist_progress(
+        "aniworld.to",
+        current_slug="slug-1",
+        count=1,
+        queue_depth=1,
     )
 
-    assert titles == []
-    assert any("still discovering titles after" in message for message in messages)
+    assert indexer._get_total_titles("aniworld.to") == 10
+    assert indexer._get_persisted_titles("aniworld.to") == 1
+    assert indexer._get_failed_titles("aniworld.to") == 1
+    assert indexer._get_writer_lag("aniworld.to") == 0
 
 
-def test_catalog_discovery_logs_title_crawl_counts(monkeypatch):
-    import app.catalog.indexer as indexer_module
+def test_stale_generation_detection_handles_running_and_published_states():
     from app.catalog.indexer import ProviderCatalogIndexer
 
-    messages: list[str] = []
+    indexer = ProviderCatalogIndexer()
 
-    def fake_info(message: str, *args) -> None:
-        messages.append(message.format(*args))
-
-    def fake_crawl(_provider: str, *, observer=None) -> list[object]:
-        assert observer is not None
-        observer.on_index_loaded(10)
-        observer.on_title_crawled("slug-1")
-        time.sleep(0.03)
-        return []
-
-    monkeypatch.setattr(indexer_module, "_DISCOVERY_HEARTBEAT_SECONDS", 0.01)
-    monkeypatch.setattr(indexer_module, "crawl_provider_catalog", fake_crawl)
-    monkeypatch.setattr(indexer_module.logger, "info", fake_info)
-
-    ProviderCatalogIndexer()._crawl_provider_catalog_with_heartbeat("aniworld.to")
-
-    assert any("loaded title index with 10 titles" in message for message in messages)
-    assert any("crawling title details 1/10 (10.0%)" in message for message in messages)
+    assert (
+        indexer._stale_generation(
+            SimpleNamespace(
+                status="running",
+                current_generation="gen-running",
+                latest_success_generation="gen-old",
+            )
+        )
+        == "gen-running"
+    )
+    assert (
+        indexer._stale_generation(
+            SimpleNamespace(
+                status="failed",
+                current_generation="gen-staging",
+                latest_success_generation="gen-old",
+            )
+        )
+        == "gen-staging"
+    )
+    assert (
+        indexer._stale_generation(
+            SimpleNamespace(
+                status="ready",
+                current_generation="gen-live",
+                latest_success_generation="gen-live",
+            )
+        )
+        is None
+    )
 
 
 def test_catalog_recovers_interrupted_running_state(monkeypatch):
@@ -77,12 +94,14 @@ def test_catalog_recovers_interrupted_running_state(monkeypatch):
     from app.catalog.indexer import ProviderCatalogIndexer
 
     updates: list[dict[str, object]] = []
+    cleaned: list[tuple[str, str]] = []
     warnings: list[str] = []
     statuses = {
         "aniworld.to": SimpleNamespace(
             provider="aniworld.to",
             status="running",
             bootstrap_completed=False,
+            current_generation="staging-123",
             latest_started_at=None,
             latest_success_generation=None,
             next_refresh_after=None,
@@ -94,6 +113,7 @@ def test_catalog_recovers_interrupted_running_state(monkeypatch):
             provider="megakino",
             status="ready",
             bootstrap_completed=True,
+            current_generation="abc123",
             latest_started_at=None,
             latest_success_generation="abc123",
             next_refresh_after=None,
@@ -119,9 +139,15 @@ def test_catalog_recovers_interrupted_running_state(monkeypatch):
         updates.append(kwargs)
         return None
 
+    def fake_delete_provider_generation(_session, *, provider: str, generation: str):
+        cleaned.append((provider, generation))
+
     monkeypatch.setattr(indexer_module, "Session", lambda _engine: FakeSession())
     monkeypatch.setattr(
         indexer_module, "get_provider_index_status", fake_get_provider_index_status
+    )
+    monkeypatch.setattr(
+        indexer_module, "delete_provider_generation", fake_delete_provider_generation
     )
     monkeypatch.setattr(
         indexer_module,
@@ -132,8 +158,12 @@ def test_catalog_recovers_interrupted_running_state(monkeypatch):
 
     ProviderCatalogIndexer()._ensure_status_rows()
 
-    assert any("recovered interrupted run for aniworld.to" in item for item in warnings)
+    assert any(
+        "found interrupted staging generation for aniworld.to" in item
+        for item in warnings
+    )
     assert any("Initial bootstrap required" in item for item in warnings)
+    assert cleaned == [("aniworld.to", "staging-123")]
     assert any(
         update.get("provider") == "aniworld.to" and update.get("status") == "pending"
         for update in updates
