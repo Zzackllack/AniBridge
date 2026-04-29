@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import re
+from queue import Queue
+from threading import Thread
 from typing import List, Optional, Tuple, TYPE_CHECKING
 
 from loguru import logger
 
-from app.config import PROVIDER_ORDER
+from app.config import PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS, PROVIDER_ORDER
 from .errors import DownloadError, LanguageUnavailableError
 from .language import normalize_language
 
@@ -13,6 +15,40 @@ if TYPE_CHECKING:
     from aniworld.models import Episode
 
 _AVAIL_RE = re.compile(r"Available languages:\s*\[([^\]]*)\]", re.IGNORECASE)
+
+
+def _run_with_timeout(
+    callback,
+    *args,
+    timeout_seconds: float,
+    operation: str,
+):
+    result_queue: Queue[tuple[str, object]] = Queue(maxsize=1)
+
+    def _target() -> None:
+        try:
+            result_queue.put(("result", callback(*args)))
+        except Exception as exc:
+            result_queue.put(("error", exc))
+
+    thread = Thread(
+        target=_target,
+        name=f"provider-resolution-{operation}",
+        daemon=True,
+    )
+    thread.start()
+    thread.join(timeout_seconds)
+    if thread.is_alive():
+        raise TimeoutError(
+            f"{operation} timed out after {timeout_seconds:.1f}s"
+        )
+
+    outcome, payload = result_queue.get()
+    if outcome == "error":
+        if isinstance(payload, BaseException):
+            raise payload
+        raise RuntimeError(f"{operation} failed with non-exception payload: {payload!r}")
+    return payload
 
 
 def _parse_available_languages_from_error(msg: str) -> List[str]:
@@ -60,7 +96,13 @@ def _try_get_direct(ep: Episode, provider_name: str, language: str) -> Optional[
     language = normalize_language(language)
     logger.info("Trying provider '{}' for language '{}'", provider_name, language)
     try:
-        url = ep.get_direct_link(provider_name, language)  # Lib-API
+        url = _run_with_timeout(
+            ep.get_direct_link,
+            provider_name,
+            language,
+            timeout_seconds=PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS,
+            operation=f"{provider_name.lower()}-direct-link",
+        )
         if url:
             logger.success(
                 "Found direct URL from provider '{}': {}", provider_name, url

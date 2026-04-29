@@ -99,6 +99,7 @@ def test_provider_redirect_settings(monkeypatch):
     import sys
 
     monkeypatch.setenv("PROVIDER_REDIRECT_TIMEOUT_SECONDS", "15")
+    monkeypatch.setenv("PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS", "9.5")
     monkeypatch.setenv("PROVIDER_REDIRECT_RETRIES", "4")
     monkeypatch.setenv("PROVIDER_CHALLENGE_BACKOFF_SECONDS", "120")
 
@@ -110,6 +111,7 @@ def test_provider_redirect_settings(monkeypatch):
     cfg = importlib.reload(cfg)
 
     assert cfg.PROVIDER_REDIRECT_TIMEOUT_SECONDS == 15
+    assert cfg.PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS == 9.5
     assert cfg.PROVIDER_REDIRECT_RETRIES == 4
     assert cfg.PROVIDER_CHALLENGE_BACKOFF_SECONDS == 120
 
