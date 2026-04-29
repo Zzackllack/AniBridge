@@ -299,6 +299,55 @@ def test_progress_snapshot_exposes_staged_readiness(client):
     assert by_provider["aniworld.to"]["canonical_enrichment_status"] == "failed"
 
 
+def test_ensure_status_rows_backfills_legacy_ready_stage_fields(monkeypatch):
+    import app.catalog.indexer as indexer_module
+    from app.catalog.indexer import ProviderCatalogIndexer
+    from app.db import utcnow
+
+    ready_at = utcnow()
+    legacy_status = SimpleNamespace(
+        bootstrap_completed=True,
+        latest_success_generation="gen-1",
+        title_index_status="pending",
+        latest_completed_at=ready_at,
+        latest_success_at=ready_at,
+        status="ready",
+    )
+    recorded: list[dict[str, object]] = []
+
+    class FakeSession:
+        def __enter__(self):
+            return object()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(indexer_module, "Session", lambda _engine: FakeSession())
+    monkeypatch.setattr(
+        indexer_module,
+        "get_provider_index_status",
+        lambda _session, provider: legacy_status,
+    )
+
+    indexer = ProviderCatalogIndexer()
+    monkeypatch.setattr(
+        indexer._writer,
+        "run",
+        lambda callback: callback(object()),
+    )
+    monkeypatch.setattr(
+        indexer_module,
+        "upsert_provider_index_status",
+        lambda _session, **kwargs: recorded.append(kwargs),
+    )
+
+    indexer._ensure_status_rows()
+
+    assert any(item["title_index_status"] == "ready" for item in recorded)
+    assert any(item["detail_enrichment_status"] == "ready" for item in recorded)
+    assert any(item["canonical_enrichment_status"] == "ready" for item in recorded)
+
+
 def test_write_coordinator_serializes_callbacks(monkeypatch):
     import app.catalog.indexer as indexer_module
     from app.catalog.indexer import CatalogIndexWriteCoordinator
