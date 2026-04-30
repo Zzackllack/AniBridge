@@ -66,8 +66,10 @@ class JobProgressWriter:
 
     def close(self, *, flush: bool) -> None:
         self._stop_event.set()
-        if flush:
-            self._wake_event.set()
+        if not flush:
+            with self._lock:
+                self._pending = None
+        self._wake_event.set()
         self._thread.join(timeout=5)
 
     def _drain_pending(self) -> JobProgressSnapshot | None:

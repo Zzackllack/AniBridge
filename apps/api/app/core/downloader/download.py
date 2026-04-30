@@ -176,7 +176,7 @@ def download_episode(
         "Resolved initial download host: preferred={} resolved={} direct_url={}",
         provider,
         chosen,
-        direct,
+        "<redacted>",
     )
 
     base_hint = title_hint
@@ -220,7 +220,7 @@ def download_episode(
                     chosen,
                     provider_name,
                     chosen3,
-                    direct3,
+                    "<redacted>",
                 )
                 temp_path, info = _ydl_download(
                     direct3,

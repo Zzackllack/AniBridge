@@ -658,6 +658,9 @@ class ProviderCatalogIndexer:
                 )
             queue.put(_QUEUE_SENTINEL)
             writer.join(timeout=30)
+            if writer.is_alive():
+                detail = f": {writer_failure[0]}" if writer_failure else ""
+                raise RuntimeError(f"writer thread did not finish within 30s{detail}")
             if writer_failure:
                 raise RuntimeError(str(writer_failure[0]))
             completed_at = utcnow()
@@ -1277,11 +1280,12 @@ class ProviderCatalogIndexer:
     ) -> None:
         with Session(engine) as read_session:
             status = get_provider_index_status(read_session, provider=provider)
-        overall_status = "ready" if is_provider_fully_ready(status) else "partial"
+        if status is not None:
+            status = status.model_copy(deep=True)
         payload = {
             "provider": provider,
             "refresh_interval_hours": refresh_interval_hours,
-            "status": overall_status,
+            "status": "partial",
             "active_stage": None,
             "latest_completed_at": completed_at,
             "last_error_summary": "",
@@ -1291,12 +1295,20 @@ class ProviderCatalogIndexer:
             payload["detail_enrichment_status"] = "ready"
             payload["detail_ready_at"] = completed_at
             payload["detail_next_retry_after"] = None
+            if status is not None:
+                status.detail_enrichment_status = "ready"
+                status.detail_ready_at = completed_at
+                status.detail_next_retry_after = None
         else:
             payload["canonical_enrichment_status"] = "ready"
             payload["canonical_ready_at"] = completed_at
             payload["canonical_next_retry_after"] = None
-            if status is not None and status.detail_enrichment_status == "ready":
-                payload["status"] = "ready"
+            if status is not None:
+                status.canonical_enrichment_status = "ready"
+                status.canonical_ready_at = completed_at
+                status.canonical_next_retry_after = None
+        if status is not None and is_provider_fully_ready(status):
+            payload["status"] = "ready"
         upsert_provider_index_status(session, **payload)
 
     def _mark_stage_failed(

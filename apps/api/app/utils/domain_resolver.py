@@ -459,40 +459,61 @@ def fetch_megakino_domain(
         raw_candidates.append(env_candidate)
     raw_candidates.extend(MEGAKINO_REDIRECT_SEEDS)
 
+    def _iter_candidates(candidates: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for candidate in candidates:
+            domain = _normalize_domain(candidate)
+            if not domain or domain in seen:
+                continue
+            seen.add(domain)
+            normalized.append(domain)
+        return normalized
+
+    normalized_candidates = _iter_candidates(raw_candidates)
+    if normalized_candidates:
+        logger.info(
+            "Megakino domain resolution candidates: {}",
+            ", ".join(normalized_candidates),
+        )
+        for domain in normalized_candidates:
+            base_url = _build_base_url(domain)
+            try:
+                resolved = _probe_megakino_sitemap(base_url, timeout=timeout)
+            except Exception as exc:
+                logger.warning(
+                    "Megakino candidate check failed for {}: {}", base_url, exc
+                )
+                continue
+            if resolved:
+                logger.success("Megakino domain resolved: {}", resolved)
+                return resolved
+            logger.warning("Megakino candidate failed validation: {}", domain)
+
     hint_domain = _fetch_github_domain_hint(timeout=min(timeout, 8))
     if hint_domain:
-        raw_candidates.append(hint_domain)
-
-    normalized_candidates: list[str] = []
-    for candidate in raw_candidates:
-        domain = _normalize_domain(candidate)
-        if not domain or domain in seen:
-            continue
-        seen.add(domain)
-        normalized_candidates.append(domain)
-
-    if not normalized_candidates:
-        logger.warning(
-            "Megakino domain resolution failed; no candidate seeds available."
-        )
-        return None
-
-    logger.info(
-        "Megakino domain resolution candidates: {}",
-        ", ".join(normalized_candidates),
-    )
-
-    for domain in normalized_candidates:
-        base_url = _build_base_url(domain)
-        try:
-            resolved = _probe_megakino_sitemap(base_url, timeout=timeout)
-        except Exception as exc:
-            logger.warning("Megakino candidate check failed for {}: {}", base_url, exc)
-            continue
-        if resolved:
-            logger.success("Megakino domain resolved: {}", resolved)
-            return resolved
-        logger.warning("Megakino candidate failed validation: {}", domain)
+        hinted_candidates = _iter_candidates([hint_domain])
+        if hinted_candidates:
+            logger.info(
+                "Megakino domain resolution fallback candidate: {}",
+                ", ".join(hinted_candidates),
+            )
+            for domain in hinted_candidates:
+                base_url = _build_base_url(domain)
+                try:
+                    resolved = _probe_megakino_sitemap(base_url, timeout=timeout)
+                except Exception as exc:
+                    logger.warning(
+                        "Megakino hinted candidate check failed for {}: {}",
+                        base_url,
+                        exc,
+                    )
+                    continue
+                if resolved:
+                    logger.success("Megakino domain resolved: {}", resolved)
+                    return resolved
+                logger.warning(
+                    "Megakino hinted candidate failed validation: {}", domain
+                )
 
     logger.warning("Megakino domain resolution failed; no candidate succeeded.")
     return None

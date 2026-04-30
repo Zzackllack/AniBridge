@@ -437,27 +437,28 @@ def _indexed_preview_results(
                 language=language,
                 site=provider,
             )
-            magnet = tn_module.build_magnet(
-                title=release_title,
-                slug=row.slug,
-                season=provider_season_i,
-                episode=provider_episode_i,
-                language=language,
-                provider=None,
-                site=provider,
-            )
-            _build_item(
-                channel=channel,
-                title=release_title,
-                magnet=magnet,
-                pubdate=now,
-                cat_id=cat_id,
-                guid_str=f"{provider}:{row.slug}:{season_i}:{episode_i}:{language}",
-                language=language,
-            )
-            count += 1
-            if count >= max(1, limit):
-                return count
+            if STRM_FILES_MODE != "only":
+                magnet = tn_module.build_magnet(
+                    title=release_title,
+                    slug=row.slug,
+                    season=provider_season_i,
+                    episode=provider_episode_i,
+                    language=language,
+                    provider=None,
+                    site=provider,
+                )
+                _build_item(
+                    channel=channel,
+                    title=release_title,
+                    magnet=magnet,
+                    pubdate=now,
+                    cat_id=cat_id,
+                    guid_str=f"{provider}:{row.slug}:{season_i}:{episode_i}:{language}",
+                    language=language,
+                )
+                count += 1
+                if count >= max(1, limit):
+                    return count
             if STRM_FILES_MODE in ("only", "both"):
                 magnet_strm = tn_module.build_magnet(
                     title=release_title + strm_suffix,
@@ -508,45 +509,49 @@ def _emit_indexed_mapped_episode(
         season=provider_season,
         episode=provider_episode,
     )
+    language_values = [
+        language_row.language for language_row in languages
+    ] or _default_languages_for_site(provider)
     emitted = 0
-    for language_row in languages or []:
+    for language in language_values:
         release_title = tn_module.build_release_name(
             series_title=title,
             season=canonical_season,
             episode=canonical_episode,
             height=None,
             vcodec=None,
-            language=language_row.language,
+            language=language,
             site=provider,
         )
-        magnet = tn_module.build_magnet(
-            title=release_title,
-            slug=slug,
-            season=provider_season,
-            episode=provider_episode,
-            language=language_row.language,
-            provider=None,
-            site=provider,
-        )
-        _build_item(
-            channel=channel,
-            title=release_title,
-            magnet=magnet,
-            pubdate=now,
-            cat_id=cat_id,
-            guid_str=f"{provider}:{slug}:S{canonical_season}E{canonical_episode}:{language_row.language}",
-            language=language_row.language,
-        )
-        emitted += 1
-        if emitted >= max_items:
-            return emitted
+        if STRM_FILES_MODE != "only":
+            magnet = tn_module.build_magnet(
+                title=release_title,
+                slug=slug,
+                season=provider_season,
+                episode=provider_episode,
+                language=language,
+                provider=None,
+                site=provider,
+            )
+            _build_item(
+                channel=channel,
+                title=release_title,
+                magnet=magnet,
+                pubdate=now,
+                cat_id=cat_id,
+                guid_str=f"{provider}:{slug}:S{canonical_season}E{canonical_episode}:{language}",
+                language=language,
+            )
+            emitted += 1
+            if emitted >= max_items:
+                return emitted
         if STRM_FILES_MODE in ("only", "both"):
             magnet_strm = tn_module.build_magnet(
                 title=release_title + strm_suffix,
                 slug=slug,
                 season=provider_season,
                 episode=provider_episode,
-                language=language_row.language,
+                language=language,
                 provider=None,
                 site=provider,
                 mode="strm",
@@ -557,8 +562,8 @@ def _emit_indexed_mapped_episode(
                 magnet=magnet_strm,
                 pubdate=now,
                 cat_id=cat_id,
-                guid_str=f"{provider}:{slug}:S{canonical_season}E{canonical_episode}:{language_row.language}:strm",
-                language=language_row.language,
+                guid_str=f"{provider}:{slug}:S{canonical_season}E{canonical_episode}:{language}:strm",
+                language=language,
             )
             emitted += 1
         if emitted >= max_items:
@@ -630,13 +635,6 @@ def torznab_api(
     if t == "search":
         import app.api.torznab as tn
 
-        try:
-            require_catalog_ready()
-        except CatalogNotReadyError as exc:
-            from fastapi import HTTPException
-
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
-
         rss, channel = _rss_root()
         q_str = (q or "").strip()
         strm_suffix = " [STRM]"
@@ -659,6 +657,13 @@ def torznab_api(
 
         if not q_str:
             return _rss_response(rss)
+
+        try:
+            require_catalog_ready()
+        except CatalogNotReadyError as exc:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
 
         if movie_preferred:
             count = _indexed_preview_results(

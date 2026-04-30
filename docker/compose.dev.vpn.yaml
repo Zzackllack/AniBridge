@@ -13,7 +13,7 @@ services:
       - ../.env
     environment:
       - ANIBRIDGE_RELOAD=true
-          # You will need to set port to something other than 8000 since this is already used in this stack
+      # You will need to set port to something other than 8000 since this is already used in this stack
       - ANIBRIDGE_PORT=8001
       - DATA_DIR=/data
       - DOWNLOAD_DIR=/downloads
