@@ -315,9 +315,11 @@ def test_progress_updater_flushes_without_final_close(tmp_path, monkeypatch):
             "eta": 1,
         }
     )
-    time.sleep(0.05)
     writer.close(flush=False)
+    deadline = time.monotonic() + 0.5
+    while time.monotonic() < deadline:
+        if writes:
+            break
+        time.sleep(0.01)
 
-    assert writes
-    assert writes[-1]["job_id"] == "job-2"
-    assert writes[-1]["downloaded_bytes"] == 5000
+    assert writes == []

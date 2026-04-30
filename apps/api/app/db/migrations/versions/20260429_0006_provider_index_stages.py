@@ -192,4 +192,74 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    pass
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+
+    providerindexstatus_indexes = [
+        "ix_providerindexstatus_canonical_next_retry_after",
+        "ix_providerindexstatus_canonical_ready_at",
+        "ix_providerindexstatus_canonical_enrichment_status",
+        "ix_providerindexstatus_detail_next_retry_after",
+        "ix_providerindexstatus_detail_ready_at",
+        "ix_providerindexstatus_detail_enrichment_status",
+        "ix_providerindexstatus_title_index_next_retry_after",
+        "ix_providerindexstatus_title_index_ready_at",
+        "ix_providerindexstatus_title_index_status",
+        "ix_providerindexstatus_active_stage",
+    ]
+    providerindexstatus_columns = [
+        "canonical_next_retry_after",
+        "canonical_ready_at",
+        "canonical_enrichment_status",
+        "detail_next_retry_after",
+        "detail_ready_at",
+        "detail_enrichment_status",
+        "title_index_next_retry_after",
+        "title_index_ready_at",
+        "title_index_status",
+        "active_stage",
+    ]
+    if inspector.has_table("providerindexstatus"):
+        existing_columns = {
+            column["name"] for column in inspector.get_columns("providerindexstatus")
+        }
+        existing_indexes = {
+            index["name"] for index in inspector.get_indexes("providerindexstatus")
+        }
+        with op.batch_alter_table("providerindexstatus") as batch_op:
+            for index_name in providerindexstatus_indexes:
+                if index_name in existing_indexes:
+                    batch_op.drop_index(index_name)
+            for column_name in providerindexstatus_columns:
+                if column_name in existing_columns:
+                    batch_op.drop_column(column_name)
+
+    staged_columns = [
+        "canonical_last_error_summary",
+        "canonical_failure_count",
+        "canonical_next_retry_after",
+        "canonical_last_success_at",
+        "canonical_last_attempted_at",
+        "canonical_status",
+        "detail_last_error_summary",
+        "detail_failure_count",
+        "detail_next_retry_after",
+        "detail_last_success_at",
+        "detail_last_attempted_at",
+        "detail_status",
+    ]
+    if inspector.has_table("providertitleindexstate"):
+        existing_columns = {
+            column["name"]
+            for column in inspector.get_columns("providertitleindexstate")
+        }
+        existing_indexes = {
+            index["name"] for index in inspector.get_indexes("providertitleindexstate")
+        }
+        with op.batch_alter_table("providertitleindexstate") as batch_op:
+            for column_name in staged_columns:
+                index_name = f"ix_providertitleindexstate_{column_name}"
+                if index_name in existing_indexes:
+                    batch_op.drop_index(index_name)
+                if column_name in existing_columns:
+                    batch_op.drop_column(column_name)

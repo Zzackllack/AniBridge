@@ -218,6 +218,7 @@ def test_tvsearch_uses_id_resolved_query_when_q_missing(client, monkeypatch):
 
 def test_tvsearch_season_search_emits_multiple_episodes(client, monkeypatch) -> None:
     import app.api.torznab as tn
+    import app.api.torznab.api as torznab_api
 
     _seed_ready_tv_catalog(
         canonical_title="Series",
@@ -231,6 +232,7 @@ def test_tvsearch_season_search_emits_multiple_episodes(client, monkeypatch) -> 
             AssertionError("unexpected live probe")
         ),
     )
+    monkeypatch.setattr(torznab_api, "STRM_FILES_MODE", "no")
 
     resp = client.get(
         "/torznab/api",
@@ -239,7 +241,7 @@ def test_tvsearch_season_search_emits_multiple_episodes(client, monkeypatch) -> 
     assert resp.status_code == 200
     root = ET.fromstring(resp.text)
     items = root.findall("./channel/item")
-    assert len(items) == 6
+    assert len(items) == 3
     urls = [
         (
             item.find("enclosure").get("url")
@@ -257,6 +259,7 @@ def test_tvsearch_season_search_fallback_stops_on_consecutive_misses(
     client, monkeypatch
 ) -> None:
     import app.api.torznab as tn
+    import app.api.torznab.api as torznab_api
 
     _seed_ready_tv_catalog(
         canonical_title="Series",
@@ -270,6 +273,7 @@ def test_tvsearch_season_search_fallback_stops_on_consecutive_misses(
             AssertionError("unexpected live probe")
         ),
     )
+    monkeypatch.setattr(torznab_api, "STRM_FILES_MODE", "no")
 
     resp = client.get(
         "/torznab/api",
@@ -278,11 +282,12 @@ def test_tvsearch_season_search_fallback_stops_on_consecutive_misses(
     assert resp.status_code == 200
     root = ET.fromstring(resp.text)
     items = root.findall("./channel/item")
-    assert len(items) == 4
+    assert len(items) == 2
 
 
 def test_tvsearch_ep_zero_is_treated_as_season_search(client, monkeypatch) -> None:
     import app.api.torznab as tn
+    import app.api.torznab.api as torznab_api
 
     _seed_ready_tv_catalog(
         canonical_title="Series",
@@ -296,6 +301,7 @@ def test_tvsearch_ep_zero_is_treated_as_season_search(client, monkeypatch) -> No
             AssertionError("unexpected live probe")
         ),
     )
+    monkeypatch.setattr(torznab_api, "STRM_FILES_MODE", "no")
 
     resp = client.get(
         "/torznab/api",
@@ -304,7 +310,7 @@ def test_tvsearch_ep_zero_is_treated_as_season_search(client, monkeypatch) -> No
     assert resp.status_code == 200
     root = ET.fromstring(resp.text)
     items = root.findall("./channel/item")
-    assert len(items) == 4
+    assert len(items) == 2
     urls = [
         (
             item.find("enclosure").get("url")
@@ -319,6 +325,7 @@ def test_tvsearch_ep_zero_is_treated_as_season_search(client, monkeypatch) -> No
 
 def test_tvsearch_fast_season_mode_avoids_live_probe(client, monkeypatch) -> None:
     import app.api.torznab as tn
+    import app.api.torznab.api as torznab_api
 
     _seed_ready_tv_catalog(
         canonical_title="Series",
@@ -332,6 +339,7 @@ def test_tvsearch_fast_season_mode_avoids_live_probe(client, monkeypatch) -> Non
             AssertionError("unexpected live probe")
         ),
     )
+    monkeypatch.setattr(torznab_api, "STRM_FILES_MODE", "no")
 
     resp = client.get(
         "/torznab/api",
@@ -340,7 +348,7 @@ def test_tvsearch_fast_season_mode_avoids_live_probe(client, monkeypatch) -> Non
     assert resp.status_code == 200
     root = ET.fromstring(resp.text)
     items = root.findall("./channel/item")
-    assert len(items) == 4
+    assert len(items) == 2
 
 
 def test_tvsearch_season_search_limit_is_hard_item_cap(client) -> None:

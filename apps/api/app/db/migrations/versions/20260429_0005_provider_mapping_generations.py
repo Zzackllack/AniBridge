@@ -240,7 +240,22 @@ def downgrade() -> None:
                     source,
                     rationale,
                     last_verified_at
-                FROM providerseriesmapping
+                FROM (
+                    SELECT
+                        provider,
+                        slug,
+                        tvdb_id,
+                        confidence,
+                        source,
+                        rationale,
+                        last_verified_at,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY provider, slug, tvdb_id
+                            ORDER BY indexed_generation DESC, last_verified_at DESC
+                        ) AS rn
+                    FROM providerseriesmapping
+                )
+                WHERE rn = 1
             """,
             "indexes": [
                 "CREATE INDEX ix_providerseriesmapping_confidence ON providerseriesmapping (confidence)",
@@ -299,7 +314,33 @@ def downgrade() -> None:
                     source,
                     rationale,
                     last_verified_at
-                FROM providerepisodemapping
+                FROM (
+                    SELECT
+                        provider,
+                        slug,
+                        provider_season,
+                        provider_episode,
+                        tvdb_id,
+                        canonical_season,
+                        canonical_episode,
+                        confidence,
+                        source,
+                        rationale,
+                        last_verified_at,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY
+                                provider,
+                                slug,
+                                provider_season,
+                                provider_episode,
+                                tvdb_id,
+                                canonical_season,
+                                canonical_episode
+                            ORDER BY indexed_generation DESC, last_verified_at DESC
+                        ) AS rn
+                    FROM providerepisodemapping
+                )
+                WHERE rn = 1
             """,
             "indexes": [
                 "CREATE INDEX ix_providerepisodemapping_confidence ON providerepisodemapping (confidence)",
@@ -338,7 +379,22 @@ def downgrade() -> None:
                     source,
                     rationale,
                     last_verified_at
-                FROM providermoviemapping
+                FROM (
+                    SELECT
+                        provider,
+                        slug,
+                        tmdb_id,
+                        confidence,
+                        source,
+                        rationale,
+                        last_verified_at,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY provider, slug, tmdb_id
+                            ORDER BY indexed_generation DESC, last_verified_at DESC
+                        ) AS rn
+                    FROM providermoviemapping
+                )
+                WHERE rn = 1
             """,
             "indexes": [
                 "CREATE INDEX ix_providermoviemapping_confidence ON providermoviemapping (confidence)",

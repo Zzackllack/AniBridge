@@ -130,6 +130,17 @@ def test_search_returns_503_when_catalog_bootstrap_pending(client) -> None:
     assert "bootstrap" in response.json()["detail"].lower()
 
 
+def test_search_test_result_bypasses_catalog_bootstrap(client, monkeypatch) -> None:
+    import app.api.torznab.api as torznab_api
+
+    monkeypatch.setattr(torznab_api, "TORZNAB_RETURN_TEST_RESULT", True)
+
+    response = client.get("/torznab/api", params={"t": "search"})
+
+    assert response.status_code == 200
+    assert "<item>" in response.text
+
+
 def test_search_uses_indexed_catalog_without_live_probe(client, monkeypatch) -> None:
     _seed_ready_catalog()
     monkeypatch.setattr(

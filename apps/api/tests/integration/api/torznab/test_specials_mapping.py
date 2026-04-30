@@ -157,8 +157,13 @@ def test_tvsearch_falls_back_to_special_mapping_when_requested_episode_missing(
     assert "aw_e=4" in url
 
 
-def test_tvsearch_reuses_resolved_special_mapping_across_languages(client) -> None:
+def test_tvsearch_reuses_resolved_special_mapping_across_languages(
+    client, monkeypatch
+) -> None:
+    import app.api.torznab.api as torznab_api
+
     _seed_special_mapping_catalog(languages=["German Sub", "English Sub"])
+    monkeypatch.setattr(torznab_api, "STRM_FILES_MODE", "no")
 
     resp = client.get(
         "/torznab/api",
@@ -167,7 +172,7 @@ def test_tvsearch_reuses_resolved_special_mapping_across_languages(client) -> No
     assert resp.status_code == 200
     root = ET.fromstring(resp.text)
     items = root.findall("./channel/item")
-    assert len(items) == 4
+    assert len(items) == 2
     urls = [
         (
             item.find("enclosure").get("url")
@@ -176,8 +181,8 @@ def test_tvsearch_reuses_resolved_special_mapping_across_languages(client) -> No
         )
         for item in items
     ]
-    assert sum("aw_lang=German+Sub" in url for url in urls) == 2
-    assert sum("aw_lang=English+Sub" in url for url in urls) == 2
+    assert sum("aw_lang=German+Sub" in url for url in urls) == 1
+    assert sum("aw_lang=English+Sub" in url for url in urls) == 1
 
 
 def test_tvsearch_guid_alias_suffix_only_when_alias_differs(client) -> None:

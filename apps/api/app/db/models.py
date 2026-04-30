@@ -237,11 +237,11 @@ class ProviderTitleIndexState(ModelBase, table=True):
 class ProviderCatalogTitle(ModelBase, table=True):
     provider: str = Field(primary_key=True)
     slug: str = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
     title: str = Field(index=True)
     normalized_title: str = Field(index=True)
     media_type_hint: str = Field(default="series", index=True)
     relative_path: str
-    indexed_generation: str = Field(index=True)
     last_indexed_at: datetime = Field(default_factory=utcnow, index=True)
 
 
@@ -249,8 +249,8 @@ class ProviderCatalogAlias(ModelBase, table=True):
     provider: str = Field(primary_key=True)
     slug: str = Field(primary_key=True)
     alias: str = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
     normalized_alias: str = Field(index=True)
-    indexed_generation: str = Field(index=True)
     last_indexed_at: datetime = Field(default_factory=utcnow, index=True)
 
 
@@ -259,11 +259,11 @@ class ProviderCatalogEpisode(ModelBase, table=True):
     slug: str = Field(primary_key=True)
     season: int = Field(primary_key=True)
     episode: int = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
     title_primary: Optional[str] = None
     title_secondary: Optional[str] = None
     relative_path: str
     media_type_hint: str = Field(default="episode", index=True)
-    indexed_generation: str = Field(index=True)
     last_indexed_at: datetime = Field(default_factory=utcnow, index=True)
 
 
@@ -273,9 +273,9 @@ class ProviderEpisodeLanguage(ModelBase, table=True):
     season: int = Field(primary_key=True)
     episode: int = Field(primary_key=True)
     language: str = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
     normalized_language: str = Field(index=True)
     host_hints: Optional[list[str]] = Field(sa_column=Column(JSON), default=None)
-    indexed_generation: str = Field(index=True)
     last_indexed_at: datetime = Field(default_factory=utcnow, index=True)
 
 
@@ -952,16 +952,16 @@ def replace_provider_catalog_title(
     relative_path: str,
     indexed_generation: str,
 ) -> ProviderCatalogTitle:
-    rec = session.get(ProviderCatalogTitle, (provider, slug))
+    rec = session.get(ProviderCatalogTitle, (provider, slug, indexed_generation))
     if rec is None:
         rec = ProviderCatalogTitle(
             provider=provider,
             slug=slug,
+            indexed_generation=indexed_generation,
             title=title,
             normalized_title=normalize_catalog_text(title),
             media_type_hint=media_type_hint,
             relative_path=relative_path,
-            indexed_generation=indexed_generation,
             last_indexed_at=utcnow(),
         )
     else:
@@ -969,7 +969,6 @@ def replace_provider_catalog_title(
         rec.normalized_title = normalize_catalog_text(title)
         rec.media_type_hint = media_type_hint
         rec.relative_path = relative_path
-        rec.indexed_generation = indexed_generation
         rec.last_indexed_at = utcnow()
     session.add(rec)
     return rec
@@ -987,6 +986,7 @@ def replace_provider_catalog_aliases(
         ProviderCatalogAlias.__table__.delete().where(
             (ProviderCatalogAlias.provider == provider)
             & (ProviderCatalogAlias.slug == slug)
+            & (ProviderCatalogAlias.indexed_generation == indexed_generation)
         )
     )
     seen: set[str] = set()
@@ -1000,8 +1000,8 @@ def replace_provider_catalog_aliases(
                 provider=provider,
                 slug=slug,
                 alias=alias_clean,
-                normalized_alias=normalize_catalog_text(alias_clean),
                 indexed_generation=indexed_generation,
+                normalized_alias=normalize_catalog_text(alias_clean),
                 last_indexed_at=utcnow(),
             )
         )
@@ -1019,12 +1019,14 @@ def replace_provider_catalog_episodes(
         ProviderEpisodeLanguage.__table__.delete().where(
             (ProviderEpisodeLanguage.provider == provider)
             & (ProviderEpisodeLanguage.slug == slug)
+            & (ProviderEpisodeLanguage.indexed_generation == indexed_generation)
         )
     )
     session.exec(
         ProviderCatalogEpisode.__table__.delete().where(
             (ProviderCatalogEpisode.provider == provider)
             & (ProviderCatalogEpisode.slug == slug)
+            & (ProviderCatalogEpisode.indexed_generation == indexed_generation)
         )
     )
     for item in episodes:
@@ -1034,11 +1036,11 @@ def replace_provider_catalog_episodes(
                 slug=slug,
                 season=int(item["season"]),
                 episode=int(item["episode"]),
+                indexed_generation=indexed_generation,
                 title_primary=item.get("title_primary"),
                 title_secondary=item.get("title_secondary"),
                 relative_path=item["relative_path"],
                 media_type_hint=item.get("media_type_hint", "episode"),
-                indexed_generation=indexed_generation,
                 last_indexed_at=utcnow(),
             )
         )
@@ -1053,9 +1055,9 @@ def replace_provider_catalog_episodes(
                     season=int(item["season"]),
                     episode=int(item["episode"]),
                     language=language,
+                    indexed_generation=indexed_generation,
                     normalized_language=normalize_catalog_text(language),
                     host_hints=list(language_payload.get("host_hints") or []),
-                    indexed_generation=indexed_generation,
                     last_indexed_at=utcnow(),
                 )
             )
@@ -1296,22 +1298,23 @@ def upsert_canonical_series(
     rec.mal_id = mal_id
     rec.last_synced_at = utcnow()
     session.add(rec)
-    session.exec(
-        CanonicalSeriesAlias.__table__.delete().where(
-            CanonicalSeriesAlias.tvdb_id == tvdb_id
-        )
-    )
-    for alias in aliases or []:
-        alias_clean = (alias or "").strip()
-        if not alias_clean:
-            continue
-        session.add(
-            CanonicalSeriesAlias(
-                tvdb_id=tvdb_id,
-                alias=alias_clean,
-                normalized_alias=normalize_catalog_text(alias_clean),
+    if aliases is not None:
+        session.exec(
+            CanonicalSeriesAlias.__table__.delete().where(
+                CanonicalSeriesAlias.tvdb_id == tvdb_id
             )
         )
+        for alias in aliases:
+            alias_clean = (alias or "").strip()
+            if not alias_clean:
+                continue
+            session.add(
+                CanonicalSeriesAlias(
+                    tvdb_id=tvdb_id,
+                    alias=alias_clean,
+                    normalized_alias=normalize_catalog_text(alias_clean),
+                )
+            )
     return rec
 
 
@@ -1408,9 +1411,10 @@ def resolve_indexed_title(
     status = session.get(ProviderIndexStatus, provider)
     if status is None or not status.latest_success_generation:
         return None
-    row = session.get(ProviderCatalogTitle, (provider, slug))
-    if row is None or row.indexed_generation != status.latest_success_generation:
-        return None
+    row = session.get(
+        ProviderCatalogTitle,
+        (provider, slug, status.latest_success_generation),
+    )
     return row.title if row else None
 
 
@@ -1442,15 +1446,22 @@ def search_indexed_provider_titles(
         if visible_generations.get(row.provider) == row.indexed_generation
     ]
 
+    alias_rows = session.exec(
+        select(ProviderCatalogAlias).where(ProviderCatalogAlias.provider.in_(providers))
+    ).all()
+    aliases_by_key: dict[tuple[str, str, str], list[str]] = {}
+    for alias in alias_rows:
+        if visible_generations.get(alias.provider) != alias.indexed_generation:
+            continue
+        aliases_by_key.setdefault(
+            (alias.provider, alias.slug, alias.indexed_generation), []
+        ).append(alias.normalized_alias)
+
     def _score(row: ProviderCatalogTitle) -> tuple[int, int]:
         names = [row.normalized_title]
-        alias_rows = session.exec(
-            select(ProviderCatalogAlias).where(
-                (ProviderCatalogAlias.provider == row.provider)
-                & (ProviderCatalogAlias.slug == row.slug)
-            )
-        ).all()
-        names.extend(alias.normalized_alias for alias in alias_rows)
+        names.extend(
+            aliases_by_key.get((row.provider, row.slug, row.indexed_generation), [])
+        )
         best = 0
         exact = 0
         for name in names:
@@ -1462,12 +1473,9 @@ def search_indexed_provider_titles(
                 best = overlap
         return (exact, best)
 
-    ranked = sorted(
-        rows,
-        key=lambda row: _score(row),
-        reverse=True,
-    )
-    filtered = [row for row in ranked if _score(row)[1] > 0 or _score(row)[0] > 0]
+    scored_rows = [(row, _score(row)) for row in rows]
+    ranked = sorted(scored_rows, key=lambda item: item[1], reverse=True)
+    filtered = [row for row, score in ranked if score[1] > 0 or score[0] > 0]
     return filtered[: max(1, limit)]
 
 
