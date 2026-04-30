@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import inspect
 import re
 import time
 from difflib import SequenceMatcher
