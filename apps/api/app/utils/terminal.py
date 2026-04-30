@@ -92,7 +92,20 @@ class ProgressReporter:
             self._bar.n = downloaded
             postfix = {}
             if snap.speed is not None:
-                postfix["Speed"] = f"{float(snap.speed) / (1024 * 1024):.2f} MB/s"
+                unit = self.unit
+                unit_power = {
+                    "B": 0,
+                    "KB": 1,
+                    "KiB": 1,
+                    "MB": 2,
+                    "MiB": 2,
+                    "GB": 3,
+                    "GiB": 3,
+                    "TB": 4,
+                    "TiB": 4,
+                }.get(unit, 0)
+                scaled_speed = float(snap.speed) / (1024**unit_power)
+                postfix["Speed"] = f"{scaled_speed:.2f} {unit}/s"
             if snap.eta is not None:
                 postfix["ETA"] = f"{int(snap.eta)}s"
             if postfix:

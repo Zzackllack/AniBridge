@@ -132,6 +132,20 @@ def torrents_add(
             start_scheduled_job(job_id, req)
         except Exception as exc:
             logger.error("Failed to start scheduled job {}: {}", job_id, exc)
+            upsert_client_task(
+                session,
+                hash=btih,
+                name=name,
+                slug=slug,
+                season=season,
+                episode=episode,
+                language=language,
+                site=site,
+                save_path=published_savepath,
+                category=category,
+                job_id=job_id,
+                state="failed",
+            )
             return PlainTextResponse("Failed to start download.", status_code=500)
         upsert_client_task(
             session,
