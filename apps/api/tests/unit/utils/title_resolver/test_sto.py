@@ -134,6 +134,7 @@ def test_slug_from_query_accepts_db_alias_match(monkeypatch) -> None:
     monkeypatch.setattr(tr, "load_or_refresh_alternatives", lambda _site: {})
     monkeypatch.setattr(tr, "_search_sto_slug", lambda _query: None)
     monkeypatch.setattr(tr, "get_catalog_readiness_error", lambda: None)
+    monkeypatch.setattr(tr, "engine", engine)
     create_db_and_tables()
 
     with Session(engine) as session:
