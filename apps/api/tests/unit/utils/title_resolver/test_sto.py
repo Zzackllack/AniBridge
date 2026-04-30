@@ -115,12 +115,14 @@ def test_slug_from_query_rejects_low_confidence_overlap(monkeypatch) -> None:
     )
     monkeypatch.setattr(tr, "load_or_refresh_alternatives", lambda _site: {})
     monkeypatch.setattr(tr, "_search_sto_slug", lambda _query: None)
+    monkeypatch.setattr(tr, "get_catalog_readiness_error", lambda: "not-ready")
 
     assert tr.slug_from_query("Rookie Le flic de Los Angeles") is None
 
 
 def test_slug_from_query_accepts_db_alias_match(monkeypatch) -> None:
     from app.db import (
+        create_db_and_tables,
         engine,
         replace_provider_catalog_aliases,
         replace_provider_catalog_title,
@@ -132,6 +134,7 @@ def test_slug_from_query_accepts_db_alias_match(monkeypatch) -> None:
     monkeypatch.setattr(tr, "load_or_refresh_alternatives", lambda _site: {})
     monkeypatch.setattr(tr, "_search_sto_slug", lambda _query: None)
     monkeypatch.setattr(tr, "get_catalog_readiness_error", lambda: None)
+    create_db_and_tables()
 
     with Session(engine) as session:
         upsert_provider_index_status(
