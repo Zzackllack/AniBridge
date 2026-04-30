@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Set, Tuple
 import requests.exceptions
 from bs4 import BeautifulSoup  # type: ignore
 from loguru import logger
+from sqlalchemy.exc import OperationalError
 from sqlmodel import Session
 from sqlmodel import select
 
@@ -821,20 +822,27 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
             return result
         readiness_error = get_catalog_readiness_error()
         if readiness_error is None:
-            with Session(engine) as session:
-                rows = search_indexed_provider_titles(
-                    session,
-                    query=q,
-                    providers=[site],
-                    limit=1,
-                )
-                if rows:
-                    candidate = rows[0]
-                    cand_score = _score_indexed_db_candidate(
-                        session, query=q, candidate=candidate
+            try:
+                with Session(engine) as session:
+                    rows = search_indexed_provider_titles(
+                        session,
+                        query=q,
+                        providers=[site],
+                        limit=1,
                     )
-                    if cand_score >= _MIN_TITLE_MATCH_SCORE:
-                        return (candidate.provider, candidate.slug)
+                    if rows:
+                        candidate = rows[0]
+                        cand_score = _score_indexed_db_candidate(
+                            session, query=q, candidate=candidate
+                        )
+                        if cand_score >= _MIN_TITLE_MATCH_SCORE:
+                            return (candidate.provider, candidate.slug)
+            except OperationalError as exc:
+                logger.debug(
+                    "Skipping indexed DB lookup for {} because catalog tables are unavailable: {}",
+                    site,
+                    exc,
+                )
         return None
 
     # 2) No specific site requested: try index-based lookup across primary sites
@@ -849,23 +857,29 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
         providers = list(CATALOG_SITES_LIST)
         preferred = [provider for provider in providers if provider != "megakino"]
         fallback = [provider for provider in providers if provider == "megakino"]
-        with Session(engine) as session:
-            for batch in (preferred, fallback):
-                if not batch:
-                    continue
-                rows = search_indexed_provider_titles(
-                    session,
-                    query=q,
-                    providers=batch,
-                    limit=1,
-                )
-                if rows:
-                    candidate = rows[0]
-                    cand_score = _score_indexed_db_candidate(
-                        session, query=q, candidate=candidate
+        try:
+            with Session(engine) as session:
+                for batch in (preferred, fallback):
+                    if not batch:
+                        continue
+                    rows = search_indexed_provider_titles(
+                        session,
+                        query=q,
+                        providers=batch,
+                        limit=1,
                     )
-                    if cand_score >= _MIN_TITLE_MATCH_SCORE:
-                        return (candidate.provider, candidate.slug)
+                    if rows:
+                        candidate = rows[0]
+                        cand_score = _score_indexed_db_candidate(
+                            session, query=q, candidate=candidate
+                        )
+                        if cand_score >= _MIN_TITLE_MATCH_SCORE:
+                            return (candidate.provider, candidate.slug)
+        except OperationalError as exc:
+            logger.debug(
+                "Skipping indexed DB lookup because catalog tables are unavailable: {}",
+                exc,
+            )
 
     # 3) Megakino-specific direct slug/fallback handling
     if "megakino" in CATALOG_SITES_LIST or "megakino" in _PROVIDER_CACHE:

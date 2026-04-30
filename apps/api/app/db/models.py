@@ -1111,7 +1111,6 @@ def prune_provider_generation(
             & (ProviderMovieMapping.indexed_generation != keep_generation)
         )
     )
-    session.commit()
 
 
 def delete_provider_generation(
@@ -1162,7 +1161,6 @@ def delete_provider_generation(
             & (ProviderMovieMapping.indexed_generation == generation)
         )
     )
-    session.commit()
 
 
 def _visible_generation_map(
