@@ -473,3 +473,51 @@ def test_detail_stage_persists_one_title_incrementally(client):
     assert len(episodes) == 1
     assert state is not None
     assert state.detail_status == "ready"
+
+
+def test_run_row_stage_does_not_mark_ready_when_only_future_retries_remain(
+    monkeypatch,
+):
+    from app.catalog.indexer import ProviderCatalogIndexer
+
+    indexer = ProviderCatalogIndexer()
+    events: list[str] = []
+
+    monkeypatch.setattr(indexer, "_refresh_interval_hours", lambda provider: 24.0)
+    monkeypatch.setattr(indexer, "_visible_generation", lambda provider: "gen-1")
+    monkeypatch.setattr(indexer, "_count_visible_titles", lambda provider: 1)
+    monkeypatch.setattr(indexer, "_load_due_stage_rows", lambda **kwargs: [])
+    monkeypatch.setattr(
+        indexer,
+        "_count_remaining_stage_rows",
+        lambda session, **kwargs: 1,
+    )
+    monkeypatch.setattr(indexer, "_set_progress", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        indexer._writer,
+        "run",
+        lambda callback: callback(object()),
+    )
+    monkeypatch.setattr(
+        indexer,
+        "_mark_stage_running",
+        lambda **kwargs: events.append("running"),
+    )
+    monkeypatch.setattr(
+        indexer,
+        "_mark_stage_pending",
+        lambda session, **kwargs: events.append("pending"),
+    )
+    monkeypatch.setattr(
+        indexer,
+        "_mark_stage_ready",
+        lambda *args, **kwargs: events.append("ready"),
+    )
+
+    indexer._run_row_stage(
+        provider="aniworld.to",
+        stage="detail_enrichment",
+        concurrency=1,
+    )
+
+    assert events == ["running", "pending"]

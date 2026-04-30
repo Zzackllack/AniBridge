@@ -358,7 +358,7 @@ def test_tvsearch_season_search_limit_is_hard_item_cap(client, monkeypatch) -> N
     _seed_ready_tv_catalog(
         canonical_title="Series",
         query_aliases=["foo"],
-        episode_mappings=[(1, 1, 1, 1), (1, 2, 1, 2)],
+        episode_mappings=[(1, 1, 1, 1), (1, 2, 1, 2), (1, 3, 1, 3)],
     )
 
     resp = client.get(
