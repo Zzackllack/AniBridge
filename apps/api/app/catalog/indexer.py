@@ -3,7 +3,7 @@ from __future__ import annotations
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import timedelta
-from queue import Empty, Queue
+from queue import Empty, Full, Queue
 from threading import Event, Lock, Semaphore, Thread
 from time import monotonic
 from uuid import uuid4
@@ -644,6 +644,7 @@ class ProviderCatalogIndexer:
             )
 
         observer = CatalogCrawlObserver(on_index_loaded=on_index_loaded)
+        writer_shutdown_signaled = False
 
         try:
             rows = load_provider_title_index(provider, observer=observer)
@@ -656,11 +657,15 @@ class ProviderCatalogIndexer:
                     current_slug=row.slug,
                     queue_depth=queue.qsize(),
                 )
-            queue.put(_QUEUE_SENTINEL)
+            self._signal_title_index_writer_shutdown(provider=provider, queue=queue)
+            writer_shutdown_signaled = True
             writer.join(timeout=30)
-            if writer.is_alive():
-                detail = f": {writer_failure[0]}" if writer_failure else ""
-                raise RuntimeError(f"writer thread did not finish within 30s{detail}")
+            self._ensure_title_index_writer_stopped(
+                provider=provider,
+                writer=writer,
+                writer_failure=writer_failure,
+                timeout_seconds=30,
+            )
             if writer_failure:
                 raise RuntimeError(str(writer_failure[0]))
             completed_at = utcnow()
@@ -684,8 +689,15 @@ class ProviderCatalogIndexer:
             logger.exception(
                 "Provider catalog title index failed for {}: {}", provider, exc
             )
-            queue.put(_QUEUE_SENTINEL)
+            if not writer_shutdown_signaled:
+                self._signal_title_index_writer_shutdown(provider=provider, queue=queue)
             writer.join(timeout=5)
+            self._ensure_title_index_writer_stopped(
+                provider=provider,
+                writer=writer,
+                writer_failure=writer_failure,
+                timeout_seconds=5,
+            )
             completed_at = utcnow()
             error_text = str(exc)
             self._writer.run(
@@ -707,6 +719,37 @@ class ProviderCatalogIndexer:
             )
         finally:
             reporter.close()
+
+    def _signal_title_index_writer_shutdown(
+        self,
+        *,
+        provider: str,
+        queue: Queue[TitleRecord | object],
+    ) -> None:
+        try:
+            queue.put_nowait(_QUEUE_SENTINEL)
+        except Full as exc:
+            logger.error(
+                "Provider catalog title index writer queue is full during shutdown for {}",
+                provider,
+            )
+            raise RuntimeError(
+                f"writer shutdown queue is full for provider {provider}"
+            ) from exc
+
+    def _ensure_title_index_writer_stopped(
+        self,
+        *,
+        provider: str,
+        writer: Thread,
+        writer_failure: list[BaseException],
+        timeout_seconds: int,
+    ) -> None:
+        if writer.is_alive():
+            detail = f": {writer_failure[0]}" if writer_failure else ""
+            raise RuntimeError(
+                f"writer thread did not finish within {timeout_seconds}s for {provider}{detail}"
+            )
 
     def _finish_title_index_success(
         self,
@@ -929,6 +972,9 @@ class ProviderCatalogIndexer:
 
     def _run_row_stage(self, *, provider: str, stage: str, concurrency: int) -> None:
         refresh_interval_hours = self._refresh_interval_hours(provider)
+        generation = self._visible_generation(provider)
+        if generation is None:
+            return
         self._mark_stage_running(
             provider=provider,
             stage=stage,
@@ -961,6 +1007,24 @@ class ProviderCatalogIndexer:
                 limit=max(1, concurrency * 2),
             )
             if not due_rows:
+                remaining_rows = self._writer.run(
+                    lambda session: self._count_remaining_stage_rows(
+                        session,
+                        provider=provider,
+                        stage=stage,
+                        generation=generation,
+                    )
+                )
+                if remaining_rows:
+                    self._writer.run(
+                        lambda session: self._mark_stage_pending(
+                            session,
+                            provider=provider,
+                            stage=stage,
+                            refresh_interval_hours=refresh_interval_hours,
+                        )
+                    )
+                    return
                 completed_at = utcnow()
                 self._writer.run(
                     lambda session: self._mark_stage_ready(
@@ -1311,6 +1375,28 @@ class ProviderCatalogIndexer:
             payload["status"] = "ready"
         upsert_provider_index_status(session, **payload)
 
+    def _mark_stage_pending(
+        self,
+        session: Session,
+        *,
+        provider: str,
+        stage: str,
+        refresh_interval_hours: float,
+    ) -> None:
+        payload = {
+            "provider": provider,
+            "refresh_interval_hours": refresh_interval_hours,
+            "status": "partial",
+            "active_stage": None,
+            "last_error_summary": "",
+            "commit": False,
+        }
+        if stage == "detail_enrichment":
+            payload["detail_enrichment_status"] = "pending"
+        else:
+            payload["canonical_enrichment_status"] = "pending"
+        upsert_provider_index_status(session, **payload)
+
     def _mark_stage_failed(
         self,
         session: Session,
@@ -1400,6 +1486,33 @@ class ProviderCatalogIndexer:
                 if len(due) >= max(1, limit):
                     break
             return due
+
+    def _count_remaining_stage_rows(
+        self,
+        session: Session,
+        *,
+        provider: str,
+        stage: str,
+        generation: str,
+    ) -> int:
+        rows = session.exec(
+            select(ProviderCatalogTitle).where(
+                (ProviderCatalogTitle.provider == provider)
+                & (ProviderCatalogTitle.indexed_generation == generation)
+            )
+        ).all()
+        remaining = 0
+        for row in rows:
+            state = session.get(ProviderTitleIndexState, (provider, row.slug))
+            if state is None:
+                state = ProviderTitleIndexState(provider=provider, slug=row.slug)
+            if stage == "detail_enrichment":
+                if state.detail_status != "ready":
+                    remaining += 1
+                continue
+            if state.canonical_status != "ready":
+                remaining += 1
+        return remaining
 
     def _load_aliases(self, *, provider: str, slug: str) -> list[str]:
         generation = self._visible_generation(provider)

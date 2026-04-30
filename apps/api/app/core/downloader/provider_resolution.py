@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+import threading
 from typing import List, Optional, Tuple, TYPE_CHECKING
 
 from loguru import logger
@@ -14,10 +14,6 @@ if TYPE_CHECKING:
     from aniworld.models import Episode
 
 _AVAIL_RE = re.compile(r"Available languages:\s*\[([^\]]*)\]", re.IGNORECASE)
-_DIRECT_LINK_EXECUTOR = ThreadPoolExecutor(
-    max_workers=max(1, len(PROVIDER_ORDER)),
-    thread_name_prefix="provider-resolution",
-)
 
 
 def _run_with_timeout(
@@ -26,13 +22,26 @@ def _run_with_timeout(
     timeout_seconds: float,
     operation: str,
 ):
-    future = _DIRECT_LINK_EXECUTOR.submit(callback, *args)
-    try:
-        return future.result(timeout=max(0.001, timeout_seconds))
-    except FutureTimeoutError as exc:
-        raise TimeoutError(
-            f"{operation} timed out after {timeout_seconds:.1f}s"
-        ) from exc
+    outcome: dict[str, object] = {}
+
+    def _target() -> None:
+        try:
+            outcome["result"] = callback(*args)
+        except BaseException as exc:  # pragma: no cover - re-raised on caller thread
+            outcome["error"] = exc
+
+    worker = threading.Thread(
+        target=_target,
+        name=f"{operation}-timeout-guard",
+        daemon=True,
+    )
+    worker.start()
+    worker.join(timeout=max(0.001, timeout_seconds))
+    if worker.is_alive():
+        raise TimeoutError(f"{operation} timed out after {timeout_seconds:.1f}s")
+    if "error" in outcome:
+        raise outcome["error"]  # type: ignore[misc]
+    return outcome.get("result")
 
 
 def _parse_available_languages_from_error(msg: str) -> List[str]:
