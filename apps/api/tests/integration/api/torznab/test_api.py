@@ -351,7 +351,10 @@ def test_tvsearch_fast_season_mode_avoids_live_probe(client, monkeypatch) -> Non
     assert len(items) == 2
 
 
-def test_tvsearch_season_search_limit_is_hard_item_cap(client) -> None:
+def test_tvsearch_season_search_limit_is_hard_item_cap(client, monkeypatch) -> None:
+    import app.api.torznab.api as torznab_api
+
+    monkeypatch.setattr(torznab_api, "STRM_FILES_MODE", "both")
     _seed_ready_tv_catalog(
         canonical_title="Series",
         query_aliases=["foo"],
