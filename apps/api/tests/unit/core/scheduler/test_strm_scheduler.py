@@ -1,6 +1,7 @@
 import errno
 import threading
 import time
+from concurrent.futures import Future
 from pathlib import Path
 
 from sqlmodel import Session
@@ -323,3 +324,32 @@ def test_progress_updater_flushes_without_final_close(tmp_path, monkeypatch):
         time.sleep(0.01)
 
     assert writes == []
+
+
+def test_start_scheduled_job_cleans_up_fast_finishing_runner(tmp_path, monkeypatch):
+    scheduler = _setup_scheduler(tmp_path, monkeypatch, strm_proxy_mode="direct")
+
+    class ImmediateExecutor:
+        def submit(self, runner, job_id, req, stop_event):
+            fut = Future()
+            runner(job_id, req, stop_event)
+            fut.set_result(None)
+            return fut
+
+    def fake_runner(job_id, req, stop_event):
+        del req, stop_event
+        with scheduler.RUNNING_LOCK:
+            assert job_id in scheduler.RUNNING
+            scheduler.RUNNING.pop(job_id, None)
+
+    with scheduler.RUNNING_LOCK:
+        scheduler.RUNNING.clear()
+
+    monkeypatch.setattr(scheduler, "init_executor", lambda: None)
+    monkeypatch.setattr(scheduler, "EXECUTOR", ImmediateExecutor())
+    monkeypatch.setattr(scheduler, "_run_download", fake_runner)
+
+    scheduler.start_scheduled_job("job-fast", {})
+
+    with scheduler.RUNNING_LOCK:
+        assert "job-fast" not in scheduler.RUNNING
