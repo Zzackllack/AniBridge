@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import inspect
 import re
 import time
 from difflib import SequenceMatcher
@@ -12,11 +13,13 @@ import requests.exceptions
 from bs4 import BeautifulSoup  # type: ignore
 from loguru import logger
 from sqlmodel import Session
+from sqlmodel import select
 
 from app.utils.logger import config as configure_logger
 from app.utils.http_client import get as http_get  # type: ignore
 from app.catalog import get_catalog_readiness_error
 from app.db import (
+    ProviderCatalogAlias,
     engine,
     list_indexed_titles_for_provider,
     resolve_indexed_title,
@@ -638,6 +641,24 @@ def _score_title_candidate(
     )
 
 
+def _score_indexed_db_candidate(session: Session, *, query: str, candidate) -> float:
+    query_tokens = _match_tokens(query)
+    query_norm = _normalize_alnum(query)
+    best_score = _score_title_candidate(query_tokens, query_norm, candidate.title)
+    alias_rows = session.exec(
+        select(ProviderCatalogAlias).where(
+            (ProviderCatalogAlias.provider == candidate.provider)
+            & (ProviderCatalogAlias.slug == candidate.slug)
+            & (ProviderCatalogAlias.indexed_generation == candidate.indexed_generation)
+        )
+    ).all()
+    for alias in alias_rows:
+        alias_score = _score_title_candidate(query_tokens, query_norm, alias.alias)
+        if alias_score > best_score:
+            best_score = alias_score
+    return best_score
+
+
 def _build_sto_search_terms(query: str) -> List[str]:
     """
     Builds ordered search variants for S.to from a raw query.
@@ -810,8 +831,8 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
                 )
                 if rows:
                     candidate = rows[0]
-                    cand_score = _score_title_candidate(
-                        _match_tokens(q), _normalize_alnum(q), candidate.title
+                    cand_score = _score_indexed_db_candidate(
+                        session, query=q, candidate=candidate
                     )
                     if cand_score >= _MIN_TITLE_MATCH_SCORE:
                         return (candidate.provider, candidate.slug)
@@ -841,8 +862,8 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
                 )
                 if rows:
                     candidate = rows[0]
-                    cand_score = _score_title_candidate(
-                        _match_tokens(q), _normalize_alnum(q), candidate.title
+                    cand_score = _score_indexed_db_candidate(
+                        session, query=q, candidate=candidate
                     )
                     if cand_score >= _MIN_TITLE_MATCH_SCORE:
                         return (candidate.provider, candidate.slug)

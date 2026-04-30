@@ -120,15 +120,33 @@ def torrents_add(
         save_path=published_savepath,
         category=category,
         job_id=job_id,
-        state="queued" if paused else "downloading",
+        state="queued",
     )
     logger.success(
         "Torrent task upserted for hash={}, state={}, site={}".format(
-            btih, "queued" if paused else "downloading", site
+            btih, "queued", site
         )
     )
     if not paused:
-        start_scheduled_job(job_id, req)
+        try:
+            start_scheduled_job(job_id, req)
+        except Exception as exc:
+            logger.error("Failed to start scheduled job {}: {}", job_id, exc)
+            return PlainTextResponse("Failed to start download.", status_code=500)
+        upsert_client_task(
+            session,
+            hash=btih,
+            name=name,
+            slug=slug,
+            season=season,
+            episode=episode,
+            language=language,
+            site=site,
+            save_path=published_savepath,
+            category=category,
+            job_id=job_id,
+            state="downloading",
+        )
         logger.debug(f"Started background worker for job_id: {job_id}")
     return PlainTextResponse("Ok.")
 

@@ -3,7 +3,9 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
+import inspect
 import re
+from threading import Event
 from typing import Any, Callable, Optional
 from urllib.parse import urlparse
 
@@ -18,6 +20,11 @@ from app.providers.megakino.client import (
 )
 from app.utils.domain_resolver import get_megakino_base_url
 from app.utils.http_client import get as http_get
+
+_TITLE_CRAWL_EXECUTOR = ThreadPoolExecutor(
+    max_workers=4,
+    thread_name_prefix="provider-title-crawl",
+)
 
 
 @dataclass(slots=True)
@@ -84,15 +91,21 @@ def _relative_path(url: str) -> str:
 def _run_with_timeout(
     timeout_seconds: float, func: Callable[..., Any], *args, **kwargs
 ):
-    executor = ThreadPoolExecutor(max_workers=1)
-    future = executor.submit(func, *args, **kwargs)
+    cancel_event = Event()
+    signature = inspect.signature(func)
+    accepts_cancel_event = "cancel_event" in signature.parameters or any(
+        parameter.kind == inspect.Parameter.VAR_KEYWORD
+        for parameter in signature.parameters.values()
+    )
+    submit_kwargs = dict(kwargs)
+    if accepts_cancel_event:
+        submit_kwargs["cancel_event"] = cancel_event
+    future = _TITLE_CRAWL_EXECUTOR.submit(func, *args, **submit_kwargs)
     try:
         return future.result(timeout=max(0.001, timeout_seconds))
     except FutureTimeoutError as exc:
-        future.cancel()
+        cancel_event.set()
         raise TimeoutError(f"title crawl exceeded {int(timeout_seconds)}s") from exc
-    finally:
-        executor.shutdown(wait=False, cancel_futures=True)
 
 
 def _normalize_provider_data(raw: Any, *, site: str) -> list[EpisodeLanguageRecord]:
@@ -517,7 +530,10 @@ def _crawl_aniworld_like_detail(
     slug: str,
     title: str,
     aliases: list[str],
+    cancel_event: Event | None = None,
 ) -> TitleRecord:
+    if cancel_event is not None and cancel_event.is_set():
+        raise TimeoutError("title crawl cancelled before start")
     base_url = str(CATALOG_SITE_CONFIGS[provider_key]["base_url"]).rstrip("/")
     if provider_key == "aniworld.to":
         from aniworld.models import AniworldSeries
@@ -532,6 +548,8 @@ def _crawl_aniworld_like_detail(
 
     episodes: list[EpisodeRecord] = []
     for season in series.seasons:
+        if cancel_event is not None and cancel_event.is_set():
+            raise TimeoutError(f"title crawl cancelled for {provider_key}:{slug}")
         if provider_key == "aniworld.to":
             episodes.extend(_parse_aniworld_season_rows(season))
         else:

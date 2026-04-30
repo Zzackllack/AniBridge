@@ -108,8 +108,11 @@ class ProgressReporter:
                 step = max(1, int(PROGRESS_STEP_PERCENT))
                 if pct == 100 or pct // step > self._last_step_pct // step:
                     self._last_step_pct = pct
+                    speed_unit = "MB/s" if self.unit == "B" else f"{self.unit}/s"
                     speed = (
-                        f"{float(snap.speed) / (1024 * 1024):.2f} MB/s"
+                        f"{float(snap.speed) / (1024 * 1024):.2f} {speed_unit}"
+                        if self.unit == "B" and snap.speed is not None
+                        else f"{float(snap.speed):.2f} {speed_unit}"
                         if snap.speed is not None
                         else "-"
                     )

@@ -8,7 +8,7 @@ router = APIRouter()
 
 
 @router.get("/health")
-async def healthcheck():
+def healthcheck():
     return {
         "status": "ok",
         "catalog": get_catalog_indexer().get_progress_snapshot(),
@@ -16,5 +16,5 @@ async def healthcheck():
 
 
 @router.get("/health/catalog")
-async def catalog_healthcheck():
+def catalog_healthcheck():
     return get_catalog_indexer().get_progress_snapshot()
