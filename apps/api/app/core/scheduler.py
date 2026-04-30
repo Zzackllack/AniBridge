@@ -29,7 +29,7 @@ configure_logger()
 
 # global executor + registry
 EXECUTOR: Optional[ThreadPoolExecutor] = None
-RUNNING: Dict[str, Tuple[Future, threading.Event]] = {}
+RUNNING: Dict[str, Tuple[Future | None, threading.Event]] = {}
 RUNNING_LOCK = threading.Lock()
 
 
@@ -402,8 +402,24 @@ def start_scheduled_job(job_id: str, req: dict) -> None:
     stop_event = threading.Event()
     mode = str(req.get("mode") or "").strip().lower()
     runner = _run_strm if mode == "strm" else _run_download
-    fut = EXECUTOR.submit(runner, job_id, req, stop_event)
     with RUNNING_LOCK:
+        if job_id in RUNNING:
+            raise RuntimeError(f"job already running: {job_id}")
+        RUNNING[job_id] = (None, stop_event)
+    try:
+        fut = EXECUTOR.submit(runner, job_id, req, stop_event)
+    except Exception:
+        with RUNNING_LOCK:
+            current = RUNNING.get(job_id)
+            if current is not None and current[1] is stop_event:
+                RUNNING.pop(job_id, None)
+        raise
+    with RUNNING_LOCK:
+        current = RUNNING.get(job_id)
+        if current is None or current[1] is not stop_event:
+            stop_event.set()
+            fut.cancel()
+            return
         RUNNING[job_id] = (fut, stop_event)
 
 
@@ -447,4 +463,10 @@ def cancel_job(job_id: str) -> None:
         return
     fut, ev = item
     ev.set()
+    if fut is None:
+        with RUNNING_LOCK:
+            current = RUNNING.get(job_id)
+            if current is not None and current[1] is ev and current[0] is None:
+                RUNNING.pop(job_id, None)
+        return
     fut.cancel()
