@@ -238,3 +238,41 @@ def test_replace_provider_catalog_title_keeps_live_generation_intact(client):
             ("demo-show", "gen-live", "Demo Show"),
             ("demo-show", "gen-staged", "Demo Show Updated"),
         }
+
+
+def test_replace_provider_catalog_episodes_dedupes_languages_and_host_hints(client):
+    from sqlmodel import Session, select
+    from app.db import (
+        ProviderEpisodeLanguage,
+        engine,
+        replace_provider_catalog_episodes,
+    )
+
+    with Session(engine) as s:
+        replace_provider_catalog_episodes(
+            s,
+            provider="aniworld.to",
+            slug="demo-show",
+            indexed_generation="gen-1",
+            episodes=[
+                {
+                    "season": 1,
+                    "episode": 1,
+                    "relative_path": "/anime/stream/demo-show/staffel-1/episode-1",
+                    "title_primary": "Pilot",
+                    "title_secondary": None,
+                    "media_type_hint": "episode",
+                    "languages": [
+                        {"language": "German Dub", "host_hints": ["VOE", "VOE"]},
+                        {"language": "German Dub", "host_hints": ["Filemoon"]},
+                    ],
+                }
+            ],
+        )
+        s.commit()
+
+        rows = s.exec(select(ProviderEpisodeLanguage)).all()
+
+        assert len(rows) == 1
+        assert rows[0].language == "German Dub"
+        assert rows[0].host_hints == ["Filemoon", "VOE"]

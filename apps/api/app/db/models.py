@@ -1030,12 +1030,14 @@ def replace_provider_catalog_episodes(
         )
     )
     for item in episodes:
+        season_number = int(item["season"])
+        episode_number = int(item["episode"])
         session.add(
             ProviderCatalogEpisode(
                 provider=provider,
                 slug=slug,
-                season=int(item["season"]),
-                episode=int(item["episode"]),
+                season=season_number,
+                episode=episode_number,
                 indexed_generation=indexed_generation,
                 title_primary=item.get("title_primary"),
                 title_secondary=item.get("title_secondary"),
@@ -1044,20 +1046,37 @@ def replace_provider_catalog_episodes(
                 last_indexed_at=utcnow(),
             )
         )
+        deduped_languages: dict[str, dict[str, Any]] = {}
         for language_payload in item.get("languages", []):
             language = str(language_payload.get("language") or "").strip()
             if not language:
                 continue
+            normalized_language = normalize_catalog_text(language)
+            key = normalized_language or language
+            bucket = deduped_languages.setdefault(
+                key,
+                {
+                    "language": language,
+                    "normalized_language": normalized_language,
+                    "host_hints": set(),
+                },
+            )
+            bucket["host_hints"].update(
+                str(host_hint).strip()
+                for host_hint in language_payload.get("host_hints") or []
+                if str(host_hint).strip()
+            )
+        for payload in deduped_languages.values():
             session.add(
                 ProviderEpisodeLanguage(
                     provider=provider,
                     slug=slug,
-                    season=int(item["season"]),
-                    episode=int(item["episode"]),
-                    language=language,
+                    season=season_number,
+                    episode=episode_number,
+                    language=str(payload["language"]),
                     indexed_generation=indexed_generation,
-                    normalized_language=normalize_catalog_text(language),
-                    host_hints=list(language_payload.get("host_hints") or []),
+                    normalized_language=str(payload["normalized_language"]),
+                    host_hints=sorted(payload["host_hints"]),
                     last_indexed_at=utcnow(),
                 )
             )

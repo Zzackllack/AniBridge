@@ -21,11 +21,6 @@ from app.providers.megakino.client import (
 from app.utils.domain_resolver import get_megakino_base_url
 from app.utils.http_client import get as http_get
 
-_TITLE_CRAWL_EXECUTOR = ThreadPoolExecutor(
-    max_workers=4,
-    thread_name_prefix="provider-title-crawl",
-)
-
 
 @dataclass(slots=True)
 class EpisodeLanguageRecord:
@@ -100,12 +95,21 @@ def _run_with_timeout(
     submit_kwargs = dict(kwargs)
     if accepts_cancel_event:
         submit_kwargs["cancel_event"] = cancel_event
-    future = _TITLE_CRAWL_EXECUTOR.submit(func, *args, **submit_kwargs)
+    executor = ThreadPoolExecutor(
+        max_workers=1,
+        thread_name_prefix="provider-title-crawl",
+    )
+    future = executor.submit(func, *args, **submit_kwargs)
+    timed_out = False
     try:
         return future.result(timeout=max(0.001, timeout_seconds))
     except FutureTimeoutError as exc:
+        timed_out = True
         cancel_event.set()
+        future.cancel()
         raise TimeoutError(f"title crawl exceeded {int(timeout_seconds)}s") from exc
+    finally:
+        executor.shutdown(wait=not timed_out, cancel_futures=timed_out)
 
 
 def _normalize_provider_data(raw: Any, *, site: str) -> list[EpisodeLanguageRecord]:

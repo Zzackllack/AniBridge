@@ -545,12 +545,14 @@ class ProviderCatalogIndexer:
                 retry_after=getattr(status, "detail_next_retry_after", None),
             ):
                 return "detail_enrichment"
+            return None
         if self._canonical_stage_has_due_work(status.provider):
             if self._stage_due(
                 stage_status=getattr(status, "canonical_enrichment_status", "pending"),
                 retry_after=getattr(status, "canonical_next_retry_after", None),
             ):
                 return "canonical_enrichment"
+            return None
         if self._stage_due(
             stage_status=title_index_status,
             retry_after=getattr(status, "title_index_next_retry_after", None),
@@ -689,17 +691,16 @@ class ProviderCatalogIndexer:
             logger.exception(
                 "Provider catalog title index failed for {}: {}", provider, exc
             )
-            if not writer_shutdown_signaled:
-                self._signal_title_index_writer_shutdown(provider=provider, queue=queue)
-            writer.join(timeout=5)
-            self._ensure_title_index_writer_stopped(
+            error_text = self._shutdown_title_index_writer(
                 provider=provider,
+                queue=queue,
+                writer_shutdown_signaled=writer_shutdown_signaled,
                 writer=writer,
                 writer_failure=writer_failure,
                 timeout_seconds=5,
+                error_text=str(exc),
             )
             completed_at = utcnow()
-            error_text = str(exc)
             self._writer.run(
                 lambda session, error=error_text: self._finish_title_index_failure(
                     session,
@@ -750,6 +751,42 @@ class ProviderCatalogIndexer:
             raise RuntimeError(
                 f"writer thread did not finish within {timeout_seconds}s for {provider}{detail}"
             )
+
+    def _shutdown_title_index_writer(
+        self,
+        *,
+        provider: str,
+        queue: Queue[TitleRecord | object],
+        writer_shutdown_signaled: bool,
+        writer: Thread,
+        writer_failure: list[BaseException],
+        timeout_seconds: int,
+        error_text: str,
+    ) -> str:
+        shutdown_errors: list[str] = []
+
+        if not writer_shutdown_signaled:
+            try:
+                self._signal_title_index_writer_shutdown(provider=provider, queue=queue)
+            except Exception as exc:
+                shutdown_errors.append(f"writer shutdown signal failed: {exc}")
+        try:
+            writer.join(timeout=timeout_seconds)
+        except Exception as exc:
+            shutdown_errors.append(f"writer join failed: {exc}")
+        try:
+            self._ensure_title_index_writer_stopped(
+                provider=provider,
+                writer=writer,
+                writer_failure=writer_failure,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            shutdown_errors.append(str(exc))
+
+        if not shutdown_errors:
+            return error_text
+        return " | ".join([error_text, *shutdown_errors])
 
     def _finish_title_index_success(
         self,
@@ -1426,18 +1463,37 @@ class ProviderCatalogIndexer:
         upsert_provider_index_status(session, **payload)
 
     def _detail_stage_has_due_work(self, provider: str) -> bool:
-        return bool(
-            self._load_due_stage_rows(
-                provider=provider, stage="detail_enrichment", limit=1
-            )
+        return self._has_unfinished_stage_rows(
+            provider=provider, stage="detail_enrichment"
         )
 
     def _canonical_stage_has_due_work(self, provider: str) -> bool:
-        return bool(
-            self._load_due_stage_rows(
-                provider=provider, stage="canonical_enrichment", limit=1
-            )
+        return self._has_unfinished_stage_rows(
+            provider=provider, stage="canonical_enrichment"
         )
+
+    def _has_unfinished_stage_rows(self, *, provider: str, stage: str) -> bool:
+        generation = self._visible_generation(provider)
+        if generation is None:
+            return False
+        with Session(engine) as session:
+            rows = session.exec(
+                select(ProviderCatalogTitle).where(
+                    (ProviderCatalogTitle.provider == provider)
+                    & (ProviderCatalogTitle.indexed_generation == generation)
+                )
+            ).all()
+            for row in rows:
+                state = session.get(ProviderTitleIndexState, (provider, row.slug))
+                if state is None:
+                    return True
+                if stage == "detail_enrichment":
+                    if state.detail_status != "ready":
+                        return True
+                    continue
+                if state.canonical_status != "ready":
+                    return True
+        return False
 
     def _load_due_stage_rows(
         self,

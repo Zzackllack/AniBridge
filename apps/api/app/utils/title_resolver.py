@@ -501,8 +501,17 @@ def resolve_series_title(
     if not slug:
         logger.warning("No slug provided to resolve_series_title.")
         return None
-    with Session(engine) as session:
-        title = resolve_indexed_title(session, provider=site, slug=slug)
+    try:
+        with Session(engine) as session:
+            title = resolve_indexed_title(session, provider=site, slug=slug)
+    except OperationalError as exc:
+        logger.warning(
+            "Indexed title lookup unavailable for slug '{}' on {}: {}",
+            slug,
+            site,
+            exc,
+        )
+    else:
         if title:
             logger.info(f"Resolved title for slug '{slug}' on {site}: {title}")
             return title
@@ -539,8 +548,16 @@ def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[st
     global _cached_alts
     readiness_error = get_catalog_readiness_error()
     if readiness_error is None:
-        with Session(engine) as session:
-            rows = list_indexed_titles_for_provider(session, provider=site)
+        try:
+            with Session(engine) as session:
+                rows = list_indexed_titles_for_provider(session, provider=site)
+        except OperationalError as exc:
+            logger.warning(
+                "Indexed alternatives lookup unavailable for {}: {}",
+                site,
+                exc,
+            )
+        else:
             if rows:
                 # The indexed request path no longer needs a full alternatives dump.
                 # Keep a minimal compatibility shape for older helper call sites.

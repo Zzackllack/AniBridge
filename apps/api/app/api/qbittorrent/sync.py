@@ -8,7 +8,7 @@ from sqlmodel import Session
 from app.db import get_session, get_job
 
 from . import router
-from .common import CATEGORIES, public_save_path
+from .common import CATEGORIES, coerce_torrent_state, public_save_path
 from app.config import DOWNLOAD_DIR, QBIT_PUBLIC_SAVE_PATH
 
 
@@ -27,14 +27,10 @@ def sync_maindata(session: Session = Depends(get_session)):
     for r in rows:
         job = get_job(session, r.job_id) if r.job_id else None
         progress = (job.progress or 0.0) / 100.0 if job else 0.0
-        state = "downloading"
-        if job:
-            if job.status == "completed":
-                state = "uploading"
-            elif job.status == "failed":
-                state = "error"
-            elif job.status == "cancelled":
-                state = "pausedDL"
+        state = coerce_torrent_state(
+            stored_state=r.state,
+            job_status=job.status if job else None,
+        )
 
         size_val = int(job.total_bytes or 0) if job else 0
         save_path_val = (
