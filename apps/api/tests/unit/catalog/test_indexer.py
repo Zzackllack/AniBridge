@@ -246,6 +246,85 @@ def test_pick_due_stage_prefers_detail_then_canonical(monkeypatch):
     assert indexer._pick_due_stage(status) == "detail_enrichment"
 
 
+def test_pick_due_stage_blocks_title_refresh_while_detail_retry_is_backed_off(
+    monkeypatch,
+):
+    from datetime import timedelta
+
+    from app.catalog.indexer import ProviderCatalogIndexer
+    from app.db import utcnow
+
+    indexer = ProviderCatalogIndexer()
+    monkeypatch.setattr(indexer, "_detail_stage_has_due_work", lambda provider: True)
+    monkeypatch.setattr(
+        indexer, "_canonical_stage_has_due_work", lambda provider: False
+    )
+
+    status = SimpleNamespace(
+        provider="aniworld.to",
+        status="partial",
+        latest_success_generation="gen-1",
+        title_index_status="ready",
+        detail_enrichment_status="failed",
+        detail_next_retry_after=utcnow() + timedelta(hours=1),
+        canonical_enrichment_status="pending",
+        canonical_next_retry_after=None,
+        next_refresh_after=None,
+        title_index_next_retry_after=None,
+    )
+
+    assert indexer._pick_due_stage(status) is None
+
+
+def test_title_index_failure_persists_even_when_writer_shutdown_raises(monkeypatch):
+    import app.catalog.indexer as indexer_module
+    from app.catalog.indexer import ProviderCatalogIndexer
+
+    indexer = ProviderCatalogIndexer()
+    recorded_errors: list[str] = []
+
+    monkeypatch.setattr(
+        indexer_module,
+        "load_provider_title_index",
+        lambda provider, observer=None: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    monkeypatch.setattr(indexer, "_refresh_interval_hours", lambda provider: 24.0)
+    monkeypatch.setattr(
+        indexer,
+        "_signal_title_index_writer_shutdown",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("queue full")),
+    )
+    monkeypatch.setattr(
+        indexer,
+        "_ensure_title_index_writer_stopped",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("writer still alive")),
+    )
+    monkeypatch.setattr(indexer, "_set_progress", lambda *args, **kwargs: None)
+
+    def fake_writer_run(callback):
+        session = object()
+        return callback(session)
+
+    monkeypatch.setattr(indexer._writer, "run", fake_writer_run)
+    monkeypatch.setattr(
+        indexer,
+        "_finish_title_index_failure",
+        lambda session, **kwargs: recorded_errors.append(kwargs["error"]),
+    )
+    monkeypatch.setattr(
+        indexer_module,
+        "upsert_provider_index_status",
+        lambda session, **kwargs: None,
+    )
+
+    indexer._run_title_index_stage("aniworld.to")
+
+    assert recorded_errors
+    assert "boom" in recorded_errors[0]
+    assert "queue full" in recorded_errors[0]
+    assert "writer still alive" in recorded_errors[0]
+
+
 def test_progress_snapshot_exposes_staged_readiness(client):
     from app.catalog.indexer import get_catalog_indexer
     from app.db import engine, upsert_provider_index_status

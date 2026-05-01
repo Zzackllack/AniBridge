@@ -15,6 +15,27 @@ def public_save_path() -> str:
     return QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR)
 
 
+def coerce_torrent_state(*, stored_state: str | None, job_status: str | None) -> str:
+    """Map persisted task state and scheduler status to qBittorrent states."""
+    if job_status == "completed":
+        return "uploading"
+    if job_status == "failed":
+        return "error"
+    if job_status == "cancelled":
+        return "pausedDL"
+
+    normalized = (stored_state or "").strip().lower()
+    if normalized == "queued":
+        return "queuedDL"
+    if normalized == "paused":
+        return "pausedDL"
+    if normalized == "completed":
+        return "uploading"
+    if normalized == "error" or normalized == "failed":
+        return "error"
+    return "downloading"
+
+
 # Categories map compatible with qBittorrent format
 CATEGORIES: Dict[str, dict] = {
     "prowlarr": {

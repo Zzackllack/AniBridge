@@ -23,7 +23,7 @@ from app.db import (
 from app.core.scheduler import cancel_job, schedule_download, start_scheduled_job
 
 from . import router
-from .common import public_save_path
+from .common import coerce_torrent_state, public_save_path
 
 
 @router.post("/torrents/add")
@@ -184,7 +184,9 @@ def torrents_info(
         if category and (r.category or "") != category:
             continue
         job = get_job(session, r.job_id) if r.job_id else None
-        state = r.state
+        state = coerce_torrent_state(
+            stored_state=r.state, job_status=job.status if job else None
+        )
         progress = 0.0
         dlspeed = 0
         eta = 0
@@ -197,19 +199,12 @@ def torrents_info(
                 f"Job {job.id}: status={job.status}, progress={progress}, speed={dlspeed}, eta={eta}"
             )
             if job.status == "completed":
-                state = "uploading"
                 dlspeed = 0
                 if job.result_path and os.path.exists(job.result_path):
                     try:
                         size = int(os.path.getsize(job.result_path))
                     except Exception:
                         pass
-            elif job.status == "failed":
-                state = "error"
-            elif job.status == "cancelled":
-                state = "pausedDL"
-            else:
-                state = "downloading"
 
         content_path = None
         save_path_val = r.save_path or (QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR))
