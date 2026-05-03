@@ -8,7 +8,9 @@
 ## Health Endpoint (`/health`)
 
 - Method: GET
-- Response: JSON with `status`, `database`, `scheduler`, `download_dir`, `version`, `runtime`
+- Response: JSON with `status` and `catalog`
+- `catalog` includes bootstrap readiness plus per-provider crawl/persist counters,
+  queue depth, writer lag, current slug, and staging-vs-live generation state.
 
 ## Torznab Namespace (`/torznab/api`)
 

@@ -4,7 +4,7 @@ services:
     image: ghcr.io/zzackllack/anibridge:latest
     container_name: anibridge
     ports:
-      - "8000:8000"
+      - "8000:${ANIBRIDGE_PORT:-8000}"
     environment:
       # Container runtime / permissions
       - PUID=${PUID:-1000}
@@ -30,7 +30,10 @@ services:
       - ../data:/data
     healthcheck:
       test:
-        ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+        [
+          "CMD-SHELL",
+          "curl --fail --silent \"http://localhost:${ANIBRIDGE_PORT:-8000}/health\" >/dev/null",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3

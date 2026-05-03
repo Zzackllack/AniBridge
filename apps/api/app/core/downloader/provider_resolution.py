@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import re
+import threading
 from typing import List, Optional, Tuple, TYPE_CHECKING
 
 from loguru import logger
 
-from app.config import PROVIDER_ORDER
+from app.config import PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS, PROVIDER_ORDER
 from .errors import DownloadError, LanguageUnavailableError
 from .language import normalize_language
 
@@ -13,6 +14,34 @@ if TYPE_CHECKING:
     from aniworld.models import Episode
 
 _AVAIL_RE = re.compile(r"Available languages:\s*\[([^\]]*)\]", re.IGNORECASE)
+
+
+def _run_with_timeout(
+    callback,
+    *args,
+    timeout_seconds: float,
+    operation: str,
+):
+    outcome: dict[str, object] = {}
+
+    def _target() -> None:
+        try:
+            outcome["result"] = callback(*args)
+        except BaseException as exc:  # pragma: no cover - re-raised on caller thread
+            outcome["error"] = exc
+
+    worker = threading.Thread(
+        target=_target,
+        name=f"{operation}-timeout-guard",
+        daemon=True,
+    )
+    worker.start()
+    worker.join(timeout=max(0.001, timeout_seconds))
+    if worker.is_alive():
+        raise TimeoutError(f"{operation} timed out after {timeout_seconds:.1f}s")
+    if "error" in outcome:
+        raise outcome["error"]  # type: ignore[misc]
+    return outcome.get("result")
 
 
 def _parse_available_languages_from_error(msg: str) -> List[str]:
@@ -60,7 +89,13 @@ def _try_get_direct(ep: Episode, provider_name: str, language: str) -> Optional[
     language = normalize_language(language)
     logger.info("Trying provider '{}' for language '{}'", provider_name, language)
     try:
-        url = ep.get_direct_link(provider_name, language)  # Lib-API
+        url = _run_with_timeout(
+            ep.get_direct_link,
+            provider_name,
+            language,
+            timeout_seconds=PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS,
+            operation=f"{provider_name.lower()}-direct-link",
+        )
         if url:
             logger.success(
                 "Found direct URL from provider '{}': {}", provider_name, url

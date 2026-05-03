@@ -11,9 +11,20 @@ from typing import Dict, List, Optional, Set, Tuple
 import requests.exceptions
 from bs4 import BeautifulSoup  # type: ignore
 from loguru import logger
+from sqlalchemy.exc import OperationalError
+from sqlmodel import Session
+from sqlmodel import select
 
 from app.utils.logger import config as configure_logger
 from app.utils.http_client import get as http_get  # type: ignore
+from app.catalog import get_catalog_readiness_error
+from app.db import (
+    ProviderCatalogAlias,
+    engine,
+    list_indexed_titles_for_provider,
+    resolve_indexed_title,
+    search_indexed_provider_titles,
+)
 
 from app.config import (
     CATALOG_SITES_LIST,
@@ -490,13 +501,40 @@ def resolve_series_title(
     if not slug:
         logger.warning("No slug provided to resolve_series_title.")
         return None
+    try:
+        with Session(engine) as session:
+            title = resolve_indexed_title(session, provider=site, slug=slug)
+    except OperationalError as exc:
+        logger.warning(
+            "Indexed title lookup unavailable for slug '{}' on {}: {}",
+            slug,
+            site,
+            exc,
+        )
+    else:
+        if title:
+            logger.info(f"Resolved title for slug '{slug}' on {site}: {title}")
+            return title
+    # Attempt to resolve from the in-memory/indexed alphabet sources first
     index = load_or_refresh_index(site)
     title = index.get(slug)
     if title:
         logger.info(f"Resolved title for slug '{slug}' on {site}: {title}")
-    else:
-        logger.warning(f"No title found for slug: {slug} on {site}")
-    return title
+        return title
+
+    # No title found in DB or in-memory index. If the provider catalog is
+    # already considered ready/bootstrapped, treat this as a definitive miss.
+    if get_catalog_readiness_error() is None:
+        logger.warning(
+            "No indexed title found for slug '{}' on {} after catalog bootstrap.",
+            slug,
+            site,
+        )
+        return None
+
+    # Catalog is still bootstrapping and no in-memory title found.
+    logger.warning(f"No title found for slug: {slug} on {site}")
+    return None
 
 
 def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[str]]:
@@ -508,6 +546,22 @@ def load_or_refresh_alternatives(site: str = "aniworld.to") -> Dict[str, List[st
         Dict[str, List[str]]: Mapping from slug to list of alternative titles (primary title first).
     """
     global _cached_alts
+    readiness_error = get_catalog_readiness_error()
+    if readiness_error is None:
+        try:
+            with Session(engine) as session:
+                rows = list_indexed_titles_for_provider(session, provider=site)
+        except OperationalError as exc:
+            logger.warning(
+                "Indexed alternatives lookup unavailable for {}: {}",
+                site,
+                exc,
+            )
+        else:
+            if rows:
+                # The indexed request path no longer needs a full alternatives dump.
+                # Keep a minimal compatibility shape for older helper call sites.
+                return {row.slug: [row.title] for row in rows}
     now = time.time()
     site_cfg = _get_site_cfg(site) or CATALOG_SITE_CONFIGS.get("aniworld.to", {})
     refresh_hours = float(site_cfg.get("titles_refresh_hours", 24.0))
@@ -604,6 +658,24 @@ def _score_title_candidate(
     )
 
 
+def _score_indexed_db_candidate(session: Session, *, query: str, candidate) -> float:
+    query_tokens = _match_tokens(query)
+    query_norm = _normalize_alnum(query)
+    best_score = _score_title_candidate(query_tokens, query_norm, candidate.title)
+    alias_rows = session.exec(
+        select(ProviderCatalogAlias).where(
+            (ProviderCatalogAlias.provider == candidate.provider)
+            & (ProviderCatalogAlias.slug == candidate.slug)
+            & (ProviderCatalogAlias.indexed_generation == candidate.indexed_generation)
+        )
+    ).all()
+    for alias in alias_rows:
+        alias_score = _score_title_candidate(query_tokens, query_norm, alias.alias)
+        if alias_score > best_score:
+            best_score = alias_score
+    return best_score
+
+
 def _build_sto_search_terms(query: str) -> List[str]:
     """
     Builds ordered search variants for S.to from a raw query.
@@ -692,6 +764,10 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
     """
     if not q:
         return None
+    # Prefer searching the in-memory alphabet indexes first (fast, deterministic
+    # for unit tests and for recent file-based index loads). If no indexed
+    # match is found, fall back to the DB-backed provider index search when
+    # the catalog reports readiness.
 
     def _search_sites(sites: List[str]) -> Optional[Tuple[str, str]]:
         """
@@ -755,14 +831,74 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
                 return ("s.to", api_slug)
         return None
 
+    # 1) If a specific site was requested, only consult that site's in-memory
+    # index (and then its DB-backed index) — do NOT fall back to other sites.
     if site:
-        return _search_sites([site])
+        result = _search_sites([site])
+        if result:
+            return result
+        readiness_error = get_catalog_readiness_error()
+        if readiness_error is None:
+            try:
+                with Session(engine) as session:
+                    rows = search_indexed_provider_titles(
+                        session,
+                        query=q,
+                        providers=[site],
+                        limit=1,
+                    )
+                    if rows:
+                        candidate = rows[0]
+                        cand_score = _score_indexed_db_candidate(
+                            session, query=q, candidate=candidate
+                        )
+                        if cand_score >= _MIN_TITLE_MATCH_SCORE:
+                            return (candidate.provider, candidate.slug)
+            except OperationalError as exc:
+                logger.debug(
+                    "Skipping indexed DB lookup for {} because catalog tables are unavailable: {}",
+                    site,
+                    exc,
+                )
+        return None
 
+    # 2) No specific site requested: try index-based lookup across primary sites
     primary_sites = [s for s in CATALOG_SITES_LIST if s != "megakino"]
     result = _search_sites(primary_sites)
     if result:
         return result
 
+    # 3) If no index match, and the catalog is ready, try the DB-backed search
+    readiness_error = get_catalog_readiness_error()
+    if readiness_error is None:
+        providers = list(CATALOG_SITES_LIST)
+        preferred = [provider for provider in providers if provider != "megakino"]
+        fallback = [provider for provider in providers if provider == "megakino"]
+        try:
+            with Session(engine) as session:
+                for batch in (preferred, fallback):
+                    if not batch:
+                        continue
+                    rows = search_indexed_provider_titles(
+                        session,
+                        query=q,
+                        providers=batch,
+                        limit=1,
+                    )
+                    if rows:
+                        candidate = rows[0]
+                        cand_score = _score_indexed_db_candidate(
+                            session, query=q, candidate=candidate
+                        )
+                        if cand_score >= _MIN_TITLE_MATCH_SCORE:
+                            return (candidate.provider, candidate.slug)
+        except OperationalError as exc:
+            logger.debug(
+                "Skipping indexed DB lookup because catalog tables are unavailable: {}",
+                exc,
+            )
+
+    # 3) Megakino-specific direct slug/fallback handling
     if "megakino" in CATALOG_SITES_LIST or "megakino" in _PROVIDER_CACHE:
         raw = (q or "").strip()
         direct_slug = _extract_slug(raw, "megakino")

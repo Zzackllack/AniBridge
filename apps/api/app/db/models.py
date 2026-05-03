@@ -3,12 +3,15 @@ from __future__ import annotations
 from typing import Optional, Literal, Generator, Any, Dict, List, TYPE_CHECKING
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
+import re
+import unicodedata
 from loguru import logger
 from fastapi import HTTPException
 
 # Defer logger configuration to application startup
 
 from sqlmodel import SQLModel, Field, Session, create_engine, select, Column, JSON
+from sqlalchemy import event, tuple_
 from sqlalchemy.orm import registry as sa_registry
 from sqlalchemy.pool import NullPool
 
@@ -18,23 +21,37 @@ if TYPE_CHECKING:
 from app.config import AVAILABILITY_TTL_HOURS, DATA_DIR
 
 JobStatus = Literal["queued", "downloading", "completed", "failed", "cancelled"]
+CatalogRefreshStatus = Literal[
+    "pending",
+    "running",
+    "ready",
+    "failed",
+]
+CatalogStageStatus = Literal[
+    "pending",
+    "running",
+    "ready",
+    "failed",
+]
+CatalogMappingConfidence = Literal[
+    "confirmed",
+    "high_confidence",
+    "low_confidence",
+    "unresolved",
+    "conflict",
+]
 
 
 # ---- Datetime Helpers
 def utcnow() -> datetime:
-    logger.trace("utcnow() called.")
     return datetime.now(timezone.utc)
 
 
 def as_aware_utc(dt: Optional[datetime]) -> datetime:
-    logger.debug(f"as_aware_utc() called with dt={dt}")
     if dt is None:
-        logger.debug("Datetime is None, returning utcnow().")
         return utcnow()
     if dt.tzinfo is None:
-        logger.debug("Datetime is naive, setting tzinfo to UTC.")
         return dt.replace(tzinfo=timezone.utc)
-    logger.debug("Datetime is aware, converting to UTC.")
     return dt.astimezone(timezone.utc)
 
 
@@ -164,16 +181,207 @@ class ClientTask(ModelBase, table=True):
     )  # queued/downloading/paused/completed/error
 
 
+# ---------------- Provider Catalog Index
+class ProviderIndexStatus(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    refresh_interval_hours: float = 24.0
+    status: str = Field(default="pending", index=True)
+    active_stage: Optional[str] = Field(default=None, index=True)
+    current_generation: Optional[str] = None
+    latest_success_generation: Optional[str] = None
+    latest_started_at: Optional[datetime] = Field(default=None, index=True)
+    latest_completed_at: Optional[datetime] = Field(default=None, index=True)
+    latest_success_at: Optional[datetime] = Field(default=None, index=True)
+    next_refresh_after: Optional[datetime] = Field(default=None, index=True)
+    bootstrap_completed: bool = Field(default=False, index=True)
+    title_index_status: str = Field(default="pending", index=True)
+    title_index_ready_at: Optional[datetime] = Field(default=None, index=True)
+    title_index_next_retry_after: Optional[datetime] = Field(default=None, index=True)
+    detail_enrichment_status: str = Field(default="pending", index=True)
+    detail_ready_at: Optional[datetime] = Field(default=None, index=True)
+    detail_next_retry_after: Optional[datetime] = Field(default=None, index=True)
+    canonical_enrichment_status: str = Field(default="pending", index=True)
+    canonical_ready_at: Optional[datetime] = Field(default=None, index=True)
+    canonical_next_retry_after: Optional[datetime] = Field(
+        default=None,
+        index=True,
+    )
+    failure_count: int = 0
+    last_error_summary: Optional[str] = None
+    cursor_title_slug: Optional[str] = None
+    updated_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderTitleIndexState(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    last_attempted_at: Optional[datetime] = Field(default=None, index=True)
+    last_success_at: Optional[datetime] = Field(default=None, index=True)
+    failure_count: int = 0
+    last_error_summary: Optional[str] = None
+    detail_status: str = Field(default="pending", index=True)
+    detail_last_attempted_at: Optional[datetime] = Field(default=None, index=True)
+    detail_last_success_at: Optional[datetime] = Field(default=None, index=True)
+    detail_next_retry_after: Optional[datetime] = Field(default=None, index=True)
+    detail_failure_count: int = 0
+    detail_last_error_summary: Optional[str] = None
+    canonical_status: str = Field(default="pending", index=True)
+    canonical_last_attempted_at: Optional[datetime] = Field(default=None, index=True)
+    canonical_last_success_at: Optional[datetime] = Field(default=None, index=True)
+    canonical_next_retry_after: Optional[datetime] = Field(default=None, index=True)
+    canonical_failure_count: int = 0
+    canonical_last_error_summary: Optional[str] = None
+    updated_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderCatalogTitle(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
+    title: str = Field(index=True)
+    normalized_title: str = Field(index=True)
+    media_type_hint: str = Field(default="series", index=True)
+    relative_path: str
+    last_indexed_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderCatalogAlias(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    alias: str = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
+    normalized_alias: str = Field(index=True)
+    last_indexed_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderCatalogEpisode(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    season: int = Field(primary_key=True)
+    episode: int = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
+    title_primary: Optional[str] = None
+    title_secondary: Optional[str] = None
+    relative_path: str
+    media_type_hint: str = Field(default="episode", index=True)
+    last_indexed_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderEpisodeLanguage(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    season: int = Field(primary_key=True)
+    episode: int = Field(primary_key=True)
+    language: str = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
+    normalized_language: str = Field(index=True)
+    host_hints: Optional[list[str]] = Field(sa_column=Column(JSON), default=None)
+    last_indexed_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class CanonicalSeries(ModelBase, table=True):
+    tvdb_id: int = Field(primary_key=True)
+    title: str = Field(index=True)
+    normalized_title: str = Field(index=True)
+    tmdb_id: Optional[int] = Field(default=None, index=True)
+    imdb_id: Optional[str] = Field(default=None, index=True)
+    tvmaze_id: Optional[int] = Field(default=None, index=True)
+    anilist_id: Optional[int] = Field(default=None, index=True)
+    mal_id: Optional[int] = Field(default=None, index=True)
+    last_synced_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class CanonicalSeriesAlias(ModelBase, table=True):
+    tvdb_id: int = Field(primary_key=True)
+    alias: str = Field(primary_key=True)
+    normalized_alias: str = Field(index=True)
+
+
+class CanonicalEpisode(ModelBase, table=True):
+    tvdb_id: int = Field(primary_key=True)
+    season: int = Field(primary_key=True)
+    episode: int = Field(primary_key=True)
+    title: str = Field(index=True)
+    normalized_title: str = Field(index=True)
+    last_synced_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class CanonicalMovie(ModelBase, table=True):
+    tmdb_id: int = Field(primary_key=True)
+    title: str = Field(index=True)
+    normalized_title: str = Field(index=True)
+    release_year: int = Field(index=True)
+    imdb_id: Optional[str] = Field(default=None, index=True)
+    tvdb_id: Optional[int] = Field(default=None, index=True)
+    last_synced_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderSeriesMapping(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    tvdb_id: int = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
+    confidence: str = Field(default="unresolved", index=True)
+    source: str = Field(default="title_match", index=True)
+    rationale: Optional[str] = None
+    last_verified_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderEpisodeMapping(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    provider_season: int = Field(primary_key=True)
+    provider_episode: int = Field(primary_key=True)
+    tvdb_id: int = Field(primary_key=True)
+    canonical_season: int = Field(primary_key=True)
+    canonical_episode: int = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
+    confidence: str = Field(default="unresolved", index=True)
+    source: str = Field(default="numbering", index=True)
+    rationale: Optional[str] = None
+    last_verified_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ProviderMovieMapping(ModelBase, table=True):
+    provider: str = Field(primary_key=True)
+    slug: str = Field(primary_key=True)
+    tmdb_id: int = Field(primary_key=True)
+    indexed_generation: str = Field(primary_key=True, index=True)
+    confidence: str = Field(default="unresolved", index=True)
+    source: str = Field(default="title_year", index=True)
+    rationale: Optional[str] = None
+    last_verified_at: datetime = Field(default_factory=utcnow, index=True)
+
+
 # ---------------- Engine and Session utilities
 DATABASE_URL = f"sqlite:///{(DATA_DIR / 'anibridge_jobs.db').as_posix()}"
 logger.debug(f"DATABASE_URL: {DATABASE_URL}")
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False},
+    connect_args={
+        "check_same_thread": False,
+        "timeout": 30,
+        "autocommit": False,
+    },
     poolclass=NullPool,  # ensure connections are closed when sessions end
 )
 logger.debug("SQLModel engine created.")
+
+
+@event.listens_for(engine, "connect")
+def _configure_sqlite_connection(dbapi_connection, _connection_record) -> None:
+    autocommit = getattr(dbapi_connection, "autocommit", None)
+    if autocommit is not None:
+        dbapi_connection.autocommit = True
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA busy_timeout=30000")
+    cursor.close()
+    if autocommit is not None:
+        dbapi_connection.autocommit = autocommit
+
 
 MIGRATION_BASE_REVISION = "20260203_0001"
 
@@ -556,6 +764,966 @@ def list_cached_episode_numbers_for_season(
         episodes,
     )
     return episodes
+
+
+def normalize_catalog_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value or "")
+    normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    normalized = normalized.replace("’", "'").replace("`", "'")
+    normalized = re.sub(r"[^a-zA-Z0-9]+", " ", normalized)
+    return normalized.lower().strip()
+
+
+_UNSET = object()
+
+
+def upsert_provider_index_status(
+    session: Session,
+    *,
+    provider: str,
+    refresh_interval_hours: float,
+    status: Optional[str] = None,
+    active_stage: Optional[str] | object = _UNSET,
+    current_generation: Optional[str] | object = _UNSET,
+    latest_success_generation: Optional[str] | object = _UNSET,
+    latest_started_at: Optional[datetime] | object = _UNSET,
+    latest_completed_at: Optional[datetime] | object = _UNSET,
+    latest_success_at: Optional[datetime] | object = _UNSET,
+    next_refresh_after: Optional[datetime] | object = _UNSET,
+    bootstrap_completed: Optional[bool] = None,
+    title_index_status: Optional[str] = None,
+    title_index_ready_at: Optional[datetime] | object = _UNSET,
+    title_index_next_retry_after: Optional[datetime] | object = _UNSET,
+    detail_enrichment_status: Optional[str] = None,
+    detail_ready_at: Optional[datetime] | object = _UNSET,
+    detail_next_retry_after: Optional[datetime] | object = _UNSET,
+    canonical_enrichment_status: Optional[str] = None,
+    canonical_ready_at: Optional[datetime] | object = _UNSET,
+    canonical_next_retry_after: Optional[datetime] | object = _UNSET,
+    failure_count: Optional[int] = None,
+    last_error_summary: Optional[str] | object = _UNSET,
+    cursor_title_slug: Optional[str] | object = _UNSET,
+    commit: bool = True,
+) -> ProviderIndexStatus:
+    rec = session.get(ProviderIndexStatus, provider)
+    if rec is None:
+        rec = ProviderIndexStatus(
+            provider=provider,
+            refresh_interval_hours=refresh_interval_hours,
+        )
+    rec.refresh_interval_hours = refresh_interval_hours
+    if status is not None:
+        rec.status = status
+    if active_stage is not _UNSET:
+        rec.active_stage = active_stage
+    if current_generation is not _UNSET:
+        rec.current_generation = current_generation
+    if latest_success_generation is not _UNSET:
+        rec.latest_success_generation = latest_success_generation
+    if latest_started_at is not _UNSET:
+        rec.latest_started_at = latest_started_at
+    if latest_completed_at is not _UNSET:
+        rec.latest_completed_at = latest_completed_at
+    if latest_success_at is not _UNSET:
+        rec.latest_success_at = latest_success_at
+    if next_refresh_after is not _UNSET:
+        rec.next_refresh_after = next_refresh_after
+    if bootstrap_completed is not None:
+        rec.bootstrap_completed = bootstrap_completed
+    if title_index_status is not None:
+        rec.title_index_status = title_index_status
+    if title_index_ready_at is not _UNSET:
+        rec.title_index_ready_at = title_index_ready_at
+    if title_index_next_retry_after is not _UNSET:
+        rec.title_index_next_retry_after = title_index_next_retry_after
+    if detail_enrichment_status is not None:
+        rec.detail_enrichment_status = detail_enrichment_status
+    if detail_ready_at is not _UNSET:
+        rec.detail_ready_at = detail_ready_at
+    if detail_next_retry_after is not _UNSET:
+        rec.detail_next_retry_after = detail_next_retry_after
+    if canonical_enrichment_status is not None:
+        rec.canonical_enrichment_status = canonical_enrichment_status
+    if canonical_ready_at is not _UNSET:
+        rec.canonical_ready_at = canonical_ready_at
+    if canonical_next_retry_after is not _UNSET:
+        rec.canonical_next_retry_after = canonical_next_retry_after
+    if failure_count is not None:
+        rec.failure_count = failure_count
+    if last_error_summary is not _UNSET:
+        rec.last_error_summary = last_error_summary
+    if cursor_title_slug is not _UNSET:
+        rec.cursor_title_slug = cursor_title_slug
+    elif status == "ready":
+        rec.cursor_title_slug = None
+    rec.updated_at = utcnow()
+    session.add(rec)
+    if commit:
+        session.commit()
+        session.refresh(rec)
+    return rec
+
+
+def get_provider_index_status(
+    session: Session,
+    *,
+    provider: str,
+) -> Optional[ProviderIndexStatus]:
+    return session.get(ProviderIndexStatus, provider)
+
+
+def list_provider_index_statuses(session: Session) -> List[ProviderIndexStatus]:
+    return list(session.exec(select(ProviderIndexStatus)).all())
+
+
+def upsert_provider_title_index_state(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    attempted_at: Optional[datetime] = None,
+    succeeded_at: Optional[datetime] = None,
+    failure_count: Optional[int] = None,
+    last_error_summary: Optional[str] = None,
+    detail_status: Optional[str] = None,
+    detail_attempted_at: Optional[datetime] = None,
+    detail_succeeded_at: Optional[datetime] = None,
+    detail_next_retry_after: Optional[datetime] | object = _UNSET,
+    detail_failure_count: Optional[int] = None,
+    detail_last_error_summary: Optional[str] | object = _UNSET,
+    canonical_status: Optional[str] = None,
+    canonical_attempted_at: Optional[datetime] = None,
+    canonical_succeeded_at: Optional[datetime] = None,
+    canonical_next_retry_after: Optional[datetime] | object = _UNSET,
+    canonical_failure_count: Optional[int] = None,
+    canonical_last_error_summary: Optional[str] | object = _UNSET,
+    commit: bool = True,
+) -> ProviderTitleIndexState:
+    rec = session.get(ProviderTitleIndexState, (provider, slug))
+    if rec is None:
+        rec = ProviderTitleIndexState(provider=provider, slug=slug)
+    if attempted_at is not None:
+        rec.last_attempted_at = attempted_at
+    if succeeded_at is not None:
+        rec.last_success_at = succeeded_at
+    if failure_count is not None:
+        rec.failure_count = failure_count
+    if last_error_summary is not None:
+        rec.last_error_summary = last_error_summary
+    if detail_status is not None:
+        rec.detail_status = detail_status
+    if detail_attempted_at is not None:
+        rec.detail_last_attempted_at = detail_attempted_at
+    if detail_succeeded_at is not None:
+        rec.detail_last_success_at = detail_succeeded_at
+    if detail_next_retry_after is not _UNSET:
+        rec.detail_next_retry_after = detail_next_retry_after
+    if detail_failure_count is not None:
+        rec.detail_failure_count = detail_failure_count
+    if detail_last_error_summary is not _UNSET:
+        rec.detail_last_error_summary = detail_last_error_summary
+    if canonical_status is not None:
+        rec.canonical_status = canonical_status
+    if canonical_attempted_at is not None:
+        rec.canonical_last_attempted_at = canonical_attempted_at
+    if canonical_succeeded_at is not None:
+        rec.canonical_last_success_at = canonical_succeeded_at
+    if canonical_next_retry_after is not _UNSET:
+        rec.canonical_next_retry_after = canonical_next_retry_after
+    if canonical_failure_count is not None:
+        rec.canonical_failure_count = canonical_failure_count
+    if canonical_last_error_summary is not _UNSET:
+        rec.canonical_last_error_summary = canonical_last_error_summary
+    rec.updated_at = utcnow()
+    session.add(rec)
+    if commit:
+        session.commit()
+        session.refresh(rec)
+    return rec
+
+
+def replace_provider_catalog_title(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    title: str,
+    media_type_hint: str,
+    relative_path: str,
+    indexed_generation: str,
+) -> ProviderCatalogTitle:
+    rec = session.get(ProviderCatalogTitle, (provider, slug, indexed_generation))
+    if rec is None:
+        rec = ProviderCatalogTitle(
+            provider=provider,
+            slug=slug,
+            indexed_generation=indexed_generation,
+            title=title,
+            normalized_title=normalize_catalog_text(title),
+            media_type_hint=media_type_hint,
+            relative_path=relative_path,
+            last_indexed_at=utcnow(),
+        )
+    else:
+        rec.title = title
+        rec.normalized_title = normalize_catalog_text(title)
+        rec.media_type_hint = media_type_hint
+        rec.relative_path = relative_path
+        rec.last_indexed_at = utcnow()
+    session.add(rec)
+    return rec
+
+
+def replace_provider_catalog_aliases(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    aliases: List[str],
+    indexed_generation: str,
+) -> None:
+    session.exec(
+        ProviderCatalogAlias.__table__.delete().where(
+            (ProviderCatalogAlias.provider == provider)
+            & (ProviderCatalogAlias.slug == slug)
+            & (ProviderCatalogAlias.indexed_generation == indexed_generation)
+        )
+    )
+    seen: set[str] = set()
+    for alias in aliases:
+        alias_clean = (alias or "").strip()
+        if not alias_clean or alias_clean in seen:
+            continue
+        seen.add(alias_clean)
+        session.add(
+            ProviderCatalogAlias(
+                provider=provider,
+                slug=slug,
+                alias=alias_clean,
+                indexed_generation=indexed_generation,
+                normalized_alias=normalize_catalog_text(alias_clean),
+                last_indexed_at=utcnow(),
+            )
+        )
+
+
+def replace_provider_catalog_episodes(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    episodes: List[dict[str, Any]],
+    indexed_generation: str,
+) -> None:
+    session.exec(
+        ProviderEpisodeLanguage.__table__.delete().where(
+            (ProviderEpisodeLanguage.provider == provider)
+            & (ProviderEpisodeLanguage.slug == slug)
+            & (ProviderEpisodeLanguage.indexed_generation == indexed_generation)
+        )
+    )
+    session.exec(
+        ProviderCatalogEpisode.__table__.delete().where(
+            (ProviderCatalogEpisode.provider == provider)
+            & (ProviderCatalogEpisode.slug == slug)
+            & (ProviderCatalogEpisode.indexed_generation == indexed_generation)
+        )
+    )
+    for item in episodes:
+        season_number = int(item["season"])
+        episode_number = int(item["episode"])
+        session.add(
+            ProviderCatalogEpisode(
+                provider=provider,
+                slug=slug,
+                season=season_number,
+                episode=episode_number,
+                indexed_generation=indexed_generation,
+                title_primary=item.get("title_primary"),
+                title_secondary=item.get("title_secondary"),
+                relative_path=item["relative_path"],
+                media_type_hint=item.get("media_type_hint", "episode"),
+                last_indexed_at=utcnow(),
+            )
+        )
+        deduped_languages: dict[str, dict[str, Any]] = {}
+        for language_payload in item.get("languages", []):
+            language = str(language_payload.get("language") or "").strip()
+            if not language:
+                continue
+            normalized_language = normalize_catalog_text(language)
+            key = normalized_language or language
+            bucket = deduped_languages.setdefault(
+                key,
+                {
+                    "language": language,
+                    "normalized_language": normalized_language,
+                    "host_hints": set(),
+                },
+            )
+            bucket["host_hints"].update(
+                str(host_hint).strip()
+                for host_hint in language_payload.get("host_hints") or []
+                if str(host_hint).strip()
+            )
+        for payload in deduped_languages.values():
+            session.add(
+                ProviderEpisodeLanguage(
+                    provider=provider,
+                    slug=slug,
+                    season=season_number,
+                    episode=episode_number,
+                    language=str(payload["language"]),
+                    indexed_generation=indexed_generation,
+                    normalized_language=str(payload["normalized_language"]),
+                    host_hints=sorted(payload["host_hints"]),
+                    last_indexed_at=utcnow(),
+                )
+            )
+
+
+def prune_provider_generation(
+    session: Session,
+    *,
+    provider: str,
+    keep_generation: str,
+) -> None:
+    session.exec(
+        ProviderCatalogAlias.__table__.delete().where(
+            (ProviderCatalogAlias.provider == provider)
+            & (ProviderCatalogAlias.indexed_generation != keep_generation)
+        )
+    )
+    session.exec(
+        ProviderEpisodeLanguage.__table__.delete().where(
+            (ProviderEpisodeLanguage.provider == provider)
+            & (ProviderEpisodeLanguage.indexed_generation != keep_generation)
+        )
+    )
+    session.exec(
+        ProviderCatalogEpisode.__table__.delete().where(
+            (ProviderCatalogEpisode.provider == provider)
+            & (ProviderCatalogEpisode.indexed_generation != keep_generation)
+        )
+    )
+    session.exec(
+        ProviderCatalogTitle.__table__.delete().where(
+            (ProviderCatalogTitle.provider == provider)
+            & (ProviderCatalogTitle.indexed_generation != keep_generation)
+        )
+    )
+    session.exec(
+        ProviderSeriesMapping.__table__.delete().where(
+            (ProviderSeriesMapping.provider == provider)
+            & (ProviderSeriesMapping.indexed_generation != keep_generation)
+        )
+    )
+    session.exec(
+        ProviderEpisodeMapping.__table__.delete().where(
+            (ProviderEpisodeMapping.provider == provider)
+            & (ProviderEpisodeMapping.indexed_generation != keep_generation)
+        )
+    )
+    session.exec(
+        ProviderMovieMapping.__table__.delete().where(
+            (ProviderMovieMapping.provider == provider)
+            & (ProviderMovieMapping.indexed_generation != keep_generation)
+        )
+    )
+
+
+def delete_provider_generation(
+    session: Session,
+    *,
+    provider: str,
+    generation: str,
+) -> None:
+    session.exec(
+        ProviderCatalogAlias.__table__.delete().where(
+            (ProviderCatalogAlias.provider == provider)
+            & (ProviderCatalogAlias.indexed_generation == generation)
+        )
+    )
+    session.exec(
+        ProviderEpisodeLanguage.__table__.delete().where(
+            (ProviderEpisodeLanguage.provider == provider)
+            & (ProviderEpisodeLanguage.indexed_generation == generation)
+        )
+    )
+    session.exec(
+        ProviderCatalogEpisode.__table__.delete().where(
+            (ProviderCatalogEpisode.provider == provider)
+            & (ProviderCatalogEpisode.indexed_generation == generation)
+        )
+    )
+    session.exec(
+        ProviderCatalogTitle.__table__.delete().where(
+            (ProviderCatalogTitle.provider == provider)
+            & (ProviderCatalogTitle.indexed_generation == generation)
+        )
+    )
+    session.exec(
+        ProviderSeriesMapping.__table__.delete().where(
+            (ProviderSeriesMapping.provider == provider)
+            & (ProviderSeriesMapping.indexed_generation == generation)
+        )
+    )
+    session.exec(
+        ProviderEpisodeMapping.__table__.delete().where(
+            (ProviderEpisodeMapping.provider == provider)
+            & (ProviderEpisodeMapping.indexed_generation == generation)
+        )
+    )
+    session.exec(
+        ProviderMovieMapping.__table__.delete().where(
+            (ProviderMovieMapping.provider == provider)
+            & (ProviderMovieMapping.indexed_generation == generation)
+        )
+    )
+
+
+def _visible_generation_map(
+    session: Session,
+    *,
+    providers: List[str],
+) -> dict[str, str]:
+    rows = session.exec(
+        select(ProviderIndexStatus).where(ProviderIndexStatus.provider.in_(providers))
+    ).all()
+    return {
+        row.provider: row.latest_success_generation
+        for row in rows
+        if row.latest_success_generation
+    }
+
+
+def replace_provider_series_mappings(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    mappings: List[dict[str, Any]],
+    indexed_generation: str,
+) -> None:
+    session.exec(
+        ProviderSeriesMapping.__table__.delete().where(
+            (ProviderSeriesMapping.provider == provider)
+            & (ProviderSeriesMapping.slug == slug)
+            & (ProviderSeriesMapping.indexed_generation == indexed_generation)
+        )
+    )
+    for mapping in mappings:
+        session.add(
+            ProviderSeriesMapping(
+                provider=provider,
+                slug=slug,
+                tvdb_id=int(mapping["tvdb_id"]),
+                indexed_generation=indexed_generation,
+                confidence=str(mapping.get("confidence", "unresolved")),
+                source=str(mapping.get("source", "title_match")),
+                rationale=mapping.get("rationale"),
+                last_verified_at=utcnow(),
+            )
+        )
+
+
+def replace_provider_episode_mappings(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    mappings: List[dict[str, Any]],
+    indexed_generation: str,
+) -> None:
+    session.exec(
+        ProviderEpisodeMapping.__table__.delete().where(
+            (ProviderEpisodeMapping.provider == provider)
+            & (ProviderEpisodeMapping.slug == slug)
+            & (ProviderEpisodeMapping.indexed_generation == indexed_generation)
+        )
+    )
+    for mapping in mappings:
+        session.add(
+            ProviderEpisodeMapping(
+                provider=provider,
+                slug=slug,
+                provider_season=int(mapping["provider_season"]),
+                provider_episode=int(mapping["provider_episode"]),
+                tvdb_id=int(mapping["tvdb_id"]),
+                canonical_season=int(mapping["canonical_season"]),
+                canonical_episode=int(mapping["canonical_episode"]),
+                indexed_generation=indexed_generation,
+                confidence=str(mapping.get("confidence", "unresolved")),
+                source=str(mapping.get("source", "numbering")),
+                rationale=mapping.get("rationale"),
+                last_verified_at=utcnow(),
+            )
+        )
+
+
+def replace_provider_movie_mappings(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    mappings: List[dict[str, Any]],
+    indexed_generation: str,
+) -> None:
+    session.exec(
+        ProviderMovieMapping.__table__.delete().where(
+            (ProviderMovieMapping.provider == provider)
+            & (ProviderMovieMapping.slug == slug)
+            & (ProviderMovieMapping.indexed_generation == indexed_generation)
+        )
+    )
+    for mapping in mappings:
+        session.add(
+            ProviderMovieMapping(
+                provider=provider,
+                slug=slug,
+                tmdb_id=int(mapping["tmdb_id"]),
+                indexed_generation=indexed_generation,
+                confidence=str(mapping.get("confidence", "unresolved")),
+                source=str(mapping.get("source", "title_year")),
+                rationale=mapping.get("rationale"),
+                last_verified_at=utcnow(),
+            )
+        )
+
+
+def upsert_canonical_series(
+    session: Session,
+    *,
+    tvdb_id: int,
+    title: str,
+    tmdb_id: Optional[int] = None,
+    imdb_id: Optional[str] = None,
+    tvmaze_id: Optional[int] = None,
+    anilist_id: Optional[int] = None,
+    mal_id: Optional[int] = None,
+    aliases: Optional[List[str]] = None,
+) -> CanonicalSeries:
+    rec = session.get(CanonicalSeries, tvdb_id)
+    if rec is None:
+        rec = CanonicalSeries(tvdb_id=tvdb_id, title=title, normalized_title="")
+    rec.title = title
+    rec.normalized_title = normalize_catalog_text(title)
+    rec.tmdb_id = tmdb_id
+    rec.imdb_id = imdb_id
+    rec.tvmaze_id = tvmaze_id
+    rec.anilist_id = anilist_id
+    rec.mal_id = mal_id
+    rec.last_synced_at = utcnow()
+    session.add(rec)
+    if aliases is not None:
+        session.exec(
+            CanonicalSeriesAlias.__table__.delete().where(
+                CanonicalSeriesAlias.tvdb_id == tvdb_id
+            )
+        )
+        for alias in aliases:
+            alias_clean = (alias or "").strip()
+            if not alias_clean:
+                continue
+            session.add(
+                CanonicalSeriesAlias(
+                    tvdb_id=tvdb_id,
+                    alias=alias_clean,
+                    normalized_alias=normalize_catalog_text(alias_clean),
+                )
+            )
+    return rec
+
+
+def replace_canonical_episodes(
+    session: Session,
+    *,
+    tvdb_id: int,
+    episodes: List[dict[str, Any]],
+) -> None:
+    session.exec(
+        CanonicalEpisode.__table__.delete().where(CanonicalEpisode.tvdb_id == tvdb_id)
+    )
+    deduped: dict[tuple[int, int], str] = {}
+    for episode in episodes:
+        title = str(episode.get("title") or "").strip()
+        if not title:
+            continue
+        season = int(episode["season"])
+        number = int(episode["episode"])
+        key = (season, number)
+        if key not in deduped:
+            deduped[key] = title
+    for (season, number), title in sorted(deduped.items()):
+        session.add(
+            CanonicalEpisode(
+                tvdb_id=tvdb_id,
+                season=season,
+                episode=number,
+                title=title,
+                normalized_title=normalize_catalog_text(title),
+                last_synced_at=utcnow(),
+            )
+        )
+
+
+def is_catalog_bootstrap_ready(
+    session: Session,
+    *,
+    providers: List[str],
+) -> bool:
+    if not providers:
+        return True
+    statuses = {
+        row.provider: row
+        for row in session.exec(
+            select(ProviderIndexStatus).where(
+                ProviderIndexStatus.provider.in_(providers)
+            )
+        ).all()
+    }
+    return all(
+        status is not None
+        and (status.title_index_status == "ready" or status.bootstrap_completed)
+        and bool(status.latest_success_generation)
+        for status in (statuses.get(provider) for provider in providers)
+    )
+
+
+def is_provider_stage_ready(status: ProviderIndexStatus | None, *, stage: str) -> bool:
+    if status is None:
+        return False
+    if stage == "title_index":
+        return (
+            status.title_index_status == "ready" or status.bootstrap_completed
+        ) and bool(status.latest_success_generation)
+    if stage == "detail_enrichment":
+        return status.detail_enrichment_status == "ready"
+    if stage == "canonical_enrichment":
+        return status.canonical_enrichment_status == "ready"
+    raise ValueError(f"Unknown provider stage: {stage}")
+
+
+def is_provider_fully_ready(status: ProviderIndexStatus | None) -> bool:
+    return (
+        is_provider_stage_ready(status, stage="title_index")
+        and is_provider_stage_ready(status, stage="detail_enrichment")
+        and is_provider_stage_ready(status, stage="canonical_enrichment")
+    )
+
+
+def catalog_title_count(session: Session, *, provider: Optional[str] = None) -> int:
+    stmt = select(ProviderCatalogTitle)
+    if provider:
+        stmt = stmt.where(ProviderCatalogTitle.provider == provider)
+    return len(session.exec(stmt).all())
+
+
+def resolve_indexed_title(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+) -> Optional[str]:
+    status = session.get(ProviderIndexStatus, provider)
+    if status is None or not status.latest_success_generation:
+        return None
+    row = session.get(
+        ProviderCatalogTitle,
+        (provider, slug, status.latest_success_generation),
+    )
+    return row.title if row else None
+
+
+def search_indexed_provider_titles(
+    session: Session,
+    *,
+    query: str,
+    providers: List[str],
+    media_type_hint: Optional[str] = None,
+    limit: int = 20,
+) -> List[ProviderCatalogTitle]:
+    q_norm = normalize_catalog_text(query)
+    if not q_norm:
+        return []
+    tokens = [token for token in q_norm.split(" ") if token]
+    if not tokens:
+        return []
+    visible_generations = _visible_generation_map(session, providers=providers)
+    if not visible_generations:
+        return []
+    stmt = select(ProviderCatalogTitle).where(
+        ProviderCatalogTitle.provider.in_(providers)
+    )
+    if media_type_hint is not None:
+        stmt = stmt.where(ProviderCatalogTitle.media_type_hint == media_type_hint)
+    rows = [
+        row
+        for row in session.exec(stmt).all()
+        if visible_generations.get(row.provider) == row.indexed_generation
+    ]
+
+    alias_rows = session.exec(
+        select(ProviderCatalogAlias).where(ProviderCatalogAlias.provider.in_(providers))
+    ).all()
+    aliases_by_key: dict[tuple[str, str, str], list[str]] = {}
+    for alias in alias_rows:
+        if visible_generations.get(alias.provider) != alias.indexed_generation:
+            continue
+        aliases_by_key.setdefault(
+            (alias.provider, alias.slug, alias.indexed_generation), []
+        ).append(alias.normalized_alias)
+
+    def _score(row: ProviderCatalogTitle) -> tuple[int, int]:
+        names = [row.normalized_title]
+        names.extend(
+            aliases_by_key.get((row.provider, row.slug, row.indexed_generation), [])
+        )
+        best = 0
+        exact = 0
+        for name in names:
+            name_tokens = set(token for token in name.split(" ") if token)
+            overlap = len(name_tokens & set(tokens))
+            if name == q_norm:
+                exact = 1
+            if overlap > best:
+                best = overlap
+        return (exact, best)
+
+    scored_rows = [(row, _score(row)) for row in rows]
+    ranked = sorted(scored_rows, key=lambda item: item[1], reverse=True)
+    filtered = [row for row, score in ranked if score[1] > 0 or score[0] > 0]
+    return filtered[: max(1, limit)]
+
+
+def list_indexed_titles_for_provider(
+    session: Session,
+    *,
+    provider: str,
+) -> List[ProviderCatalogTitle]:
+    status = session.get(ProviderIndexStatus, provider)
+    if status is None or not status.latest_success_generation:
+        return []
+    return list(
+        session.exec(
+            select(ProviderCatalogTitle).where(
+                (ProviderCatalogTitle.provider == provider)
+                & (
+                    ProviderCatalogTitle.indexed_generation
+                    == status.latest_success_generation
+                )
+            )
+        ).all()
+    )
+
+
+def get_indexed_episode_languages(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    season: int,
+    episode: int,
+) -> List[ProviderEpisodeLanguage]:
+    status = session.get(ProviderIndexStatus, provider)
+    if status is None or not status.latest_success_generation:
+        return []
+    return list(
+        session.exec(
+            select(ProviderEpisodeLanguage).where(
+                (ProviderEpisodeLanguage.provider == provider)
+                & (ProviderEpisodeLanguage.slug == slug)
+                & (ProviderEpisodeLanguage.season == season)
+                & (ProviderEpisodeLanguage.episode == episode)
+                & (
+                    ProviderEpisodeLanguage.indexed_generation
+                    == status.latest_success_generation
+                )
+            )
+        ).all()
+    )
+
+
+def list_indexed_provider_episodes(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+) -> List[ProviderCatalogEpisode]:
+    status = session.get(ProviderIndexStatus, provider)
+    if status is None or not status.latest_success_generation:
+        return []
+    return list(
+        session.exec(
+            select(ProviderCatalogEpisode).where(
+                (ProviderCatalogEpisode.provider == provider)
+                & (ProviderCatalogEpisode.slug == slug)
+                & (
+                    ProviderCatalogEpisode.indexed_generation
+                    == status.latest_success_generation
+                )
+            )
+        ).all()
+    )
+
+
+def list_indexed_episode_numbers_for_season(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    season: int,
+) -> List[int]:
+    status = session.get(ProviderIndexStatus, provider)
+    if status is None or not status.latest_success_generation:
+        return []
+    episodes = [
+        int(row.episode)
+        for row in session.exec(
+            select(ProviderCatalogEpisode).where(
+                (ProviderCatalogEpisode.provider == provider)
+                & (ProviderCatalogEpisode.slug == slug)
+                & (ProviderCatalogEpisode.season == season)
+                & (
+                    ProviderCatalogEpisode.indexed_generation
+                    == status.latest_success_generation
+                )
+            )
+        ).all()
+    ]
+    return sorted(set(episodes))
+
+
+def find_canonical_series_by_ids_or_title(
+    session: Session,
+    *,
+    tvdb_id: Optional[int] = None,
+    tmdb_id: Optional[int] = None,
+    imdb_id: Optional[str] = None,
+    query: Optional[str] = None,
+) -> Optional[CanonicalSeries]:
+    if tvdb_id:
+        row = session.get(CanonicalSeries, tvdb_id)
+        if row is not None:
+            return row
+    if tmdb_id:
+        row = session.exec(
+            select(CanonicalSeries).where(CanonicalSeries.tmdb_id == tmdb_id)
+        ).first()
+        if row is not None:
+            return row
+    if imdb_id:
+        row = session.exec(
+            select(CanonicalSeries).where(CanonicalSeries.imdb_id == imdb_id)
+        ).first()
+        if row is not None:
+            return row
+    q_norm = normalize_catalog_text(query or "")
+    if not q_norm:
+        return None
+    row = session.exec(
+        select(CanonicalSeries).where(CanonicalSeries.normalized_title == q_norm)
+    ).first()
+    if row is not None:
+        return row
+    alias = session.exec(
+        select(CanonicalSeriesAlias).where(
+            CanonicalSeriesAlias.normalized_alias == q_norm
+        )
+    ).first()
+    if alias is not None:
+        return session.get(CanonicalSeries, alias.tvdb_id)
+    return None
+
+
+def find_provider_episode_mappings_for_canonical_episode(
+    session: Session,
+    *,
+    tvdb_id: int,
+    canonical_season: int,
+    canonical_episode: int,
+    providers: List[str],
+) -> List[ProviderEpisodeMapping]:
+    visible_generations = _visible_generation_map(session, providers=providers)
+    if not visible_generations:
+        return []
+    return list(
+        session.exec(
+            select(ProviderEpisodeMapping).where(
+                (ProviderEpisodeMapping.tvdb_id == tvdb_id)
+                & (ProviderEpisodeMapping.canonical_season == canonical_season)
+                & (ProviderEpisodeMapping.canonical_episode == canonical_episode)
+                & (ProviderEpisodeMapping.provider.in_(providers))
+                & (
+                    tuple_(
+                        ProviderEpisodeMapping.provider,
+                        ProviderEpisodeMapping.indexed_generation,
+                    ).in_(list(visible_generations.items()))
+                )
+                & ProviderEpisodeMapping.confidence.in_(
+                    ["confirmed", "high_confidence", "low_confidence"]
+                )
+            )
+        ).all()
+    )
+
+
+def find_provider_episode_mappings_for_canonical_season(
+    session: Session,
+    *,
+    tvdb_id: int,
+    canonical_season: int,
+    providers: List[str],
+) -> List[ProviderEpisodeMapping]:
+    visible_generations = _visible_generation_map(session, providers=providers)
+    if not visible_generations:
+        return []
+    return list(
+        session.exec(
+            select(ProviderEpisodeMapping).where(
+                (ProviderEpisodeMapping.tvdb_id == tvdb_id)
+                & (ProviderEpisodeMapping.canonical_season == canonical_season)
+                & (ProviderEpisodeMapping.provider.in_(providers))
+                & (
+                    tuple_(
+                        ProviderEpisodeMapping.provider,
+                        ProviderEpisodeMapping.indexed_generation,
+                    ).in_(list(visible_generations.items()))
+                )
+                & ProviderEpisodeMapping.confidence.in_(
+                    ["confirmed", "high_confidence", "low_confidence"]
+                )
+            )
+        ).all()
+    )
+
+
+def find_provider_episode_mapping(
+    session: Session,
+    *,
+    provider: str,
+    slug: str,
+    provider_season: int,
+    provider_episode: int,
+) -> Optional[ProviderEpisodeMapping]:
+    status = session.get(ProviderIndexStatus, provider)
+    if status is None or not status.latest_success_generation:
+        return None
+    return session.exec(
+        select(ProviderEpisodeMapping).where(
+            (ProviderEpisodeMapping.provider == provider)
+            & (ProviderEpisodeMapping.slug == slug)
+            & (ProviderEpisodeMapping.provider_season == provider_season)
+            & (ProviderEpisodeMapping.provider_episode == provider_episode)
+            & (
+                ProviderEpisodeMapping.indexed_generation
+                == status.latest_success_generation
+            )
+            & ProviderEpisodeMapping.confidence.in_(
+                ["confirmed", "high_confidence", "low_confidence"]
+            )
+        )
+    ).first()
 
 
 # --- STRM URL Mapping CRUD
