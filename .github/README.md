@@ -10,6 +10,8 @@ AniBridge is a minimal FastAPI service that bridges anime and series streaming c
 > ⚖️ Before using this software, please read the  
 > [Legal and Compliance overview](https://anibridge-docs.zacklack.de/legal).
 
+![AniWorld-Badge](./img/aniworld-badge.svg) ![Serienstream-Badge](./img/serienstream-badge.svg) ![Megakino-Badge](./img/megakino-badge.svg)
+
 ## Features
 
 - **Torznab endpoint** that indexes available episodes from AniWorld, Serienstream (s.to), and megakino.
