@@ -843,10 +843,9 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
                     session,
                     query=q,
                     providers=[site],
-                    limit=1,
+                    limit=5,
                 )
-                if rows:
-                    candidate = rows[0]
+                for candidate in rows:
                     cand_score = _score_indexed_db_candidate(
                         session, query=q, candidate=candidate
                     )
