@@ -192,6 +192,7 @@ class ProviderCatalogIndexer:
             return
         if self._thread is not None and self._thread.is_alive():
             return
+        self._stop_event.clear()
         self._thread = Thread(
             target=self._run_loop,
             name="provider-catalog-indexer",

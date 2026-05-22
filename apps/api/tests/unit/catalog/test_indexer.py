@@ -20,6 +20,23 @@ def test_catalog_scheduler_runs_immediately(monkeypatch):
     assert calls == ["called"]
 
 
+def test_catalog_scheduler_start_clears_previous_stop(monkeypatch):
+    import app.catalog.indexer as indexer_module
+    from app.catalog.indexer import ProviderCatalogIndexer
+
+    indexer = ProviderCatalogIndexer()
+    indexer._stop_event.set()
+
+    monkeypatch.setattr(indexer_module, "ANIBRIDGE_TEST_MODE", False)
+    monkeypatch.setattr(indexer, "_ensure_status_rows", lambda: None)
+    monkeypatch.setattr(indexer, "_log_bootstrap_state", lambda: None)
+    monkeypatch.setattr(indexer, "_run_loop", lambda: None)
+
+    indexer.start()
+
+    assert not indexer._stop_event.is_set()
+
+
 def test_catalog_progress_tracks_crawl_and_persist_counts():
     from app.catalog.indexer import ProviderCatalogIndexer
 
