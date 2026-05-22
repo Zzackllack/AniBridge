@@ -17,9 +17,11 @@ if TYPE_CHECKING:
 _AVAIL_RE = re.compile(r"Available languages:\s*\[([^\]]*)\]", re.IGNORECASE)
 _DIRECT_LINK_TIMEOUT_LOCK = threading.Lock()
 _DIRECT_LINK_TIMED_OUT_WORKERS: weakref.WeakKeyDictionary[
-    object, list[threading.Thread]
+    object, dict[tuple[str, str], list[threading.Thread]]
 ] = weakref.WeakKeyDictionary()
-_DIRECT_LINK_TIMED_OUT_WORKERS_BY_ID: dict[int, list[threading.Thread]] = {}
+_DIRECT_LINK_TIMED_OUT_WORKERS_BY_ID: dict[
+    int, dict[tuple[str, str], list[threading.Thread]]
+] = {}
 
 
 class DirectLinkTimeoutError(TimeoutError):
@@ -28,38 +30,61 @@ class DirectLinkTimeoutError(TimeoutError):
         self.worker = worker
 
 
-def _episode_has_active_timed_out_worker(ep: object) -> bool:
+def _provider_attempt_has_active_timed_out_worker(
+    ep: object,
+    provider_name: str,
+    language: str,
+) -> bool:
+    key = (provider_name, language)
     with _DIRECT_LINK_TIMEOUT_LOCK:
         try:
-            workers = _DIRECT_LINK_TIMED_OUT_WORKERS.get(ep, [])
+            workers_by_key = _DIRECT_LINK_TIMED_OUT_WORKERS.get(ep, {})
         except TypeError:
-            workers = _DIRECT_LINK_TIMED_OUT_WORKERS_BY_ID.get(id(ep), [])
+            workers_by_key = _DIRECT_LINK_TIMED_OUT_WORKERS_BY_ID.get(id(ep), {})
+        workers = workers_by_key.get(key, [])
         active_workers = [worker for worker in workers if worker.is_alive()]
         if active_workers:
+            workers_by_key[key] = active_workers
             try:
-                _DIRECT_LINK_TIMED_OUT_WORKERS[ep] = active_workers
+                _DIRECT_LINK_TIMED_OUT_WORKERS[ep] = workers_by_key
             except TypeError:
-                _DIRECT_LINK_TIMED_OUT_WORKERS_BY_ID[id(ep)] = active_workers
+                _DIRECT_LINK_TIMED_OUT_WORKERS_BY_ID[id(ep)] = workers_by_key
             return True
+        workers_by_key.pop(key, None)
         try:
-            _DIRECT_LINK_TIMED_OUT_WORKERS.pop(ep, None)
+            if workers_by_key:
+                _DIRECT_LINK_TIMED_OUT_WORKERS[ep] = workers_by_key
+            else:
+                _DIRECT_LINK_TIMED_OUT_WORKERS.pop(ep, None)
         except TypeError:
-            _DIRECT_LINK_TIMED_OUT_WORKERS_BY_ID.pop(id(ep), None)
+            if workers_by_key:
+                _DIRECT_LINK_TIMED_OUT_WORKERS_BY_ID[id(ep)] = workers_by_key
+            else:
+                _DIRECT_LINK_TIMED_OUT_WORKERS_BY_ID.pop(id(ep), None)
         return False
 
 
-def _track_timed_out_worker(ep: object, worker: threading.Thread) -> None:
+def _track_timed_out_worker(
+    ep: object,
+    *,
+    provider_name: str,
+    language: str,
+    worker: threading.Thread,
+) -> None:
+    key = (provider_name, language)
     with _DIRECT_LINK_TIMEOUT_LOCK:
         try:
-            existing_workers = _DIRECT_LINK_TIMED_OUT_WORKERS.get(ep, [])
+            workers_by_key = _DIRECT_LINK_TIMED_OUT_WORKERS.get(ep, {})
         except TypeError:
-            existing_workers = _DIRECT_LINK_TIMED_OUT_WORKERS_BY_ID.get(id(ep), [])
+            workers_by_key = _DIRECT_LINK_TIMED_OUT_WORKERS_BY_ID.get(id(ep), {})
+        existing_workers = workers_by_key.get(key, [])
         workers = [existing for existing in existing_workers if existing.is_alive()]
         workers.append(worker)
+        workers_by_key[key] = workers
         try:
-            _DIRECT_LINK_TIMED_OUT_WORKERS[ep] = workers
+            _DIRECT_LINK_TIMED_OUT_WORKERS[ep] = workers_by_key
         except TypeError:
-            _DIRECT_LINK_TIMED_OUT_WORKERS_BY_ID[id(ep)] = workers
+            _DIRECT_LINK_TIMED_OUT_WORKERS_BY_ID[id(ep)] = workers_by_key
 
 
 def _run_with_timeout(
@@ -136,9 +161,9 @@ def _try_get_direct(ep: Episode, provider_name: str, language: str) -> Optional[
         LanguageUnavailableError: If the provider reports the requested language is not offered; the exception contains the list of available languages.
     """
     language = normalize_language(language)
-    if _episode_has_active_timed_out_worker(ep):
+    if _provider_attempt_has_active_timed_out_worker(ep, provider_name, language):
         logger.warning(
-            "Skipping provider '{}' because a timed-out direct-link lookup is still running for this episode.",
+            "Skipping provider '{}' because a timed-out direct-link lookup is still running for this episode and language.",
             provider_name,
         )
         return None
@@ -160,7 +185,12 @@ def _try_get_direct(ep: Episode, provider_name: str, language: str) -> Optional[
     except Exception as exc:
         msg = str(exc)
         if isinstance(exc, DirectLinkTimeoutError):
-            _track_timed_out_worker(ep, exc.worker)
+            _track_timed_out_worker(
+                ep,
+                provider_name=provider_name,
+                language=language,
+                worker=exc.worker,
+            )
         if "No provider found for language" in msg:
             available = _parse_available_languages_from_error(msg)
             logger.error(

@@ -145,6 +145,46 @@ def test_search(client):
     assert root.find("channel") is not None
 
 
+def test_movie_search_uses_megakino_readiness_only(client, monkeypatch):
+    import app.api.torznab.api as torznab_api
+    from app.db import engine, upsert_provider_index_status
+
+    called: list[list[str]] = []
+
+    def fake_indexed_preview_results(**kwargs):
+        called.append(kwargs["providers"])
+
+    with Session(engine) as session:
+        upsert_provider_index_status(
+            session,
+            provider="megakino",
+            refresh_interval_hours=24.0,
+            status="ready",
+            latest_success_generation="gen-movie",
+            current_generation="gen-movie",
+            bootstrap_completed=True,
+            title_index_status="ready",
+        )
+        upsert_provider_index_status(
+            session,
+            provider="aniworld.to",
+            refresh_interval_hours=24.0,
+            status="pending",
+            title_index_status="pending",
+        )
+
+    monkeypatch.setattr(
+        torznab_api,
+        "_indexed_preview_results",
+        fake_indexed_preview_results,
+    )
+
+    resp = client.get("/torznab/api", params={"t": "movie", "q": "movie"})
+
+    assert resp.status_code == 200
+    assert called == [["megakino"]]
+
+
 def test_tvsearch_happy_path(client, monkeypatch):
     import app.api.torznab as tn
 
