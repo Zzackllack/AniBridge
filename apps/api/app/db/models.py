@@ -1452,24 +1452,33 @@ def search_indexed_provider_titles(
     visible_generations = _visible_generation_map(session, providers=providers)
     if not visible_generations:
         return []
+    visible_generation_pairs = list(visible_generations.items())
     stmt = select(ProviderCatalogTitle).where(
-        ProviderCatalogTitle.provider.in_(providers)
+        (ProviderCatalogTitle.provider.in_(providers))
+        & (
+            tuple_(
+                ProviderCatalogTitle.provider,
+                ProviderCatalogTitle.indexed_generation,
+            ).in_(visible_generation_pairs)
+        )
     )
     if media_type_hint is not None:
         stmt = stmt.where(ProviderCatalogTitle.media_type_hint == media_type_hint)
-    rows = [
-        row
-        for row in session.exec(stmt).all()
-        if visible_generations.get(row.provider) == row.indexed_generation
-    ]
+    rows = session.exec(stmt).all()
 
     alias_rows = session.exec(
-        select(ProviderCatalogAlias).where(ProviderCatalogAlias.provider.in_(providers))
+        select(ProviderCatalogAlias).where(
+            (ProviderCatalogAlias.provider.in_(providers))
+            & (
+                tuple_(
+                    ProviderCatalogAlias.provider,
+                    ProviderCatalogAlias.indexed_generation,
+                ).in_(visible_generation_pairs)
+            )
+        )
     ).all()
     aliases_by_key: dict[tuple[str, str, str], list[str]] = {}
     for alias in alias_rows:
-        if visible_generations.get(alias.provider) != alias.indexed_generation:
-            continue
         aliases_by_key.setdefault(
             (alias.provider, alias.slug, alias.indexed_generation), []
         ).append(alias.normalized_alias)
