@@ -430,19 +430,26 @@ def _build_tv_canonical_payload(
             candidate for score, candidate in scored if score >= top_score - 0.05
         ]
         confidence = "high_confidence" if top_score >= 0.85 else "low_confidence"
-        for candidate in plausible:
-            episode_mappings.append(
-                {
-                    "provider_season": provider_episode.season,
-                    "provider_episode": provider_episode.episode,
-                    "tvdb_id": match.tvdb_id,
-                    "canonical_season": int(candidate["season"]),
-                    "canonical_episode": int(candidate["episode"]),
-                    "confidence": confidence,
-                    "source": "title_match",
-                    "rationale": f"title score={top_score:.2f}",
-                }
+        candidate = plausible[0]
+        rationale = f"title score={top_score:.2f}"
+        if len(plausible) > 1:
+            confidence = "conflict"
+            rationale = (
+                f"ambiguous title matches; top score={top_score:.2f}; "
+                f"{len(plausible)} plausible candidates"
             )
+        episode_mappings.append(
+            {
+                "provider_season": provider_episode.season,
+                "provider_episode": provider_episode.episode,
+                "tvdb_id": match.tvdb_id,
+                "canonical_season": int(candidate["season"]),
+                "canonical_episode": int(candidate["episode"]),
+                "confidence": confidence,
+                "source": "title_match",
+                "rationale": rationale,
+            }
+        )
 
     return CanonicalPayload(
         series=series_payload,

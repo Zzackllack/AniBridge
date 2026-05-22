@@ -837,29 +837,27 @@ def slug_from_query(q: str, site: Optional[str] = None) -> Optional[Tuple[str, s
         result = _search_sites([site])
         if result:
             return result
-        readiness_error = get_catalog_readiness_error()
-        if readiness_error is None:
-            try:
-                with Session(engine) as session:
-                    rows = search_indexed_provider_titles(
-                        session,
-                        query=q,
-                        providers=[site],
-                        limit=1,
-                    )
-                    if rows:
-                        candidate = rows[0]
-                        cand_score = _score_indexed_db_candidate(
-                            session, query=q, candidate=candidate
-                        )
-                        if cand_score >= _MIN_TITLE_MATCH_SCORE:
-                            return (candidate.provider, candidate.slug)
-            except OperationalError as exc:
-                logger.debug(
-                    "Skipping indexed DB lookup for {} because catalog tables are unavailable: {}",
-                    site,
-                    exc,
+        try:
+            with Session(engine) as session:
+                rows = search_indexed_provider_titles(
+                    session,
+                    query=q,
+                    providers=[site],
+                    limit=1,
                 )
+                if rows:
+                    candidate = rows[0]
+                    cand_score = _score_indexed_db_candidate(
+                        session, query=q, candidate=candidate
+                    )
+                    if cand_score >= _MIN_TITLE_MATCH_SCORE:
+                        return (candidate.provider, candidate.slug)
+        except OperationalError as exc:
+            logger.debug(
+                "Skipping indexed DB lookup for {} because catalog tables are unavailable: {}",
+                site,
+                exc,
+            )
         return None
 
     # 2) No specific site requested: try index-based lookup across primary sites
