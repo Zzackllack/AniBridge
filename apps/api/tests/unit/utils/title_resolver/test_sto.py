@@ -1,4 +1,5 @@
 from urllib.parse import parse_qs, urlparse
+from types import SimpleNamespace
 
 import requests
 from sqlmodel import Session
@@ -169,3 +170,26 @@ def test_slug_from_query_accepts_db_alias_match(monkeypatch) -> None:
         "s.to",
         "the-rookie",
     )
+
+
+def test_site_scoped_db_lookup_checks_later_candidates(monkeypatch) -> None:
+    first = SimpleNamespace(provider="s.to", slug="weak-match")
+    second = SimpleNamespace(provider="s.to", slug="strong-match")
+    seen_limits: list[int] = []
+
+    def fake_search(session, *, query, providers, limit, **kwargs):
+        del session, query, providers, kwargs
+        seen_limits.append(limit)
+        return [first, second]
+
+    def fake_score(session, *, query, candidate):
+        del session, query
+        return 0.1 if candidate is first else tr._MIN_TITLE_MATCH_SCORE
+
+    monkeypatch.setattr(tr, "load_or_refresh_index", lambda _site: {})
+    monkeypatch.setattr(tr, "load_or_refresh_alternatives", lambda _site: {})
+    monkeypatch.setattr(tr, "search_indexed_provider_titles", fake_search)
+    monkeypatch.setattr(tr, "_score_indexed_db_candidate", fake_score)
+
+    assert tr.slug_from_query("Strong Match", site="s.to") == ("s.to", "strong-match")
+    assert seen_limits == [5]
