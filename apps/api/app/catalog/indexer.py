@@ -1059,6 +1059,7 @@ class ProviderCatalogIndexer:
                             session,
                             provider=provider,
                             stage=stage,
+                            generation=generation,
                             refresh_interval_hours=refresh_interval_hours,
                         )
                     )
@@ -1419,6 +1420,7 @@ class ProviderCatalogIndexer:
         *,
         provider: str,
         stage: str,
+        generation: str,
         refresh_interval_hours: float,
     ) -> None:
         payload = {
@@ -1429,11 +1431,47 @@ class ProviderCatalogIndexer:
             "last_error_summary": "",
             "commit": False,
         }
+        retry_after = self._earliest_stage_retry_after(
+            session,
+            provider=provider,
+            stage=stage,
+            generation=generation,
+        )
         if stage == "detail_enrichment":
             payload["detail_enrichment_status"] = "pending"
+            payload["detail_next_retry_after"] = retry_after
         else:
             payload["canonical_enrichment_status"] = "pending"
+            payload["canonical_next_retry_after"] = retry_after
         upsert_provider_index_status(session, **payload)
+
+    def _earliest_stage_retry_after(
+        self,
+        session: Session,
+        *,
+        provider: str,
+        stage: str,
+        generation: str,
+    ):
+        retry_column = (
+            ProviderTitleIndexState.detail_next_retry_after
+            if stage == "detail_enrichment"
+            else ProviderTitleIndexState.canonical_next_retry_after
+        )
+        rows = session.exec(
+            select(retry_column)
+            .join(
+                ProviderCatalogTitle,
+                (ProviderCatalogTitle.provider == ProviderTitleIndexState.provider)
+                & (ProviderCatalogTitle.slug == ProviderTitleIndexState.slug),
+            )
+            .where(
+                (ProviderTitleIndexState.provider == provider)
+                & (ProviderCatalogTitle.indexed_generation == generation)
+                & (retry_column.is_not(None))
+            )
+        ).all()
+        return min((as_aware_utc(row) for row in rows if row is not None), default=None)
 
     def _mark_stage_failed(
         self,

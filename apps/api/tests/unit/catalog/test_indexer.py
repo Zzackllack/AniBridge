@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from threading import Event, Thread
 from types import SimpleNamespace
 
@@ -617,3 +617,65 @@ def test_run_row_stage_does_not_mark_ready_when_only_future_retries_remain(
     )
 
     assert events == ["running", "pending"]
+
+
+def test_mark_stage_pending_persists_earliest_row_retry(client):
+    from app.catalog.indexer import ProviderCatalogIndexer
+    from app.db import (
+        engine,
+        get_provider_index_status,
+        replace_provider_catalog_title,
+        upsert_provider_index_status,
+        upsert_provider_title_index_state,
+        utcnow,
+    )
+    from sqlmodel import Session
+
+    retry_later = utcnow() + timedelta(hours=2)
+    retry_earlier = utcnow() + timedelta(minutes=30)
+
+    with Session(engine) as session:
+        upsert_provider_index_status(
+            session,
+            provider="aniworld.to",
+            refresh_interval_hours=24.0,
+            status="partial",
+            latest_success_generation="gen-1",
+            current_generation="gen-1",
+            bootstrap_completed=True,
+            title_index_status="ready",
+            detail_enrichment_status="running",
+        )
+        for slug, retry_after in (
+            ("later", retry_later),
+            ("earlier", retry_earlier),
+        ):
+            replace_provider_catalog_title(
+                session,
+                provider="aniworld.to",
+                slug=slug,
+                title=slug,
+                media_type_hint="series",
+                relative_path=f"/anime/stream/{slug}",
+                indexed_generation="gen-1",
+            )
+            upsert_provider_title_index_state(
+                session,
+                provider="aniworld.to",
+                slug=slug,
+                detail_status="pending",
+                detail_next_retry_after=retry_after,
+            )
+
+        ProviderCatalogIndexer()._mark_stage_pending(
+            session,
+            provider="aniworld.to",
+            stage="detail_enrichment",
+            generation="gen-1",
+            refresh_interval_hours=24.0,
+        )
+        status = get_provider_index_status(session, provider="aniworld.to")
+
+    assert status is not None
+    assert status.detail_enrichment_status == "pending"
+    assert status.detail_next_retry_after == retry_earlier

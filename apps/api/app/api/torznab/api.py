@@ -32,6 +32,7 @@ from app.db import (
     find_provider_episode_mapping,
     find_provider_episode_mappings_for_canonical_episode,
     find_provider_episode_mappings_for_canonical_season,
+    get_provider_index_status,
     get_indexed_episode_languages,
     get_session,
     list_indexed_provider_episodes,
@@ -76,6 +77,19 @@ def _default_languages_for_site(site: str) -> list[str]:
 def _coerce_positive_int(value: object) -> Optional[int]:
     """Coerce a value into a positive integer."""
     return _coerce_positive_int_impl(value)
+
+
+def _require_provider_title_index_ready(session: Session, *, provider: str) -> None:
+    status = get_provider_index_status(session, provider=provider)
+    if status is not None and (
+        status.title_index_status == "ready" or status.bootstrap_completed
+    ):
+        return
+    raise CatalogNotReadyError(
+        "Provider catalog bootstrap is still running. "
+        f"Pending providers: {provider} "
+        f"({status.title_index_status if status is not None else 'pending'})."
+    )
 
 
 def _coerce_non_negative_int(value: object) -> Optional[int]:
@@ -707,7 +721,7 @@ def torznab_api(
         import app.api.torznab as tn
 
         try:
-            require_catalog_ready()
+            _require_provider_title_index_ready(session, provider="megakino")
         except CatalogNotReadyError as exc:
             from fastapi import HTTPException
 
