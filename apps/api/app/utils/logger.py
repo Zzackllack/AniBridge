@@ -72,6 +72,9 @@ def config():
             handlers=[intercept_handler], level=stdlib_level, force=True
         )
         logging.captureWarnings(True)
+        # TODO: intercept this:
+        # INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+        # INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
         logging.lastResort = None
         for name in (
             "uvicorn",
@@ -103,7 +106,14 @@ def ensure_log_path(base_dir: Optional[Path] = None) -> Path:
     if env:
         return Path(env)
 
-    base = Path.cwd() / "data" if base_dir is None else base_dir
+    if base_dir is None:
+        data_dir_env = os.environ.get("DATA_DIR", "").strip()
+        if data_dir_env:
+            base = Path(data_dir_env).expanduser()
+        else:
+            base = Path.cwd() / "data"
+    else:
+        base = base_dir
     ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     run_id = uuid.uuid4().hex[:8]
     log_path = base / f"terminal-{ts}-{run_id}.log"

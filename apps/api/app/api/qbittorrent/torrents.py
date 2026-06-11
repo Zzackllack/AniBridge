@@ -20,10 +20,10 @@ from app.db import (
     delete_client_task,
     get_job,
 )
-from app.core.scheduler import schedule_download, cancel_job
+from app.core.scheduler import cancel_job, schedule_download, start_scheduled_job
 
 from . import router
-from .common import public_save_path
+from .common import coerce_torrent_state, public_save_path
 
 
 @router.post("/torrents/add")
@@ -101,8 +101,8 @@ def torrents_add(
         req["provider"] = provider
     if mode:
         req["mode"] = mode
-    job_id = schedule_download(req)
-    logger.debug(f"Scheduled job_id: {job_id}")
+    job_id = schedule_download(req, autostart=False)
+    logger.debug(f"Created scheduled job_id: {job_id}")
 
     if not savepath:
         savepath = str(DOWNLOAD_DIR)
@@ -120,13 +120,48 @@ def torrents_add(
         save_path=published_savepath,
         category=category,
         job_id=job_id,
-        state="queued" if paused else "downloading",
+        state="queued",
     )
     logger.success(
         "Torrent task upserted for hash={}, state={}, site={}".format(
-            btih, "queued" if paused else "downloading", site
+            btih, "queued", site
         )
     )
+    if not paused:
+        try:
+            start_scheduled_job(job_id, req)
+        except Exception as exc:
+            logger.error("Failed to start scheduled job {}: {}", job_id, exc)
+            upsert_client_task(
+                session,
+                hash=btih,
+                name=name,
+                slug=slug,
+                season=season,
+                episode=episode,
+                language=language,
+                site=site,
+                save_path=published_savepath,
+                category=category,
+                job_id=job_id,
+                state="failed",
+            )
+            return PlainTextResponse("Failed to start download.", status_code=500)
+        upsert_client_task(
+            session,
+            hash=btih,
+            name=name,
+            slug=slug,
+            season=season,
+            episode=episode,
+            language=language,
+            site=site,
+            save_path=published_savepath,
+            category=category,
+            job_id=job_id,
+            state="downloading",
+        )
+        logger.debug(f"Started background worker for job_id: {job_id}")
     return PlainTextResponse("Ok.")
 
 
@@ -149,7 +184,9 @@ def torrents_info(
         if category and (r.category or "") != category:
             continue
         job = get_job(session, r.job_id) if r.job_id else None
-        state = r.state
+        state = coerce_torrent_state(
+            stored_state=r.state, job_status=job.status if job else None
+        )
         progress = 0.0
         dlspeed = 0
         eta = 0
@@ -162,19 +199,12 @@ def torrents_info(
                 f"Job {job.id}: status={job.status}, progress={progress}, speed={dlspeed}, eta={eta}"
             )
             if job.status == "completed":
-                state = "uploading"
                 dlspeed = 0
                 if job.result_path and os.path.exists(job.result_path):
                     try:
                         size = int(os.path.getsize(job.result_path))
                     except Exception:
                         pass
-            elif job.status == "failed":
-                state = "error"
-            elif job.status == "cancelled":
-                state = "pausedDL"
-            else:
-                state = "downloading"
 
         content_path = None
         save_path_val = r.save_path or (QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR))

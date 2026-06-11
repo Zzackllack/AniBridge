@@ -88,3 +88,27 @@ def test_sync_maindata_state_mapping(client):
     assert ts["h1"]["state"] == "uploading"
     assert ts["h2"]["state"] == "error"
     assert ts["h3"]["state"] == "pausedDL"
+
+
+def test_sync_maindata_preserves_queued_state(client):
+    from sqlmodel import Session
+    from app.db import engine, create_job, upsert_client_task
+
+    with Session(engine) as s:
+        job = create_job(s)
+        upsert_client_task(
+            s,
+            hash="queued-hash",
+            name="Queued",
+            slug="slug",
+            season=1,
+            episode=4,
+            language="German Dub",
+            save_path=None,
+            category=None,
+            job_id=job.id,
+            state="queued",
+        )
+
+    data = client.get("/api/v2/sync/maindata").json()
+    assert data["torrents"]["queued-hash"]["state"] == "queuedDL"
