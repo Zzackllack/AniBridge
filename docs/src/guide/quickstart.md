@@ -72,7 +72,7 @@ services:
     container_name: gluetun
     cap_add: ["NET_ADMIN"]
     ports:
-      - "8000:8000/tcp"   # expose AniBridge through the VPN container
+      - "8001:8001/tcp"   # expose AniBridge through the VPN container
     environment:
       # Fill according to the Gluetun docs for your provider
       - VPN_SERVICE_PROVIDER=custom     # or your provider name
@@ -86,14 +86,24 @@ services:
     container_name: anibridge
     network_mode: "service:gluetun"   # route all traffic via Gluetun
     environment:
+      # Gluetun's control server already uses port 8000 in this namespace
+      - ANIBRIDGE_PORT=8001
       - QBIT_PUBLIC_SAVE_PATH=/downloads
     volumes:
       - ./downloads:/data/downloads
       - ./data:/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 ```
 
 ::: warning Port collisions inside VPN namespace
-When multiple apps share Gluetun’s network, each must listen on a unique internal port. AniBridge defaults to `8000`. If you need a different port, set `ANIBRIDGE_PORT` and map the same port on the Gluetun service.
+Gluetun's HTTP control server listens on port `8000` by default. Containers
+sharing Gluetun's network namespace cannot also bind that port, so the example
+configures AniBridge to use `8001`. Every app sharing the namespace must listen
+on a unique internal port.
 :::
 
 ## Option B — Bare metal (prebuilt releases)
