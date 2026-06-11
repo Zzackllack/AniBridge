@@ -21,14 +21,15 @@ services:
   gluetun:
     image: qmcgaw/gluetun:latest
     ports:
-      - "8000:8000/tcp"
+      - "8001:8001/tcp"
 
   anibridge:
     image: ghcr.io/zzackllack/anibridge:latest
     network_mode: "service:gluetun"
     environment:
       - ANIBRIDGE_HOST=0.0.0.0
-      - ANIBRIDGE_PORT=8000
+      # Gluetun's control server already uses port 8000 in this namespace.
+      - ANIBRIDGE_PORT=8001
 ```
 
 ## Public IP Monitor
