@@ -92,6 +92,11 @@ services:
     volumes:
       - ./downloads:/data/downloads
       - ./data:/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 ```
 
 ::: warning Port collisions inside VPN namespace

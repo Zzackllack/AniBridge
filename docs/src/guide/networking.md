@@ -30,6 +30,11 @@ services:
       - ANIBRIDGE_HOST=0.0.0.0
       # Gluetun's control server already uses port 8000 in this namespace.
       - ANIBRIDGE_PORT=8001
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 ```
 
 ## Public IP Monitor
