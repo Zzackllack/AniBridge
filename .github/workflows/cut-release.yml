@@ -394,6 +394,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-ref.outputs.next_version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish-ref.outputs.release_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
