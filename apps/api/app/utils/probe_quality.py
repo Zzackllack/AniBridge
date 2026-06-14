@@ -1,12 +1,12 @@
 from __future__ import annotations
-from typing import Optional, Dict, Any, List, cast
+from typing import Optional, Dict, Any, cast
 import warnings
 from loguru import logger
 import yt_dlp
 
 from app.core.downloader import get_direct_url_with_fallback, build_episode
 from app.utils.naming import quality_from_info
-from app.config import PROVIDER_ORDER, CATALOG_SITE_CONFIGS
+from app.config import CATALOG_SITE_CONFIGS
 from app.utils.logger import config as configure_logger
 from app.providers.megakino.client import get_default_client
 
@@ -121,33 +121,23 @@ def probe_episode_quality(
         site = "aniworld.to"
     ep = build_episode(slug=slug, season=season, episode=episode, site=site)
     logger.debug(f"Built episode object: {ep}")
-    candidates: List[str] = []
-    if preferred_host:
-        candidates.append(preferred_host)
-        logger.debug(f"Preferred host added: {preferred_host}")
-    for p in PROVIDER_ORDER:
-        if p not in candidates:
-            candidates.append(p)
-    logger.debug(f"Host candidates: {candidates}")
-    for prov in candidates:
-        logger.info(f"Trying host: {prov}")
-        try:
-            direct, chosen = get_direct_url_with_fallback(
-                ep, preferred=prov, language=language
-            )
-            logger.debug(f"Got direct URL: {direct} (chosen host: {chosen})")
-            h, vc, info = probe_episode_quality_once(direct, timeout=timeout)
-            logger.info(
-                f"Host '{chosen}' succeeded: available=True, height={h}, vcodec={vc}"
-            )
-            return (True, h, vc, chosen, info)
-        except Exception as e:
-            logger.warning(
-                "Host '{}' failed ({}): {}",
-                prov,
-                type(e).__name__,
-                e,
-            )
-            continue
-    logger.error("No host succeeded for this episode/language.")
-    return (False, None, None, None, None)
+    # get_direct_url_with_fallback already tries the preferred host and every
+    # configured fallback. Wrapping it in another host loop made failures run
+    # through the same providers repeatedly until Sonarr timed out.
+    try:
+        direct, chosen = get_direct_url_with_fallback(
+            ep, preferred=preferred_host, language=language
+        )
+        logger.debug(f"Got direct URL: {direct} (chosen host: {chosen})")
+        h, vc, info = probe_episode_quality_once(direct, timeout=timeout)
+        logger.info(
+            f"Host '{chosen}' succeeded: available=True, height={h}, vcodec={vc}"
+        )
+        return (True, h, vc, chosen, info)
+    except Exception as exc:
+        logger.warning(
+            "Direct URL resolution failed ({}): {}",
+            type(exc).__name__,
+            exc,
+        )
+        return (False, None, None, None, None)

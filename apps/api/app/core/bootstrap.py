@@ -13,8 +13,11 @@ def init() -> None:
     - Configures loguru
     - Ensures log path exists under DATA_DIR
     - Installs TerminalLogger to mirror stdout/stderr to file
+    - Configures loguru after the terminal tee is installed
     """
     load_dotenv()
-    configure_logger()
     ensure_log_path(DATA_DIR)
     TerminalLogger(DATA_DIR)
+    # Loguru retains the stream object passed to logger.add(). Configure it
+    # after installing the tee so structured application logs reach the file.
+    configure_logger()
