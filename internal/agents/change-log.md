@@ -1,5 +1,9 @@
 # Change Log
 
+- 2026-06-15: Revised PR feedback automation so CODEOWNERS distinguishes
+  structural failures from contributor notices, pytest and pylint failures
+  receive formatted output comments, and PR title failures explain the rejected
+  format.
 - 2026-04-13: Documented the new `app/hosts` package and clarified the naming
   split between catalogue-site providers and direct video hosts.
 - 2026-03-22: Documented automatic Serienstream Turnstile handling for protected

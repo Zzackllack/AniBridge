@@ -33,8 +33,20 @@ jobs:
 
           if [[ "${PR_TITLE}" =~ ${pattern} ]]; then
             echo "PR title is valid: ${PR_TITLE}"
+            echo "reason=" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
+
+          reason="The title does not match \`type(scope): description\`."
+          invalid_scope_pattern='^[a-z]+\([^)]*[,[:space:]][^)]*\)'
+          if [[ ! "${PR_TITLE}" =~ ^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test) ]]; then
+            reason="The title must start with an allowed lowercase type."
+          elif [[ "${PR_TITLE}" =~ ${invalid_scope_pattern} ]]; then
+            reason="The scope must be one lowercase token; commas and spaces are not allowed."
+          elif [[ ! "${PR_TITLE}" =~ ^[^:]+:\ .+ ]]; then
+            reason="The header must contain a colon followed by one space and a description."
+          fi
+          echo "reason=${reason}" >> "${GITHUB_OUTPUT}"
 
           echo "Pull request title must follow Conventional Commits."
           echo "Received: ${PR_TITLE}"
@@ -58,23 +70,33 @@ jobs:
         uses: actions/github-script@v9
         env:
           COMMENT_MARKER: "<!-- anibridge-pr-title-conventional -->"
-          COMMENT_BODY: |
-            <!-- anibridge-pr-title-conventional -->
-            Please update this pull request title to follow the Conventional Commits specification.
-
-            Examples:
-            - `feat(api): add torrent health endpoint`
-            - `fix: handle missing provider aliases`
-            - `refactor(parser)!: remove legacy AniWorld slug fallback`
-
-            Reference:
-            - https://www.conventionalcommits.org/en/v1.0.0/
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          FAILURE_REASON: ${{ steps.validate.outputs.reason }}
         with:
           script: |
             const { owner, repo } = context.repo;
             const issue_number = context.payload.pull_request.number;
             const marker = process.env.COMMENT_MARKER;
-            const body = process.env.COMMENT_BODY;
+            const safeTitle = process.env.PR_TITLE.replaceAll('`', '\\`');
+            const body = [
+              marker,
+              '### Pull request title needs attention',
+              '',
+              `**Received:** \`${safeTitle}\``,
+              '',
+              `**Why it failed:** ${process.env.FAILURE_REASON}`,
+              '',
+              '**Expected:** `type(scope): description` or `type: description`',
+              '',
+              'Allowed types: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`.',
+              '',
+              'Examples:',
+              '- `feat(api): add torrent health endpoint`',
+              '- `fix: handle missing provider aliases`',
+              '- `refactor(parser)!: remove legacy AniWorld slug fallback`',
+              '',
+              '[Conventional Commits reference](https://www.conventionalcommits.org/en/v1.0.0/)',
+            ].join('\n');
             const shouldComment = '${{ steps.validate.outcome }}' === 'failure';
 
             const { data: comments } = await github.rest.issues.listComments({

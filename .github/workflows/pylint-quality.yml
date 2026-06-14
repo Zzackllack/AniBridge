@@ -48,9 +48,11 @@ jobs:
         working-directory: apps/api/app
         run: |
           set -o pipefail
-          uv run pylint . | tee ../pylint-output.txt || true
+          uv run pylint . 2>&1 | tee ../pylint-output.txt || true
 
       - name: Enforce minimum pylint score
+        id: score
+        continue-on-error: true
         run: |
           set -euo pipefail
           SCORE=$(sed -nE 's/.*rated at ([0-9]+\.[0-9]+)\/10.*/\1/p' apps/api/pylint-output.txt | tail -n1)
@@ -68,3 +70,16 @@ jobs:
           }
 
           echo "pylint score gate passed: score $SCORE > 7.5"
+
+      - name: Upload pylint failure output
+        if: github.event_name == 'pull_request' && steps.score.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: pylint-output-pr-${{ github.event.pull_request.number }}
+          path: apps/api/pylint-output.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce pylint success
+        if: steps.score.outcome == 'failure'
+        run: exit 1
