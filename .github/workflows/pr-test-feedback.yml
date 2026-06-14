@@ -1,9 +1,10 @@
-name: QA / PR Test Feedback
+name: QA / PR Feedback
 
 on:
   workflow_run:
     workflows:
       - QA / Tests
+      - QA / Pylint Score
     types:
       - completed
 
@@ -17,8 +18,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  sync-pytest-feedback:
-    name: Sync Pytest Feedback
+  sync-qa-feedback:
+    name: Sync QA Feedback
     if: github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -31,6 +32,14 @@ jobs:
             core.setOutput('pr_number', pullRequest ? String(pullRequest.number) : '');
             core.setOutput('conclusion', context.payload.workflow_run.conclusion || '');
             core.setOutput('run_url', context.payload.workflow_run.html_url || '');
+            const workflowName = context.payload.workflow_run.name;
+            const isPylint = workflowName === 'QA / Pylint Score';
+            const isPytest = workflowName === 'QA / Tests';
+            if (!isPylint && !isPytest) {
+              throw new Error(`Unsupported QA workflow: ${workflowName}`);
+            }
+            core.setOutput('tool', isPylint ? 'Pylint' : 'Pytest');
+            core.setOutput('marker', `<!-- anibridge-pr-${isPylint ? 'pylint' : 'pytest'}-feedback -->`);
 
             if (!pullRequest) {
               core.setOutput('artifact_id', '');
@@ -39,7 +48,7 @@ jobs:
 
             const { owner, repo } = context.repo;
             const run_id = context.payload.workflow_run.id;
-            const artifactName = `pytest-output-pr-${pullRequest.number}`;
+            const artifactName = `${isPylint ? 'pylint' : 'pytest'}-output-pr-${pullRequest.number}`;
             const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
               owner,
               repo,
@@ -49,48 +58,54 @@ jobs:
             const artifact = artifacts.find((item) => item.name === artifactName);
             core.setOutput('artifact_id', artifact ? String(artifact.id) : '');
 
-      - name: Download pytest output artifact
+      - name: Download QA output artifact
         if: steps.context.outputs.conclusion == 'failure' && steps.context.outputs.artifact_id != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           ARTIFACT_ID: ${{ steps.context.outputs.artifact_id }}
+          TOOL: ${{ steps.context.outputs.tool }}
         shell: bash
         run: |
           set -euo pipefail
           gh api \
             -H "Accept: application/vnd.github+json" \
-            "/repos/${REPO}/actions/artifacts/${ARTIFACT_ID}/zip" > pytest-output.zip
-          unzip -p pytest-output.zip pytest-output.txt > pytest-output.raw.txt
-          mv pytest-output.raw.txt pytest-output.txt
+            "/repos/${REPO}/actions/artifacts/${ARTIFACT_ID}/zip" > qa-output.zip
+          output_file="$(printf '%s' "${TOOL}" | tr '[:upper:]' '[:lower:]')-output.txt"
+          if ! unzip -p qa-output.zip "apps/api/${output_file}" > qa-output.txt; then
+            unzip -p qa-output.zip "${output_file}" > qa-output.txt
+          fi
 
       - name: Build pull request feedback body
         if: steps.context.outputs.pr_number != ''
         env:
           CONCLUSION: ${{ steps.context.outputs.conclusion }}
           RUN_URL: ${{ steps.context.outputs.run_url }}
+          TOOL: ${{ steps.context.outputs.tool }}
+          MARKER: ${{ steps.context.outputs.marker }}
         shell: bash
         run: |
           set -euo pipefail
-          marker='<!-- anibridge-pr-pytest-feedback -->'
           {
-            echo "${marker}"
+            echo "${MARKER}"
+            echo "### ${TOOL} check ${CONCLUSION}"
+            echo
             if [ "${CONCLUSION}" = "failure" ]; then
-              echo "Pytest failed for this pull request."
+              echo "${TOOL} failed for this pull request. The relevant output is included below."
             else
-              echo "Pytest passed for this pull request."
+              echo "${TOOL} passed for this pull request."
             fi
             echo
-            echo "Run details: ${RUN_URL}"
-            if [ "${CONCLUSION}" = "failure" ] && [ -s pytest-output.txt ]; then
+            echo "[Open the full workflow run](${RUN_URL})"
+            if [ "${CONCLUSION}" = "failure" ] && [ -s qa-output.txt ]; then
               echo
-              echo "<details><summary>Pytest output</summary>"
+              echo "<details><summary>${TOOL} output</summary>"
               echo
               echo '```text'
               python - <<'PY'
           from pathlib import Path
 
-          output = Path("pytest-output.txt").read_text(encoding="utf-8", errors="replace")
+          output = Path("qa-output.txt").read_text(encoding="utf-8", errors="replace")
           max_chars = 50000
           if len(output) > max_chars:
               print("(truncated to the last 50000 characters)")
@@ -108,7 +123,7 @@ jobs:
         if: steps.context.outputs.pr_number != ''
         uses: actions/github-script@v9
         env:
-          COMMENT_MARKER: "<!-- anibridge-pr-pytest-feedback -->"
+          COMMENT_MARKER: ${{ steps.context.outputs.marker }}
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
           CONCLUSION: ${{ steps.context.outputs.conclusion }}
         with:

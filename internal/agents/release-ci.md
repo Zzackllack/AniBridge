@@ -5,8 +5,6 @@
 - `scripts/local_build_release.sh` — local artifact build helper.
 - `scripts/local_build_release.ps1` — PowerShell equivalent.
 - `scripts/release/cut_release.py` — authoritative semver bump helper used by CI.
-- `scripts/setup-codex-overlay.sh` — agent overlay helper.
-- `scripts/startup-script.sh` — example startup script.
 
 ## Build and Release
 
@@ -54,16 +52,17 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
 
 - `tests.yml`: runs `cd apps/api && uv sync --frozen`, executes pytest, and uploads captured
   failure output for pull request feedback. It ignores `v*` release-tag pushes.
-- `pr-test-feedback.yml`: posts or updates a pull request comment when
-  `tests.yml` fails on a PR, including the pytest output in a collapsed Markdown
-  details block, and removes the comment automatically once the test run passes.
-- `codeowners-review.yml`: checks pull requests for malformed `CODEOWNERS`
-  rules, invalid or unresolved owner references, and newly added or renamed
-  paths that are covered only by the global fallback rule, then posts or
-  refreshes a remediation comment on the PR.
-- `format-and-run.yml`: runs `cd apps/api && ruff format app tests` and auto-commits formatting changes.
+- `pr-test-feedback.yml`: posts or updates tool-specific pull request comments
+  when `tests.yml` or `pylint-quality.yml` fails, includes captured output in a
+  collapsed Markdown details block, and removes each comment once its check
+  passes.
+- `codeowners-review.yml`: blocks malformed `CODEOWNERS` rules and invalid or
+  unresolved owner references. It separately posts an informational notice for
+  external contributors who are not listed as recurring code owners; fallback
+  ownership alone is not treated as a failure.
 - `pylint-quality.yml`: enforces the pylint score gate on branch pushes and pull
-  requests, but ignores `v*` release-tag pushes.
+  requests, captures failure output for PR feedback, and ignores `v*`
+  release-tag pushes.
 - `format-and-run.yml`: runs `cd apps/api && ruff format app tests` and auto-commits formatting
   changes on branch pushes and pull requests, but ignores `v*` release-tag
   pushes.

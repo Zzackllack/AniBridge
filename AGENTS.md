@@ -42,7 +42,6 @@ More guidance
 - [Security & Legal](internal/agents/security-legal.md)
 - [Onboarding & Collaboration](internal/agents/onboarding-collaboration.md)
 - [References](internal/agents/references.md)
-- [Change Log](internal/agents/change-log.md)
 
 Maintenance notice
 

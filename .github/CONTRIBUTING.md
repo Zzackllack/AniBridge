@@ -78,7 +78,10 @@ We follow the Conventional Commits specification: https://www.conventionalcommit
 
 ## Codeowners
 
-The codeowners for this repository are listed in the [CODEOWNERS](/.github/CODEOWNERS) file. Please update it as necessary when making changes to the codebase.
+The codeowners for this repository are listed in the [CODEOWNERS](/.github/CODEOWNERS) file.
+CODEOWNERS records ongoing review responsibility; it is not a list of every contributor.
+Do not add yourself only because you opened a pull request. Maintainers may add recurring
+contributors when they take ownership of an area.
 
 Conventions and tips you should follow when editing the CODEOWNERS file:
 
@@ -86,6 +89,9 @@ Conventions and tips you should follow when editing the CODEOWNERS file:
 - Paths are repository-rooted and support `*` and `**` globs.
 - Only `CODEOWNERS`, `.github/CODEOWNERS`, or `docs/CODEOWNERS` are recognized by GitHub.
 - Use @org/team for teams.
+
+External contributors who are not listed receive an informational pull request comment. The
+CODEOWNERS check only blocks malformed rules or owner references that GitHub cannot resolve.
 
 ## Pull Request Process
 

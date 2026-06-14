@@ -18,8 +18,8 @@
 /docker-compose*.yaml @Zzackllack
 
 # Application code and tests
-/app/ @Zzackllack
-/tests/ @Zzackllack
+/apps/api/app/ @Zzackllack
+/apps/api/tests/ @Zzackllack
 
 # Cloudflare Worker
 /src/ @Zzackllack
