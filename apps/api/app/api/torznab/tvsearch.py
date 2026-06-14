@@ -502,26 +502,55 @@ def emit_tvsearch_episode_items(
                 ):
                     if not special_map_attempted:
                         special_map_attempted = True
-                        special_map = resolve_special_mapping_from_episode_request_fn(
-                            slug=slug,
-                            request_season=request_season,
-                            request_episode=request_episode,
-                            query=q_str,
-                            series_title=display_title,
-                            ids=ids,
+                        # Guard against hijacking a normal episode: an episode
+                        # that merely lacks the first probed language (e.g. no
+                        # German Dub, but English/German Sub present) must NOT be
+                        # remapped to a season-0 film. Only treat the request as a
+                        # special when the real requested episode advertises no
+                        # languages at all (i.e. it has no normal page).
+                        real_languages = (
+                            discover_episode_languages_for_fast_season_mode_fn(
+                                slug=slug,
+                                season_i=request_season,
+                                episode_i=request_episode,
+                                site_found=site_found,
+                            )
                         )
-                        if special_map is not None:
+                        if real_languages:
                             logger.info(
                                 (
-                                    "Special mapping (tvsearch) resolved: slug={} "
-                                    "requested=S{}E{} target=S{}E{}"
+                                    "Skipping special mapping for slug={} S{}E{}: "
+                                    "real episode advertises languages {} "
+                                    "(treating as a normal episode)."
                                 ),
                                 slug,
                                 request_season,
                                 request_episode,
-                                special_map.source_season,
-                                special_map.source_episode,
+                                real_languages,
                             )
+                        else:
+                            special_map = (
+                                resolve_special_mapping_from_episode_request_fn(
+                                    slug=slug,
+                                    request_season=request_season,
+                                    request_episode=request_episode,
+                                    query=q_str,
+                                    series_title=display_title,
+                                    ids=ids,
+                                )
+                            )
+                            if special_map is not None:
+                                logger.info(
+                                    (
+                                        "Special mapping (tvsearch) resolved: slug={} "
+                                        "requested=S{}E{} target=S{}E{}"
+                                    ),
+                                    slug,
+                                    request_season,
+                                    request_episode,
+                                    special_map.source_season,
+                                    special_map.source_episode,
+                                )
                     if special_map is not None:
                         (
                             available,
