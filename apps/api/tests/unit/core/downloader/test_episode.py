@@ -112,6 +112,178 @@ def test_build_episode_supports_aniworld_v4_api(monkeypatch):
     )
 
 
+def test_aniworld_available_languages_recovers_unmapped_english(monkeypatch):
+    """
+    Regression for the reported bug: English Sub/Dub vanished from Sonarr while German remained.
+
+    Simulates AniWorld serving four language variants where only "German Dub" is present in the
+    upstream ``INVERSE_LANG_KEY_MAP``/``LANG_LABELS`` (the English and subtitle keys have drifted
+    out). The hardened ``available_languages`` must recover the English/subtitle variants via the
+    direct tuple decode instead of silently dropping them, and the download path must resolve a
+    language that is only known via that fallback.
+    """
+    import importlib
+    import sys
+    import types
+    from enum import Enum
+
+    class Audio(Enum):
+        GERMAN = "German"
+        ENGLISH = "English"
+        JAPANESE = "Japanese"
+
+    class Subtitles(Enum):
+        NONE = "None"
+        GERMAN = "German"
+        ENGLISH = "English"
+
+    german_dub = (Audio.GERMAN, Subtitles.NONE)
+    english_dub = (Audio.ENGLISH, Subtitles.NONE)
+    german_sub = (Audio.JAPANESE, Subtitles.GERMAN)
+    english_sub = (Audio.JAPANESE, Subtitles.ENGLISH)
+
+    class FakeSession:
+        def get(self, url: str, **_kwargs):
+            return types.SimpleNamespace(url=f"{url}/resolved")
+
+    class FakeAniworldEpisode:
+        def __init__(self, *, url: str):
+            self.url = url
+            self.provider_data = types.SimpleNamespace(
+                _data={
+                    german_dub: {"VOE": "https://aniworld.to/r/de-dub"},
+                    english_dub: {"VOE": "https://aniworld.to/r/en-dub"},
+                    german_sub: {"VOE": "https://aniworld.to/r/de-sub"},
+                    english_sub: {"VOE": "https://aniworld.to/r/en-sub"},
+                }
+            )
+
+    fake_models = types.ModuleType("aniworld.models")
+    fake_models.AniworldEpisode = FakeAniworldEpisode
+    fake_models.SerienstreamEpisode = FakeAniworldEpisode
+
+    fake_config = types.ModuleType("aniworld.config")
+    fake_config.GLOBAL_SESSION = FakeSession()
+    # Only German Dub is known to the upstream maps; the English and subtitle keys
+    # are deliberately absent to reproduce the silent-drop that hid them from Sonarr.
+    fake_config.LANG_KEY_MAP = {"1": german_dub}
+    fake_config.LANG_LABELS = {"1": "German Dub"}
+    fake_config.INVERSE_LANG_LABELS = {"German Dub": "1"}
+    fake_config.INVERSE_LANG_KEY_MAP = {german_dub: "1"}
+
+    fake_extractors = types.ModuleType("aniworld.extractors")
+    fake_extractors.provider_functions = {
+        "get_direct_link_from_voe": lambda url: f"{url}/master.m3u8"
+    }
+
+    monkeypatch.setitem(sys.modules, "aniworld.models", fake_models)
+    monkeypatch.setitem(sys.modules, "aniworld.config", fake_config)
+    monkeypatch.setitem(sys.modules, "aniworld.extractors", fake_extractors)
+
+    original_episode_module = sys.modules.get("app.core.downloader.episode")
+    sys.modules.pop("app.core.downloader.episode", None)
+    episode_module = importlib.import_module("app.core.downloader.episode")
+    if original_episode_module is not None:
+        monkeypatch.setitem(
+            sys.modules, "app.core.downloader.episode", original_episode_module
+        )
+    patch_voe_resolver(monkeypatch, episode_module)
+
+    episode = episode_module.build_episode(
+        slug="kaguya-sama-love-is-war",
+        season=1,
+        episode=1,
+        site="aniworld.to",
+    )
+
+    assert set(episode.available_languages) == {
+        "German Dub",
+        "English Dub",
+        "German Sub",
+        "English Sub",
+    }
+    # End-to-end: a variant unknown to the upstream label maps still resolves for download.
+    assert (
+        episode.get_direct_link("VOE", "English Sub")
+        == "https://aniworld.to/r/en-sub/resolved/master.m3u8"
+    )
+
+
+def test_sto_available_languages_includes_subtitle_variants(monkeypatch):
+    """
+    s.to previously emitted only Dub variants (it required ``subtitles == "None"``), dropping
+    every subtitle variant. After sharing the tuple decoder, German Sub / English Sub must surface.
+    """
+    import importlib
+    import sys
+    import types
+    from enum import Enum
+
+    class Audio(Enum):
+        GERMAN = "German"
+        JAPANESE = "Japanese"
+
+    class Subtitles(Enum):
+        NONE = "None"
+        GERMAN = "German"
+        ENGLISH = "English"
+
+    german_dub = (Audio.GERMAN, Subtitles.NONE)
+    german_sub = (Audio.JAPANESE, Subtitles.GERMAN)
+    english_sub = (Audio.JAPANESE, Subtitles.ENGLISH)
+
+    class FakeSession:
+        def get(self, url: str, **_kwargs):
+            return types.SimpleNamespace(url=f"{url}/resolved")
+
+    class FakeStoEpisode:
+        def __init__(self, *, url: str):
+            self.url = url
+            self.provider_data = {
+                german_dub: {"VOE": "https://s.to/r/de-dub"},
+                german_sub: {"VOE": "https://s.to/r/de-sub"},
+                english_sub: {"VOE": "https://s.to/r/en-sub"},
+            }
+
+    fake_models = types.ModuleType("aniworld.models")
+    fake_models.AniworldEpisode = FakeStoEpisode
+    fake_models.SerienstreamEpisode = FakeStoEpisode
+
+    fake_config = types.ModuleType("aniworld.config")
+    fake_config.GLOBAL_SESSION = FakeSession()
+
+    fake_extractors = types.ModuleType("aniworld.extractors")
+    fake_extractors.provider_functions = {
+        "get_direct_link_from_voe": lambda url: f"{url}/master.m3u8"
+    }
+
+    monkeypatch.setitem(sys.modules, "aniworld.models", fake_models)
+    monkeypatch.setitem(sys.modules, "aniworld.config", fake_config)
+    monkeypatch.setitem(sys.modules, "aniworld.extractors", fake_extractors)
+
+    original_episode_module = sys.modules.get("app.core.downloader.episode")
+    sys.modules.pop("app.core.downloader.episode", None)
+    episode_module = importlib.import_module("app.core.downloader.episode")
+    if original_episode_module is not None:
+        monkeypatch.setitem(
+            sys.modules, "app.core.downloader.episode", original_episode_module
+        )
+    patch_voe_resolver(monkeypatch, episode_module)
+
+    episode = episode_module.build_episode(
+        slug="9-1-1",
+        season=1,
+        episode=5,
+        site="s.to",
+    )
+
+    assert set(episode.available_languages) == {
+        "German Dub",
+        "German Sub",
+        "English Sub",
+    }
+
+
 def test_build_episode_supports_sto_v4_api(monkeypatch):
     import importlib
     import sys

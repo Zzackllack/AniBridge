@@ -266,7 +266,7 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "alphabet_html": ANIWORLD_ALPHABET_HTML,
         "alphabet_url": ANIWORLD_ALPHABET_URL,
         "titles_refresh_hours": ANIWORLD_TITLES_REFRESH_HOURS,
-        "default_languages": ["German Dub", "German Sub", "English Sub"],
+        "default_languages": ["German Dub", "German Sub", "English Sub", "English Dub"],
         "release_group": RELEASE_GROUP_ANIWORLD,
     },
     "s.to": {
