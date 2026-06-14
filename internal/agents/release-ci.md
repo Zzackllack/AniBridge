@@ -5,8 +5,6 @@
 - `scripts/local_build_release.sh` — local artifact build helper.
 - `scripts/local_build_release.ps1` — PowerShell equivalent.
 - `scripts/release/cut_release.py` — authoritative semver bump helper used by CI.
-- `scripts/setup-codex-overlay.sh` — agent overlay helper.
-- `scripts/startup-script.sh` — example startup script.
 
 ## Build and Release
 
@@ -62,7 +60,6 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
   unresolved owner references. It separately posts an informational notice for
   external contributors who are not listed as recurring code owners; fallback
   ownership alone is not treated as a failure.
-- `format-and-run.yml`: runs `cd apps/api && ruff format app tests` and auto-commits formatting changes.
 - `pylint-quality.yml`: enforces the pylint score gate on branch pushes and pull
   requests, captures failure output for PR feedback, and ignores `v*`
   release-tag pushes.

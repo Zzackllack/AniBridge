@@ -77,12 +77,14 @@ jobs:
             const { owner, repo } = context.repo;
             const issue_number = context.payload.pull_request.number;
             const marker = process.env.COMMENT_MARKER;
-            const safeTitle = process.env.PR_TITLE.replaceAll('`', '\\`');
             const body = [
               marker,
               '### Pull request title needs attention',
               '',
-              `**Received:** \`${safeTitle}\``,
+              '**Received:**',
+              '```text',
+              process.env.PR_TITLE,
+              '```',
               '',
               `**Why it failed:** ${process.env.FAILURE_REASON}`,
               '',

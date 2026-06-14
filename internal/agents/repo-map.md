@@ -56,8 +56,6 @@
 
 - `local_build_release.sh` — local artifact build helper.
 - `local_build_release.ps1` — PowerShell equivalent.
-- `setup-codex-overlay.sh` — agent overlay helper.
-- `startup-script.sh` — example startup script.
 
 ## File Reference Index
 

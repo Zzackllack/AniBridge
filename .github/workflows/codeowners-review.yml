@@ -11,7 +11,7 @@ on:
 permissions:
   contents: read
   issues: write
-  pull-requests: write
+  pull-requests: read
 
 concurrency:
   group: codeowners-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -28,7 +28,7 @@ jobs:
       - name: Validate CODEOWNERS coverage
         id: validate
         continue-on-error: true
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           COMMENT_MARKER: "<!-- anibridge-pr-codeowners-validation -->"
         with:
@@ -177,7 +177,7 @@ jobs:
 
       - name: Sync pull request CODEOWNERS comment
         if: always()
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           COMMENT_MARKER: "<!-- anibridge-pr-codeowners-validation -->"
         with:
@@ -238,7 +238,7 @@ jobs:
 
       - name: Sync new contributor ownership notice
         if: always() && steps.validate.outcome == 'success'
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           COMMENT_MARKER: "<!-- anibridge-pr-codeowners-contributor -->"
         with:

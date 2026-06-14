@@ -32,7 +32,12 @@ jobs:
             core.setOutput('pr_number', pullRequest ? String(pullRequest.number) : '');
             core.setOutput('conclusion', context.payload.workflow_run.conclusion || '');
             core.setOutput('run_url', context.payload.workflow_run.html_url || '');
-            const isPylint = context.payload.workflow_run.name === 'QA / Pylint Score';
+            const workflowName = context.payload.workflow_run.name;
+            const isPylint = workflowName === 'QA / Pylint Score';
+            const isPytest = workflowName === 'QA / Tests';
+            if (!isPylint && !isPytest) {
+              throw new Error(`Unsupported QA workflow: ${workflowName}`);
+            }
             core.setOutput('tool', isPylint ? 'Pylint' : 'Pytest');
             core.setOutput('marker', `<!-- anibridge-pr-${isPylint ? 'pylint' : 'pytest'}-feedback -->`);
 
@@ -59,13 +64,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           ARTIFACT_ID: ${{ steps.context.outputs.artifact_id }}
+          TOOL: ${{ steps.context.outputs.tool }}
         shell: bash
         run: |
           set -euo pipefail
           gh api \
             -H "Accept: application/vnd.github+json" \
             "/repos/${REPO}/actions/artifacts/${ARTIFACT_ID}/zip" > qa-output.zip
-          unzip -p qa-output.zip > qa-output.txt
+          output_file="$(printf '%s' "${TOOL}" | tr '[:upper:]' '[:lower:]')-output.txt"
+          if ! unzip -p qa-output.zip "apps/api/${output_file}" > qa-output.txt; then
+            unzip -p qa-output.zip "${output_file}" > qa-output.txt
+          fi
 
       - name: Build pull request feedback body
         if: steps.context.outputs.pr_number != ''
@@ -79,7 +88,7 @@ jobs:
           set -euo pipefail
           {
             echo "${MARKER}"
-            echo "### ${TOOL} check failed"
+            echo "### ${TOOL} check ${CONCLUSION}"
             echo
             if [ "${CONCLUSION}" = "failure" ]; then
               echo "${TOOL} failed for this pull request. The relevant output is included below."
