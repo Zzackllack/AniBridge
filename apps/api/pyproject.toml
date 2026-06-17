@@ -65,7 +65,7 @@ dependencies = [
     "uvloop>=0.21.0; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'",
     "watchfiles>=1.1.0",
     "websockets>=15.0.1",
-    "yt-dlp>=2025.8.27",
+    "yt-dlp>=2026.6.9",
     "pylint>=4.0.5",
 ]
 
