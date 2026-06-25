@@ -26,6 +26,7 @@ watch_dir = [
 directory = "docs/.vitepress/dist"
 # binding defaults to "ASSETS"; set explicitly for clarity
 binding = "ASSETS"
+html_handling = "drop-trailing-slash"
 # Ensure Worker logic runs for every request so canonical redirects/SEO headers
 # are applied before static assets are returned.
 run_worker_first = true
