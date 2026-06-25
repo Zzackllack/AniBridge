@@ -27,6 +27,7 @@ def _seed_ready_catalog() -> None:
                 current_generation=generation,
                 latest_success_generation=generation,
                 bootstrap_completed=True,
+                title_index_status="ready",
             )
         replace_provider_catalog_title(
             session,

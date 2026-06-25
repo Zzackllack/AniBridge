@@ -121,6 +121,8 @@ def torrents_add(
         category=category,
         job_id=job_id,
         state="queued",
+        provider=provider,
+        mode=mode or None,
     )
     logger.success(
         "Torrent task upserted for hash={}, state={}, site={}".format(
@@ -145,6 +147,8 @@ def torrents_add(
                 category=category,
                 job_id=job_id,
                 state="failed",
+                provider=provider,
+                mode=mode or None,
             )
             return PlainTextResponse("Failed to start download.", status_code=500)
         upsert_client_task(
@@ -160,8 +164,61 @@ def torrents_add(
             category=category,
             job_id=job_id,
             state="downloading",
+            provider=provider,
+            mode=mode or None,
         )
         logger.debug(f"Started background worker for job_id: {job_id}")
+    return PlainTextResponse("Ok.")
+
+
+@router.post("/torrents/resume")
+def torrents_resume(
+    session: Session = Depends(get_session),
+    hashes: str = Form(...),
+):
+    """Start existing queued torrent jobs."""
+    requested_hashes = [value.strip().lower() for value in hashes.split("|")]
+    if requested_hashes == ["all"]:
+        from app.db import ClientTask
+        from sqlmodel import select
+
+        tasks = session.exec(select(ClientTask)).all()
+    else:
+        tasks = [
+            task
+            for torrent_hash in requested_hashes
+            if (task := get_client_task(session, torrent_hash)) is not None
+        ]
+
+    for task in tasks:
+        job = get_job(session, task.job_id) if task.job_id else None
+        if job is None or job.status != "queued":
+            continue
+        req = {
+            "slug": task.slug,
+            "season": task.season,
+            "episode": task.episode,
+            "language": task.language,
+            "site": task.site or "aniworld.to",
+            "title_hint": task.name,
+        }
+        if task.provider:
+            req["provider"] = task.provider
+        if task.mode:
+            req["mode"] = task.mode
+        try:
+            start_scheduled_job(job.id, req)
+        except Exception as exc:
+            logger.error("Failed to resume scheduled job {}: {}", job.id, exc)
+            task.state = "failed"
+            session.add(task)
+            session.commit()
+            return PlainTextResponse("Failed to resume download.", status_code=500)
+        task.state = "downloading"
+        session.add(task)
+        session.commit()
+        logger.debug("Resumed background worker for job_id: {}", job.id)
+
     return PlainTextResponse("Ok.")
 
 

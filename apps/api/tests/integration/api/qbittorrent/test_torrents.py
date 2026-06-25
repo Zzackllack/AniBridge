@@ -129,6 +129,62 @@ def test_torrents_info_preserves_queued_state_for_paused_add(client):
     assert info[0]["state"] == "queuedDL"
 
 
+def test_torrents_resume_starts_paused_job_with_original_request(client, monkeypatch):
+    from app.utils.magnet import build_magnet
+    import app.api.qbittorrent.torrents as qb_torrents
+    from app.db import create_job, engine
+    from sqlmodel import Session
+
+    started: list[tuple[str, dict]] = []
+
+    def create_queued_job(req, *, autostart=True):
+        del autostart
+        with Session(engine) as session:
+            return create_job(session, source_site=req["site"]).id
+
+    monkeypatch.setattr(qb_torrents, "schedule_download", create_queued_job)
+    monkeypatch.setattr(
+        qb_torrents,
+        "start_scheduled_job",
+        lambda job_id, req: started.append((job_id, req)),
+    )
+    magnet = build_magnet(
+        title="Queued STRM",
+        slug="queued-strm",
+        season=2,
+        episode=3,
+        language="German Dub",
+        provider="VOE",
+        mode="strm",
+    )
+
+    add_response = client.post(
+        "/api/v2/torrents/add",
+        data={"urls": magnet, "paused": "true"},
+    )
+    torrent_hash = client.get("/api/v2/torrents/info").json()[0]["hash"]
+    resume_response = client.post(
+        "/api/v2/torrents/resume",
+        data={"hashes": torrent_hash},
+    )
+
+    assert add_response.status_code == 200
+    assert resume_response.status_code == 200
+    assert len(started) == 1
+    assert started[0][1] == {
+        "slug": "queued-strm",
+        "season": 2,
+        "episode": 3,
+        "language": "German Dub",
+        "site": "aniworld.to",
+        "title_hint": "Queued STRM",
+        "provider": "VOE",
+        "mode": "strm",
+    }
+    info = client.get("/api/v2/torrents/info").json()
+    assert info[0]["state"] == "downloading"
+
+
 def test_torrents_add_returns_500_when_start_fails(client, monkeypatch):
     from app.utils.magnet import build_magnet
     import app.api.qbittorrent.torrents as qb_torrents

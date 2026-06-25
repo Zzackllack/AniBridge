@@ -136,8 +136,26 @@ def test_availability_and_clienttask_crud(client):
             category="anime",
             job_id="job-1",
             state="downloading",
+            provider="VOE",
+            mode="strm",
         )
-        assert get_client_task(s, "abc")
+        upsert_client_task(
+            s,
+            hash="abc",
+            name="Updated Name",
+            slug="slug",
+            season=1,
+            episode=1,
+            language="German Dub",
+            save_path="/tmp",
+            category="anime",
+            job_id="job-1",
+            state="downloading",
+        )
+        task = get_client_task(s, "abc")
+        assert task is not None
+        assert task.provider == "VOE"
+        assert task.mode == "strm"
         delete_client_task(s, "abc")
         assert get_client_task(s, "abc") is None
 

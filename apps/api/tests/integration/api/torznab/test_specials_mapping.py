@@ -29,6 +29,7 @@ def _seed_special_mapping_catalog(*, languages: list[str]) -> None:
                 current_generation=generation,
                 latest_success_generation=generation,
                 bootstrap_completed=True,
+                title_index_status="ready",
             )
         replace_provider_catalog_title(
             session,

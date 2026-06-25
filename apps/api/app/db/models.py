@@ -171,6 +171,8 @@ class ClientTask(ModelBase, table=True):
     episode: int
     language: str
     site: Optional[str] = Field(default="aniworld.to", index=True)  # Track source site
+    provider: Optional[str] = None
+    mode: Optional[str] = None
     job_id: Optional[str] = Field(default=None, index=True)
     save_path: Optional[str] = None
     category: Optional[str] = None
@@ -1876,6 +1878,8 @@ def upsert_client_task(
     job_id: Optional[str],
     state: str = "queued",
     site: str = "aniworld.to",
+    provider: Optional[str] = None,
+    mode: Optional[str] = None,
 ) -> ClientTask:
     """
     Insert or update a ClientTask record identified by its hash.
@@ -1899,6 +1903,8 @@ def upsert_client_task(
             episode=episode,
             language=language,
             site=site,
+            provider=provider,
+            mode=mode,
             save_path=save_path,
             category=category,
             job_id=job_id,
@@ -1913,6 +1919,10 @@ def upsert_client_task(
         rec.episode = episode
         rec.language = language
         rec.site = site
+        if provider is not None:
+            rec.provider = provider
+        if mode is not None:
+            rec.mode = mode
         rec.save_path = save_path
         rec.category = category
         rec.job_id = job_id

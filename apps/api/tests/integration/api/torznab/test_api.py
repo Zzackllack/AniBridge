@@ -138,7 +138,14 @@ def test_caps(client):
     ET.fromstring(resp.text)
 
 
-def test_search(client):
+def test_search(client, monkeypatch):
+    import app.api.torznab.api as torznab_api
+
+    monkeypatch.setattr(
+        torznab_api,
+        "_ready_provider_title_indexes",
+        lambda session, *, providers: providers,
+    )
     resp = client.get("/torznab/api", params={"t": "search", "q": "test"})
     assert resp.status_code == 200
     root = ET.fromstring(resp.text)
@@ -183,6 +190,49 @@ def test_movie_search_uses_megakino_readiness_only(client, monkeypatch):
 
     assert resp.status_code == 200
     assert called == [["megakino"]]
+
+
+def test_generic_search_ignores_unqueried_megakino_readiness(client, monkeypatch):
+    import app.api.torznab.api as torznab_api
+    from app.db import engine, upsert_provider_index_status
+
+    called: list[list[str]] = []
+
+    def fake_indexed_preview_results(**kwargs):
+        called.append(kwargs["providers"])
+        return 1
+
+    with Session(engine) as session:
+        for provider in ("aniworld.to", "s.to"):
+            upsert_provider_index_status(
+                session,
+                provider=provider,
+                refresh_interval_hours=24.0,
+                status="ready",
+                latest_success_generation=f"gen-{provider}",
+                current_generation=f"gen-{provider}",
+                bootstrap_completed=True,
+                title_index_status="ready",
+            )
+        upsert_provider_index_status(
+            session,
+            provider="megakino",
+            refresh_interval_hours=24.0,
+            status="pending",
+            title_index_status="pending",
+        )
+
+    monkeypatch.setattr(
+        torznab_api,
+        "_indexed_preview_results",
+        fake_indexed_preview_results,
+    )
+
+    resp = client.get("/torznab/api", params={"t": "search", "q": "anime"})
+
+    assert resp.status_code == 200
+    assert len(called) == 1
+    assert set(called[0]) == {"aniworld.to", "s.to"}
 
 
 def test_tvsearch_happy_path(client, monkeypatch):

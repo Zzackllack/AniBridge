@@ -31,7 +31,9 @@
 
 - Auth: `/auth/login`, `/auth/logout` set `SID` cookie `anibridge`.
 - Categories: `/torrents/categories` returns configured categories (default `AniBridge`).
-- Torrents: `/torrents/add`, `/torrents/delete`, `/torrents/info` mimic qBittorrent responses.
+- Torrents: `/torrents/add`, `/torrents/resume`, `/torrents/delete`, and
+  `/torrents/info` mimic qBittorrent responses. Paused adds retain the provider
+  and mode metadata required to start the original request when resumed.
 - Sync: `/sync/maindata` exposes job states for Sonarr integration.
 - Transfer: `/transfer/info`, `/transfer/speedLimitsMode`, etc., return safe defaults.
 - Deletion endpoint optionally removes files when `DELETE_FILES_ON_TORRENT_DELETE` is true.

@@ -79,16 +79,24 @@ def _coerce_positive_int(value: object) -> Optional[int]:
     return _coerce_positive_int_impl(value)
 
 
-def _require_provider_title_index_ready(session: Session, *, provider: str) -> None:
-    status = get_provider_index_status(session, provider=provider)
-    if status is not None and (
-        status.title_index_status == "ready" or status.bootstrap_completed
-    ):
-        return
+def _ready_provider_title_indexes(
+    session: Session, *, providers: list[str]
+) -> list[str]:
+    ready = []
+    pending = []
+    for provider in providers:
+        status = get_provider_index_status(session, provider=provider)
+        if status is not None and status.title_index_status == "ready":
+            ready.append(provider)
+            continue
+        pending.append(
+            f"{provider} ({status.title_index_status if status is not None else 'pending'})"
+        )
+    if ready:
+        return ready
     raise CatalogNotReadyError(
         "Provider catalog bootstrap is still running. "
-        f"Pending providers: {provider} "
-        f"({status.title_index_status if status is not None else 'pending'})."
+        f"Pending providers: {', '.join(pending)}."
     )
 
 
@@ -672,46 +680,68 @@ def torznab_api(
         if not q_str:
             return _rss_response(rss)
 
-        try:
-            require_catalog_ready()
-        except CatalogNotReadyError as exc:
-            from fastapi import HTTPException
-
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
-
         if movie_preferred:
+            try:
+                movie_providers = _ready_provider_title_indexes(
+                    session, providers=["megakino"]
+                )
+            except CatalogNotReadyError as exc:
+                from fastapi import HTTPException
+
+                raise HTTPException(status_code=503, detail=str(exc)) from exc
             count = _indexed_preview_results(
                 tn_module=tn,
                 session=session,
                 q_str=q_str,
                 channel=channel,
                 cat_id=TORZNAB_CAT_MOVIE,
-                providers=["megakino"],
+                providers=movie_providers,
                 limit=limit,
                 strm_suffix=strm_suffix,
             )
             if count == 0:
+                anime_providers = [
+                    site for site in CATALOG_SITES_LIST if site != "megakino"
+                ]
+                try:
+                    anime_providers = _ready_provider_title_indexes(
+                        session, providers=anime_providers
+                    )
+                except CatalogNotReadyError as exc:
+                    logger.debug(
+                        "Skipping anime fallback for movie-preferred search because "
+                        "no anime title indexes are ready: {}",
+                        exc,
+                    )
+                    return _rss_response(rss)
                 _indexed_preview_results(
                     tn_module=tn,
                     session=session,
                     q_str=q_str,
                     channel=channel,
                     cat_id=TORZNAB_CAT_ANIME,
-                    providers=[
-                        site for site in CATALOG_SITES_LIST if site != "megakino"
-                    ],
+                    providers=anime_providers,
                     limit=limit,
                     strm_suffix=strm_suffix,
                 )
             return _rss_response(rss)
 
+        anime_providers = [site for site in CATALOG_SITES_LIST if site != "megakino"]
+        try:
+            anime_providers = _ready_provider_title_indexes(
+                session, providers=anime_providers
+            )
+        except CatalogNotReadyError as exc:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         _indexed_preview_results(
             tn_module=tn,
             session=session,
             q_str=q_str,
             channel=channel,
             cat_id=cat_id,
-            providers=[site for site in CATALOG_SITES_LIST if site != "megakino"],
+            providers=anime_providers,
             limit=limit,
             strm_suffix=strm_suffix,
         )
@@ -719,13 +749,6 @@ def torznab_api(
 
     if t in ("movie", "movie-search"):
         import app.api.torznab as tn
-
-        try:
-            _require_provider_title_index_ready(session, provider="megakino")
-        except CatalogNotReadyError as exc:
-            from fastapi import HTTPException
-
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
 
         rss, channel = _rss_root()
         q_str = (q or "").strip()
@@ -739,13 +762,21 @@ def torznab_api(
             )
             return _rss_response(rss)
         if q_str:
+            try:
+                movie_providers = _ready_provider_title_indexes(
+                    session, providers=["megakino"]
+                )
+            except CatalogNotReadyError as exc:
+                from fastapi import HTTPException
+
+                raise HTTPException(status_code=503, detail=str(exc)) from exc
             _indexed_preview_results(
                 tn_module=tn,
                 session=session,
                 q_str=q_str,
                 channel=channel,
                 cat_id=TORZNAB_CAT_MOVIE,
-                providers=["megakino"],
+                providers=movie_providers,
                 limit=limit,
                 strm_suffix=strm_suffix,
             )
