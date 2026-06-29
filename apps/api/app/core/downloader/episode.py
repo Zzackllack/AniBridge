@@ -252,6 +252,49 @@ def _extract_season_episode_from_link(link: str, site: str) -> tuple[int, int]:
     )
 
 
+def _label_from_lang_tuple(key: Any) -> Optional[str]:
+    """
+    Decode an aniworld>=4 ``(Audio, Subtitles)`` language key into a canonical label.
+
+    The backend exposes each language variant as a two-element key whose elements are
+    enum-like members with a ``.value`` (e.g. ``"German"``/``"English"``/``"None"``); raw
+    strings or ints are tolerated too. The canonical labels returned here ("German Dub",
+    "English Dub", "German Sub", "English Sub") match the values used in config defaults,
+    ``language.py`` and the s.to provider.
+
+    This is the resilient fallback for when the upstream ``INVERSE_LANG_KEY_MAP`` /
+    ``LANG_LABELS`` lookup does not recognise a key (which silently drops English variants).
+
+    Returns:
+        The canonical label, or ``None`` when the key shape/values cannot be mapped.
+    """
+    if not (isinstance(key, tuple) and len(key) == 2):
+        return None
+    audio = str(getattr(key[0], "value", key[0])).strip().lower()
+    subtitles = str(getattr(key[1], "value", key[1])).strip().lower()
+
+    def _is_german(value: str) -> bool:
+        return value.startswith("german") or value in ("deutsch", "de", "ger")
+
+    def _is_english(value: str) -> bool:
+        return value.startswith("english") or value in ("englisch", "en", "eng")
+
+    # No subtitle overlay -> the audio track defines a "Dub".
+    if subtitles in ("", "none", "0"):
+        if _is_german(audio):
+            return "German Dub"
+        if _is_english(audio):
+            return "English Dub"
+        return None
+
+    # A subtitle overlay -> the subtitle language defines a "Sub".
+    if _is_german(subtitles):
+        return "German Sub"
+    if _is_english(subtitles):
+        return "English Sub"
+    return None
+
+
 @dataclass(slots=True)
 class EpisodeCompat:
     """Compatibility shim for aniworld>=4 site-specific episode classes."""
@@ -289,6 +332,11 @@ class EpisodeCompat:
                 try:
                     label = LANG_LABELS[INVERSE_LANG_KEY_MAP[key]]
                 except KeyError:
+                    # The upstream maps don't recognise this key (commonly the
+                    # case for English variants after site/library drift); decode
+                    # the (Audio, Subtitles) tuple directly instead of dropping it.
+                    label = _label_from_lang_tuple(key)
+                if not label:
                     logger.debug(
                         "Skipping unknown aniworld language tuple in compatibility layer: {}",
                         key,
@@ -300,15 +348,8 @@ class EpisodeCompat:
             return labels
 
         for key in raw.keys():
-            if not isinstance(key, tuple) or len(key) != 2:
-                continue
-            audio = getattr(key[0], "value", None)
-            subtitles = getattr(key[1], "value", None)
-            if audio == "German" and subtitles == "None":
-                label = "German Dub"
-            elif audio == "English" and subtitles == "None":
-                label = "English Dub"
-            else:
+            label = _label_from_lang_tuple(key)
+            if not label:
                 continue
             if label not in seen:
                 seen.add(label)
@@ -326,11 +367,23 @@ class EpisodeCompat:
         from aniworld.config import INVERSE_LANG_LABELS, LANG_KEY_MAP  # type: ignore
 
         key = INVERSE_LANG_LABELS.get(language)
-        if key is None:
-            raise ValueError(
-                f"Invalid language: {language}. Valid options for {self.site}: {self.available_languages}"
-            )
-        return LANG_KEY_MAP[key]
+        if key is not None:
+            return LANG_KEY_MAP[key]
+
+        # The upstream label maps don't know this canonical label (e.g. an English
+        # variant surfaced only via the tuple-decode fallback). Resolve it against
+        # the raw provider data instead; _get_provider_redirect_url matches raw
+        # (Audio, Subtitles) tuples by value, so returning the raw key works.
+        provider_data = getattr(self._backend, "provider_data", None)
+        raw = getattr(provider_data, "_data", provider_data)
+        if isinstance(raw, dict):
+            for raw_key in raw.keys():
+                if _label_from_lang_tuple(raw_key) == language:
+                    return raw_key
+
+        raise ValueError(
+            f"Invalid language: {language}. Valid options for {self.site}: {self.available_languages}"
+        )
 
     def _get_provider_redirect_url(self, language: Any, provider_name: str) -> str:
         provider_data = getattr(self._backend, "provider_data", None)
