@@ -91,6 +91,11 @@ def client(tmp_path, monkeypatch):
         "app.config",
         "app.db",
         "app.db.models",
+        "app.catalog",
+        "app.catalog.exceptions",
+        "app.catalog.indexer",
+        "app.catalog.metadata",
+        "app.catalog.providers",
         "app.core.strm_proxy",
         "app.core.strm_proxy.auth",
         "app.core.strm_proxy.cache",
@@ -123,7 +128,12 @@ def client(tmp_path, monkeypatch):
 
     create_db_and_tables()
 
-    monkeypatch.setattr(qb_torrents, "schedule_download", lambda req: "job-1")
+    def _schedule_download(req, *, autostart=True):
+        del req, autostart
+        return "job-1"
+
+    monkeypatch.setattr(qb_torrents, "schedule_download", _schedule_download)
+    monkeypatch.setattr(qb_torrents, "start_scheduled_job", lambda job_id, req: None)
     monkeypatch.setattr(qb_torrents, "cancel_job", lambda job_id: None)
 
     with TestClient(app) as c:

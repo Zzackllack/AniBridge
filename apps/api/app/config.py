@@ -66,6 +66,21 @@ def _as_non_negative_int(val: str | None, default: int) -> int:
     return parsed
 
 
+def _as_non_negative_float(val: str | None, default: float) -> float:
+    """Parse *val* as a non-negative float, returning *default* on failure."""
+    if val is None:
+        return default
+    try:
+        parsed = float(val.strip())
+    except TypeError, ValueError:
+        logger.warning("Invalid non-negative float value {!r}; using {}", val, default)
+        return default
+    if parsed < 0:
+        logger.warning("Negative value {} is not allowed; using {}", parsed, default)
+        return default
+    return parsed
+
+
 # Always-on public IP monitor.
 PUBLIC_IP_CHECK_ENABLED = _as_bool(os.getenv("PUBLIC_IP_CHECK_ENABLED", None), False)
 PUBLIC_IP_CHECK_INTERVAL_MIN = int(os.getenv("PUBLIC_IP_CHECK_INTERVAL_MIN", "30") or 0)
@@ -188,6 +203,23 @@ data_candidates.extend(
 DOWNLOAD_DIR = _ensure_dir(download_candidates, "DOWNLOAD_DIR")
 DATA_DIR = _ensure_dir(data_candidates, "DATA_DIR")
 
+
+def _ensure_runtime_home() -> Path:
+    runtime_home = DATA_DIR / "home"
+    runtime_home.mkdir(parents=True, exist_ok=True)
+    current_home = os.environ.get("HOME", "").strip()
+    if not current_home or current_home == "/nonexistent":
+        os.environ["HOME"] = str(runtime_home)
+    os.environ.setdefault("XDG_CONFIG_HOME", str(runtime_home / ".config"))
+    os.environ.setdefault("XDG_CACHE_HOME", str(runtime_home / ".cache"))
+    Path(os.environ["XDG_CONFIG_HOME"]).mkdir(parents=True, exist_ok=True)
+    Path(os.environ["XDG_CACHE_HOME"]).mkdir(parents=True, exist_ok=True)
+    logger.debug("RUNTIME_HOME using: {}", os.environ["HOME"])
+    return runtime_home
+
+
+RUNTIME_HOME = _ensure_runtime_home()
+
 # Optional override: path reported to clients (e.g. Sonarr) as qBittorrent save path.
 # Useful when AniBridge runs on host but Sonarr runs in a container with a different mount point.
 # Normalize to absolute for reporting if it points into container
@@ -229,6 +261,99 @@ MEGAKINO_TITLES_REFRESH_HOURS = float(os.getenv("MEGAKINO_TITLES_REFRESH_HOURS",
 MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN = int(
     os.getenv("MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN", "100")
 )
+PROVIDER_INDEX_REFRESH_HOURS = _as_non_negative_float(
+    os.getenv("PROVIDER_INDEX_REFRESH_HOURS"), 24.0
+)
+PROVIDER_INDEX_REFRESH_HOURS_ANIWORLD = _as_non_negative_float(
+    os.getenv(
+        "PROVIDER_INDEX_REFRESH_HOURS_ANIWORLD", str(PROVIDER_INDEX_REFRESH_HOURS)
+    ),
+    PROVIDER_INDEX_REFRESH_HOURS,
+)
+PROVIDER_INDEX_REFRESH_HOURS_STO = _as_non_negative_float(
+    os.getenv("PROVIDER_INDEX_REFRESH_HOURS_STO", str(PROVIDER_INDEX_REFRESH_HOURS)),
+    PROVIDER_INDEX_REFRESH_HOURS,
+)
+PROVIDER_INDEX_REFRESH_HOURS_MEGAKINO = _as_non_negative_float(
+    os.getenv(
+        "PROVIDER_INDEX_REFRESH_HOURS_MEGAKINO", str(PROVIDER_INDEX_REFRESH_HOURS)
+    ),
+    PROVIDER_INDEX_REFRESH_HOURS,
+)
+PROVIDER_INDEX_SCHEDULER_POLL_SECONDS = _as_non_negative_int(
+    os.getenv("PROVIDER_INDEX_SCHEDULER_POLL_SECONDS"), 60
+)
+if PROVIDER_INDEX_SCHEDULER_POLL_SECONDS < 5:
+    PROVIDER_INDEX_SCHEDULER_POLL_SECONDS = 5
+PROVIDER_INDEX_GLOBAL_CONCURRENCY = _as_non_negative_int(
+    os.getenv("PROVIDER_INDEX_GLOBAL_CONCURRENCY"), 1
+)
+if PROVIDER_INDEX_GLOBAL_CONCURRENCY < 1:
+    PROVIDER_INDEX_GLOBAL_CONCURRENCY = 1
+PROVIDER_INDEX_CONCURRENCY_ANIWORLD = _as_non_negative_int(
+    os.getenv("PROVIDER_INDEX_CONCURRENCY_ANIWORLD"), 4
+)
+if PROVIDER_INDEX_CONCURRENCY_ANIWORLD < 1:
+    PROVIDER_INDEX_CONCURRENCY_ANIWORLD = 1
+PROVIDER_INDEX_CONCURRENCY_STO = _as_non_negative_int(
+    os.getenv("PROVIDER_INDEX_CONCURRENCY_STO"), 4
+)
+if PROVIDER_INDEX_CONCURRENCY_STO < 1:
+    PROVIDER_INDEX_CONCURRENCY_STO = 1
+PROVIDER_INDEX_CONCURRENCY_MEGAKINO = _as_non_negative_int(
+    os.getenv("PROVIDER_INDEX_CONCURRENCY_MEGAKINO"), 2
+)
+if PROVIDER_INDEX_CONCURRENCY_MEGAKINO < 1:
+    PROVIDER_INDEX_CONCURRENCY_MEGAKINO = 1
+PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS = max(
+    5,
+    _as_non_negative_int(os.getenv("PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS"), 45),
+)
+PROVIDER_INDEX_QUEUE_SIZE = max(
+    1,
+    _as_non_negative_int(os.getenv("PROVIDER_INDEX_QUEUE_SIZE"), 8),
+)
+PROVIDER_INDEX_WRITER_BATCH_SIZE = max(
+    1,
+    _as_non_negative_int(os.getenv("PROVIDER_INDEX_WRITER_BATCH_SIZE"), 32),
+)
+PROVIDER_INDEX_WRITER_FLUSH_SECONDS = max(
+    0.1,
+    _as_non_negative_float(os.getenv("PROVIDER_INDEX_WRITER_FLUSH_SECONDS"), 1.0),
+)
+PROVIDER_INDEX_FAILURE_THRESHOLD_PERCENT = min(
+    100.0,
+    max(
+        0.0,
+        _as_non_negative_float(
+            os.getenv("PROVIDER_INDEX_FAILURE_THRESHOLD_PERCENT"),
+            20.0,
+        ),
+    ),
+)
+PROVIDER_INDEX_BACKPRESSURE_LOG_SECONDS = max(
+    1.0,
+    _as_non_negative_float(
+        os.getenv("PROVIDER_INDEX_BACKPRESSURE_LOG_SECONDS"),
+        15.0,
+    ),
+)
+CANONICAL_INDEX_CONCURRENCY = max(
+    1,
+    _as_non_negative_int(os.getenv("CANONICAL_INDEX_CONCURRENCY"), 2),
+)
+CANONICAL_CACHE_MEMORY_MAX_SEARCH = max(
+    1,
+    _as_non_negative_int(os.getenv("CANONICAL_CACHE_MEMORY_MAX_SEARCH"), 512),
+)
+CANONICAL_CACHE_MEMORY_MAX_SHOW = max(
+    1,
+    _as_non_negative_int(os.getenv("CANONICAL_CACHE_MEMORY_MAX_SHOW"), 256),
+)
+CANONICAL_CACHE_TTL_SECONDS = max(
+    1,
+    _as_non_negative_int(os.getenv("CANONICAL_CACHE_TTL_SECONDS"), 3600),
+)
 
 logger.debug(
     f"ANIWORLD_ALPHABET_HTML={ANIWORLD_ALPHABET_HTML}, ANIWORLD_ALPHABET_URL={ANIWORLD_ALPHABET_URL}"
@@ -239,6 +364,40 @@ logger.debug(
 logger.debug(f"MEGAKINO_BASE_URL={MEGAKINO_BASE_URL}")
 logger.debug(f"MEGAKINO_TITLES_REFRESH_HOURS={MEGAKINO_TITLES_REFRESH_HOURS}")
 logger.debug(f"MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN={MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN}")
+logger.debug("PROVIDER_INDEX_REFRESH_HOURS={}", PROVIDER_INDEX_REFRESH_HOURS)
+logger.debug(
+    "Provider index refresh overrides: aniworld={} sto={} megakino={}",
+    PROVIDER_INDEX_REFRESH_HOURS_ANIWORLD,
+    PROVIDER_INDEX_REFRESH_HOURS_STO,
+    PROVIDER_INDEX_REFRESH_HOURS_MEGAKINO,
+)
+logger.debug(
+    "Provider index scheduler: poll_seconds={} global_concurrency={} per_provider=({}, {}, {})",
+    PROVIDER_INDEX_SCHEDULER_POLL_SECONDS,
+    PROVIDER_INDEX_GLOBAL_CONCURRENCY,
+    PROVIDER_INDEX_CONCURRENCY_ANIWORLD,
+    PROVIDER_INDEX_CONCURRENCY_STO,
+    PROVIDER_INDEX_CONCURRENCY_MEGAKINO,
+)
+logger.debug(
+    "Provider index title timeout: {}s",
+    PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS,
+)
+logger.debug(
+    "Provider index writer: queue_size={} batch_size={} flush_seconds={} failure_threshold_percent={} backpressure_log_seconds={}",
+    PROVIDER_INDEX_QUEUE_SIZE,
+    PROVIDER_INDEX_WRITER_BATCH_SIZE,
+    PROVIDER_INDEX_WRITER_FLUSH_SECONDS,
+    PROVIDER_INDEX_FAILURE_THRESHOLD_PERCENT,
+    PROVIDER_INDEX_BACKPRESSURE_LOG_SECONDS,
+)
+logger.debug(
+    "Canonical index/cache: concurrency={} search_cache_max={} show_cache_max={} ttl_seconds={}",
+    CANONICAL_INDEX_CONCURRENCY,
+    CANONICAL_CACHE_MEMORY_MAX_SEARCH,
+    CANONICAL_CACHE_MEMORY_MAX_SHOW,
+    CANONICAL_CACHE_TTL_SECONDS,
+)
 
 # TTL (Stunden) für Live-Index; 0 = nie neu laden (nur einmal pro Prozess)
 ANIWORLD_TITLES_REFRESH_HOURS = float(os.getenv("ANIWORLD_TITLES_REFRESH_HOURS", "24"))
@@ -266,6 +425,9 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "alphabet_html": ANIWORLD_ALPHABET_HTML,
         "alphabet_url": ANIWORLD_ALPHABET_URL,
         "titles_refresh_hours": ANIWORLD_TITLES_REFRESH_HOURS,
+        "provider_index_refresh_hours": PROVIDER_INDEX_REFRESH_HOURS_ANIWORLD,
+        "provider_index_concurrency": PROVIDER_INDEX_CONCURRENCY_ANIWORLD,
+        "provider_index_title_timeout_seconds": PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS,
         "default_languages": ["German Dub", "German Sub", "English Sub"],
         "release_group": RELEASE_GROUP_ANIWORLD,
     },
@@ -274,6 +436,9 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "alphabet_html": STO_ALPHABET_HTML,
         "alphabet_url": STO_ALPHABET_URL,
         "titles_refresh_hours": STO_TITLES_REFRESH_HOURS,
+        "provider_index_refresh_hours": PROVIDER_INDEX_REFRESH_HOURS_STO,
+        "provider_index_concurrency": PROVIDER_INDEX_CONCURRENCY_STO,
+        "provider_index_title_timeout_seconds": PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS,
         "default_languages": ["German Dub", "English Dub"],
         "release_group": RELEASE_GROUP_STO,
     },
@@ -282,6 +447,9 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "alphabet_html": None,
         "alphabet_url": None,
         "titles_refresh_hours": MEGAKINO_TITLES_REFRESH_HOURS,
+        "provider_index_refresh_hours": PROVIDER_INDEX_REFRESH_HOURS_MEGAKINO,
+        "provider_index_concurrency": PROVIDER_INDEX_CONCURRENCY_MEGAKINO,
+        "provider_index_title_timeout_seconds": PROVIDER_INDEX_TITLE_TIMEOUT_SECONDS,
         "default_languages": ["Deutsch", "German Dub"],
         "release_group": "megakino",
     },
@@ -354,10 +522,31 @@ if PROVIDER_REDIRECT_TIMEOUT_SECONDS < 1:
     PROVIDER_REDIRECT_TIMEOUT_SECONDS = 1
 logger.debug("PROVIDER_REDIRECT_TIMEOUT_SECONDS={}", PROVIDER_REDIRECT_TIMEOUT_SECONDS)
 
+try:
+    PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS = float(
+        os.getenv("PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS", "15")
+    )
+except ValueError:
+    PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS = 15.0
+if PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS <= 0:
+    PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS = 15.0
+logger.debug(
+    "PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS={}",
+    PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS,
+)
+
 PROVIDER_REDIRECT_RETRIES = _as_non_negative_int(
     os.getenv("PROVIDER_REDIRECT_RETRIES"), 2
 )
 logger.debug("PROVIDER_REDIRECT_RETRIES={}", PROVIDER_REDIRECT_RETRIES)
+
+JOB_PROGRESS_FLUSH_SECONDS = _as_non_negative_float(
+    os.getenv("JOB_PROGRESS_FLUSH_SECONDS"),
+    0.5,
+)
+if JOB_PROGRESS_FLUSH_SECONDS <= 0:
+    JOB_PROGRESS_FLUSH_SECONDS = 0.5
+logger.debug("JOB_PROGRESS_FLUSH_SECONDS={}", JOB_PROGRESS_FLUSH_SECONDS)
 
 PROVIDER_CHALLENGE_BACKOFF_SECONDS = _as_non_negative_int(
     os.getenv("PROVIDER_CHALLENGE_BACKOFF_SECONDS"), 300

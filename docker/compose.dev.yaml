@@ -15,6 +15,7 @@ services:
       - ../.env
     environment:
       - ANIBRIDGE_RELOAD=true
+      - ANIBRIDGE_PORT=8000
       - DATA_DIR=/data
       - DOWNLOAD_DIR=/downloads
     volumes:

@@ -99,7 +99,9 @@ def test_provider_redirect_settings(monkeypatch):
     import sys
 
     monkeypatch.setenv("PROVIDER_REDIRECT_TIMEOUT_SECONDS", "15")
+    monkeypatch.setenv("PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS", "9.5")
     monkeypatch.setenv("PROVIDER_REDIRECT_RETRIES", "4")
+    monkeypatch.setenv("JOB_PROGRESS_FLUSH_SECONDS", "0.25")
     monkeypatch.setenv("PROVIDER_CHALLENGE_BACKOFF_SECONDS", "120")
 
     if "app.config" in sys.modules:
@@ -110,7 +112,9 @@ def test_provider_redirect_settings(monkeypatch):
     cfg = importlib.reload(cfg)
 
     assert cfg.PROVIDER_REDIRECT_TIMEOUT_SECONDS == 15
+    assert cfg.PROVIDER_DIRECT_LINK_TIMEOUT_SECONDS == 9.5
     assert cfg.PROVIDER_REDIRECT_RETRIES == 4
+    assert cfg.JOB_PROGRESS_FLUSH_SECONDS == 0.25
     assert cfg.PROVIDER_CHALLENGE_BACKOFF_SECONDS == 120
 
     monkeypatch.setenv("DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC", "not-a-number")
@@ -121,3 +125,40 @@ def test_provider_redirect_settings(monkeypatch):
     cfg = importlib.import_module("app.config")
     cfg = importlib.reload(cfg)
     assert cfg.DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC == 0
+
+
+def test_runtime_home_defaults_to_data_dir_when_home_is_nonexistent(
+    monkeypatch, tmp_path
+):
+    import importlib
+    import app
+    import sys
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("DOWNLOAD_DIR", str(tmp_path / "downloads"))
+    monkeypatch.setenv("HOME", "/nonexistent")
+
+    if "app.config" in sys.modules:
+        del sys.modules["app.config"]
+    if hasattr(app, "config"):
+        delattr(app, "config")
+    cfg = importlib.import_module("app.config")
+    cfg = importlib.reload(cfg)
+
+    assert cfg.RUNTIME_HOME == (cfg.DATA_DIR / "home").resolve()
+    assert cfg.RUNTIME_HOME.exists()
+    assert cfg.RUNTIME_HOME == cfg.RUNTIME_HOME.resolve()
+    assert cfg.os.environ["HOME"] == str(cfg.RUNTIME_HOME)
+
+
+def test_ensure_log_path_prefers_data_dir_env(monkeypatch, tmp_path):
+    from app.utils.logger import ensure_log_path
+
+    monkeypatch.delenv("ANIBRIDGE_LOG_PATH", raising=False)
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "mounted-data"))
+
+    log_path = ensure_log_path()
+
+    assert log_path.parent == (tmp_path / "mounted-data").resolve()
+    assert log_path.parent.exists()
+    assert log_path.name.startswith("terminal-")
