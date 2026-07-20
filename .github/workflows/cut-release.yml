@@ -79,7 +79,7 @@ jobs:
           echo "base_sha=${current_sha}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
 
@@ -136,7 +136,7 @@ jobs:
           ref: ${{ needs.preflight.outputs.base_sha }}
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
 
@@ -276,7 +276,7 @@ jobs:
           ref: ${{ needs.publish-ref.outputs.commit_sha }}
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
 
@@ -315,7 +315,7 @@ jobs:
           ref: ${{ needs.publish-ref.outputs.commit_sha }}
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
 
@@ -417,7 +417,7 @@ jobs:
           ref: ${{ needs.publish-ref.outputs.commit_sha }}
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
 

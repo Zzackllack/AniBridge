@@ -37,7 +37,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) && github.head_ref || github.ref }}
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
       - name: Set up uv
@@ -107,7 +107,7 @@ jobs:
           git fetch --all
           git pull --rebase origin "${GITHUB_HEAD_REF:-$(git rev-parse --abbrev-ref HEAD)}"
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
       - name: Set up uv
