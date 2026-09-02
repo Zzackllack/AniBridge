@@ -17,7 +17,7 @@ classifiers = [
 		"Operating System :: OS Independent",
 ]
 dependencies = [
-    "aniworld==4.2.1",
+    "aniworld==5.0.3",
     "anyio>=4.10.0",
     "beautifulsoup4>=4.13.5",
     "bs4>=0.0.2",
