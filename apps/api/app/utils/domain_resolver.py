@@ -8,14 +8,19 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from loguru import logger
+import requests
 from requests.exceptions import RequestException
 
-from app.utils.http_client import get as http_get
 from app.utils.logger import config as configure_logger
 
 configure_logger()
 
 MEGAKINO_DEFAULT_DOMAIN = "megakino1.to"
+MEGAKINO_REDIRECT_SEEDS = [
+    "megakino1.to",
+    "megakino.to",
+    "megakino.live",
+]
 MEGAKINO_DOMAIN_CANDIDATES = [
     "megakino1.to",
     "megakino.live",
@@ -28,6 +33,10 @@ MEGAKINO_DOMAIN_CANDIDATES = [
     "megakino.to",
 ]
 MEGAKINO_MIRRORS_PATH = "/mirrors.txt"
+MEGAKINO_GITHUB_DOMAIN_HINT_URL = (
+    "https://raw.githubusercontent.com/"
+    "Yezun-hikari/new-domain-check/main/monitors/megakino/domain.txt"
+)
 USER_AGENT = "Mozilla/5.0 (AniBridge; +https://github.com/Zzackllack/AniBridge)"
 MEGAKINO_RESOLVER_TIMEOUT_SECONDS = 6
 MEGAKINO_RESOLVER_MAX_WORKERS = 12
@@ -96,11 +105,13 @@ def _resolver_http_get(
 
     def _run() -> None:
         try:
-            result["resp"] = http_get(
+            request_headers = {"User-Agent": USER_AGENT, "Accept-Encoding": "identity"}
+            request_headers.update(headers)
+            result["resp"] = requests.get(
                 url,
                 timeout=timeout,
                 allow_redirects=allow_redirects,
-                headers=headers,
+                headers=request_headers,
             )
         except Exception as exc:
             err["exc"] = exc
@@ -113,6 +124,36 @@ def _resolver_http_get(
     if "exc" in err:
         raise err["exc"]
     return result["resp"]
+
+
+def _fetch_github_domain_hint(
+    timeout: float | int = MEGAKINO_RESOLVER_TIMEOUT_SECONDS,
+) -> Optional[str]:
+    """Return the current Megakino host from the external monitor repository."""
+    try:
+        resp = _resolver_http_get(
+            MEGAKINO_GITHUB_DOMAIN_HINT_URL,
+            timeout=timeout,
+            allow_redirects=True,
+            headers={"Accept": "text/plain"},
+        )
+    except RequestException as exc:
+        logger.debug("Megakino GitHub domain hint fetch failed: {}", exc)
+        return None
+
+    if resp.status_code >= 400:
+        logger.debug(
+            "Megakino GitHub domain hint returned {}",
+            resp.status_code,
+        )
+        return None
+
+    domain = _normalize_domain(resp.text or "")
+    if not domain:
+        logger.debug("Megakino GitHub domain hint was empty or invalid.")
+        return None
+    logger.info("Megakino GitHub domain hint resolved to {}", domain)
+    return domain
 
 
 def _build_base_url(value: str) -> str:
@@ -410,63 +451,70 @@ def fetch_megakino_domain(
     Returns:
         The resolved domain without a URL scheme (for example, "example.com"), or `None` if no candidate could be validated.
     """
-    logger.info("Resolving megakino domain via sitemap checks.")
+    logger.info("Resolving megakino domain via redirect-aware sitemap checks.")
     seen: set[str] = set()
-    ordered_candidates: list[str] = []
-    mirror_timeout = min(timeout, 8)
-    mirror_domains = fetch_megakino_mirror_domains(
-        timeout=mirror_timeout, include_sitemap_fallback=False
-    )
-    if mirror_domains:
-        ordered_candidates.extend(mirror_domains)
-    ordered_candidates.extend(MEGAKINO_DOMAIN_CANDIDATES)
-    normalized_candidates: list[str] = []
-    for candidate in ordered_candidates:
-        domain = _normalize_domain(candidate)
-        if not domain or domain in seen:
-            continue
-        seen.add(domain)
-        normalized_candidates.append(domain)
+    raw_candidates: list[str] = []
+    env_candidate = os.getenv("MEGAKINO_BASE_URL", "").strip()
+    if env_candidate:
+        raw_candidates.append(env_candidate)
+    raw_candidates.extend(MEGAKINO_REDIRECT_SEEDS)
 
-    if not normalized_candidates:
-        logger.warning("Megakino domain resolution failed; no candidate succeeded.")
-        return None
+    def _iter_candidates(candidates: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for candidate in candidates:
+            domain = _normalize_domain(candidate)
+            if not domain or domain in seen:
+                continue
+            seen.add(domain)
+            normalized.append(domain)
+        return normalized
 
-    max_workers = _resolver_max_workers(len(normalized_candidates))
-    logger.info(
-        "Probing {} megakino candidates (workers={}, timeout={}s).",
-        len(normalized_candidates),
-        max_workers,
-        timeout,
-    )
-
-    def _probe_candidate(idx: int, domain: str) -> tuple[int, Optional[str]]:
-        base_url = _build_base_url(domain)
-        try:
-            return (idx, _probe_megakino_sitemap(base_url, timeout=timeout))
-        except Exception as exc:
-            logger.warning("Megakino candidate check failed for {}: {}", base_url, exc)
-            return (idx, None)
-
-    probe_results: dict[int, str] = {}
-    with ThreadPoolExecutor(
-        max_workers=min(max_workers, len(normalized_candidates))
-    ) as ex:
-        futures = [
-            ex.submit(_probe_candidate, idx, domain)
-            for idx, domain in enumerate(normalized_candidates)
-        ]
-        for fut in as_completed(futures):
-            idx, resolved = fut.result()
+    normalized_candidates = _iter_candidates(raw_candidates)
+    if normalized_candidates:
+        logger.info(
+            "Megakino domain resolution candidates: {}",
+            ", ".join(normalized_candidates),
+        )
+        for domain in normalized_candidates:
+            base_url = _build_base_url(domain)
+            try:
+                resolved = _probe_megakino_sitemap(base_url, timeout=timeout)
+            except Exception as exc:
+                logger.warning(
+                    "Megakino candidate check failed for {}: {}", base_url, exc
+                )
+                continue
             if resolved:
-                probe_results[idx] = resolved
+                logger.success("Megakino domain resolved: {}", resolved)
+                return resolved
+            logger.warning("Megakino candidate failed validation: {}", domain)
 
-    for idx, domain in enumerate(normalized_candidates):
-        resolved = probe_results.get(idx)
-        if resolved:
-            logger.success("Megakino domain resolved: {}", resolved)
-            return resolved
-        logger.warning("Megakino candidate failed validation: {}", domain)
+    hint_domain = _fetch_github_domain_hint(timeout=min(timeout, 8))
+    if hint_domain:
+        hinted_candidates = _iter_candidates([hint_domain])
+        if hinted_candidates:
+            logger.info(
+                "Megakino domain resolution fallback candidate: {}",
+                ", ".join(hinted_candidates),
+            )
+            for domain in hinted_candidates:
+                base_url = _build_base_url(domain)
+                try:
+                    resolved = _probe_megakino_sitemap(base_url, timeout=timeout)
+                except Exception as exc:
+                    logger.warning(
+                        "Megakino hinted candidate check failed for {}: {}",
+                        base_url,
+                        exc,
+                    )
+                    continue
+                if resolved:
+                    logger.success("Megakino domain resolved: {}", resolved)
+                    return resolved
+                logger.warning(
+                    "Megakino hinted candidate failed validation: {}", domain
+                )
+
     logger.warning("Megakino domain resolution failed; no candidate succeeded.")
     return None
 

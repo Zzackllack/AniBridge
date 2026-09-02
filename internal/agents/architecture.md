@@ -45,6 +45,10 @@
 ## Scheduler & Background Services
 
 - Thread pool size controlled by `MAX_CONCURRENCY` (default 3).
+- Provider catalog indexing now runs as a staged streaming pipeline:
+  crawler workers emit completed titles into a bounded queue, one writer thread
+  persists batches into SQLite, and generation promotion only happens after the
+  full refresh succeeds.
 - Cleanup thread deletes downloads older than `DOWNLOADS_TTL_HOURS`.
 - Public IP monitor runs only when `PUBLIC_IP_CHECK_ENABLED=true`.
 - Lifespan ensures graceful shutdown of scheduler, DB engine, and background threads.
@@ -53,5 +57,7 @@
 
 - Loguru configuration lives in `apps/api/app/utils/logger.py`.
 - `TerminalLogger` duplicates stdout/stderr to `data/terminal-YYYY-MM-DD.log`.
-- `/health` endpoint provides liveness/readiness details.
+- `/health` and `/health/catalog` expose provider bootstrap state plus crawl,
+  persistence, queue-depth, and staging-generation progress for the catalog
+  indexer.
 - Update notifier logs when new GitHub releases are available.

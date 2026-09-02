@@ -1,5 +1,7 @@
 import errno
 import threading
+import time
+from concurrent.futures import Future
 from pathlib import Path
 
 from sqlmodel import Session
@@ -212,3 +214,142 @@ def test_run_strm_creates_proxy_url(tmp_path, monkeypatch):
         assert mapping is not None
         assert mapping.resolved_url == "https://example.com/video.mp4"
         assert mapping.provider_used == "VOE"
+
+
+def test_progress_updater_coalesces_bursty_db_writes(tmp_path, monkeypatch):
+    scheduler = _setup_scheduler(tmp_path, monkeypatch, strm_proxy_mode="direct")
+    monkeypatch.setattr(scheduler, "JOB_PROGRESS_FLUSH_SECONDS", 60.0)
+
+    writes: list[dict[str, object]] = []
+
+    class FakeSession:
+        def __enter__(self):
+            return object()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeReporter:
+        def __init__(self, label: str):
+            self.label = label
+
+        def update(self, snapshot):
+            del snapshot
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(scheduler, "Session", lambda _engine: FakeSession())
+    monkeypatch.setattr(scheduler, "ProgressReporter", FakeReporter)
+    monkeypatch.setattr(
+        scheduler,
+        "update_job",
+        lambda _session, job_id, **fields: writes.append({"job_id": job_id, **fields}),
+    )
+
+    callback, writer = scheduler._progress_updater("job-1", threading.Event())
+    callback(
+        {
+            "status": "downloading",
+            "downloaded_bytes": 1024,
+            "total_bytes": 10_000,
+            "speed": 1000,
+        }
+    )
+    callback(
+        {
+            "status": "downloading",
+            "downloaded_bytes": 2048,
+            "total_bytes": 10_000,
+            "speed": 2000,
+            "eta": 5,
+        }
+    )
+    writer.close(flush=True)
+
+    assert len(writes) == 1
+    assert writes[0]["job_id"] == "job-1"
+    assert writes[0]["downloaded_bytes"] == 2048
+    assert writes[0]["total_bytes"] == 10_000
+    assert writes[0]["speed"] == 2000.0
+    assert writes[0]["eta"] == 5
+
+
+def test_progress_updater_flushes_without_final_close(tmp_path, monkeypatch):
+    scheduler = _setup_scheduler(tmp_path, monkeypatch, strm_proxy_mode="direct")
+    monkeypatch.setattr(scheduler, "JOB_PROGRESS_FLUSH_SECONDS", 0.01)
+
+    writes: list[dict[str, object]] = []
+
+    class FakeSession:
+        def __enter__(self):
+            return object()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeReporter:
+        def __init__(self, label: str):
+            self.label = label
+
+        def update(self, snapshot):
+            del snapshot
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(scheduler, "Session", lambda _engine: FakeSession())
+    monkeypatch.setattr(scheduler, "ProgressReporter", FakeReporter)
+    monkeypatch.setattr(
+        scheduler,
+        "update_job",
+        lambda _session, job_id, **fields: writes.append({"job_id": job_id, **fields}),
+    )
+
+    callback, writer = scheduler._progress_updater("job-2", threading.Event())
+    callback(
+        {
+            "status": "downloading",
+            "downloaded_bytes": 5000,
+            "total_bytes": 10_000,
+            "speed": 4000,
+            "eta": 1,
+        }
+    )
+    writer.close(flush=False)
+    deadline = time.monotonic() + 0.5
+    while time.monotonic() < deadline:
+        if writes:
+            break
+        time.sleep(0.01)
+
+    assert writes == []
+
+
+def test_start_scheduled_job_cleans_up_fast_finishing_runner(tmp_path, monkeypatch):
+    scheduler = _setup_scheduler(tmp_path, monkeypatch, strm_proxy_mode="direct")
+
+    class ImmediateExecutor:
+        def submit(self, runner, job_id, req, stop_event):
+            fut = Future()
+            runner(job_id, req, stop_event)
+            fut.set_result(None)
+            return fut
+
+    def fake_runner(job_id, req, stop_event):
+        del req, stop_event
+        with scheduler.RUNNING_LOCK:
+            assert job_id in scheduler.RUNNING
+            scheduler.RUNNING.pop(job_id, None)
+
+    with scheduler.RUNNING_LOCK:
+        scheduler.RUNNING.clear()
+
+    monkeypatch.setattr(scheduler, "init_executor", lambda: None)
+    monkeypatch.setattr(scheduler, "EXECUTOR", ImmediateExecutor())
+    monkeypatch.setattr(scheduler, "_run_download", fake_runner)
+
+    scheduler.start_scheduled_job("job-fast", {})
+
+    with scheduler.RUNNING_LOCK:
+        assert "job-fast" not in scheduler.RUNNING
