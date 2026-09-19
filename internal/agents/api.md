@@ -8,7 +8,9 @@
 ## Health Endpoint (`/health`)
 
 - Method: GET
-- Response: JSON with `status`, `database`, `scheduler`, `download_dir`, `version`, `runtime`
+- Response: JSON with `status` and `catalog`
+- `catalog` includes bootstrap readiness plus per-provider crawl/persist counters,
+  queue depth, writer lag, current slug, and staging-vs-live generation state.
 
 ## Torznab Namespace (`/torznab/api`)
 
@@ -29,7 +31,9 @@
 
 - Auth: `/auth/login`, `/auth/logout` set `SID` cookie `anibridge`.
 - Categories: `/torrents/categories` returns configured categories (default `AniBridge`).
-- Torrents: `/torrents/add`, `/torrents/delete`, `/torrents/info` mimic qBittorrent responses.
+- Torrents: `/torrents/add`, `/torrents/resume`, `/torrents/delete`, and
+  `/torrents/info` mimic qBittorrent responses. Paused adds retain the provider
+  and mode metadata required to start the original request when resumed.
 - Sync: `/sync/maindata` exposes job states for Sonarr integration.
 - Transfer: `/transfer/info`, `/transfer/speedLimitsMode`, etc., return safe defaults.
 - Deletion endpoint optionally removes files when `DELETE_FILES_ON_TORRENT_DELETE` is true.

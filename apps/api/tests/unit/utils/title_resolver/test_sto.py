@@ -1,6 +1,8 @@
 from urllib.parse import parse_qs, urlparse
+from types import SimpleNamespace
 
 import requests
+from sqlmodel import Session
 
 import app.utils.title_resolver as tr
 
@@ -93,7 +95,7 @@ def test_slug_from_query_prefers_precise_title_over_shared_token(
     monkeypatch.setattr(tr, "load_or_refresh_alternatives", lambda _site: {})
     monkeypatch.setattr(tr, "_search_sto_slug", lambda _query: None)
 
-    assert tr.slug_from_query("Rookie Le flic de Los Angeles") == (
+    assert tr.slug_from_query("Rookie Le flic de Los Angeles", site="s.to") == (
         "s.to",
         "the-rookie",
     )
@@ -114,5 +116,80 @@ def test_slug_from_query_rejects_low_confidence_overlap(monkeypatch) -> None:
     )
     monkeypatch.setattr(tr, "load_or_refresh_alternatives", lambda _site: {})
     monkeypatch.setattr(tr, "_search_sto_slug", lambda _query: None)
+    monkeypatch.setattr(tr, "get_catalog_readiness_error", lambda: "not-ready")
 
     assert tr.slug_from_query("Rookie Le flic de Los Angeles") is None
+
+
+def test_slug_from_query_accepts_db_alias_match(monkeypatch) -> None:
+    from app.db import (
+        apply_migrations,
+        engine,
+        replace_provider_catalog_aliases,
+        replace_provider_catalog_title,
+        upsert_provider_index_status,
+    )
+
+    monkeypatch.setattr(tr, "CATALOG_SITES_LIST", ["s.to"])
+    monkeypatch.setattr(tr, "load_or_refresh_index", lambda _site: {})
+    monkeypatch.setattr(tr, "load_or_refresh_alternatives", lambda _site: {})
+    monkeypatch.setattr(tr, "_search_sto_slug", lambda _query: None)
+    monkeypatch.setattr(tr, "get_catalog_readiness_error", lambda: None)
+    monkeypatch.setattr(tr, "engine", engine)
+    apply_migrations()
+
+    with Session(engine) as session:
+        upsert_provider_index_status(
+            session,
+            provider="s.to",
+            refresh_interval_hours=24.0,
+            status="ready",
+            current_generation="gen-alias",
+            latest_success_generation="gen-alias",
+            bootstrap_completed=True,
+        )
+        replace_provider_catalog_title(
+            session,
+            provider="s.to",
+            slug="the-rookie",
+            title="The Rookie",
+            media_type_hint="series",
+            relative_path="/serie/the-rookie",
+            indexed_generation="gen-alias",
+        )
+        replace_provider_catalog_aliases(
+            session,
+            provider="s.to",
+            slug="the-rookie",
+            aliases=["Rookie Le flic de Los Angeles"],
+            indexed_generation="gen-alias",
+        )
+        session.commit()
+
+    assert tr.slug_from_query("Rookie Le flic de Los Angeles") == (
+        "s.to",
+        "the-rookie",
+    )
+
+
+def test_site_scoped_db_lookup_checks_later_candidates(monkeypatch) -> None:
+    first = SimpleNamespace(provider="s.to", slug="weak-match")
+    second = SimpleNamespace(provider="s.to", slug="strong-match")
+    seen_limits: list[int] = []
+
+    def fake_search(session, *, query, providers, limit, **kwargs):
+        del session, query, providers, kwargs
+        seen_limits.append(limit)
+        return [first, second]
+
+    def fake_score(session, *, query, candidate):
+        del session, query
+        return 0.1 if candidate is first else tr._MIN_TITLE_MATCH_SCORE
+
+    monkeypatch.setattr(tr, "load_or_refresh_index", lambda _site: {})
+    monkeypatch.setattr(tr, "load_or_refresh_alternatives", lambda _site: {})
+    monkeypatch.setattr(tr, "search_indexed_provider_titles", fake_search)
+    monkeypatch.setattr(tr, "_score_indexed_db_candidate", fake_score)
+
+    assert tr.slug_from_query("Strong Match", site="s.to") == ("s.to", "strong-match")
+    assert seen_limits == [5]
