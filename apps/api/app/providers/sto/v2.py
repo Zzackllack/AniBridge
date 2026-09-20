@@ -1,16 +1,23 @@
 from __future__ import annotations
 
-import asyncio
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
-from urllib.parse import urljoin
+from typing import Dict, List, Optional, Tuple
+from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup  # type: ignore
 from loguru import logger
 
-from app.utils.http_client import get as http_get
-
-if TYPE_CHECKING:
-    from aniworld.models import Episode
+from app.config import (
+    PROVIDER_CHALLENGE_BACKOFF_SECONDS,
+    PROVIDER_REDIRECT_TIMEOUT_SECONDS,
+)
+from app.core.downloader.errors import (
+    ProviderVerificationRequiredError,
+    UnsupportedProviderResponseError,
+)
+from app.core.downloader.provider_policy import (
+    describe_url,
+    fetch_verified_response,
+)
 
 _LANG_ID_TO_NAME = {
     1: "German Dub",
@@ -50,7 +57,7 @@ def build_episode_url(base_url: str, slug: str, season: int, episode: int) -> st
     return f"{base}/serie/{slug}/staffel-{season}/episode-{episode}"
 
 
-def fetch_episode_html(url: str) -> str:
+def fetch_episode_html(url: str, *, base_url: str | None = None) -> str:
     """Fetch raw episode HTML using the shared HTTP client.
 
     Parameters:
@@ -59,15 +66,25 @@ def fetch_episode_html(url: str) -> str:
     Returns:
         HTML response body as a string.
     """
-    logger.debug("Fetching S.to episode HTML: {}", url)
-    resp = http_get(url, timeout=20)
-    resp.raise_for_status()
+    allowed_origin = describe_url(base_url or url)
+    logger.debug("Fetching S.to episode metadata from {}", allowed_origin)
+    try:
+        resp = fetch_verified_response(
+            url,
+            stage="Serienstream episode metadata",
+            timeout_seconds=PROVIDER_REDIRECT_TIMEOUT_SECONDS,
+            allowed_origin=allowed_origin,
+        )
+    except ProviderVerificationRequiredError as exc:
+        raise ProviderVerificationRequiredError(
+            "Serienstream episode metadata requires interactive verification; "
+            "browser solving is not enabled.",
+            stage=exc.stage,
+            status_code=exc.status_code,
+            host=exc.host,
+            retry_after_seconds=PROVIDER_CHALLENGE_BACKOFF_SECONDS,
+        ) from exc
     return resp.text
-
-
-async def fetch_episode_html_async(url: str) -> str:
-    """Asynchronously fetch episode HTML without blocking the event loop."""
-    return await asyncio.to_thread(fetch_episode_html, url)
 
 
 def parse_language_id(raw_id: str | None, label: str | None) -> Optional[int]:
@@ -134,50 +151,42 @@ def parse_episode_providers(
     return providers, languages, language_names
 
 
-def enrich_episode_from_v2_html(
-    *,
-    episode: "Episode",
-    html_text: str,
-    base_url: str,
-) -> None:
-    """Populate an Episode with provider/language data parsed from v2 HTML.
+def parse_episode_provider_data(
+    html_text: str, base_url: str
+) -> dict[str, dict[str, str]]:
+    """Return language-to-host redirect data for the local episode facade."""
+    providers, _language_ids, _language_names = parse_episode_providers(
+        html_text, base_url
+    )
+    configured_host = urlparse(base_url).netloc.lower()
+    result: dict[str, dict[str, str]] = {}
 
-    Parameters:
-        episode: Episode instance to enrich.
-        html_text: Episode page HTML content.
-        base_url: Base S.to URL for resolving redirects.
-    """
-    providers, languages, language_names = parse_episode_providers(html_text, base_url)
-    if not providers:
-        logger.warning(
-            "No S.to v2 providers parsed for {}", getattr(episode, "link", "<no link>")
+    for provider_name, language_urls in providers.items():
+        for language_id, redirect_url in language_urls.items():
+            redirect_host = urlparse(redirect_url).netloc.lower()
+            if redirect_host != configured_host:
+                raise UnsupportedProviderResponseError(
+                    "Serienstream episode metadata returned a redirect outside "
+                    "the configured catalogue origin.",
+                    stage="Serienstream episode metadata",
+                    host=redirect_host or None,
+                )
+            language_name = _LANG_ID_TO_NAME.get(language_id)
+            if language_name:
+                result.setdefault(language_name, {})[provider_name] = redirect_url
+
+    if not result:
+        raise UnsupportedProviderResponseError(
+            "Serienstream episode metadata contained no recognized provider buttons.",
+            stage="Serienstream episode metadata",
+            host=configured_host or None,
         )
-        return
-
-    episode.provider = providers
-    episode.provider_name = list(providers.keys())
-    if languages:
-        episode.language = languages
-    if language_names:
-        episode.language_name = language_names
+    return result
 
 
-def enrich_episode_from_v2_url(*, episode: "Episode", base_url: str) -> None:
-    """Fetch v2 HTML for the Episode link and populate provider data.
-
-    Uses the shared HTTP client to fetch HTML, then delegates parsing to
-    BeautifulSoup-based helpers.
-
-    Parameters:
-        episode: Episode instance to enrich (must have a link).
-        base_url: Base S.to URL for resolving redirects.
-    """
-    link = getattr(episode, "link", None)
-    if not link:
-        return
-    try:
-        html_text = fetch_episode_html(link)
-    except Exception as exc:
-        logger.warning("Failed to fetch S.to v2 HTML for {}: {}", link, exc)
-        return
-    enrich_episode_from_v2_html(episode=episode, html_text=html_text, base_url=base_url)
+def fetch_episode_provider_data(
+    *, url: str, base_url: str
+) -> dict[str, dict[str, str]]:
+    """Fetch and parse Serienstream metadata on the configured verified origin."""
+    html_text = fetch_episode_html(url, base_url=base_url)
+    return parse_episode_provider_data(html_text, base_url)

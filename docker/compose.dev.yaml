@@ -17,6 +17,7 @@ services:
       - ANIBRIDGE_RELOAD=true
       - DATA_DIR=/data
       - DOWNLOAD_DIR=/downloads
+      - ANIWORLD_INSTALL_FOLDER=/data/aniworld
     volumes:
       - ../data:/data
       - ../data/downloads:/downloads

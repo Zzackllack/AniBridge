@@ -13,6 +13,7 @@ services:
       # Core paths (keep aligned with volume mounts)
       - DATA_DIR=${DATA_DIR:-/data}
       - DOWNLOAD_DIR=${DOWNLOAD_DIR:-/data/downloads}
+      - ANIWORLD_INSTALL_FOLDER=${ANIWORLD_INSTALL_FOLDER:-/data/aniworld}
       # Common user-facing settings
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - QBIT_PUBLIC_SAVE_PATH=${QBIT_PUBLIC_SAVE_PATH}

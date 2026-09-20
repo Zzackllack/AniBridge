@@ -27,6 +27,42 @@ def test_choose_redirect_candidate_prefers_embed_target(monkeypatch):
     )
 
 
+def test_voe_resolution_bounds_unique_page_chain(monkeypatch):
+    from aniworld.extractors.provider import voe as upstream_voe
+
+    from app.core.downloader.errors import ProviderTransportError
+    from app.core.downloader.extractors import voe as voe_module
+
+    monkeypatch.setattr(
+        upstream_voe, "extract_voe_source_from_html", lambda _html: None
+    )
+    monkeypatch.setattr(voe_module, "prepare_aniworld_home", lambda: None)
+    monkeypatch.setattr(voe_module, "build_provider_headers", lambda **_kwargs: {})
+    monkeypatch.setattr(voe_module, "_MAX_PROVIDER_PAGES", 3)
+
+    calls: list[str] = []
+
+    def _fetch(*, url: str, headers: dict[str, str]):
+        del headers
+        calls.append(url)
+        return url, "<html></html>"
+
+    monkeypatch.setattr(voe_module, "fetch_provider_page", _fetch)
+    monkeypatch.setattr(
+        voe_module,
+        "choose_redirect_candidate",
+        lambda _html, _url: f"https://voe.example/e/{len(calls)}",
+    )
+
+    with pytest.raises(ProviderTransportError, match="3-page limit"):
+        voe_module.resolve_direct_link_from_redirect(
+            redirect_url="https://catalog.example/r/token",
+            site="s.to",
+        )
+
+    assert len(calls) == 3
+
+
 def test_sto_voe_redirect_resolver_follows_nested_redirects(monkeypatch):
     import importlib
     import sys
@@ -135,6 +171,10 @@ def test_sto_voe_redirect_resolver_follows_nested_redirects(monkeypatch):
             )
         ),
     )
+    monkeypatch.setattr(
+        "app.core.downloader.sto_source.fetch_episode_provider_data",
+        lambda **_kwargs: {"German Dub": {"VOE": raw_redirect}},
+    )
 
     episode = episode_module.build_episode(
         slug="better-call-saul",
@@ -167,6 +207,8 @@ def test_voe_direct_link_fallback_follows_nested_redirects(monkeypatch):
             """
             self.url = url
             self.text = text
+            self.status_code = 200
+            self.headers = {}
 
         def raise_for_status(self):
             """
@@ -233,6 +275,7 @@ def test_voe_direct_link_fallback_follows_nested_redirects(monkeypatch):
             sys.modules, "app.core.downloader.extractors.voe", original_voe_module
         )
     monkeypatch.setattr(voe_module, "PROVIDER_REDIRECT_TIMEOUT_SECONDS", 7)
+    monkeypatch.setattr(voe_module.requests, "get", fake_config.GLOBAL_SESSION.get)
 
     assert (
         voe_module.resolve_direct_link_fallback(initial_urls=[provider_url])
@@ -246,34 +289,36 @@ def test_voe_direct_link_fallback_follows_nested_redirects(monkeypatch):
 
 def test_resolve_provider_redirect_url_retries_on_timeout(monkeypatch):
     import importlib
-    import sys
-    import types
+
+    from app.core.downloader.errors import ProviderTransportError
 
     attempts = {"count": 0}
 
     class FakeResponse:
         url = "https://voe.sx/e/recovered"
 
-    class FakeSession:
-        def get(self, url: str, **kwargs):
-            attempts["count"] += 1
-            assert url == "https://s.to/r/token"
-            assert kwargs["timeout"] == 3
-            if attempts["count"] < 3:
-                raise TimeoutError("timed out")
-            return FakeResponse()
-
-    fake_config = types.ModuleType("aniworld.config")
-    fake_config.GLOBAL_SESSION = FakeSession()
-
-    monkeypatch.setitem(sys.modules, "aniworld.config", fake_config)
-
     episode_module = importlib.import_module("app.core.downloader.episode")
     monkeypatch.setattr(episode_module, "PROVIDER_REDIRECT_TIMEOUT_SECONDS", 3)
     monkeypatch.setattr(episode_module, "PROVIDER_REDIRECT_RETRIES", 2)
 
+    def _fetch(url: str, **kwargs):
+        attempts["count"] += 1
+        assert url == "https://s.to/r/token"
+        assert kwargs["timeout_seconds"] == 3
+        if attempts["count"] < 3:
+            raise ProviderTransportError(
+                "timed out",
+                stage="VOE redirect",
+                host="s.to",
+            )
+        return FakeResponse()
+
+    monkeypatch.setattr(episode_module, "fetch_verified_response", _fetch)
+
     assert (
-        episode_module._resolve_provider_redirect_url("https://s.to/r/token", "VOE")
+        episode_module._resolve_provider_redirect_url(
+            "https://s.to/r/token", "VOE", "s.to"
+        )
         == "https://voe.sx/e/recovered"
     )
     assert attempts["count"] == 3
@@ -402,6 +447,10 @@ def test_voe_direct_link_retries_on_transient_fetch_abort(monkeypatch):
     monkeypatch.setattr(
         episode_module.voe_extractor.requests, "get", _fake_requests_get
     )
+    monkeypatch.setattr(
+        "app.core.downloader.sto_source.fetch_episode_provider_data",
+        lambda **_kwargs: {"German Dub": {"VOE": redirect_url}},
+    )
 
     episode = episode_module.build_episode(
         slug="better-call-saul",
@@ -509,21 +558,10 @@ def test_voe_direct_link_reports_turnstile_requirement(monkeypatch):
     monkeypatch.setitem(sys.modules, "aniworld.extractors.provider.voe", fake_voe)
 
     episode_module = importlib.import_module("app.core.downloader.episode")
-    sleep_calls: list[int] = []
-    monkeypatch.setattr(
-        episode_module.voe_extractor,
-        "PROVIDER_REDIRECT_RETRIES",
-        2,
-    )
     monkeypatch.setattr(
         episode_module.voe_extractor,
         "PROVIDER_CHALLENGE_BACKOFF_SECONDS",
         5,
-    )
-    monkeypatch.setattr(
-        episode_module.voe_extractor.time,
-        "sleep",
-        lambda seconds: sleep_calls.append(seconds),
     )
     monkeypatch.setattr(
         episode_module.voe_extractor.requests,
@@ -540,6 +578,10 @@ def test_voe_direct_link_reports_turnstile_requirement(monkeypatch):
             """
         ),
     )
+    monkeypatch.setattr(
+        "app.core.downloader.sto_source.fetch_episode_provider_data",
+        lambda **_kwargs: {"German Dub": {"VOE": redirect_url}},
+    )
 
     episode = episode_module.build_episode(
         slug="better-call-saul",
@@ -548,6 +590,8 @@ def test_voe_direct_link_reports_turnstile_requirement(monkeypatch):
         site="s.to",
     )
 
-    with pytest.raises(ValueError, match="automatic backoff retries"):
+    from app.core.downloader.errors import ProviderVerificationRequiredError
+
+    with pytest.raises(ProviderVerificationRequiredError) as exc_info:
         episode.get_direct_link("VOE", "German Dub")
-    assert sleep_calls == [5, 10]
+    assert exc_info.value.retry_after_seconds == 5
