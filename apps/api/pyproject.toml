@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "anibridge"
 version = "2.5.2"
 description = "AniBridge - small utility to bridge AniWorld and Serienstream (s.to) catalogues to the *arr stack"
-readme = "/.github/README.md"
+readme = "README.md"
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
 authors = [ { name = "Zzackllack" } ]
@@ -74,4 +74,5 @@ Home = "https://github.com/Zzackllack/AniBridge"
 Tracker = "https://github.com/Zzackllack/AniBridge/issues"
 
 [tool.setuptools.packages.find]
-where = ["app"]
+where = ["."]
+include = ["app*"]
