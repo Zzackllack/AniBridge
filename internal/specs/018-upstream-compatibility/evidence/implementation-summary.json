@@ -1,0 +1,65 @@
+{
+  "date": "2026-09-20",
+  "base_sha": "1b0370915243f86c020c62bfc336aa0f46eda2c3",
+  "specification_commit": "e119a12de017b287af259bd5e4ef5b4577f558b6",
+  "workspace_state": "committed-local-branch",
+  "platform": "macOS arm64",
+  "python": "3.14.7",
+  "uv": "0.12.17",
+  "aniworld": "5.0.6",
+  "baseline": {
+    "aniworld": "4.2.1",
+    "tests_passed": 145,
+    "warnings": 1,
+    "seconds": 12.41
+  },
+  "candidate": {
+    "tests_collected": 172,
+    "tests_passed": 172,
+    "warnings": 1,
+    "additional_notice": "Pre-existing unclosed terminal-log ResourceWarning at interpreter shutdown",
+    "ruff": "passed",
+    "pylint_score": "8.38/10",
+    "lock_check": "passed",
+    "non_editable_sync": "passed",
+    "pip_check": "passed",
+    "docs_build": "passed",
+    "compose_config": "passed"
+  },
+  "packaging": {
+    "sdist": "passed",
+    "wheel": "passed",
+    "clean_install_outside_source": "passed",
+    "macos_arm64_pyinstaller_build": "passed",
+    "macos_arm64_health": "ok",
+    "alembic_revision": "20260204_0003"
+  },
+  "live_probes": [
+    {
+      "site": "aniworld.to",
+      "example": "one-piece S01E01",
+      "language": "German Dub",
+      "host": "VOE",
+      "http_status": 200,
+      "playlist": true,
+      "seconds": 1.83
+    },
+    {
+      "site": "s.to",
+      "configured_origin": "https://serienstream.to",
+      "example": "avatar-herr-der-elemente-2024 S02E01",
+      "language": "German Dub",
+      "host": "VOE",
+      "http_status": 200,
+      "playlist": true,
+      "seconds": 1.31
+    }
+  ],
+  "blocked": [
+    "Docker daemon unavailable; Linux amd64/arm64 images not built",
+    "Linux and Windows PyInstaller runners unavailable",
+    "No live challenge observed",
+    "G7 real-client Sonarr/Prowlarr import and playback not run",
+    "Issue 158 reporter failure condition not reproduced"
+  ]
+}

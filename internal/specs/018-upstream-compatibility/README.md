@@ -1,12 +1,18 @@
 # Upstream compatibility and working-baseline handoff
 
-Research date: 2026-09-20 (Europe/Berlin). Status: researched implementation specification; **not implemented or release-approved**.
+Research date: 2026-09-20 (Europe/Berlin). Implementation date: 2026-09-20.
+Status: **implemented, locally validated, and committed; not published, deployed,
+or release-approved**. Container and real-client gates remain blocked as recorded
+in [implementation results](08-implementation-results.md).
 
 ## Objective
 
 Update AniBridge's embedded `aniworld` dependency from 4.2.1 to the researched target 5.0.6, while preserving its Torznab, qBittorrent-compatible, downloader, and STRM contracts. Establish a reproducible baseline and verify the actual runtime integration before release. Another agent must be able to implement this work without the original conversation.
 
-The user authorized a new branch, intensive investigation, and extensive specification files. Application changes, commits, deployment, publishing, and GitHub comments were not performed in this research run. Branch: `zzackllack-aux/upstream-compatibility-spec`.
+The research run created the specification before the branch was renamed to
+`zzackllack-aux/upstream-compatibility`. The later implementation was rebased
+onto remote main `1b0370915243f86c020c62bfc336aa0f46eda2c3` and committed
+locally. No deployment, publishing, pushing, or GitHub comments were performed.
 
 ## Read in this order
 
@@ -18,6 +24,7 @@ The user authorized a new branch, intensive investigation, and extensive specifi
 6. [Validation and release gates](05-validation-plan.md)
 7. [Implementation sequence and handoff checklist](06-implementation-checklist.md)
 8. [Sources, reproduction, and open questions](07-research-and-reproduction.md)
+9. [Implementation results and remaining gates](08-implementation-results.md)
 
 The `evidence/` directory contains sanitized experiment results, an AST import inventory, exact package hashes, and dependency changes. They are research artifacts, not production catalog data. No provider HTML, cookie jars, stream URLs, redirect tokens, or prebuilt catalogs are included.
 
@@ -31,6 +38,23 @@ The `evidence/` directory contains sanitized experiment results, an AST import i
 - The newer Serienstream metadata transport does become reachable and introduces automatic mirrors and an unverified-TLS raw-IP fallback. This needs an explicit compatibility boundary before shipping.
 - New dependencies include `curl-cffi`, `patchright`, and `pyee`; `authlib` leaves the default dependency graph. Browser binaries and OS libraries are a separate concern.
 - Docker was installed but no usable daemon was available during research. Linux images, ARM64 runtime, Windows packaging, actual browser challenges, and the complete *arr flow remain unverified.
+
+## Implemented outcome
+
+- The service now pins `aniworld` 5.0.6 and avoids its Serienstream raw-IP,
+  unverified-TLS, configured-origin bypass by using the local parser and a
+  verified bounded transport.
+- VOE uses the local non-browser path, with typed challenge/transport/source
+  failures, token-safe logging, public-address checks, and bounded redirects,
+  retries, and HTML redirect pages.
+- Upstream configuration writes are isolated under
+  `ANIWORLD_INSTALL_FOLDER` without changing the process home.
+- Real-installed-package subprocess tests supplement the mocked suite.
+- Wheel/sdist layout and PyInstaller migration resources were corrected after
+  clean-artifact smoke tests exposed existing packaging failures.
+- Fresh live checks again reached HTTP 200 HLS playlists for the two recorded
+  examples. This is not Sonarr import evidence and does not establish a fix for
+  issue #158.
 
 ## Definition of done
 
