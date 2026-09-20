@@ -5,7 +5,6 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from loguru import logger
-import requests
 
 from app.config import (
     CATALOG_SITE_CONFIGS,
@@ -187,7 +186,6 @@ def fetch_provider_page(*, url: str, headers: dict[str, str]) -> tuple[str, str]
         stage="VOE page",
         headers=headers,
         timeout_seconds=PROVIDER_REDIRECT_TIMEOUT_SECONDS,
-        requester=requests.get,
     )
     return str(response.url), response.text
 
@@ -305,7 +303,6 @@ def resolve_direct_link_fallback(*, initial_urls: list[str]) -> Optional[str]:
                     stage="VOE fallback page",
                     headers=headers,
                     timeout_seconds=PROVIDER_REDIRECT_TIMEOUT_SECONDS,
-                    requester=requests.get,
                 )
             except ProviderResolutionError as err:
                 logger.warning(

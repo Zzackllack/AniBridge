@@ -154,8 +154,8 @@ def test_sto_voe_redirect_resolver_follows_nested_redirects(monkeypatch):
             sys.modules, "app.core.downloader.episode", original_episode_module
         )
     monkeypatch.setattr(
-        episode_module.voe_extractor.requests,
-        "get",
+        episode_module.voe_extractor,
+        "fetch_verified_response",
         lambda url, **_kwargs: (
             FakeResponse(
                 url=embed_url,
@@ -275,7 +275,14 @@ def test_voe_direct_link_fallback_follows_nested_redirects(monkeypatch):
             sys.modules, "app.core.downloader.extractors.voe", original_voe_module
         )
     monkeypatch.setattr(voe_module, "PROVIDER_REDIRECT_TIMEOUT_SECONDS", 7)
-    monkeypatch.setattr(voe_module.requests, "get", fake_config.GLOBAL_SESSION.get)
+    monkeypatch.setattr(
+        voe_module,
+        "fetch_verified_response",
+        lambda url, **kwargs: fake_config.GLOBAL_SESSION.get(
+            url,
+            timeout=kwargs["timeout_seconds"],
+        ),
+    )
 
     assert (
         voe_module.resolve_direct_link_fallback(initial_urls=[provider_url])
@@ -444,8 +451,23 @@ def test_voe_direct_link_retries_on_transient_fetch_abort(monkeypatch):
     episode_module = importlib.import_module("app.core.downloader.episode")
     monkeypatch.setattr(episode_module, "PROVIDER_REDIRECT_RETRIES", 2)
     monkeypatch.setattr(episode_module.time, "sleep", lambda _seconds: None)
+
+    def _fetch_with_transport_classification(url: str, **kwargs):
+        try:
+            return _fake_requests_get(url, timeout=kwargs["timeout_seconds"])
+        except requests.RequestException as exc:
+            from app.core.downloader.errors import ProviderTransportError
+
+            raise ProviderTransportError(
+                "VOE page request failed: ConnectionError.",
+                stage="VOE page",
+                host="s.to",
+            ) from exc
+
     monkeypatch.setattr(
-        episode_module.voe_extractor.requests, "get", _fake_requests_get
+        episode_module.voe_extractor,
+        "fetch_verified_response",
+        _fetch_with_transport_classification,
     )
     monkeypatch.setattr(
         "app.core.downloader.sto_source.fetch_episode_provider_data",
@@ -564,8 +586,8 @@ def test_voe_direct_link_reports_turnstile_requirement(monkeypatch):
         5,
     )
     monkeypatch.setattr(
-        episode_module.voe_extractor.requests,
-        "get",
+        episode_module.voe_extractor,
+        "fetch_verified_response",
         lambda url, **_kwargs: FakeResponse(
             """
             <html>
