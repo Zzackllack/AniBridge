@@ -1,21 +1,26 @@
 from __future__ import annotations
 
-import ipaddress
 import re
-import socket
-import time
-from functools import lru_cache
 from typing import Optional
 from urllib.parse import urlparse
 
 from loguru import logger
-import requests
 
 from app.config import (
     CATALOG_SITE_CONFIGS,
     PROVIDER_CHALLENGE_BACKOFF_SECONDS,
-    PROVIDER_REDIRECT_RETRIES,
     PROVIDER_REDIRECT_TIMEOUT_SECONDS,
+)
+from app.core.downloader.errors import (
+    ProviderResolutionError,
+    ProviderTransportError,
+    ProviderVerificationRequiredError,
+)
+from app.core.downloader.provider_policy import (
+    describe_url,
+    fetch_verified_response,
+    host_is_public,
+    looks_like_verification_page,
 )
 from app.utils.aniworld_compat import prepare_aniworld_home
 
@@ -37,6 +42,7 @@ _IGNORED_REDIRECT_SUFFIXES = (
     ".svg",
     ".webp",
 )
+_MAX_PROVIDER_PAGES = 8
 _TRANSIENT_ERROR_MARKERS = (
     "connection aborted",
     "connection reset",
@@ -113,50 +119,6 @@ def choose_redirect_candidate(html: str, current_url: str) -> Optional[str]:
     return max(candidates, key=_score)
 
 
-@lru_cache(maxsize=256)
-def host_is_public(host: str) -> bool:
-    """
-    Determine whether a host is suitable for following provider redirects.
-
-    IP literals must be globally routable. Named hosts are allowed unless they
-    are obviously local-only; if DNS resolution succeeds, all resolved
-    addresses must be globally routable. Unresolved public-looking hostnames are
-    allowed so redirect chains do not fail purely because local DNS cannot
-    resolve a temporary provider domain.
-
-    Returns:
-        `True` if `host` looks publicly routable, `False` otherwise.
-    """
-    normalized = host.strip().rstrip(".").lower()
-    if not normalized:
-        return False
-    if normalized in {"localhost", "localhost.localdomain"}:
-        return False
-    if normalized.endswith((".local", ".internal", ".home", ".lan")):
-        return False
-
-    try:
-        literal = ipaddress.ip_address(normalized)
-    except ValueError:
-        literal = None
-
-    if literal is not None:
-        return literal.is_global
-
-    try:
-        address_infos = socket.getaddrinfo(normalized, None, type=socket.SOCK_STREAM)
-    except socket.gaierror:
-        return True
-
-    addresses = {
-        info[4][0] for info in address_infos if info[4] and isinstance(info[4][0], str)
-    }
-    if not addresses:
-        return True
-
-    return all(ipaddress.ip_address(address).is_global for address in addresses)
-
-
 def build_provider_headers(*, provider_name: str, site: str) -> dict[str, str]:
     """
     Build HTTP request headers for the given provider and site.
@@ -202,10 +164,7 @@ def looks_like_turnstile_page(html: str) -> bool:
     """
     Detect Serienstream/DDOS-Guard challenge pages that block provider access.
     """
-    lowered = html.lower()
-    return all(marker in lowered for marker in ("cf-turnstile", "captcha-form")) or (
-        "stream wird vorbereitet" in lowered and "captcha" in lowered
-    )
+    return looks_like_verification_page(html)
 
 
 def fetch_provider_page(*, url: str, headers: dict[str, str]) -> tuple[str, str]:
@@ -222,13 +181,12 @@ def fetch_provider_page(*, url: str, headers: dict[str, str]) -> tuple[str, str]
     Raises:
         requests.RequestException: On network errors or non-successful HTTP responses.
     """
-    response = requests.get(
+    response = fetch_verified_response(
         url,
+        stage="VOE page",
         headers=headers,
-        timeout=PROVIDER_REDIRECT_TIMEOUT_SECONDS,
-        allow_redirects=True,
+        timeout_seconds=PROVIDER_REDIRECT_TIMEOUT_SECONDS,
     )
-    response.raise_for_status()
     return str(response.url), response.text
 
 
@@ -254,56 +212,59 @@ def resolve_direct_link_from_redirect(*, redirect_url: str, site: str) -> str:
     headers = build_provider_headers(provider_name="VOE", site=site)
     pending: list[str] = [redirect_url]
     visited: set[str] = set()
-    challenge_attempts: dict[str, int] = {}
-
-    while pending:
+    pages_fetched = 0
+    while pending and pages_fetched < _MAX_PROVIDER_PAGES:
         current_url = pending.pop(0).strip()
         if not current_url or current_url in visited:
             continue
         visited.add(current_url)
+        pages_fetched += 1
 
         try:
             final_url, html = fetch_provider_page(url=current_url, headers=headers)
-        except requests.RequestException as exc:
-            raise ValueError(f"Failed to fetch VOE page: {exc}") from exc
+        except ProviderVerificationRequiredError as exc:
+            raise ProviderVerificationRequiredError(
+                "Provider access requires interactive verification; browser "
+                "solving is disabled. Retry later or use a different network path.",
+                stage=exc.stage,
+                status_code=exc.status_code,
+                host=exc.host,
+                retry_after_seconds=PROVIDER_CHALLENGE_BACKOFF_SECONDS,
+            ) from exc
 
         if final_url != current_url:
             visited.add(final_url)
 
         source = extract_voe_source_from_html(html)
         if source:
-            logger.success("VOE direct URL resolved via {}", final_url)
+            logger.success("VOE direct URL resolved via {}", describe_url(final_url))
             return source
 
         if looks_like_turnstile_page(html):
-            attempts = challenge_attempts.get(current_url, 0) + 1
-            challenge_attempts[current_url] = attempts
-            if attempts <= PROVIDER_REDIRECT_RETRIES:
-                wait_seconds = max(PROVIDER_CHALLENGE_BACKOFF_SECONDS, 1) * attempts
-                logger.warning(
-                    "Serienstream challenge page detected at {}. Backing off for {}s before retry {}/{}.",
-                    current_url,
-                    wait_seconds,
-                    attempts,
-                    PROVIDER_REDIRECT_RETRIES,
-                )
-                visited.discard(current_url)
-                time.sleep(wait_seconds)
-                pending.insert(0, current_url)
-                continue
-            raise ValueError(
-                "Serienstream redirect stayed behind a Turnstile challenge after automatic backoff retries."
+            raise ProviderVerificationRequiredError(
+                "Provider access requires interactive verification; browser "
+                "solving is disabled. Retry later or use a different network path.",
+                stage="VOE page",
+                status_code=200,
+                host=urlparse(final_url).hostname,
+                retry_after_seconds=PROVIDER_CHALLENGE_BACKOFF_SECONDS,
             )
 
         candidate = choose_redirect_candidate(html, final_url)
         logger.debug(
             "VOE redirect step: current={}, next={}",
-            final_url,
-            candidate,
+            describe_url(final_url),
+            describe_url(candidate or ""),
         )
         if candidate and candidate not in visited:
             pending.append(candidate)
 
+    if pending:
+        raise ProviderTransportError(
+            f"VOE resolution exceeded the {_MAX_PROVIDER_PAGES}-page limit.",
+            stage="VOE page",
+            host=urlparse(pending[0]).hostname,
+        )
     raise ValueError("No VOE video source found in page.")
 
 
@@ -324,37 +285,47 @@ def resolve_direct_link_fallback(*, initial_urls: list[str]) -> Optional[str]:
     from aniworld.extractors.provider.voe import extract_voe_source_from_html  # type: ignore
 
     default_user_agent = getattr(aniworld_config, "DEFAULT_USER_AGENT", "Mozilla/5.0")
-    global_session = getattr(aniworld_config, "GLOBAL_SESSION")
     provider_headers = getattr(aniworld_config, "PROVIDER_HEADERS_D", {})
     headers = provider_headers.get("VOE", {"User-Agent": default_user_agent})
     visited: set[str] = set()
 
     for start_url in initial_urls:
         next_url = (start_url or "").strip()
-        while next_url and next_url not in visited:
+        pages_fetched = 0
+        while (
+            next_url and next_url not in visited and pages_fetched < _MAX_PROVIDER_PAGES
+        ):
             visited.add(next_url)
+            pages_fetched += 1
             try:
-                response = global_session.get(
+                response = fetch_verified_response(
                     next_url,
+                    stage="VOE fallback page",
                     headers=headers,
-                    timeout=PROVIDER_REDIRECT_TIMEOUT_SECONDS,
+                    timeout_seconds=PROVIDER_REDIRECT_TIMEOUT_SECONDS,
                 )
-                response.raise_for_status()
-            except Exception as err:
-                logger.warning("VOE fallback failed to fetch {}: {}", next_url, err)
+            except ProviderResolutionError as err:
+                logger.warning(
+                    "VOE fallback failed at {}: {}",
+                    describe_url(next_url),
+                    err,
+                )
                 break
 
             html = response.text
             direct_url = extract_voe_source_from_html(html)
             if direct_url:
-                logger.success("VOE fallback resolved direct URL via {}", next_url)
+                logger.success(
+                    "VOE fallback resolved direct URL via {}",
+                    describe_url(next_url),
+                )
                 return direct_url
 
             candidate = choose_redirect_candidate(html, str(response.url))
             logger.debug(
                 "VOE fallback redirect step: current={}, next={}",
-                response.url,
-                candidate,
+                describe_url(str(response.url)),
+                describe_url(candidate or ""),
             )
             if not candidate:
                 break
@@ -370,5 +341,7 @@ def is_transient_error(err: Exception) -> bool:
     Returns:
         True if the exception message contains any configured transient error marker, False otherwise.
     """
+    if isinstance(err, ProviderTransportError):
+        return True
     message = str(err).lower()
     return any(marker in message for marker in _TRANSIENT_ERROR_MARKERS)

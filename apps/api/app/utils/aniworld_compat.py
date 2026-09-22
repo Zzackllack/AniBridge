@@ -12,52 +12,28 @@ from app.config import DATA_DIR
 
 @lru_cache(maxsize=1)
 def prepare_aniworld_home() -> Path:
-    """Ensure aniworld imports see a writable HOME directory."""
+    """Configure an isolated writable directory before importing ``aniworld``."""
 
-    current_home = os.getenv("HOME", "").strip()
-    if current_home:
-        try:
-            home_path = Path(current_home).expanduser()
-            home_path.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(dir=home_path, delete=False) as probe_file:
-                probe_path = Path(probe_file.name)
-                probe_file.write(b"ok")
-            probe_path.unlink()
-            os.environ["HOME"] = str(home_path)
-            os.environ.setdefault("USERPROFILE", str(home_path))
-            return home_path
-        except OSError:
-            logger.debug(
-                "Configured HOME is not writable for aniworld: {}", current_home
-            )
+    configured = os.getenv("ANIWORLD_INSTALL_FOLDER", "").strip()
+    install_dir = Path(configured).expanduser() if configured else DATA_DIR / "aniworld"
+    if not install_dir.is_absolute():
+        install_dir = (Path.cwd() / install_dir).resolve()
+    else:
+        install_dir = install_dir.resolve()
 
-    fallback_candidates = [
-        DATA_DIR / "aniworld-home",
-        Path(tempfile.gettempdir()) / "anibridge-aniworld-home",
-    ]
-    last_error: OSError | None = None
+    try:
+        install_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=install_dir, delete=False) as probe_file:
+            probe_path = Path(probe_file.name)
+            probe_file.write(b"ok")
+        probe_path.unlink()
+    except OSError as exc:
+        raise RuntimeError(
+            f"ANIWORLD_INSTALL_FOLDER is not writable: {install_dir}"
+        ) from exc
 
-    for fallback_home in fallback_candidates:
-        try:
-            fallback_home.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(
-                dir=fallback_home, delete=False
-            ) as probe_file:
-                probe_path = Path(probe_file.name)
-                probe_file.write(b"ok")
-            probe_path.unlink()
-            os.environ["HOME"] = str(fallback_home)
-            os.environ.setdefault("USERPROFILE", str(fallback_home))
-            logger.debug("Using AniWorld runtime HOME fallback: {}", fallback_home)
-            return fallback_home
-        except OSError as exc:
-            last_error = exc
-            logger.debug(
-                "AniWorld runtime HOME fallback is not writable: {} ({})",
-                fallback_home,
-                exc,
-            )
-
-    raise RuntimeError(
-        "Could not create a writable HOME for aniworld imports"
-    ) from last_error
+    # Upstream reads and may merge its own .env during import. Point it at
+    # AniBridge-owned persistent storage without changing process HOME.
+    os.environ["ANIWORLD_INSTALL_FOLDER"] = str(install_dir)
+    logger.debug("AniWorld runtime directory: {}", install_dir)
+    return install_dir

@@ -66,6 +66,10 @@
 - `apps/api/app/core/lifespan.py` — FastAPI lifespan manager.
 - `apps/api/app/core/scheduler.py` — thread pool management.
 - `apps/api/app/core/downloader/*` — download orchestration.
+- `apps/api/app/core/downloader/provider_policy.py` — verified, bounded
+  redirects and provider-response classification.
+- `apps/api/app/core/downloader/sto_source.py` — local Serienstream episode
+  metadata facade.
 - `apps/api/app/hosts/*` — direct-video host wrappers and registry.
 - `apps/api/app/api/health.py` — health check router.
 - `apps/api/app/api/legacy_downloader.py` — legacy download endpoint.

@@ -20,6 +20,9 @@
 - `tests/unit/providers/` groups catalogue-site-specific logic by source
   (`aniworld`, `megakino`, `sto`).
 - `tests/unit/hosts/` covers direct-video host detection and wrapper behavior.
+- `tests/integration/test_real_aniworld_package.py` runs isolated subprocess
+  contracts against the actually installed upstream package; do not replace it
+  with `sys.modules` stubs.
 - `tests/unit/scripts/` covers repository automation scripts.
 - `tests/unit/utils/` contains utility coverage, including nested
   `title_resolver/` tests.
