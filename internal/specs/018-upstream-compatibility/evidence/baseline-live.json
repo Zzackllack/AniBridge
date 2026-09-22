@@ -1,0 +1,38 @@
+{
+  "aniworld": "4.2.1",
+  "results": [
+    {
+      "site": "aniworld.to",
+      "slug": "one-piece",
+      "season": 1,
+      "episode": 1,
+      "language": "German Dub",
+      "host": "VOE",
+      "languages": [
+        "German Dub",
+        "English Sub",
+        "German Sub"
+      ],
+      "resolved": true,
+      "status": 200,
+      "playlist": true,
+      "seconds": 2.03
+    },
+    {
+      "site": "s.to",
+      "slug": "avatar-herr-der-elemente-2024",
+      "season": 2,
+      "episode": 1,
+      "language": "German Dub",
+      "host": "VOE",
+      "languages": [
+        "German Dub",
+        "English Dub"
+      ],
+      "resolved": true,
+      "status": 200,
+      "playlist": true,
+      "seconds": 1.31
+    }
+  ]
+}

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import time
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional, Protocol
 from urllib.parse import urlparse
 
 from loguru import logger
@@ -13,14 +13,32 @@ from app.config import (
     PROVIDER_REDIRECT_TIMEOUT_SECONDS,
 )
 from app.core.downloader.extractors import voe as voe_extractor
+from app.core.downloader.errors import (
+    LanguageUnavailableError,
+    ProviderResolutionError,
+    ProviderTransportError,
+    ProviderUnavailableError,
+)
+from app.core.downloader.provider_policy import (
+    describe_url,
+    fetch_verified_response,
+)
 from app.hosts import get_host
 from app.utils.aniworld_compat import prepare_aniworld_home
 
-if TYPE_CHECKING:
-    from aniworld.models import Episode
+
+class EpisodeSource(Protocol):
+    """Caller-facing episode behavior independent of upstream model classes."""
+
+    @property
+    def available_languages(self) -> list[str]: ...
+
+    def get_direct_link(self, provider_name: str, language: str) -> str: ...
 
 
-def _resolve_provider_redirect_url(redirect_url: str, provider_name: str) -> str:
+def _resolve_provider_redirect_url(
+    redirect_url: str, provider_name: str, site: str
+) -> str:
     """
     Resolve a redirect URL to its final provider embed URL, retrying on transient failures.
 
@@ -34,30 +52,41 @@ def _resolve_provider_redirect_url(redirect_url: str, provider_name: str) -> str
     Raises:
         ValueError: If all retry attempts fail; the exception message contains the last underlying error.
     """
-    prepare_aniworld_home()
-    from aniworld.config import GLOBAL_SESSION  # type: ignore
-
     attempts = PROVIDER_REDIRECT_RETRIES + 1
     last_error: Optional[Exception] = None
+    headers = voe_extractor.build_provider_headers(
+        provider_name=provider_name,
+        site=site,
+    )
 
     for attempt in range(1, attempts + 1):
         try:
-            response = GLOBAL_SESSION.get(
+            response = fetch_verified_response(
                 redirect_url,
-                timeout=PROVIDER_REDIRECT_TIMEOUT_SECONDS,
+                stage=f"{provider_name} redirect",
+                timeout_seconds=PROVIDER_REDIRECT_TIMEOUT_SECONDS,
+                headers=headers,
             )
             return str(response.url)
-        except Exception as err:
+        except ProviderTransportError as err:
             last_error = err
             logger.warning(
-                "Provider redirect resolution failed for '{}' (attempt {}/{}): {}",
+                "Provider redirect resolution failed for '{}' at {} "
+                "(attempt {}/{}): {}",
                 provider_name,
+                describe_url(redirect_url),
                 attempt,
                 attempts,
                 err,
             )
 
-    raise ValueError(str(last_error))
+    if last_error is not None:
+        raise last_error
+    raise ProviderTransportError(
+        f"{provider_name} redirect resolution failed.",
+        stage=f"{provider_name} redirect",
+        host=urlparse(redirect_url).hostname,
+    )
 
 
 def _get_direct_link_with_retries(
@@ -86,15 +115,19 @@ def _get_direct_link_with_retries(
         direct_url = None
         extractor_error: Optional[Exception] = None
 
-        if provider_name.lower() == "voe" and site == "s.to":
+        if provider_name.lower() == "voe":
             try:
                 return voe_extractor.resolve_direct_link_from_redirect(
                     redirect_url=redirect_url,
                     site=site,
                 )
-            except ValueError as exc:
+            except (ProviderResolutionError, ValueError) as exc:
                 extractor_error = exc
-                logger.warning("VOE extractor failed for {}: {}", redirect_url, exc)
+                logger.warning(
+                    "VOE extractor failed at {}: {}",
+                    describe_url(redirect_url),
+                    exc,
+                )
                 last_error = extractor_error
                 if attempt < attempts and voe_extractor.is_transient_error(
                     extractor_error
@@ -107,7 +140,14 @@ def _get_direct_link_with_retries(
                     time.sleep(min(1.0 * attempt, 2.0))
                     continue
 
-        provider_url = _resolve_provider_redirect_url(redirect_url, provider_name)
+        if provider_name.lower() == "voe" and extractor_error is not None:
+            raise extractor_error
+
+        provider_url = _resolve_provider_redirect_url(
+            redirect_url,
+            provider_name,
+            site,
+        )
 
         try:
             direct_url = extractor(provider_url)
@@ -116,14 +156,11 @@ def _get_direct_link_with_retries(
                 extractor_error = exc
             if provider_name.lower() != "voe":
                 raise
-            logger.warning("VOE extractor failed for {}: {}", provider_url, exc)
-
-        if not direct_url and provider_name.lower() == "voe":
-            direct_url = voe_extractor.resolve_direct_link_fallback(
-                initial_urls=[provider_url, redirect_url]
+            logger.warning(
+                "VOE extractor failed at {}: {}",
+                describe_url(provider_url),
+                exc,
             )
-            if direct_url:
-                return direct_url
 
         if direct_url:
             return direct_url
@@ -300,6 +337,11 @@ class EpisodeCompat:
             return labels
 
         for key in raw.keys():
+            if isinstance(key, str):
+                if key not in seen:
+                    seen.add(key)
+                    labels.append(key)
+                continue
             if not isinstance(key, tuple) or len(key) != 2:
                 continue
             audio = getattr(key[0], "value", None)
@@ -319,7 +361,14 @@ class EpisodeCompat:
         if self.site == "s.to":
             normalize = getattr(self._backend, "_normalize_language", None)
             if callable(normalize):
-                return normalize(language)
+                try:
+                    return normalize(language)
+                except LanguageUnavailableError:
+                    raise
+                except (KeyError, ValueError) as exc:
+                    raise LanguageUnavailableError(
+                        language, self.available_languages
+                    ) from exc
             return language
 
         prepare_aniworld_home()
@@ -327,16 +376,18 @@ class EpisodeCompat:
 
         key = INVERSE_LANG_LABELS.get(language)
         if key is None:
-            raise ValueError(
-                f"Invalid language: {language}. Valid options for {self.site}: {self.available_languages}"
-            )
+            raise LanguageUnavailableError(language, self.available_languages)
         return LANG_KEY_MAP[key]
 
     def _get_provider_redirect_url(self, language: Any, provider_name: str) -> str:
         provider_data = getattr(self._backend, "provider_data", None)
         raw = getattr(provider_data, "_data", provider_data)
         if not isinstance(raw, dict):
-            raise ValueError("Episode backend has no provider data")
+            raise ProviderUnavailableError(
+                "Episode backend has no provider data.",
+                stage="episode metadata",
+                host=urlparse(self.link).hostname,
+            )
 
         provider_dict = raw.get(language)
         if provider_dict is None and isinstance(language, tuple) and len(language) == 2:
@@ -355,12 +406,14 @@ class EpisodeCompat:
                     continue
 
         if not isinstance(provider_dict, dict):
-            raise ValueError("No provider data found for requested backend language")
+            raise LanguageUnavailableError(str(language), self.available_languages)
 
         redirect_url = provider_dict.get(provider_name)
         if not redirect_url:
-            raise ValueError(
-                f"Provider '{provider_name}' not found for requested backend language"
+            raise ProviderUnavailableError(
+                f"Video host '{provider_name}' is unavailable for the requested language.",
+                stage="episode metadata",
+                host=urlparse(self.link).hostname,
             )
 
         return redirect_url
@@ -381,34 +434,23 @@ class EpisodeCompat:
                         the provider extractor is not implemented, or direct-link resolution fails.
         """
         backend_language = self._normalize_language_for_backend(language)
-        redirect_url: Optional[str] = None
-        try:
-            redirect_url = self._get_provider_redirect_url(
-                backend_language, provider_name
-            )
-        except Exception as exc:
-            available = self.available_languages
-            msg = str(exc)
-            if "Provider '" in msg and "not found" in msg:
-                raise ValueError(
-                    f"Provider '{provider_name}' not found for language '{language}' on site '{self.site}'."
-                ) from exc
-            if available:
-                raise ValueError(
-                    f"No provider found for language '{language}' on site '{self.site}'. Available languages: {available}"
-                ) from exc
-            raise
+        redirect_url = self._get_provider_redirect_url(backend_language, provider_name)
 
         if not redirect_url:
-            raise ValueError(
-                f"Provider '{provider_name}' did not return a redirect URL for {self.link}"
+            raise ProviderUnavailableError(
+                f"Video host '{provider_name}' returned no redirect URL.",
+                stage="episode metadata",
+                host=urlparse(self.link).hostname,
             )
 
         from niquests import RequestException, Timeout  # type: ignore
 
         host = get_host(provider_name)
         if host is None:
-            raise ValueError(f"The video host '{provider_name}' is not implemented.")
+            raise ProviderUnavailableError(
+                f"The video host '{provider_name}' is not implemented.",
+                stage="video host selection",
+            )
 
         try:
             return _get_direct_link_with_retries(
@@ -417,9 +459,13 @@ class EpisodeCompat:
                 extractor=host.resolve,
                 site=self.site,
             )
+        except ProviderResolutionError:
+            raise
         except (Timeout, RequestException, ValueError) as exc:
-            raise ValueError(
-                f"Failed to resolve video host '{provider_name}' at {redirect_url}: {exc}"
+            raise ProviderTransportError(
+                f"Failed to resolve video host '{provider_name}': {exc}",
+                stage=f"{provider_name} extraction",
+                host=urlparse(redirect_url).hostname,
             ) from exc
 
 
@@ -430,14 +476,15 @@ def build_episode(
     season: Optional[int] = None,
     episode: Optional[int] = None,
     site: str = "aniworld.to",
-) -> Episode | EpisodeCompat:
+) -> EpisodeSource:
     """
     Construct an episode object from a URL or from slug/season/episode coordinates.
 
-    When the legacy `aniworld.models.Episode` class is importable, returns an instance of that legacy Episode (optionally enriched for s.to). When the legacy API is not available (aniworld>=4), returns an EpisodeCompat that wraps a site-specific backend episode object.
+    Returns an ``EpisodeCompat`` backed by the supported site-specific model or
+    AniBridge's controlled Serienstream source.
 
     Returns:
-        An instance of the legacy `Episode` when available, otherwise an `EpisodeCompat` wrapping the new site-specific episode backend.
+        An ``EpisodeCompat`` implementing the local ``EpisodeSource`` protocol.
 
     Raises:
         ValueError: If neither `link` nor the (`slug`, `season`, `episode`) triple is provided; if required coordinates are missing when constructing a resolved link; or if the specified `site` is not supported.
@@ -456,81 +503,7 @@ def build_episode(
         )
         raise ValueError("Provide either link OR (slug, season, episode).")
 
-    site_cfg = CATALOG_SITE_CONFIGS.get(site) or {}
-    base_url = site_cfg.get("base_url")
-    site_domain = site
-    if isinstance(base_url, str) and base_url:
-        parsed = urlparse(base_url)
-        site_domain = parsed.netloc or base_url.strip().strip("/")
-
     prepare_aniworld_home()
-    try:
-        from aniworld.models import Episode as LegacyEpisode  # type: ignore
-    except ImportError:
-        LegacyEpisode = None
-
-    if LegacyEpisode is not None:
-        ep: Optional[Episode] = None
-        if link:
-            ep = LegacyEpisode(link=link, site=site_domain)
-        else:
-            missing = [
-                name
-                for name, value in (
-                    ("slug", slug),
-                    ("season", season),
-                    ("episode", episode),
-                )
-                if value is None
-            ]
-            if missing:
-                raise ValueError(
-                    "slug, season and episode must be provided; missing: "
-                    + ", ".join(missing)
-                )
-            if site == "s.to" and isinstance(base_url, str) and base_url:
-                from app.providers.sto.v2 import build_episode_url
-
-                link = build_episode_url(base_url, slug, season, episode)
-                ep = LegacyEpisode(
-                    link=link,
-                    slug=slug,
-                    season=season,
-                    episode=episode,
-                    site=site_domain,
-                )
-            else:
-                ep = LegacyEpisode(
-                    slug=slug, season=season, episode=episode, site=site_domain
-                )
-
-        if getattr(ep, "link", None) is None:
-            auto_basic = getattr(ep, "_auto_fill_basic_details", None)
-            if callable(auto_basic):
-                if getattr(ep, "_basic_details_filled", False):
-                    setattr(ep, "_basic_details_filled", False)
-                try:
-                    auto_basic()
-                except Exception as err:  # pragma: no cover - defensive
-                    logger.warning(
-                        "Failed to populate legacy episode basics (slug={}, season={}, episode={}): {}",
-                        getattr(ep, "slug", slug),
-                        getattr(ep, "season", season),
-                        getattr(ep, "episode", episode),
-                        err,
-                    )
-
-        if site == "s.to":
-            try:
-                from app.providers.sto.v2 import enrich_episode_from_v2_url
-
-                if isinstance(base_url, str) and base_url:
-                    enrich_episode_from_v2_url(episode=ep, base_url=base_url)
-            except Exception as err:  # noqa: BLE001
-                logger.warning("Failed to enrich S.to v2 episode: {}", err)
-
-        return ep
-
     resolved_link = link
     if resolved_link is None:
         missing = [
@@ -553,14 +526,22 @@ def build_episode(
     if season is None or episode is None:
         season, episode = _extract_season_episode_from_link(resolved_link, site)
 
+    if site == "s.to":
+        # Persist identity as s.to while ensuring requests stay on the configured
+        # operator-selected origin, even when a caller supplied an old mirror URL.
+        resolved_link = _build_episode_link(site, slug, season, episode)
+
     if site == "aniworld.to":
         from aniworld.models import AniworldEpisode  # type: ignore
 
         backend = AniworldEpisode(url=resolved_link)
     elif site == "s.to":
-        from aniworld.models import SerienstreamEpisode  # type: ignore
+        from app.core.downloader.sto_source import SerienstreamSource
 
-        backend = SerienstreamEpisode(url=resolved_link)
+        backend = SerienstreamSource(
+            url=resolved_link,
+            base_url=_site_base_url(site),
+        )
     else:
         raise ValueError(f"Unsupported aniworld-backed site: {site}")
 

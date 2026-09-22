@@ -10,6 +10,8 @@ Essentials
 - Database: SQLite with Alembic migrations in `apps/api/app/db/migrations`.
 - Use of Context7 for up-to-date external documentation.
 - On change of any environment variable, update `apps/api/.env.example`.
+- Keep upstream state under `ANIWORLD_INSTALL_FOLDER` (default
+  `${DATA_DIR}/aniworld`); do not mutate process `HOME` for library imports.
 - Keep the code vocabulary explicit: `providers/` means catalogue sites
   (`aniworld.to`, `s.to`, `megakino`), while direct video hosts belong under
   `apps/api/app/hosts/`.

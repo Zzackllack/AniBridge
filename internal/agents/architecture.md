@@ -29,6 +29,9 @@
 - Jobs created in DB via `apps/api/app/db/models.create_job`.
 - `apps/api/app/core/scheduler` manages a thread pool respecting `MAX_CONCURRENCY`.
 - `apps/api/app/core/downloader` orchestrates video-host fallback and progress updates.
+- Serienstream episode metadata uses the local v2 parser and configured
+  verified origin. VOE uses the upstream pure HTML decoder behind a local
+  bounded transport; default requests never launch a browser solver.
 - `apps/api/app/hosts` wraps direct-video hosts (VOE, Filemoon, Streamtape,
   Vidmoly, Doodstream, LoadX, Luluvdo, Vidoza, GXPlayer) separately from
   catalogue-site providers.

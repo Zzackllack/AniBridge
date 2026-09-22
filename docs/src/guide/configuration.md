@@ -14,6 +14,8 @@ AniBridge is configured via environment variables (works well with Docker). Sens
 
 - `DOWNLOAD_DIR`: final download directory
 - `DATA_DIR`: persistent data directory (SQLite DB, logs, cache)
+- `ANIWORLD_INSTALL_FOLDER`: isolated upstream state directory (defaults to
+  `DATA_DIR/aniworld`; does not replace or mutate `HOME`)
 - `QBIT_PUBLIC_SAVE_PATH`: path override in qBittorrent API responses (useful for container path mapping)
 
 ## Torznab
@@ -76,6 +78,9 @@ AniBridge-side fix planned in the near term for this class of issue. See [Issue 
 ## Provider & Language
 
 - `PROVIDER_ORDER`: comma-separated providers by priority (e.g., `VOE,Filemoon,Streamtape,...`)
+- Provider requests use verified TLS and bounded redirects. A recognized
+  challenge returns an actionable verification-required error; AniBridge does
+  not start Patchright/Chromium automatically.
 - Languages supported: `German Dub`, `German Sub`, `English Sub`, `English Dub`
 
 ## Catalogue Sites & Title Indices
@@ -123,6 +128,7 @@ See [Networking & VPN](/guide/networking) for supported patterns.
 CATALOG_SITES=aniworld.to,s.to,megakino
 DOWNLOAD_DIR=./data/downloads
 DATA_DIR=./data
+ANIWORLD_INSTALL_FOLDER=./data/aniworld
 ANIWORLD_BASE_URL=https://aniworld.to
 STO_BASE_URL=https://s.to
 MEGAKINO_BASE_URL=https://megakino1.to
