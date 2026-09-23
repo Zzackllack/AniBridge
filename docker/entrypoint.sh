@@ -7,6 +7,7 @@ CHOWN_RECURSIVE="${CHOWN_RECURSIVE:-true}"
 DATA_DIR_ENV="${DATA_DIR:-/data}"
 DOWNLOAD_DIR_ENV="${DOWNLOAD_DIR:-}"
 QBIT_PUBLIC_SAVE_PATH_ENV="${QBIT_PUBLIC_SAVE_PATH:-}"
+ANIWORLD_INSTALL_FOLDER_ENV="${ANIWORLD_INSTALL_FOLDER:-${DATA_DIR_ENV}/aniworld}"
 
 echo "[entrypoint] Starting with PUID=${PUID} PGID=${PGID}"
 
@@ -72,6 +73,7 @@ ensure_dir_owned() {
 
 ensure_dir_owned "$DOWNLOAD_DIR_ENV"
 ensure_dir_owned "$QBIT_PUBLIC_SAVE_PATH_ENV"
+ensure_dir_owned "$ANIWORLD_INSTALL_FOLDER_ENV"
 
 echo "[entrypoint] Launching: $* as appuser"
 exec gosu appuser:appgroup "$@"

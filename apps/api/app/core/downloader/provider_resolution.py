@@ -1,48 +1,25 @@
 from __future__ import annotations
 
-import re
 from typing import List, Optional, Tuple, TYPE_CHECKING
 
 from loguru import logger
 
 from app.config import PROVIDER_ORDER
-from .errors import DownloadError, LanguageUnavailableError
+from .errors import (
+    DownloadError,
+    LanguageUnavailableError,
+    ProviderResolutionError,
+    ProviderUnavailableError,
+)
 from .language import normalize_language
 
 if TYPE_CHECKING:
-    from aniworld.models import Episode
-
-_AVAIL_RE = re.compile(r"Available languages:\s*\[([^\]]*)\]", re.IGNORECASE)
+    from .episode import EpisodeSource
 
 
-def _parse_available_languages_from_error(msg: str) -> List[str]:
-    """
-    Extracts a list of available language names from a provider error message.
-
-    Searches the message for a bracketed, comma-separated list of languages (for example:
-    "Available languages: ['English Sub', 'German Sub']"). Returns the language names in their original order with duplicates removed. If no language list is found, returns an empty list.
-
-    Parameters:
-        msg (str): Error message text to parse.
-
-    Returns:
-        List[str]: Ordered list of extracted language names, or an empty list if none found.
-    """
-    match = _AVAIL_RE.search(msg or "")
-    if not match:
-        return []
-    raw = match.group(1)
-    parts = [part.strip(" '\"\t") for part in raw.split(",") if part.strip()]
-    seen = set()
-    out: List[str] = []
-    for part in parts:
-        if part not in seen:
-            seen.add(part)
-            out.append(part)
-    return out
-
-
-def _try_get_direct(ep: Episode, provider_name: str, language: str) -> Optional[str]:
+def _try_get_direct(
+    ep: EpisodeSource, provider_name: str, language: str
+) -> Optional[str]:
     """
     Attempt to obtain a direct download URL from a specific provider for a given language.
 
@@ -62,24 +39,25 @@ def _try_get_direct(ep: Episode, provider_name: str, language: str) -> Optional[
     try:
         url = ep.get_direct_link(provider_name, language)  # Lib-API
         if url:
-            logger.success(
-                "Found direct URL from provider '{}': {}", provider_name, url
-            )
+            logger.success("Found direct URL from video host '{}'.", provider_name)
             return url
         logger.warning("Provider '{}' returned no URL.", provider_name)
+    except LanguageUnavailableError:
+        raise
+    except ProviderUnavailableError as exc:
+        logger.info("Video host '{}' is unavailable: {}", provider_name, exc)
+    except ProviderResolutionError:
+        raise
     except Exception as exc:
-        msg = str(exc)
-        if "No provider found for language" in msg:
-            available = _parse_available_languages_from_error(msg)
-            logger.error(
-                "Language '{}' unavailable. Available: {}", language, available
-            )
-            raise LanguageUnavailableError(language, available) from exc
-        logger.warning("Exception from provider '{}': {}", provider_name, msg)
+        logger.warning(
+            "Unexpected exception from video host '{}': {}",
+            provider_name,
+            type(exc).__name__,
+        )
     return None
 
 
-def _auto_fill_languages(ep: Episode) -> Optional[object]:
+def _auto_fill_languages(ep: EpisodeSource) -> Optional[object]:
     """
     Retrieve or populate the episode's available languages.
 
@@ -126,7 +104,7 @@ def _auto_fill_languages(ep: Episode) -> Optional[object]:
     )
 
 
-def _validate_language_available(ep: Episode, language: str) -> None:
+def _validate_language_available(ep: EpisodeSource, language: str) -> None:
     """
     Ensure the requested language is listed among the episode's available languages.
 
@@ -157,7 +135,7 @@ def _validate_language_available(ep: Episode, language: str) -> None:
 
 
 def get_direct_url_with_fallback(
-    ep: Episode,
+    ep: EpisodeSource,
     *,
     preferred: Optional[str],
     language: str,
@@ -187,15 +165,19 @@ def get_direct_url_with_fallback(
     _validate_language_available(ep, language)
 
     tried: List[str] = []
+    last_resolution_error: ProviderResolutionError | None = None
 
     if preferred:
         pref = preferred.strip()
         if pref:
             tried.append(pref)
+            url = None
             try:
                 url = _try_get_direct(ep, pref, language)
             except LanguageUnavailableError:
                 raise
+            except ProviderResolutionError as exc:
+                last_resolution_error = exc
             if url:
                 logger.success("Using preferred provider '{}'", pref)
                 return url, pref
@@ -208,6 +190,9 @@ def get_direct_url_with_fallback(
             url = _try_get_direct(ep, provider, language)
         except LanguageUnavailableError:
             raise
+        except ProviderResolutionError as exc:
+            last_resolution_error = exc
+            continue
         if url:
             logger.success("Using fallback provider '{}'", provider)
             return url, provider
@@ -215,6 +200,8 @@ def get_direct_url_with_fallback(
     logger.error(
         "No direct link found. Tried providers: {}", ", ".join(tried) or "none"
     )
+    if last_resolution_error is not None:
+        raise last_resolution_error
     raise DownloadError(
         f"No direct link found. Tried providers: {', '.join(tried) or 'none'}"
     )

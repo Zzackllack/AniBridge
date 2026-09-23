@@ -11,6 +11,8 @@ Comprehensive list of env vars read in `apps/api/app/config.py`.
 
 - `DOWNLOAD_DIR`: where files are written
 - `DATA_DIR`: where the SQLite DB and logs live
+- `ANIWORLD_INSTALL_FOLDER`: isolated writable upstream configuration/session
+  directory (default: `${DATA_DIR}/aniworld`)
 - `QBIT_PUBLIC_SAVE_PATH`: path override reported to clients (e.g., Sonarr)
 
 When running AniBridge from the checked-out source tree without overriding
@@ -18,6 +20,10 @@ these variables, local defaults are anchored to the repository root:
 
 - `DATA_DIR` -> `<repo>/data`
 - `DOWNLOAD_DIR` -> `<repo>/data/downloads`
+
+AniBridge sets `ANIWORLD_INSTALL_FOLDER` before importing the upstream package
+and does not change the process user's `HOME`. To reuse an existing trusted
+upstream configuration, point this variable at that directory explicitly.
 
 ## Indexer (Torznab)
 
@@ -70,6 +76,11 @@ appears, use manual import or disable “Analyze video files” in Sonarr. See
 ## Providers & Languages
 
 - `PROVIDER_ORDER` (CSV; priority-ordered)
+- `PROVIDER_REDIRECT_TIMEOUT_SECONDS` (default: `12`)
+- `PROVIDER_REDIRECT_RETRIES` (default: `2`)
+- `PROVIDER_CHALLENGE_BACKOFF_SECONDS` (default: `300`) — suggested retry
+  delay included in verification-required errors. AniBridge does not sleep in
+  the worker or launch a browser to solve challenges.
 - Supported languages: `German Dub`, `German Sub`, `English Sub`, `English Dub`, `Deutsch` (megakino)
 
 ## Title Resolution

@@ -1,0 +1,27 @@
+[
+  {
+    "package": "aniworld",
+    "before": "4.2.1",
+    "after": "5.0.6"
+  },
+  {
+    "package": "authlib",
+    "before": "1.6.12",
+    "after": null
+  },
+  {
+    "package": "curl-cffi",
+    "before": null,
+    "after": "0.16.3"
+  },
+  {
+    "package": "patchright",
+    "before": null,
+    "after": "1.62.3"
+  },
+  {
+    "package": "pyee",
+    "before": null,
+    "after": "13.0.1"
+  }
+]

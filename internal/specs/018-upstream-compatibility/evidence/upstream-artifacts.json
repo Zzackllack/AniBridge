@@ -1,0 +1,14 @@
+{
+  "version": "5.0.6",
+  "requires_python": ">=3.11",
+  "artifacts": [
+    {
+      "filename": "aniworld-5.0.6-py3-none-any.whl",
+      "sha256": "2826050b650993e6eb6392d56bf738caefeea06f30f8f1363e8bf2161e09ad00"
+    },
+    {
+      "filename": "aniworld-5.0.6.tar.gz",
+      "sha256": "fb0f5442f53b2c77dea24dffc974830f2c25fd9cb1e1f3ee10dc0b06793e0415"
+    }
+  ]
+}

@@ -67,6 +67,8 @@ Common environment variables:
 - `ANIWORLD_ALPHABET_URL`
 - `ANIWORLD_ALPHABET_HTML`
 - `ANIWORLD_TITLES_REFRESH_HOURS`
+- `ANIWORLD_INSTALL_FOLDER` (defaults to `DATA_DIR/aniworld` for isolated
+  upstream configuration)
 
 Related specials-mapping controls are documented in:
 
@@ -75,5 +77,7 @@ Related specials-mapping controls are documented in:
 ## Things To Keep In Mind
 
 - AniBridge does not control AniWorld uptime, layout changes, or regional blocking.
+- VOE resolution uses the installed upstream HTML decoder through AniBridge's
+  bounded verified transport. It does not invoke upstream browser solving.
 - AniWorld-side changes can temporarily affect search quality or episode resolution.
 - The legal situation and site terms may change. Re-check them regularly.

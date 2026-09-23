@@ -21,6 +21,12 @@
 - Published to `ghcr.io/zzackllack/anibridge` via `.github/workflows/publish.yml`.
 - Tags derived from branch, commit SHA, `latest`, and `VERSION`.
 
+## Packaged application
+
+- Release executables use the PyInstaller hooks under `apps/api/hooks/`.
+- `hook-app.db.py` includes the Alembic migration tree because packaged
+  startup loads those scripts by file path instead of ordinary imports.
+
 ## Docker Compose
 
 ### `docker/compose.yaml`
@@ -28,6 +34,8 @@
 - Service `anibridge` uses `ghcr.io/zzackllack/anibridge:latest`.
 - Ports: `8000:8000`.
 - Volume: `./data:/data` (DB, downloads, logs).
+- Upstream configuration/session state defaults to `/data/aniworld` through
+  `ANIWORLD_INSTALL_FOLDER`; the process user's home is not repurposed.
 - Healthcheck uses curl to `/health`.
 - Migrations run at app startup when `DB_MIGRATE_ON_STARTUP=true` (default).
 

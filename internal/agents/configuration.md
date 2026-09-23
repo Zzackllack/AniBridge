@@ -4,7 +4,8 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 
 ## Key Groups
 
-- Paths: `DATA_DIR`, `DOWNLOAD_DIR`, `QBIT_PUBLIC_SAVE_PATH`
+- Paths: `DATA_DIR`, `DOWNLOAD_DIR`, `QBIT_PUBLIC_SAVE_PATH`,
+  `ANIWORLD_INSTALL_FOLDER`
 - Migrations: `DB_MIGRATE_ON_STARTUP`
 - Torznab: `INDEXER_NAME`, `INDEXER_API_KEY`, `TORZNAB_*`
 - Downloader: `PROVIDER_ORDER` (input env var, mapped at runtime to `VIDEO_HOST_ORDER`), `PROVIDER_REDIRECT_TIMEOUT_SECONDS`,
@@ -18,10 +19,10 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
   that never started downloading, inspect logs for provider redirect timeouts and
   tune `PROVIDER_REDIRECT_TIMEOUT_SECONDS` / `PROVIDER_REDIRECT_RETRIES`
   before changing download-layer settings.
-- s.to/Turnstile note: Serienstream can now return a Turnstile page for
-  `/r?t=...` redirect tokens. AniBridge now retries those pages with browser-like
-  navigation headers and a cool-down controlled by
-  `PROVIDER_CHALLENGE_BACKOFF_SECONDS`.
+- s.to/Turnstile note: Serienstream can return a Turnstile page for `/r?t=...`
+  redirect tokens. AniBridge reports a bounded verification-required failure;
+  it does not launch a browser or sleep in a download worker. The error carries
+  the suggested cool-down from `PROVIDER_CHALLENGE_BACKOFF_SECONDS`.
 - Update notifier: `ANIBRIDGE_UPDATE_CHECK`, GitHub owner/repo/token, GHCR image reference
 - Logging: `LOG_LEVEL`, progress toggles
 
@@ -53,7 +54,9 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 24. `PROVIDER_ORDER` — Comma-separated video-host priority input; mapped at runtime to `VIDEO_HOST_ORDER`.
 25. `PROVIDER_REDIRECT_TIMEOUT_SECONDS` — Timeout for resolving catalogue redirect tokens into video-host URLs (default `12`).
 26. `PROVIDER_REDIRECT_RETRIES` — Extra retry attempts for transient video-host redirect failures (default `2`).
-27. `PROVIDER_CHALLENGE_BACKOFF_SECONDS` — Base cool-down for Turnstile challenge retries (default `300`).
+27. `PROVIDER_CHALLENGE_BACKOFF_SECONDS` — Suggested operator cool-down
+    reported with verification-required failures (default `300`); workers do
+    not sleep or launch a browser.
 28. `MAX_CONCURRENCY` — Thread pool size (default `3`).
 29. `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC` — Per-download yt-dlp rate cap (`0` disables).
 30. `INDEXER_NAME` — Torznab display name (default `AniBridge Torznab`).
@@ -99,6 +102,8 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 70. `ANIBRIDGE_TEST_MODE` — Test-mode runtime toggle.
 71. `PYTHONUNBUFFERED` — Set to `1` in Docker to keep logs flush.
 72. `SONARR_*`, `PROWLARR_*` — Integration values documented in `docs/src/integrations/clients`.
+73. `ANIWORLD_INSTALL_FOLDER` — Writable upstream configuration/session folder
+    (default `${DATA_DIR}/aniworld`; does not change process `HOME`).
 
 ## Removed Legacy Proxy Variables
 

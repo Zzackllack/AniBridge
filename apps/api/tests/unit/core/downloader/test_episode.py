@@ -176,6 +176,13 @@ def test_build_episode_supports_sto_v4_api(monkeypatch):
             sys.modules, "app.core.downloader.episode", original_episode_module
         )
     patch_voe_resolver(monkeypatch, episode_module)
+    monkeypatch.setattr(
+        "app.core.downloader.sto_source.fetch_episode_provider_data",
+        lambda **_kwargs: {
+            "German Dub": {"VOE": "https://s.to/r/123"},
+            "English Dub": {"VOE": "https://s.to/r/456"},
+        },
+    )
 
     episode = episode_module.build_episode(
         slug="9-1-1",
@@ -193,6 +200,23 @@ def test_build_episode_supports_sto_v4_api(monkeypatch):
         episode.get_direct_link("VOE", "German Dub")
         == "https://s.to/r/123/resolved/master.m3u8"
     )
+
+
+def test_build_episode_rewrites_sto_link_to_configured_origin(monkeypatch):
+    import app.core.downloader.episode as episode_module
+
+    monkeypatch.setitem(
+        episode_module.CATALOG_SITE_CONFIGS,
+        "s.to",
+        {"base_url": "https://configured.example"},
+    )
+
+    episode = episode_module.build_episode(
+        link="https://old-mirror.example/serie/show/staffel-2/episode-3",
+        site="s.to",
+    )
+
+    assert episode.link == ("https://configured.example/serie/show/staffel-2/episode-3")
 
 
 def test_sto_v4_missing_provider_does_not_mask_available_language(monkeypatch):
@@ -274,6 +298,16 @@ def test_sto_v4_missing_provider_does_not_mask_available_language(monkeypatch):
             sys.modules, "app.core.downloader.episode", original_episode_module
         )
     patch_voe_resolver(monkeypatch, episode_module)
+    monkeypatch.setattr(
+        "app.core.downloader.sto_source.fetch_episode_provider_data",
+        lambda **_kwargs: {
+            "German Dub": {
+                "VOE": "https://s.to/r/voe",
+                "Streamtape": "https://s.to/r/streamtape",
+            },
+            "English Dub": {"VOE": "https://s.to/r/eng-voe"},
+        },
+    )
 
     original_provider_resolution = sys.modules.get(
         "app.core.downloader.provider_resolution"

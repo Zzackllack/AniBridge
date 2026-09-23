@@ -35,6 +35,22 @@ def test_detect_host_ignores_userinfo_host_confusion():
     assert host is None
 
 
+def test_voe_host_uses_local_non_browser_resolver(monkeypatch):
+    calls: list[tuple[str, str]] = []
+
+    def _resolve(*, redirect_url: str, site: str) -> str:
+        calls.append((redirect_url, site))
+        return "https://cdn.example/master.m3u8"
+
+    monkeypatch.setattr("app.hosts.voe.resolve_direct_link_from_redirect", _resolve)
+
+    direct_url, host_name = resolve_host_url(REPRESENTATIVE_URLS["VOE"])
+
+    assert direct_url == "https://cdn.example/master.m3u8"
+    assert host_name == "VOE"
+    assert calls == [(REPRESENTATIVE_URLS["VOE"], "")]
+
+
 def test_resolve_host_url_returns_embed_when_unknown():
     direct_url, host_name = resolve_host_url("https://example.invalid/embed/123")
     assert direct_url is None

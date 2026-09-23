@@ -56,6 +56,12 @@ AniBridge includes S.to-specific parsing for episode pages. In practical terms, 
 - maps language IDs to AniBridge language labels
 - enriches episode objects with provider/language choices used later for resolution
 
+Episode metadata is fetched only from the configured `STO_BASE_URL`, with TLS
+verification and bounded redirects. AniBridge does not inherit upstream's
+automatic mirror or raw-IP fallback. If Serienstream returns a CAPTCHA or
+Turnstile document, the request fails with a verification-required error;
+interactive browser solving is not part of the default runtime.
+
 ## Configuration
 
 Common environment variables:
