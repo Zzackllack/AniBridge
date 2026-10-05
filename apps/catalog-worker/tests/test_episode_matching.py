@@ -72,4 +72,22 @@ def test_unique_names_prove_season_and_annotation_without_number_guess(tmp_path)
             state.db.execute("SELECT count(*) FROM canonical_episode").fetchone()[0]
             == 0
         )
+        state.db.execute("UPDATE entity SET display_title='...' WHERE native_episode=3")
+        store(
+            state,
+            tid,
+            "digest",
+            "matcher",
+            1800000000,
+            [
+                CanonicalEpisode(2, 9, "First unique story"),
+                CanonicalEpisode(2, 10, "Another distinct story"),
+                CanonicalEpisode(2, 11, "..."),
+            ],
+        )
+        apply(state, tid, 1800000000)
+        assert (
+            state.db.execute("SELECT count(*) FROM canonical_episode").fetchone()[0]
+            == 0
+        )
     state.close()

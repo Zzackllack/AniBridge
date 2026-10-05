@@ -63,12 +63,12 @@ def test_listing_paging_rejects_ambiguous_or_partial_traversal():
 
 def test_unrelated_navigation_and_help_headings_preserve_episode_metadata():
     page = sto.parse(
-        html('''<nav><a href="/serienkalender">Calendar</a>
+        html("""<nav><a href="/serienkalender">Calendar</a>
         <a href="/serienwuensche">Requests</a></nav>
         <h1>Example</h1><h2>S00E01: Anfang (Beginning)</h2>
         <button data-play-url="/r/private" data-provider-name="VOE"
                 data-language-label="Deutsch"></button>
-        <h2>Comments</h2><h2>Frequently asked questions</h2>'''),
+        <h2>Comments</h2><h2>Frequently asked questions</h2>"""),
         "detail",
         EPISODE,
     )
@@ -77,8 +77,8 @@ def test_unrelated_navigation_and_help_headings_preserve_episode_metadata():
     assert page.next_pages == ()
     with pytest.raises(ValueError, match="conflicting episode titles"):
         sto.parse(
-            html('''<h1>Example</h1><h2>S00E01: Anfang (Beginning)</h2>
-            <h2>S00E01: Andere (Different)</h2>'''),
+            html("""<h1>Example</h1><h2>S00E01: Anfang (Beginning)</h2>
+            <h2>S00E01: Andere (Different)</h2>"""),
             "detail",
             EPISODE,
         )
@@ -125,3 +125,10 @@ def test_native_identity_and_first_seen_survive_restart(tmp_path):
     state.close()
 
 
+def test_current_header_year_range_and_genre_navigation():
+    page = sto.parse(
+        b'<html><body><h1>Breaking Bad</h1><p class="small text-muted mb-2"><a href="/jahr/2008">2008</a> - <a href="/jahr/2013">2013</a></p><a href="/serien?by=genre">Genres</a><a href="/serie/breaking-bad/staffel-1">Season 1</a></body></html>',
+        "detail",
+        "/serie/breaking-bad",
+    )
+    assert page.year == 2008 and len(page.links) == 1

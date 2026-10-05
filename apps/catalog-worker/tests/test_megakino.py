@@ -114,8 +114,6 @@ def test_unlabelled_player_and_original_language_never_invent_release(tmp_path):
     state.close()
 
 
-
-
 def test_small_script_stub_or_foreign_movie_never_marks_detail_complete():
     with pytest.raises(ValueError):
         megakino.parse(
@@ -131,3 +129,14 @@ def test_small_script_stub_or_foreign_movie_never_marks_detail_complete():
             PATH,
             origin=ORIGIN,
         )
+
+
+def test_sitemap_origin_alias_is_explicit_and_path_only():
+    foreign = sitemap([PATH]).replace(ORIGIN.encode(), b"https://megakino3.com")
+    with pytest.raises(ValueError, match="foreign sitemap target"):
+        megakino.parse(foreign, "listing", origin=ORIGIN)
+    page = megakino.parse(
+        foreign, "listing", origin=ORIGIN, sitemap_origins=("https://megakino3.com",)
+    )
+    assert page.links[0].path == PATH
+    assert "megakino3" not in repr(page)

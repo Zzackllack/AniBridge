@@ -7,11 +7,13 @@ from contextlib import closing
 
 import pytest
 from app.catalog.query_providers import ProviderSearch
-from catalog_core import artifact, fixtures, identity
+from catalog_core import artifact, fixtures, identity, schema
+from catalog_core.compact import Writer
 from test_query_local import NOW, insert_override, setup
 
 
-def test_long_series_target_and_correction_before_pagination(tmp_path):
+@pytest.mark.parametrize("schema_version", [1, 2])
+def test_long_series_target_and_correction_before_pagination(tmp_path, schema_version):
     client, search, database, root = setup(tmp_path)
     with closing(sqlite3.connect(root / "fixture.sqlite")) as db, db:
         tid = db.execute("SELECT title_id FROM title").fetchone()[0]
@@ -50,6 +52,32 @@ def test_long_series_target_and_correction_before_pagination(tmp_path):
     metadata["artifact"]["sqlite_sha256"] = artifact.sha256(root / "fixture.sqlite")
     (root / "current.json").write_text(json.dumps(metadata))
     insert_override(database, root, "episode", ("123", 5, 101))
+    if schema_version == 2:
+        compact = root / "compact.sqlite"
+        with (
+            closing(schema.connect(root / "fixture.sqlite")) as source,
+            closing(schema.create(compact, version=2)) as target,
+            target,
+        ):
+            writer = Writer(target, 2)
+            for table in (
+                "catalog",
+                "title",
+                "alias",
+                "entity",
+                "release",
+                "canonical_title",
+                "canonical_episode",
+                "identity_alias",
+            ):
+                for row in source.execute(f"SELECT * FROM {table}"):
+                    values = list(row)
+                    if table == "catalog":
+                        values[2] = 2
+                    writer.insert(table, tuple(values))
+        metadata.update(database="compact.sqlite", catalog_schema_version=2)
+        metadata["artifact"]["sqlite_sha256"] = artifact.sha256(compact)
+        (root / "current.json").write_text(json.dumps(metadata))
 
     async def run():
         rows, total, _ = await search.search(

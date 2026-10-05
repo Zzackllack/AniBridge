@@ -29,9 +29,12 @@ def store(
     # Multiple canonical episodes with one normalized title are ambiguous,
     # including duplicate source rows. Do not silently pick the last number.
     for episode in episodes:
+        key = search_key(episode.title)
+        if not key:
+            continue
         db.execute(
             "INSERT INTO canonical_hint VALUES(?,?,?,?) ON CONFLICT(title_id,season,title_key) DO UPDATE SET episode=NULL",
-            (tid, episode.season, search_key(episode.title), episode.episode),
+            (tid, episode.season, key, episode.episode),
         )
 
 
