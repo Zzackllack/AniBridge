@@ -70,7 +70,7 @@ async def seed(config_path: Path) -> dict:
     config = load(config_path)
     state = State(config.state_dir / "aniworld.to.sqlite", "aniworld.to")
     try:
-        if state.db.execute("SELECT count(*) FROM title").fetchone()[0]:
+        if (config.output_dir / "current.json").exists():
             return {"already_seeded": True}
         now = int(time.time())
         episodes = [TITLE + f"/staffel-1/episode-{n}" for n in range(1, 21)]
@@ -84,7 +84,7 @@ async def seed(config_path: Path) -> dict:
         }
         pages.update(
             {
-                path: '<html><body><h1>Generated</h1><li data-lang-key="1" data-link-target="/redirect/fixture"></li><li data-lang-key="2" data-link-target="/redirect/fixture"></li></body></html>'
+                path: '<html><body><h1>Generated</h1><div class="hosterSiteVideo"><li data-lang-key="1" data-link-target="/redirect/fixture"></li><li data-lang-key="2" data-link-target="/redirect/fixture"></li></div></body></html>'
                 for path in episodes
             }
         )
@@ -103,7 +103,12 @@ async def seed(config_path: Path) -> dict:
                 plan = collector.prepare(signal_allowed=False)
                 if plan is None:
                     break
-                collector.apply(await collector.collect(plan))
+                ready = await collector.collect(plan)
+                if ready.outcome != "ok":
+                    raise ValueError(
+                        "generated parser fixture failed: " + ready.outcome
+                    )
+                collector.apply(ready)
         tid = title_id("aniworld.to", TITLE)
         mid = mapping_id("aniworld.to", tid, "tvdb", TVDB)
         with state.db:
