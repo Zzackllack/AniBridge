@@ -10,7 +10,6 @@ x-logs: &bounded-logs
 services:
   init:
     image: anibridge-query-worker:${PILOT_COMMIT}
-    build: *worker-build
     user: root
     entrypoint: [python, -m, catalog_worker.pilot_seed]
     command: [/config]
