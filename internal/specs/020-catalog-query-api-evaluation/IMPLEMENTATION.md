@@ -37,7 +37,7 @@ sampling or canonical/provider network fallback is enabled in this pilot.
 
 Finite limits: eight simultaneous server/local queries; 2-second cooperative
 SQL budget and 3-second HTTP deadline; 15-second total local search deadline;
-4-KiB request, 2-MiB response, 200 candidate titles, 500 native releases/page,
+16-KiB request, 2-MiB response, 200 candidate titles, 500 native releases/page,
 2,000 native releases/search, 100 RSS results/page and offset <=10,000. Global
 server token bucket 200/s, burst 256; no per-IP table. Ninth active operation is
 rejected. Disconnect/timeout signals SQL cancellation; slots remain held until

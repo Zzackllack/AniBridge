@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=83", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anibridge-catalog-worker"
+version = "1.0.0"
+requires-python = ">=3.14"
+dependencies = [
+    "anibridge-catalog-core==1.0.0",
+    "httpx==0.28.1",
+    "anyio>=4.10",
+    "defusedxml==0.7.1",
+    "fastapi>=0.135.1",
+    "uvicorn>=0.42.0",
+]
+
+[project.scripts]
+anibridge-catalog-worker = "catalog_worker.cli:main"
+
+[tool.uv.sources]
+anibridge-catalog-core = { path = "../../packages/catalog-core", editable = true }
+
+[dependency-groups]
+dev = ["pytest>=9", "ruff>=0.14"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
