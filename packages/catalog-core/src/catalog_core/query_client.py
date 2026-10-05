@@ -239,6 +239,9 @@ class Client:
                     raise ValueError("response revision regressed")
                 try:
                     self.cache.accept(scope, result.revision)
+                except sqlite3.Error as exc:
+                    raise Unavailable("revision_state_unavailable") from exc
+                try:
                     self.cache.put(key, bytes(body), now)
                 except sqlite3.Error:
                     return Result(result, "miss", 0, "cache_unavailable")

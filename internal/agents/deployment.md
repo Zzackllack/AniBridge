@@ -45,3 +45,12 @@
 - Shared network `anibridge-dev-net`.
 - `anibridge` enables `ANIBRIDGE_RELOAD=true` for containerized development.
 - Compose `develop.watch` syncs `apps/api/app/` into `/app/app` and rebuilds the image when build inputs change.
+
+## Local query pilot
+
+Use the isolated [Compose guide](../../scripts/catalog/query_pilot/README.md).
+Build images from the selected local commit, keep all pilot volumes disposable,
+and publish ports on loopback only. The generated fixture has no Internet
+access or media. Do not provision a source, SSH, or alter a real installation
+without explicit authorization. Job/resource enforcement is Linux-only; Docker
+is the supported maintainer path.

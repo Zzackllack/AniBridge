@@ -637,3 +637,9 @@ ANIBRIDGE_CORS_ALLOW_CREDENTIALS = _as_bool(
     os.getenv("ANIBRIDGE_CORS_ALLOW_CREDENTIALS", "true"), True
 )
 logger.debug(f"ANIBRIDGE_CORS_ALLOW_CREDENTIALS={ANIBRIDGE_CORS_ALLOW_CREDENTIALS}")
+
+# No file means released mainline behavior. Source disclosure requires explicit opt-in.
+from app.catalog.config import load as load_catalog_config
+CATALOG_CONFIG = load_catalog_config(os.getenv("CATALOG_CONFIG_FILE"))
+
+MANAGEMENT_API_TOKEN = os.getenv("MANAGEMENT_API_TOKEN") or None

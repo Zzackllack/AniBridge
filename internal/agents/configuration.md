@@ -114,3 +114,13 @@ unsupported and ignored if still present in runtime env:
 - `PROXY_HOST`, `PROXY_PORT`, `PROXY_SCHEME`, `PROXY_USERNAME`, `PROXY_PASSWORD`
 - `NO_PROXY`, `PROXY_FORCE_REMOTE_DNS`, `PROXY_DISABLE_CERT_VERIFY`, `PROXY_APPLY_ENV`
 - `PROXY_IP_CHECK_INTERVAL_MIN`, `PROXY_SCOPE`
+
+## Query pilot configuration
+
+`CATALOG_CONFIG_FILE` absent means mainline behavior. Explicit JSON `mode=query`
+requires `origin`, `source_id`, `token_file`; HTTPS except loopback or explicitly
+opted-in disposable private HTTP. Only `CATALOG_SITES=aniworld.to` is enabled in
+the first pilot. `MANAGEMENT_API_TOKEN` optionally enables authenticated local
+job retry/cancel; it must encode 32 random bytes as base64url. Query requests
+disclose terms/IDs and service-visible IPs. No proxy/log privacy guarantees.
+See the [pilot guide](../../scripts/catalog/query_pilot/README.md).

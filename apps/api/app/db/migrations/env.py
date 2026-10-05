@@ -17,6 +17,8 @@ target_metadata = models.ModelBase.metadata
 
 
 def _get_database_url() -> str:
+    if explicit := config.attributes.get("database_url"):
+        return explicit
     env_url = os.getenv("DATABASE_URL")
     return env_url or models.DATABASE_URL
 
@@ -47,6 +49,10 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # sqlite3's legacy transaction mode otherwise autocommits DDL before
+        # the first data write. A killed upgrade must not leave half of 0004.
+        if connection.dialect.name == "sqlite":
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
@@ -57,6 +63,8 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+        if connection.dialect.name == "sqlite":
+            connection.commit()
 
 
 if context.is_offline_mode():

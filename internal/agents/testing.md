@@ -51,3 +51,14 @@
 - `.github/workflows/tests.yml` runs on pushes/PRs touching `apps/api/app/**` or `apps/api/tests/**`.
 - On pull requests, failed pytest runs upload the captured console output so CI
   can post or refresh a remediation comment on the PR thread.
+
+## Request catalog pilot
+
+Run each uv project's suite from its directory: `uv run pytest -q` in
+`packages/catalog-core`, `apps/catalog-worker` and `apps/api`. New focused read
+tests cover strict responses, coalescing, outages/corruption/revision scopes,
+reader replacement/cancellation and local correction-aware discovery. Reused
+lifecycle/migration tests preserve mainline state and local grab ownership.
+The [Compose smoke](../../scripts/catalog/query_pilot/README.md) accepts a
+paused generated grab; it does not prove live extraction, import or playback.
+Historical snapshot validator timeouts remain failed; no endurance rerun.

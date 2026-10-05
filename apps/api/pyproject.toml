@@ -67,6 +67,7 @@ dependencies = [
     "websockets>=15.0.1",
     "yt-dlp>=2026.7.4",
     "pylint>=4.0.5",
+    "anibridge-catalog-core",
 ]
 
 [project.urls]
@@ -76,3 +77,6 @@ Tracker = "https://github.com/Zzackllack/AniBridge/issues"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["app*"]
+
+[tool.uv.sources]
+anibridge-catalog-core = { path = "../../packages/catalog-core", editable = true }

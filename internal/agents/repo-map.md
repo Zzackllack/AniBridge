@@ -81,3 +81,11 @@
 - `apps/api/app/infrastructure/*` — logging, public-IP/network helpers, system info.
 - `docs/.vitepress/config.mts` — docs site config.
 - `docs/worker.ts` — Cloudflare Worker entry.
+
+## Request catalog pilot
+
+- `packages/catalog-core`: portable identity/schema/indexed query, strict wire and cache.
+- `apps/catalog-worker`: central incremental collector and read-serving command.
+- `apps/api/app/catalog`: opt-in metadata integration, local corrections and durable jobs.
+- `scripts/catalog/query_pilot`: small Compose/operator validation guide and smoke.
+- `internal/specs/020-catalog-query-api-evaluation`: selected contract and evidence.

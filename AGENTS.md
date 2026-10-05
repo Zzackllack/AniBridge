@@ -16,6 +16,24 @@ Essentials
   (`aniworld.to`, `s.to`, `megakino`), while direct video hosts belong under
   `apps/api/app/hosts/`.
 
+Request API private pilot
+
+- Shared identities/read contract/cache: `packages/catalog-core`; collector and
+  bounded read-serving command: `apps/catalog-worker` (separate uv projects).
+- Selected contract: `internal/specs/020-catalog-query-api-evaluation/IMPLEMENTATION.md`.
+  This supersedes 019 client snapshot distribution only. Historical gate failures
+  remain historical failures; no public default or remote deployment is approved.
+- `CATALOG_CONFIG_FILE` is opt-in: absent keeps mainline routes; query mode initially
+  requires only AniWorld enabled. Local corrections precede canonical filtering.
+- Search never crawls or extracts video. Jobs freeze source identity and resolve
+  on the user's instance. Do not introduce snapshot client download machinery.
+- Total collector/service storage is 30,000,000,000 bytes, including state, read
+  catalog/staging, backups, logs and 1,000,000,000-byte runtime reserve.
+- Use disposable pilot volumes and `scripts/catalog/query_pilot/compose.yaml`;
+  never mix those with a real installation. No query/IP access logs by default.
+- Keep `EVIDENCE.md` current; synthetic/client/live extraction/import/playback
+  proofs are distinct. The maintainer guide is `scripts/catalog/query_pilot/README.md`.
+
 Common pitfalls
 
 - The README of this repository is not at ./README.md but at ./.github/README.md.

@@ -58,3 +58,13 @@
 - `TerminalLogger` duplicates stdout/stderr to `data/terminal-YYYY-MM-DD.log`.
 - `/health` endpoint provides liveness/readiness details.
 - Update notifier logs when new GitHub releases are available.
+
+## Private request metadata pilot
+
+Selected contract: [020 implementation](../specs/020-catalog-query-api-evaluation/IMPLEMENTATION.md).
+Collector parsing/ledger and indexed read code are shared without API startup
+globals. The collector project's authenticated read command serves one compact
+server catalog; local AniBridge fetches native batches and applies corrections
+before policy, counts and pagination. Grabs retain source coordinates and run
+locally. Client whole-file snapshot distribution is omitted. Mainline remains
+the default until explicit query configuration. Public hosting is unapproved.
