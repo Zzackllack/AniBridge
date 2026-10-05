@@ -12,12 +12,14 @@ from app.catalog import media_transport
 from app.catalog.resolution_transport import Budget
 
 
+@pytest.mark.parametrize("provider", ["aniworld.to", "s.to"])
 def test_fixture_streams_through_resolver_and_transfer(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, provider: str
 ) -> None:
     original_client = httpx.Client
     original_validate = provider_policy._validate_request_url
     home = os.environ.get("HOME")
+    monkeypatch.setenv("CATALOG_SITES", provider)
     monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("ANIWORLD_INSTALL_FOLDER", str(tmp_path / "upstream"))
     filename = Path(__file__).parent / "hooks" / "sitecustomize.py"
@@ -38,9 +40,9 @@ def test_fixture_streams_through_resolver_and_transfer(
         try:
             media = resolve(
                 {
-                    "provider": "aniworld.to",
+                    "provider": provider,
                     "path": fixture.EPISODE,
-                    "language": "en-sub",
+                    "language": "en-dub" if provider == "s.to" else "en-sub",
                 },
                 "https://fixture.invalid",
                 ("Vidoza",),

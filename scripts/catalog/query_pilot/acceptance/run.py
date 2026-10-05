@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import sqlite3
 import subprocess
 import time
@@ -148,7 +149,12 @@ def main() -> None:
                 if row["seasonNumber"] == 1 and row["episodeNumber"] == 1
             )
             releases = call("GET", "/release", episodeId=episode["id"])
-            release = next(row for row in releases if ".English.Sub" in row["title"])
+            language = (
+                ".English.Dub"
+                if os.environ.get("CATALOG_SITES") == "s.to"
+                else ".English.Sub"
+            )
+            release = next(row for row in releases if language in row["title"])
             assert release["approved"] and release["quality"]["quality"]["id"] == 0
             # This is the sole grab. Sonarr calls the real qBittorrent add route;
             # only production Runner/Executor can create completion/output.
@@ -247,6 +253,7 @@ def main() -> None:
             }
             result = {
                 "acceptance": "passed",
+                "provider": os.environ.get("CATALOG_SITES", "aniworld.to"),
                 "job_status": "completed",
                 "attempts": 1,
                 "qbit_progress": 1,

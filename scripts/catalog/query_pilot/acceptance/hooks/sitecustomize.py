@@ -8,16 +8,18 @@ resolve(), transfer(), SubprocessExecutor, job children, outcomes or DB writes.
 import json
 import os
 import sys
-from pathlib import Path
 from collections.abc import Iterator
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import httpx
-
 from app.core.downloader import provider_policy
 
 MEDIA = Path("/generated/generated.mp4")
-EPISODE = "/anime/stream/generated-client-fixture/staffel-1/episode-1"
+PROVIDER = os.environ.get("CATALOG_SITES", "aniworld.to")
+EPISODE = (
+    "/serie" if PROVIDER == "s.to" else "/anime/stream"
+) + "/generated-client-fixture/staffel-1/episode-1"
 URLS = {
     "https://fixture.invalid" + EPISODE: "provider",
     "https://fixture.invalid/player": "player",
@@ -81,6 +83,8 @@ class Transport(httpx.BaseTransport):
                 )
                 + "</body></html>"
             )
+            if PROVIDER == "s.to":
+                html = '<html><body><button data-play-url="/player" data-provider-name="Vidoza" data-language-label="Englisch"></button><button data-play-url="/player" data-provider-name="Vidoza" data-language-label="Deutsch"></button></body></html>'
             return httpx.Response(200, stream=httpx.ByteStream(html.encode()))
         if stage == "player":
             return httpx.Response(

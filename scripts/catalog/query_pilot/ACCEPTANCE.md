@@ -151,3 +151,36 @@ freshness/capacity, other providers/platforms, external HTTPS ingress, public
 hosting/defaults/rights and hardened public-facing qBittorrent authentication.
 They do not block this generated S01E01 scenario. Historical validator/endurance
 failures stay failed evidence; no endurance rerun is part of this handoff.
+
+## Serienstream production-path extension
+
+2026-10-05: the same finite generated-media scenario passed for `s.to`, using
+application build `7144be53e204c074e672a06cec08f9d29e3900d9`. Add the
+`acceptance-sto.yaml` overlay **after** the three files above and use a fresh
+`anibridge-query-sto-acceptance` project. Its seed uses Serienstream-native paths,
+observed Deutsch/Englisch player labels and English Dub for the selected grab.
+The input hook changes HTTP input only; the real Serienstream offers parser,
+Vidoza resolution, streaming download, remux, receipt, durable completion and
+Sonarr import ran. One attempt, progress 1; library record and file verified.
+API/metadata peaks: 689,999,872 / 57,643,008 bytes. The stack was stopped; its
+disposable volumes were retained. Result: `evidence/provider-pilot.json` in spec020.
+Later default wire/normal-publication fixes were verified separately; this
+accepted generated grab was not repeated after unrelated operator edits.
+
+```sh
+export PILOT_COMMIT=$(git rev-parse HEAD)
+export COMPOSE_FILE=scripts/catalog/query_pilot/compose.yaml:scripts/catalog/query_pilot/clients.yaml:scripts/catalog/query_pilot/acceptance.yaml:scripts/catalog/query_pilot/acceptance-sto.yaml
+docker compose -p anibridge-query-sto-acceptance build
+docker compose -p anibridge-query-sto-acceptance up -d catalog api sonarr prowlarr
+timeout 12m docker compose -p anibridge-query-sto-acceptance exec -T --user 1000 api python /pilot/acceptance/run.py
+docker compose -p anibridge-query-sto-acceptance exec -T api cat /data/acceptance-result.json
+docker compose -p anibridge-query-sto-acceptance down
+```
+
+Live Serienstream metadata was tested separately with the final application
+build: 32 title releases, 14 season-1 releases and two S01E01 releases. Actual
+Sonarr/Prowlarr indexer tests, episode search and season search passed; season
+results matched episodes 1–7, Unknown quality allowed, no grab. The queue stayed
+empty. This partial 30-request collection is not full provider coverage and does
+not prove live video extraction or provider-media import. The Linux server and
+separate local-client guide is [SERVER.md](SERVER.md).
