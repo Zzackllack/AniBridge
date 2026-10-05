@@ -83,7 +83,9 @@ operators can observe requests even with application access logging disabled.
 
 ## Compatibility and restoration
 
-Absent CATALOG_CONFIG_FILE preserves mainline search and startup. An explicit
+Absent CATALOG_CONFIG_FILE preserves mainline search routes. This compatible
+build still performs additive private-schema migrations with a preupgrade
+backup; it does not promise an unchanged v2.6.0 database. An explicit
 query-mode file enables only this pilot, initially AniWorld. No permanent backend
 framework or snapshot consumer mode is added. Additive private schema changes
 retain released mainline data, Job/ClientTask hashes, STRM mappings and files.

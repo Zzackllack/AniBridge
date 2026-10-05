@@ -52,7 +52,46 @@ backups + logs + 1-GB runtime reserve fit the enforced 30,000,000,000-byte budge
 API container: 1 GiB/2 CPUs/no swap; one local download at a time. Metadata
 service: 512 MiB/2 CPUs. The smoke always accepts paused; restart preserves it.
 Do not point these mounts at `data/` or a real private DB. Default mainline
-routes remain available when `CATALOG_CONFIG_FILE` is absent.
+routes remain available when `CATALOG_CONFIG_FILE` is absent. This compatible
+build still runs additive migrations and creates the preupgrade backup; the
+opt-in controls search routing, not whether the private schema upgrades.
+
+## Optional real clients and bounded checks
+
+```sh
+# Only this named disposable project; no existing Sonarr/Prowlarr config is used.
+export COMPOSE_FILE=scripts/catalog/query_pilot/compose.yaml:scripts/catalog/query_pilot/clients.yaml
+docker compose up -d sonarr prowlarr api
+docker compose exec -T --user 1000 api python /pilot/clients.py
+# Optional: one public series-descriptor lookup, unmonitored test series,
+# Unknown-only profile and interactive episode search. No grab is issued.
+docker compose exec -T --user 1000 api python /pilot/clients.py --episode-search
+docker compose stop sonarr prowlarr
+```
+
+The extra containers have separate disposable volumes, digest-pinned images,
+512-MiB/1-CPU limits and no host ports. Sonarr may fetch descriptor/artwork data;
+this does not validate the synthetic provider catalog. Keep both Compose files
+selected for `down -v --remove-orphans` to delete these client volumes too.
+
+```sh
+# Short generated-data measurement, eight concurrent requests, 136 queries.
+docker compose exec -T api python /pilot/benchmark.py
+# Expire only this disposable cache by 61 seconds, then check outage handling.
+docker compose exec -T api python /pilot/smoke.py
+docker compose stop catalog
+docker compose exec -T api python /pilot/outage.py
+docker compose start catalog
+docker compose exec -T api python /pilot/smoke.py
+# Separate one-shot collector/export measurement; no network or retained state.
+docker run --rm --network none --memory 512m --memory-swap 512m --cpus 2 \
+  -v "$PWD/scripts/catalog/query_pilot:/pilot:ro" --entrypoint python \
+  "anibridge-query-worker:$PILOT_COMMIT" /pilot/collector_benchmark.py
+```
+
+Stale age measures time since the cache fetched a page, not provider freshness.
+Do not run these scripts against a real installation. The benchmark reports
+small-fixture latency and payload bytes, not Internet/TLS capacity or an SLA.
 
 ## Test a familiar show next
 
@@ -60,30 +99,48 @@ First choose **one exact AniWorld title path** and your own service/provider
 configuration. That input is the next concrete maintainer action. This task has
 not fetched it. Keep the generated stack as a rehearsal or clean it up first.
 
-Use a second disposable Compose project/config volume for real metadata. Set
-`worker.json` from `apps/catalog-worker/config.example.json`, your source ID,
-credential file and local `client.json`; change the API's `ANIWORLD_BASE_URL`
-from `https://fixture.invalid` to the explicitly selected provider origin. The
-fixture uses a dedicated bridge with Internet routing, but only its one-shot
-initializer has networking disabled. Fixture provider origins are `.invalid`
-and all grabs remain paused; no real provider request is made by the smoke.
-Run the one-title collector command instead of a catalogue-wide scrape:
+After selecting that input, the following explicit commands prepare a second
+fresh project. The initializer only writes configuration; it never collects or
+seeds the generated show. Stop the generated stack to free its loopback ports.
+Do not reuse its config/state volumes for this procedure.
 
 ```sh
-# Catalog service stopped during the deliberately bounded collection pass.
-# Replace /anime/stream/SHOW with the exact selected native title path.
-anibridge-catalog-worker --config worker.json --collect-title /anime/stream/SHOW
-anibridge-catalog-worker --config worker.json --serve --token-file metadata-token
+docker compose down
+export COMPOSE_FILE=scripts/catalog/query_pilot/compose.yaml:scripts/catalog/query_pilot/show.yaml
+export PILOT_PROJECT=anibridge-query-one-show
+# Set these to your explicitly chosen values; no live defaults are selected.
+export PILOT_PROVIDER_ORIGIN=https://YOUR-ANIWORLD-ORIGIN
+export PILOT_SOURCE_ID=private-one-show
+export PILOT_TITLE_PATH=/anime/stream/YOUR-SHOW
+# Default off. Choosing skyhook permits canonical descriptor lookups by collector.
+export PILOT_CANONICAL_TV=off
+docker compose -p "$PILOT_PROJECT" run --rm --no-deps init
+docker compose -p "$PILOT_PROJECT" run --rm --no-deps catalog \
+  --config /config/worker.json --collect-title "$PILOT_TITLE_PATH"
+docker compose -p "$PILOT_PROJECT" up -d catalog api
+curl --fail --get http://127.0.0.1:18000/torznab/api \
+  --data-urlencode t=search --data-urlencode q=YOUR-SHOW-TITLE
+# Status/restart/cleanup retain -p "$PILOT_PROJECT" and these Compose files.
 ```
 
-The first command is Linux/Docker only, empty or matching one-title state,
+The bearer is generated privately in the new config volume. Collector/service
+and user-local provider origins match the explicitly selected HTTPS origin.
+This rehearsal API uses private bridge HTTP explicitly; externally configured
+metadata services require verified HTTPS/auth and their own ingress. The
+fixture bridge has Internet routing; initial generated origins were `.invalid`
+and generated grabs paused. Canonical source `off` retains unknown mappings;
+select `skyhook` only if those additional descriptor requests are intended.
+
+The collection command is Linux/Docker only, empty or matching one-title state,
 at most 30 metadata requests and 120 seconds. Larger titles can be partial;
 unknown languages/maps remain unknown. It preserves observed first-seen dates.
 An explicit second bounded pass may continue pending detail work. It does not
 fetch video. Canonical matching uses exact available evidence; an unresolved
 canonical season is **not** guessed from provider numbering. Review an explicit
-season correspondence with `--review-season FILE`, then `--publish`, if a
-validated title ID map exists (see the retained 019 mapping contract). This is
+season correspondence with `--review-season /config/FILE`, then `--publish`,
+using the same `docker compose ... run --rm --no-deps catalog --config
+/config/worker.json` prefix, if a validated title ID map exists. Place the
+reviewed JSON into that disposable config volume (see retained 019 mapping contract). This is
 one selected collector, not authorization for a bulk scrape or public service.
 
 On local AniBridge, an explicit query config enables the private source. Search
