@@ -215,3 +215,37 @@ def test_production_torznab_route_and_explicit_outage(tmp_path):
         await client.close()
 
     asyncio.run(run())
+
+
+def test_tmdb_request_uses_tmdb_episode_coordinates(tmp_path):
+    from catalog_core import identity, artifact
+
+    client, search, _, root = setup(tmp_path)
+    with closing(sqlite3.connect(root / "fixture.sqlite")) as db, db:
+        tid = db.execute("SELECT title_id FROM title").fetchone()[0]
+        eid = db.execute("SELECT entity_id FROM entity").fetchone()[0]
+        mid = identity.mapping_id("aniworld.to", tid, "tmdb-tv", "456")
+        db.execute(
+            "INSERT INTO canonical_title VALUES(?,?,?,?,?,?,?)",
+            (mid, tid, "tmdb-tv", "456", "synthetic-v1", "reviewed", NOW),
+        )
+        db.execute(
+            "INSERT INTO canonical_episode VALUES(?,?,?,?,?,?,?)",
+            (mid, eid, 3, 9, None, "reviewed", NOW),
+        )
+    metadata = json.loads((root / "current.json").read_text())
+    metadata["artifact"]["sqlite_sha256"] = artifact.sha256(root / "fixture.sqlite")
+    (root / "current.json").write_text(json.dumps(metadata))
+
+    async def run():
+        rows, total, _ = await search.search(
+            {"t": "tvsearch", "tmdbid": "456", "season": "3", "ep": "9"}, now=NOW
+        )
+        assert total == 4 and all(
+            (r["namespace"], r["season"], r["episode"]) == ("tmdb-tv", 3, 9)
+            for r in rows
+        )
+        assert all((r["native_season"], r["native_episode"]) == (1, 2) for r in rows)
+        await client.close()
+
+    asyncio.run(run())

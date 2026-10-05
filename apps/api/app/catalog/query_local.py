@@ -4,7 +4,7 @@ import asyncio
 import json
 import sqlite3
 import tempfile
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from dataclasses import replace
 from pathlib import Path
 
@@ -159,7 +159,9 @@ def materialize(filename: Path, responses: list[Response]) -> dict:
 
 
 def overrides(database: Path) -> list[dict]:
-    with sqlite3.connect(database, timeout=0.2) as db:
+    with closing(
+        sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True, timeout=0.2)
+    ) as db:
         db.row_factory = sqlite3.Row
         rows = [
             dict(r)

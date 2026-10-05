@@ -97,8 +97,9 @@ def publish(config: Config, state: State, now: int) -> dict:
             # complete version or an unreferenced owned file for later cleanup.
             metadata["database"] = f"read-{digest}.sqlite"
             target = root / metadata["database"]
-            if not target.exists():
-                os.replace(destination, target)
+            # Replacing identical bytes also repairs an existing corrupted file.
+            # The exclusive lease ensures no reader still owns the old inode.
+            os.replace(destination, target)
             atomic_write(root / "current.json", dumps(metadata))
             fsync_directory(root)
             for old in root.glob("read-*.sqlite"):

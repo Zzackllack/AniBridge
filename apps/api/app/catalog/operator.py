@@ -60,6 +60,10 @@ async def apply(config_file: str, database: Path, directory: Path, body: dict) -
                 params={"t": "tvsearch", key: body["target"]["external_id"]},
             )
         )
+        require(
+            candidates.state != "stale",
+            "current metadata required to create a correction",
+        )
         titles = {title.title_id for title in candidates.response.titles} | {
             body["title_id"]
         }
@@ -82,7 +86,13 @@ async def apply(config_file: str, database: Path, directory: Path, body: dict) -
             if offset + len(result.response.rows) >= result.response.total:
                 break
         require(
-            len({(r.revision, r.snapshot_digest) for r in batches}) == 1,
+            len(
+                {
+                    (r.revision, r.snapshot_digest)
+                    for r in [candidates.response, *batches]
+                }
+            )
+            == 1,
             "catalog changed; retry correction",
         )
         with tempfile.TemporaryDirectory(

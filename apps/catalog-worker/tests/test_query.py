@@ -384,3 +384,94 @@ def test_sql_cancellation_settles_before_releasing_admission(tmp_path, monkeypat
             assert settled.is_set() and app.state.admission.active == 0
 
     asyncio.run(run())
+
+
+def test_service_broad_query_remains_a_caller_error(tmp_path):
+    from catalog_core.query_client import QueryTooBroad
+
+    async def run():
+        async def broad(request):
+            return httpx.Response(400, json={"error": "query_too_broad"})
+
+        client = Client(
+            "http://127.0.0.1",
+            "synthetic",
+            TOKEN,
+            Cache(tmp_path / "cache"),
+            transport=httpx.MockTransport(broad),
+        )
+        with pytest.raises(QueryTooBroad, match="query_too_broad"):
+            await client.fetch(
+                Request(operation="titles", params={"t": "search", "q": "b"}), now=NOW
+            )
+        await client.close()
+
+    asyncio.run(run())
+
+
+def test_revision_floor_invalidates_other_keys_and_preserves_legacy_floor(tmp_path):
+    from catalog_core.protocol import request_digest
+
+    state, config = seed(tmp_path)
+    app = create_app(config.output_dir, TOKEN, now=NOW)
+    first = Request(operation="recent", params={"t": "search"}, limit=100)
+    second = Request(
+        operation="recent", params={"t": "search", "maxage": "1"}, limit=100
+    )
+
+    async def run():
+        cache = Cache(tmp_path / "cache")
+        client = Client(
+            "http://127.0.0.1",
+            "synthetic",
+            TOKEN,
+            cache,
+            transport=httpx.ASGITransport(app=app),
+        )
+        old = (await client.fetch(first, now=NOW)).response.model_dump()
+        await client.http.aclose()
+
+        async def newer(request):
+            body = {**old, "revision": 2, "query_digest": request_digest(second)}
+            return httpx.Response(200, json=body)
+
+        client.http = httpx.AsyncClient(transport=httpx.MockTransport(newer))
+        assert (await client.fetch(second, now=NOW + 1)).response.revision == 2
+
+        async def outage(request):
+            return httpx.Response(503)
+
+        await client.http.aclose()
+        client.http = httpx.AsyncClient(transport=httpx.MockTransport(outage))
+        with pytest.raises(Unavailable):
+            await client.fetch(first, now=NOW + 2)
+        cache.accept(client.legacy_scope, 3)
+        assert client.revision_floor() == 3
+        with pytest.raises(Unavailable):
+            await client.fetch(second, now=NOW + 2)
+        await client.close()
+
+    try:
+        asyncio.run(run())
+    finally:
+        state.close()
+
+
+def test_verified_publication_repairs_corrupt_identical_read_file(tmp_path):
+    from catalog_worker.read_catalog import verify
+
+    state, config = seed(tmp_path)
+    try:
+        metadata = verify(config.output_dir)
+        path = config.output_dir / metadata["database"]
+        with path.open("r+b") as stream:
+            stream.seek(100)
+            value = stream.read(1)
+            stream.seek(100)
+            stream.write(bytes([value[0] ^ 1]))
+        with pytest.raises(ValueError):
+            verify(config.output_dir)
+        publish(config, state, NOW + 1)
+        assert verify(config.output_dir)["revision"] == 2
+    finally:
+        state.close()

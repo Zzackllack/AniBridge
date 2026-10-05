@@ -212,6 +212,13 @@ def query(
                 LEFT JOIN canonical_title ct ON ct.mapping_id=(SELECT c.mapping_id FROM canonical_title c
                     WHERE c.title_id=t.title_id ORDER BY CASE c.namespace WHEN 'tvdb' THEN 0 WHEN 'tmdb-tv' THEN 1 ELSE 2 END,c.namespace LIMIT 1)
                 LEFT JOIN canonical_episode ce ON ce.mapping_id=ct.mapping_id AND ce.entity_id=e.entity_id"""
+            # TMDB episode coordinates can differ from TVDB. A TMDB-only
+            # request must use its explicit episode map, including local fixes.
+            if "tmdb-tv" in request.ids and "tvdb" not in request.ids:
+                join = join.replace(
+                    "WHEN 'tvdb' THEN 0 WHEN 'tmdb-tv' THEN 1",
+                    "WHEN 'tmdb-tv' THEN 0 WHEN 'tvdb' THEN 1",
+                )
             if metadata["catalog_schema_version"] == 2 and not hasattr(db, "alias"):
                 from catalog_core.compact import query_joins
 

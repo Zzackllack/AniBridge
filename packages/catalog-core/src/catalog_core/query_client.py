@@ -20,6 +20,10 @@ class Unavailable(Exception):
     """An uncached request failed; never translate this to an empty result."""
 
 
+class QueryTooBroad(ValueError):
+    """A validated service limit is a caller error, not an outage."""
+
+
 @dataclass(frozen=True)
 class Result:
     response: Response
@@ -150,6 +154,10 @@ class Client:
         self.origin, self.source_id, self.cache = origin.rstrip("/"), source_id, cache
         self.ttl_s, self.stale_s, self.deadline_s = ttl_s, stale_s, deadline_s
         self.auth_context = hashlib.sha256(token.encode()).hexdigest()
+        self.revision_scope = hashlib.sha256(
+            dumps([1, self.origin, self.source_id, self.auth_context, "aniworld.to"])
+        ).hexdigest()
+        self.legacy_scope = self.auth_context + self.origin + self.source_id
         self.http = httpx.AsyncClient(
             transport=transport,
             timeout=httpx.Timeout(deadline_s, connect=min(1, deadline_s)),
@@ -181,6 +189,13 @@ class Client:
             )
         ).hexdigest()
 
+    def revision_floor(self) -> int:
+        # Retain the older private-pilot floor conservatively while using an
+        # unambiguous context key for new writes/source configurations.
+        return max(
+            self.cache.floor(self.revision_scope), self.cache.floor(self.legacy_scope)
+        )
+
     async def _fetch(self, request: Request, *, now: float | None = None) -> Result:
         now = time.time() if now is None else now
         key = self.key(request)
@@ -194,9 +209,7 @@ class Client:
             try:
                 old = Response.model_validate(loads(cached[0], MAX_RESPONSE))
                 old.check_request(request, self.source_id)
-                if old.revision < self.cache.floor(
-                    self.auth_context + self.origin + self.source_id
-                ):
+                if old.revision < self.revision_floor():
                     raise ValueError("cached revision regressed")
                 age = now - cached[1]
                 if 0 <= age < self.ttl_s:
@@ -214,6 +227,16 @@ class Client:
                     json=request.model_dump(),
                 ) as response:
                     if response.status_code != 200:
+                        if response.status_code == 400:
+                            error_body = bytearray()
+                            async for chunk in response.aiter_bytes(chunk_size=256):
+                                error_body.extend(chunk)
+                                if len(error_body) > 256:
+                                    break
+                            if len(error_body) <= 256 and loads(
+                                bytes(error_body), 256
+                            ) == {"error": "query_too_broad"}:
+                                raise QueryTooBroad("query_too_broad")
                         error = f"http_{response.status_code}"
                         raise Unavailable(error)
                     if (
@@ -234,8 +257,8 @@ class Client:
                             raise ValueError("response too large")
                 result = Response.model_validate(loads(bytes(body), MAX_RESPONSE))
                 result.check_request(request, self.source_id)
-                scope = self.auth_context + self.origin + self.source_id
-                if result.revision < self.cache.floor(scope):
+                scope = self.revision_scope
+                if result.revision < self.revision_floor():
                     raise ValueError("response revision regressed")
                 try:
                     self.cache.accept(scope, result.revision)
@@ -246,6 +269,8 @@ class Client:
                 except sqlite3.Error:
                     return Result(result, "miss", 0, "cache_unavailable")
                 return Result(result, "miss", 0)
+        except QueryTooBroad:
+            raise
         except (
             httpx.HTTPError,
             TimeoutError,

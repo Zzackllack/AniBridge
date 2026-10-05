@@ -30,7 +30,8 @@ broad/large candidate sets fail explicitly instead of returning truncated totals
 Retain 019 provider-scoped SHA-256 title/entity/release IDs, source paths and
 native coordinates, canonical namespace/ID and explicit episode coordinates,
 positive language observations, first_seen_at across rebuild/reappearance, and
-v2 self-contained magnets. No inferred numbering, quality, codec or size.
+v2 self-contained magnets. No inferred numbering, quality, codec or size. TMDB-only episode requests use
+explicit TMDB coordinates; TVDB remains the default for TVDB/title searches.
 First-seen means discovery, including historical bootstrap. GUIDs/infohashes do
 not change with mapping/title/quality corrections. No local search-time media
 sampling or canonical/provider network fallback is enabled in this pilot.
