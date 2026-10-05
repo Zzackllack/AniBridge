@@ -1,6 +1,6 @@
 # Private request API pilot
 
-Metadata/season-1 discovery is closed. The finite next acceptance and private
+Metadata/season-1 discovery is closed. The passing generated-media acceptance and private
 readiness verdict are in [ACCEPTANCE.md](ACCEPTANCE.md). Do not expand the pilot
 or recollect the retained selected show to run that generated-media scenario.
 

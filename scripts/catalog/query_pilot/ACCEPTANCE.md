@@ -17,16 +17,19 @@ it does not change the application, recollect Bunny Girl Senpai or alter mapping
 - Production local admission/scheduler/executor/remux/publication exist; unit
   tests cover pause/block/retry/restart. Paused admission was demonstrated.
 
-Full query → grab → completed production job → Sonarr import **has not yet been
-demonstrated on this request-API branch**. Historical harnesses replacing the
-download child do not count. Playback is outside this acceptance scenario.
+Full query → grab → completed production job → Sonarr import **passed** on
+2026-10-05 using generated media and the unchanged production job path.
+Validated build: `159fd2ac28e70518f74a1aaf27205a491aff277e`. Result:
+[generated-acceptance.json](../../../internal/specs/020-catalog-query-api-evaluation/evidence/generated-acceptance.json).
+Playback is outside this acceptance scenario.
 
 ## One generated-media scenario
 
 Run on an isolated Linux Docker host, from this checkout, after explicit host
 authorization if it is remote. No server access/deployment has been performed.
-Docker is currently unavailable on the development machine; this scenario is
-**prepared, not reported as passed**.
+The scenario passed locally in Docker Desktop’s Linux/arm64 VM with Sonarr
+4.0.20.3014 and Prowlarr 2.6.5.5623. No application fix was needed. The prior
+Docker connection failure did not establish that Docker Desktop was down.
 
 Use a fresh project named `anibridge-query-acceptance`. Never combine the
 acceptance overlay with `show.yaml` or point it at retained Bunny/real volumes.
@@ -95,17 +98,26 @@ Expected PASS means the script actually verifies all of:
   equals the published MKV, ffprobe finds video/audio and >600-second duration.
 - JSON contains `acceptance: passed`; no helper writes a completed job row.
 
-This would prove generated-input resolution/transfer, actual job completion and
-actual Sonarr import of generated media. It would **not** prove real provider
-extraction, TLS/DNS security, host uptime, signed URLs or import of provider media.
+The passing run proves generated-input resolution/transfer, actual production
+job completion and Sonarr import of generated media. It does **not** prove real
+provider extraction, TLS/DNS security, host uptime, signed URLs or import of
+provider media. The imported file matched the published MKV SHA-256. Job
+admission → completion took 4 seconds at database timestamp precision; input
+7,791,146 bytes, published/imported file 7,862,192 bytes. Container lifetime
+memory peaks were 696,487,936 bytes for AniBridge and 67,956,736 bytes for
+metadata serving, below their 1-GiB/512-MiB limits. This is a short one-job
+measurement, not collector capacity or endurance proof.
 
 ## Blockers and readiness
 
-| Item | Classification | Finite disposition |
-| --- | --- | --- |
-| Docker/Linux runtime unavailable here | Operational prerequisite | Run the exact scenario once when Docker is available; no application work required |
-| Production completion → actual generated import not executed | Outstanding acceptance evidence, not a confirmed defect | Require the assertions/result above; one PASS closes this scoped acceptance |
-| Final Bunny queue check | Short operational check | Read the stopped retained queue below and confirm `[]`; no recollection, grab or new milestone |
+**No blockers remain for the scoped generated query → grab → completion →
+import workflow. The private pilot is ready for this workflow.** Real AniWorld
+metadata/season-1 discovery is also closed. Generated media proves the local
+pipeline; live provider extraction/provider-media import remains unverified.
+
+The final retained Bunny queue check passed with `[]`. Neither Bunny containers
+nor jobs were started, and its metadata/mappings/volumes were preserved. The
+acceptance stack was stopped with `down`; its disposable volumes remain.
 
 For that final queue check, keep the Bunny containers stopped and use the
 existing tested API image on the machine holding those volumes. A temporary
@@ -132,13 +144,6 @@ PY
 
 This confirms empty persisted queue state; it is not another client discovery
 run or a new completion/import gate. Do not start a live queue if it is nonempty.
-
-**No confirmed implementation blocker is known for this configured generated
-workflow. Metadata/discovery is private-pilot ready and closed. The full workflow
-is ready for the finite acceptance run, but is not yet accepted without its PASS.**
-If it passes, no blocker remains for the scoped generated workflow. A failed
-assertion is an actual blocker with a concrete failing stage, not permission to
-start an open-ended implementation program.
 
 Deferred coverage/release limitations: season-2 annotated finale and three films;
 live provider/video-host extraction and provider-media import; broader catalogs/

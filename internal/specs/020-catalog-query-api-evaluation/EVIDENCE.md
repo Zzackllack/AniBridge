@@ -241,12 +241,13 @@ and [ReleaseResource](https://github.com/Sonarr/Sonarr/blob/v4.0.20.3014/src/Son
 The initial harness expected the manual-queue `seriesId` field; the final check
 correctly validates `mappedSeriesId`, mapped coordinates and rejection status.
 
-Docker became unavailable immediately after the passing discovery. Subsequent direct
-queue/status checks could not connect and remain **unverified**. No daemon
+This tool session lost its Docker connection immediately after passing discovery.
+The failed queue/status calls did not establish that Docker Desktop was down.
+The short retained-queue check subsequently passed with `[]` (see below). No daemon
 restart or volume deletion; existing Bunny volumes and new separate client
 volumes were retained. Unrelated installations and the synthetic project were
 not started or changed. Details: [bunny-matching.json](evidence/bunny-matching.json).
-Repeat discovery and finish the queue check with
+Discovery reproduction:
 [BUNNY_MATCHING.md](../../../scripts/catalog/query_pilot/BUNNY_MATCHING.md).
 Extraction/import/playback/public gates remain open; historical validator
 failures remain failed evidence.
@@ -258,7 +259,7 @@ No collection, mapping change, server access/deployment, live extraction,
 endurance run or new product feature is authorized by this handoff.
 [ACCEPTANCE.md](../../../scripts/catalog/query_pilot/ACCEPTANCE.md) records
 implemented/demonstrated behavior, operational prerequisites, the single
-remaining generated workflow acceptance and deferred release coverage.
+generated workflow acceptance and deferred release coverage.
 
 The prepared scenario uses a fresh named disposable project, existing API/
 collector/client images, generated test-pattern/sine bytes and a test-only
@@ -269,16 +270,34 @@ No fake completed job, replacement download-child result or direct status write.
 One attempt is required; no restart/retry matrix. Library/download path sharing,
 UID ownership and explicit Unknown test policy are supplied by the scenario.
 
-Preparation checks: Compose overlay parses without a running daemon; Ruff
-check/format pass; native focused generated-input test **1 passed** through the
-real maintained resolver and streaming transfer. It rejects undeclared fixture
-paths and leaves HOME unchanged. This small test does not prove child resource
-enforcement, complete job publication or Sonarr import. The full Linux scenario
-is **not executed** because Docker is unavailable, and no PASS result is recorded.
+The finite acceptance **passed** on Docker Desktop Linux/arm64, build
+`159fd2ac28e70518f74a1aaf27205a491aff277e`: Sonarr 4.0.20.3014/Prowlarr
+2.6.5.5623 indexer tests, 40 generated season variants and 2 episode variants;
+Sonarr's sole release POST durably admitted one job, completed in one attempt;
+actual remux/probe/receipt/publication and completed-download import passed.
+Imported S01E01 file SHA-256 equals the published MKV; ffprobe confirms video,
+audio and >600-second duration. All four fixture reads originated in
+`job_child.py` (provider, player, media prefix and media stream). No application
+change or replacement executor was needed. Focused input test: **1 passed**.
 
-No confirmed implementation defect currently blocks this configured generated
-workflow. Metadata/discovery is private-pilot ready. End-to-end acceptance
-remains pending the one finite run; a PASS closes the scoped generated workflow.
-Live provider extraction/provider-media import, annotated entries, broader
-coverage/platform/public-launch gates remain separate limitations. The Bunny
-queue check is only a short operational check when Docker becomes available.
+Command: `docker compose -p anibridge-query-acceptance exec -T --user 1000 api
+python /pilot/acceptance/run.py`, with the three files in ACCEPTANCE.md.
+Docker 28.5.1, Desktop 4.49.0 (208700), Compose 2.40.2-desktop.1. Host free disk
+was 14 GiB before the run. Job created 17:38:53 UTC, completed 17:38:57 UTC
+(4 seconds at timestamp precision). Generated MP4 7,791,146 bytes; published/
+imported MKV 7,862,192 bytes. Container lifetime cgroup memory peaks:
+AniBridge 696,487,936 bytes under 1 GiB/2 CPUs; catalog 67,956,736 bytes under
+512 MiB/2 CPUs. Worker state/read catalog logical sizes: 331,776/123,413 bytes.
+These are short synthetic measurements, not capacity/endurance evidence.
+Bounded result/resource record: [generated-acceptance.json](evidence/generated-acceptance.json).
+
+Retained Bunny queue was checked read-only using a temporary SQLite/WAL copy:
+**`[]`**. Bunny containers stayed stopped; no collection or mapping changes.
+Only the acceptance stack was started/stopped; all disposable volumes remain.
+No server access/deployment, supplied provider-media download or playback.
+
+**No blocker remains for the scoped generated workflow; private-pilot ready.**
+The real metadata/season-1 discovery milestone remains closed. Live provider
+extraction/provider-media import, annotated entries, broader coverage/platform/
+public-launch gates remain deferred limitations. Historical validator/endurance
+failures remain failed evidence. There is no new implementation milestone.
