@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 from email.utils import formatdate
 from catalog_core import identity, magnet
 from catalog_core.query import LANGUAGES, TORZNAB, NEWZNAB
+from catalog_core.query import parse as parse
 
 
 def rss(rows: list[dict], total: int, offset: int) -> bytes:

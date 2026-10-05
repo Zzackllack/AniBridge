@@ -55,7 +55,10 @@ services:
     cpus: 2
     logging: *bounded-logs
 networks:
-  private: {internal: true}
+  private:
+    driver: bridge
+    # Provider origins are fixture.invalid by default and grabs stay paused.
+    # A normal bridge makes loopback published ports usable on Docker Desktop.
 volumes:
   config:
   worker-state:

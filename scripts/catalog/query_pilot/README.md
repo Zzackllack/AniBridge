@@ -18,13 +18,13 @@ metadata fixture is **generated Breaking Bad metadata**, tied to TVDB 81189 for
 real-client compatibility; it is not AniWorld coverage or provider validation.
 The generated collector/parser path observes German dub and English sub for
 20 episodes, assigns explicitly generated canonical coordinates, then exports
-one read catalog. The fake fetcher sends no network requests. No fixture media
+one read catalog. The initializer has networking disabled and its fake fetcher sends no requests. No fixture media
 exists. Never resume this synthetic grab against a real provider.
 
 AniBridge is at <http://127.0.0.1:18000>; metadata service port is loopback 18080.
 The metadata bearer is generated into the private `config` volume, not committed
 or printed. `client.json` explicitly selects `private-fixture` and HTTP on the
-isolated Docker network; normal external configuration requires verified HTTPS.
+dedicated Docker bridge; normal external configuration requires verified HTTPS.
 The source identity, auth token fingerprint and complete request scope the cache.
 Ports and volumes use the fixed Compose project `anibridge-query-pilot`.
 
@@ -64,8 +64,9 @@ Use a second disposable Compose project/config volume for real metadata. Set
 `worker.json` from `apps/catalog-worker/config.example.json`, your source ID,
 credential file and local `client.json`; change the API's `ANIWORLD_BASE_URL`
 from `https://fixture.invalid` to the explicitly selected provider origin. The
-private fixture network has no Internet egress: grant outbound access only to
-the selected collector/user-local grab processes when deliberately testing them.
+fixture uses a dedicated bridge with Internet routing, but only its one-shot
+initializer has networking disabled. Fixture provider origins are `.invalid`
+and all grabs remain paused; no real provider request is made by the smoke.
 Run the one-title collector command instead of a catalogue-wide scrape:
 
 ```sh

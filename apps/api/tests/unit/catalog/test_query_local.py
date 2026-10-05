@@ -173,3 +173,45 @@ def test_recent_mode_variant_pagination(tmp_path):
         await client.close()
 
     asyncio.run(run())
+
+
+def test_production_torznab_route_and_explicit_outage(tmp_path):
+    from types import SimpleNamespace
+    from fastapi import FastAPI
+    from app.catalog.http import router
+
+    client, search, _, _ = setup(tmp_path)
+    app = FastAPI()
+    app.state.catalog = SimpleNamespace(search=search)
+    app.include_router(router)
+
+    async def run():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://local"
+        ) as http:
+            params = {"t": "tvsearch", "tvdbid": "123", "season": "0"}
+            result = await http.get("/torznab/api", params=params)
+            assert result.status_code == 200
+            assert b"<item>" in result.content
+            await client.http.aclose()
+
+            async def unavailable(request):
+                return httpx.Response(503)
+
+            client.http = httpx.AsyncClient(transport=httpx.MockTransport(unavailable))
+            client.ttl_s = 0
+            stale = await http.get("/torznab/api", params=params)
+            assert (
+                stale.status_code == 200
+                and stale.headers["X-AniBridge-Catalog-Stale"] == "true"
+            )
+            missing = await http.get(
+                "/torznab/api", params={"t": "tvsearch", "tvdbid": "99999"}
+            )
+            assert missing.status_code == 503 and b'code="900"' in missing.content
+            assert (
+                await http.get("/torznab/api", params={"t": "caps"})
+            ).status_code == 200
+        await client.close()
+
+    asyncio.run(run())
