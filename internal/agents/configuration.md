@@ -119,8 +119,10 @@ unsupported and ignored if still present in runtime env:
 
 `CATALOG_CONFIG_FILE` absent means mainline behavior. Explicit JSON `mode=query`
 requires `origin`, `source_id`, `token_file`; HTTPS except loopback or explicitly
-opted-in disposable private HTTP. Only `CATALOG_SITES=aniworld.to` is enabled in
-the first pilot. `MANAGEMENT_API_TOKEN` optionally enables authenticated local
-job retry/cancel; it must encode 32 random bytes as base64url. Query requests
+opted-in disposable private HTTP. `CATALOG_SITES=aniworld.to,s.to` selects
+AniWorld + Serienstream; `s.to` is a stable provider key, not the current origin. Use `STO_BASE_URL=https://serienstream.to`.
+Megakino is optional; unlabelled languages remain gaps. Normal collection and
+server/client setup are in [SERVER.md](../../scripts/catalog/query_pilot/SERVER.md).
+`MANAGEMENT_API_TOKEN` optionally enables authenticated local job retry/cancel; it must encode 32 random bytes as base64url. Query requests
 disclose terms/IDs and service-visible IPs. No proxy/log privacy guarantees.
 See the [pilot guide](../../scripts/catalog/query_pilot/README.md).

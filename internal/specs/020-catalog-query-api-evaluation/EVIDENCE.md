@@ -301,3 +301,68 @@ The real metadata/season-1 discovery milestone remains closed. Live provider
 extraction/provider-media import, annotated entries, broader coverage/platform/
 public-launch gates remain deferred limitations. Historical validator/endurance
 failures remain failed evidence. There is no new implementation milestone.
+
+
+## Provider implementation and real-server preparation — 2026-10-05
+
+Finite local extension, preserving the existing implementation branch/commits.
+Reference worker/evaluation heads were inspected, not merged. Normal operator
+commands: [SERVER.md](../../../scripts/catalog/query_pilot/SERVER.md). Measurements:
+[provider-pilot.json](evidence/provider-pilot.json). No remote host was accessed,
+full crawl launched on the Mac, real installation changed, push/PR/publication
+performed, or accepted AniWorld workflow unnecessarily repeated.
+
+| Requirement | Final status | Evidence / limit |
+| --- | --- | --- |
+| AniWorld → request API → Sonarr TV discovery | implemented + verified | Prior accepted live/real-client proof retained; default v1 requests preserved, current generic query tests pass |
+| Serienstream → request API → Sonarr TV discovery | implemented + verified | Current HTTPS listing/detail parser; 30 bounded collector requests; production Torznab 32 title/14 season/2 episode releases; actual Sonarr/Prowlarr episode/season searches passed |
+| Megakino movie identity/collection/query/grab wiring | implemented + verified | Normal collector created one movie entity with null TV coordinates; labelled fixture query/resolution tests; configurable HTTPS origin and explicit sitemap alias; no fake S01E01 |
+| Megakino → real Radarr discovery | implemented + environment-blocked | Inception's live player is unlabelled: zero releases. Movie enrichment also requires an operator TMDb credential. No actual Radarr client proof is claimed |
+| Practical canonical matching/coverage | implemented + verified | Three independent unique episode-name anchors, no number equality; reviewed maps retained; scoped AniWorld finale fallback; duplicate/empty/conflicting evidence unresolved. Live Serienstream 19/23 collected episodes mapped automatically; CLI exposes counts, ambiguity/outcomes and gaps |
+| Large episode/season requests + local corrections | implemented + verified | 601 entities/2,404 variants in both read schemas; cold target = two HTTP requests; episode moved between seasons, old season empty, corrected season exact total 202 for two languages; broad history explicitly fails |
+| Durable normal bootstrap/resume + early partial publication | implemented + verified | Actual Linux CLI through four finite generated two-provider passes; real publication subprocess, retained first-seen/checkpoints and independent pointers. A publication defect was fixed: `limit_child`'s second argument is file bytes, not the 420-second deadline |
+| Targeted recent work, reconciliation, backoff, serving during replacement | implemented + verified | Retained signal/scheduler/circuit tests, normal provider-block isolation and concurrent read/replacement tests. TV feeds have explicit overlap/gap status; Megakino recent feed unsupported, serials inventoried as unsupported |
+| Full live bootstrap time/coverage/capacity | implemented + environment-blocked | Commands are implemented; deliberately not run on the development Mac. Selected pass checkpoint span 57 seconds/30 requests is partial. Measure complete bootstrap on an operator-selected Linux host |
+| Cache/outage/provider isolation | implemented + verified | Source/auth/provider revision scopes; replay/auth/negative/stale/coalescing tests; absent AniWorld still yielded live Serienstream results with explicit partial header; cold service/client outage 503/XML 900 |
+| Mainline data, jobs, STRM paths and local corrections | implemented + verified | Full API migration/lifecycle/override suites; no new private API schema migration in this extension; real state untouched. Released schema copies and interrupted migrations/backups remain covered |
+| Actual maintainer-state upgrade-copy rehearsal | implemented + environment-blocked | Offline no-network migration command supplied; no consistent private-state backup was supplied or accessed. It cannot be represented as tested against that installation |
+| Linux Compose/status/resource budget/backup/restore | implemented + verified | Separate server/client stacks actually started; counts/status, independent volumes, resource/log bounds and no-overwrite backup. Incomplete marker is persisted before copying so interrupted sets are rejected. 30,000,000,000-byte total unchanged |
+| Remote verified HTTPS ingress | implemented + environment-blocked | Opt-in existing Traefik network/router configuration validates locally; only authenticated POST catalog query routes. No authorized host/DNS/TLS deployment was requested; guide-only finish was requested |
+| Query → grab → production completion → client import | implemented + verified | Prior AniWorld generated acceptance retained. New Serienstream: actual Sonarr/Prowlarr grab, real provider/host parser, production transfer/remux/receipt, durable completed job in one attempt, verified MKV and Sonarr import |
+| Live extraction/provider-media import/playback | implemented + environment-blocked | Metadata checks and generated inputs are distinct; suitable authorized live media was not supplied. No live extraction/import/playback proof is claimed |
+
+Tests: core **289 passed** (3.80 s); API full **255 passed, 18 skipped**
+(19.59 s), followed by the expanded three provider/long-series cases **3 passed**
+(0.94 s); final installed Linux worker **122 passed** (27.46 s). Generated input
+resolver/stream boundary **2 passed** (0.48 s). Ruff for changed runtime/operator
+files and Compose validation passed. The known TestClient deprecation remains.
+The full API count preceded the extra compact-schema parameter case; counts are
+not additive. No 24-hour workload, automation or 600-crash campaign was launched.
+
+Actual Linux runtime builds: generated acquisition `7144be5`; separate live
+server/client `e9284a7`; final worker and Linux suite `f253148`. Subsequent test/
+operator/document edits do not alter the API application code. Worker image
+`e9284a7` was 67,401,034 bytes; API 419,217,849 bytes. Selected live ledger/read
+storage after Serienstream + one unresolved Megakino movie was **987,136 bytes**,
+plus the fixed 1,000,000,000-byte runtime reserve. Generated acquisition AniBridge/metadata
+service peaks were **689,999,872 / 57,643,008 bytes** under 1 GiB/512 MiB. These
+small measurements are not whole-catalog sizing or endurance guarantees. Mac
+physical free space was 12 GiB; the Linux VM's large thin-filesystem figure is
+not physical capacity proof. All new stacks were stopped; disposable volumes
+remain. Live-discovery queue was verified empty. Retained Bunny was not touched.
+
+The first live-client probe failed rootfolder setup because the test used
+separate downloads mounts and a root-owned directory. The isolated configuration
+was corrected to the same bind and UID 1000; the subsequent actual Sonarr episode
+and season searches passed. This was not a fabricated import or application fix.
+
+**Draft-PR ready for an AniWorld + Serienstream private pilot.** Megakino is
+optional and not ready for live Radarr discovery on the observed page. Ordinary
+TVDB correspondence can be automatic; missing year/ID/name evidence, split
+seasons, duplicate names and TMDB-only TV episode coordinates without explicit
+maps remain unresolved. No public/default/redistribution readiness is claimed.
+Historical 019/evaluation endurance failures remain failed evidence.
+
+Concrete operator handoff: choose one Linux host with measured disk headroom,
+transfer this committed branch, and run SERVER.md's fresh configuration/bootstrap
+and private HTTPS ingress commands; then connect the separate disposable client.

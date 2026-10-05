@@ -23,8 +23,9 @@ Request API private pilot
 - Selected contract: `internal/specs/020-catalog-query-api-evaluation/IMPLEMENTATION.md`.
   This supersedes 019 client snapshot distribution only. Historical gate failures
   remain historical failures; no public default or remote deployment is approved.
-- `CATALOG_CONFIG_FILE` is opt-in: absent keeps mainline routes; query mode initially
-  requires only AniWorld enabled. Local corrections precede canonical filtering.
+- `CATALOG_CONFIG_FILE` is opt-in: absent keeps mainline routes; query mode supports
+  configured AniWorld/Serienstream and optional Megakino. Local corrections precede
+  canonical filtering.
 - Search never crawls or extracts video. Jobs freeze source identity and resolve
   on the user's instance. Do not introduce snapshot client download machinery.
 - Total collector/service storage is 30,000,000,000 bytes, including state, read
@@ -33,8 +34,10 @@ Request API private pilot
   never mix those with a real installation. No query/IP access logs by default.
 - Keep `EVIDENCE.md` current; synthetic/client/live extraction/import/playback
   proofs are distinct. The maintainer guide is `scripts/catalog/query_pilot/README.md`.
-- Metadata/season-1 discovery is closed. The finite generated-media acceptance
-  handoff is `scripts/catalog/query_pilot/ACCEPTANCE.md`; its HTTP input hook is
+- Normal Linux collection/server and separate local-client commands are in
+  `scripts/catalog/query_pilot/SERVER.md`; Megakino live language gaps remain explicit.
+- The original AniWorld metadata/season-1 discovery is closed. The finite generated
+  media acceptance handoff is `scripts/catalog/query_pilot/ACCEPTANCE.md`; its HTTP input hook is
   test-only and must never be installed in a normal deployment.
 
 Common pitfalls

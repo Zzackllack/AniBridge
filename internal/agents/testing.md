@@ -66,3 +66,9 @@ Metadata/season-1 discovery is closed. The single generated-media production-job
 acceptance scenario is [ACCEPTANCE.md](../../scripts/catalog/query_pilot/ACCEPTANCE.md).
 Its test-only HTTP input hook must never be installed in normal deployments;
 it does not substitute the executor/download child or fabricate completion.
+
+Provider/large-title query cases are in `test_query_providers.py`. The normal
+Linux collection command is tested through restart, real publication subprocess,
+provider block isolation and backup by worker `test_private_operations.py`.
+The publication child has a 1-GiB file cap; the parent supplies the 420-second
+wall deadline. These are different arguments to `limit_child`/`run_child_async`.

@@ -1,6 +1,12 @@
 # Private request API pilot
 
-Metadata/season-1 discovery is closed. The passing generated-media acceptance and private
+Normal all-provider wiring and Linux operation now use [SERVER.md](SERVER.md):
+separate collector/API server and local client, bootstrap/resume, HTTPS ingress,
+status, backup and restore. AniWorld + Serienstream are usable; Megakino remains
+optional with the observed live language gap. Commands below retain the original
+generated and one-title rehearsals.
+
+The original AniWorld metadata/season-1 discovery is closed. The passing generated-media acceptance and private
 readiness verdict are in [ACCEPTANCE.md](ACCEPTANCE.md). Do not expand the pilot
 or recollect the retained selected show to run that generated-media scenario.
 
@@ -192,14 +198,15 @@ the retained `anibridge_jobs.db.pre-catalog-v3.backup` and matching files while
 stopped. Restore loses post-backup changes; forward restoration is preferable.
 Pilot cleanup deletes only disposable volumes, never a production backup.
 
-The first slice serves AniWorld only. Broad searches (>200 candidate titles,
->2,000 observed releases, >8 correction targets) fail explicitly. Full title
-batches can overfetch other seasons; normal seasons fit one 500-record request.
+Query mode supports the configured provider set. Broad searches (>200 candidate
+titles, >2,000 native observed releases per provider, >8 correction targets) fail
+explicitly. Episode/season requests retrieve canonical coordinate supersets plus
+locally corrected entities, so a long show's history does not consume that bound.
 Recent offset pages can straddle updates: overlap polls and deduplicate GUIDs.
 The cache covers prior queries/pages only, not complete offline search. Old
 snapshot tables are retained solely for compatible private-schema upgrades;
 no snapshot client/updater is present. Native job enforcement, public rights,
-public hosting/defaults, larger capacity/freshness and other providers remain
+public hosting/defaults, larger capacity/freshness remain
 release work. The old snapshot validator timeout remains failed evidence.
 
 Results and exact measurement scope: [EVIDENCE.md](../../../internal/specs/020-catalog-query-api-evaluation/EVIDENCE.md).

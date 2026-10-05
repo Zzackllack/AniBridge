@@ -6,10 +6,9 @@ from pathlib import Path
 
 import httpx
 import pytest
-
-from app.core.downloader import provider_policy
 from app.catalog import media_transport
 from app.catalog.resolution_transport import Budget
+from app.core.downloader import provider_policy
 
 
 @pytest.mark.parametrize("provider", ["aniworld.to", "s.to"])

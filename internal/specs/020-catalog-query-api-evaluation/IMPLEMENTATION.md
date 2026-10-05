@@ -21,7 +21,11 @@ ID associations; IDs and normalized prefix title text intersect. Ambiguous IDs
 remain unresolved. Native batches select stable title IDs and return observed
 entity/language variants and conservative canonical maps without canonical
 season filtering. Ordinary seasons fit one batch; larger titles use bounded
-pages, never per-episode network requests. A local correction's stable title ID
+pages, never per-episode network requests. Canonical coordinate selectors narrow
+native batches to a superset plus local correction entity IDs. Those stable IDs
+are disclosed for retrieval; reasons/fingerprints/override bodies stay local.
+AniWorld default v1 wire requests remain compatible; expanded providers and
+coordinate selectors require the updated service/client. A local correction's stable title ID
 is included in candidate discovery. Corrections stay on the local installation.
 Complete candidate batches are corrected before ID/season/episode/language,
 category and mode filtering, exact totals and final pagination. Excessively
@@ -39,7 +43,7 @@ sampling or canonical/provider network fallback is enabled in this pilot.
 Finite limits: eight simultaneous server/local queries; 2-second cooperative
 SQL budget and 3-second HTTP deadline; 15-second total local search deadline;
 16-KiB request, 2-MiB response, 200 candidate titles, 500 native releases/page,
-2,000 native releases/search, 100 RSS results/page and offset <=10,000. Global
+2,000 native releases/provider/search, 100 RSS results/page and offset <=10,000. Global
 server token bucket 200/s, burst 256; no per-IP table. Ninth active operation is
 rejected. Disconnect/timeout signals SQL cancellation; slots remain held until
 threads settle. Kernel-stalled I/O is not a hard real-time guarantee. Multi-page
@@ -86,7 +90,7 @@ operators can observe requests even with application access logging disabled.
 Absent CATALOG_CONFIG_FILE preserves mainline search routes. This compatible
 build still performs additive private-schema migrations with a preupgrade
 backup; it does not promise an unchanged v2.6.0 database. An explicit
-query-mode file enables only this pilot, initially AniWorld. No permanent backend
+query-mode file enables only this pilot, AniWorld/Serienstream and optional Megakino. No permanent backend
 framework or snapshot consumer mode is added. Additive private schema changes
 retain released mainline data, Job/ClientTask hashes, STRM mappings and files.
 Reuse exact mainline preflight/backup and conservative legacy-job recovery from
@@ -136,3 +140,22 @@ C7/C8 public/platform gates remain closed. Both old endurance validation timeout
 remain failed historical evidence, including the unexplained second timeout.
 This pilot neither explains nor fixes them. Deterministic fixtures, actual *arr
 fixture clients, live provider extraction, import and playback are separate proofs.
+
+## Implemented provider extension (2026-10-05)
+
+Normal scheduler and read serving support independently configured AniWorld,
+Serienstream (`s.to` stable identity) and optional Megakino. Each provider owns
+its last-good read pointer/revision under the shared aggregate storage budget.
+HTTPS origins never change public IDs. Megakino sitemap origin aliases are
+explicit path-only metadata allowlists; serial titles remain unsupported, and
+unlabelled player languages produce no releases. No default-German inference.
+
+TV season correspondence can be proved by three distinct unique episode-name
+anchors in one canonical season, with no conflicting uniquely matched name or
+second native season claiming that season. Reviewed correspondence remains
+available. Duplicate source/canonical titles and ambiguous cases stay unresolved.
+Only the demonstrated trailing AniWorld `[Final Episode]` suffix is a fallback,
+after exact evidence, and never changes stored source titles/coordinates.
+
+Operator commands and coverage limits: `scripts/catalog/query_pilot/SERVER.md`.
+No full provider crawl was performed on the development Mac or remotely.
