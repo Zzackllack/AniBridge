@@ -69,6 +69,12 @@ docker compose exec -T --user 1000 api python /pilot/clients.py --episode-search
 docker compose stop sonarr prowlarr
 ```
 
+The client check also accepts an explicit `--tvdb-id`, `--season`, `--episode`,
+expected release counts and `--season-search`. Use season matching against
+reviewed real episode metadata: the generated Breaking Bad fixture does not
+represent its complete real season. The retained maintainer-selected catalog and
+its discovery commands are documented in [BUNNY_MATCHING.md](BUNNY_MATCHING.md).
+
 The extra containers have separate disposable volumes, digest-pinned images,
 512-MiB/1-CPU limits and no host ports. Sonarr may fetch descriptor/artwork data;
 this does not validate the synthetic provider catalog. Keep both Compose files

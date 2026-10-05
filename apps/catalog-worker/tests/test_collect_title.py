@@ -17,7 +17,7 @@ from catalog_worker.state import State
     sys.platform != "linux", reason="collector child bounds require Linux"
 )
 def test_two_targeted_passes_preserve_fetched_title(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     title = "/anime/stream/a-url-slug"
     heading = "The Proper Display Title"

@@ -187,3 +187,66 @@ Stopped/removed only this project's service containers and network with
 `docker compose ... down`. Its disposable volumes/config/catalog remain for
 reproduction; the earlier synthetic project volumes were not changed. No
 provider HTML, cookies, credentials or live catalog database is committed.
+
+## Resume fix and selected Sonarr matching (2026-10-05)
+
+Continues the selected pass above without resetting any existing volume.
+Fix commit `0ce826fd30eba0cf8c0772a53e0695331028feb0` uses the stored display
+title for resumed synthetic listing hints. The Linux regression resumes two
+remaining episodes after a 30-work-page first pass, proving the heading,
+release IDs and first-seen timestamps survive with only one title-detail fetch.
+Full Linux worker suite: **117 passed in 27.75 s**, network disabled,
+1-GiB/2-CPU container. Ruff/diff checks pass; both revision-labeled images built.
+
+The already damaged heading was repaired through **one selected title-detail
+work page** using the existing collector/parser. No episode/film pages or video
+hosts were fetched for that repair. Setting `due=0` alone did not bypass
+incremental reconciliation; the repair used an explicit normal detail claim.
+Current heading: `Rascal Does Not Dream of Bunny Girl Senpai`. One bounded
+no-overwrite worker backup remains at
+`/state/aniworld.to.sqlite.before-sonarr-matching.backup`. The digest of all
+ordered `(release_id, entity_id, language, first_seen_at)` tuples is unchanged:
+**70 releases / 29 entities** preserved. Token/source/local private state and
+download volumes were not replaced.
+
+Explicit provider IMDb `tt8993398` matched exactly one Skyhook candidate:
+TVDB **345596**. The full descriptor confirmed that IMDb ID, title and 2018
+first-air year; it also supplied TMDB TV **82739**. Worker TV enrichment is now
+explicitly `skyhook`, with `skyhook-v1` approved for publication. Reviewed
+native season 1 → canonical season 1 from **13 unique exact normalized episode
+title matches**; season 2 → season 2 from **12**. The retained matcher applied
+descriptor episode coordinates, not ordinal equality. The old slug-context
+cache was not reusable after the repair; a fresh descriptor refresh admitted
+the corrected input context.
+
+**25 mapped entities / 62 language variants**: season 1 **39 variants,
+episodes 1–13**; season 2 **23 variants, episodes 1–12**, partial. Four entries /
+eight variants remain unmapped: season 2 episode 13's `[Final Episode]` suffix
+and three film entries' `[Movie]` annotations. No annotation stripping or guessed
+special/film numbering. Accepted title matches were unique; the unmatched
+annotations require specific review.
+
+Real disposable Sonarr **4.0.20.3014** and Prowlarr **2.6.5.5623** both passed
+indexer tests (HTTP 200). Prowlarr forwarded TVDB 345596/season 1 and returned
+**39** releases. Sonarr's unmonitored series/episodes and Unknown-only test
+profile returned **3** episode-1 releases and **39** season-search releases,
+all mapped to the correct local series/season and episodes **1–13**, Unknown
+quality, with no season-search rejections. No release POST, grab, provider-host
+extraction, media download, import or playback. Sonarr descriptor/artwork access
+is separate from provider media access.
+
+Context7 guidance was checked against pinned v4
+[ReleaseController](https://github.com/Sonarr/Sonarr/blob/v4.0.20.3014/src/Sonarr.Api.V3/Indexers/ReleaseController.cs)
+and [ReleaseResource](https://github.com/Sonarr/Sonarr/blob/v4.0.20.3014/src/Sonarr.Api.V3/Indexers/ReleaseResource.cs).
+The initial harness expected the manual-queue `seriesId` field; the final check
+correctly validates `mappedSeriesId`, mapped coordinates and rejection status.
+
+Docker became unavailable immediately after the passing discovery. Subsequent direct
+queue/status checks could not connect and remain **unverified**. No daemon
+restart or volume deletion; existing Bunny volumes and new separate client
+volumes were retained. Unrelated installations and the synthetic project were
+not started or changed. Details: [bunny-matching.json](evidence/bunny-matching.json).
+Repeat discovery and finish the queue check with
+[BUNNY_MATCHING.md](../../../scripts/catalog/query_pilot/BUNNY_MATCHING.md).
+Extraction/import/playback/public gates remain open; historical validator
+failures remain failed evidence.

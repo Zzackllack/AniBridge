@@ -1,12 +1,30 @@
 """Actual disposable Sonarr/Prowlarr indexer tests; no grab/download is issued."""
 
+import argparse
 import json
-import sys
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import httpx
+
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--tvdb-id", type=int, default=81189)
+parser.add_argument("--season", type=int, default=1)
+parser.add_argument("--episode", type=int, default=1)
+parser.add_argument("--expected-season-releases", type=int, default=40)
+parser.add_argument("--expected-episode-releases", type=int, default=2)
+parser.add_argument("--episode-search", action="store_true")
+parser.add_argument("--season-search", action="store_true")
+args = parser.parse_args()
+if not (args.tvdb_id > 0 and args.season > 0 and args.episode > 0):
+    parser.error("positive selected TVDB ID/season/episode required")
+if not (
+    1 <= args.expected_season_releases <= 100
+    and 1 <= args.expected_episode_releases <= 100
+):
+    parser.error("explicit expected release counts must be between 1 and 100")
 
 
 def api_key(directory: Path) -> str:
@@ -54,7 +72,7 @@ def configure(base: str, directory: Path, version: str) -> dict:
         for field in indexer["fields"]:
             if field["name"] in values:
                 field["value"] = values[field["name"]]
-        indexer.update(name="Generated request pilot", priority=25, tags=[])
+        indexer.update(name="Request API discovery pilot", priority=25, tags=[])
         if version == "/api/v1":
             indexer.update(enable=True, appProfileId=1)
         else:
@@ -63,7 +81,11 @@ def configure(base: str, directory: Path, version: str) -> dict:
             )
         existing = http.get("/indexer").json()
         registered = next(
-            (item for item in existing if item["name"] == "Generated request pilot"),
+            (
+                item
+                for item in existing
+                if item["name"] == "Request API discovery pilot"
+            ),
             None,
         )
         if registered is not None:
@@ -105,14 +127,14 @@ with httpx.Client(trust_env=False, timeout=20) as http:
         params={
             "apikey": key,
             "t": "tvsearch",
-            "tvdbid": "81189",
-            "season": "1",
+            "tvdbid": str(args.tvdb_id),
+            "season": str(args.season),
             "limit": "100",
         },
     )
     response.raise_for_status()
     items = ET.fromstring(response.content).findall("./channel/item")
-    assert len(items) == 40
+    assert len(items) == args.expected_season_releases
     assert all("720p" not in item.findtext("title") for item in items)
 print(
     json.dumps(
@@ -120,14 +142,16 @@ print(
             "sonarr": sonarr,
             "prowlarr": prowlarr,
             "forwarded_season_releases": len(items),
-            "proof": "real-client indexer registration/test and Prowlarr season forwarding; no series add, grab, import or playback",
+            "tvdb_id": args.tvdb_id,
+            "season": args.season,
+            "proof": "real-client indexer tests and season forwarding; no grab, import or playback",
         }
     )
 )
 
 # Optional one public descriptor lookup, then an actual Sonarr episode search.
 # No monitored library, release POST, provider fetch or video download is created.
-if "--episode-search" in sys.argv:
+if args.episode_search or args.season_search:
     with httpx.Client(
         base_url="http://sonarr:8989/api/v3",
         headers={"X-Api-Key": api_key(Path("/sonarr-config"))},
@@ -136,13 +160,11 @@ if "--episode-search" in sys.argv:
     ) as http:
         profiles = http.get("/qualityprofile").json()
         profile = next(
-            (p for p in profiles if p["name"] == "Generated Unknown fixture"), None
+            (p for p in profiles if p["name"] == "Request API Unknown"), None
         )
         if profile is None:
             profile = http.get("/qualityprofile/schema").json()
-            profile.update(
-                name="Generated Unknown fixture", upgradeAllowed=False, cutoff=0
-            )
+            profile.update(name="Request API Unknown", upgradeAllowed=False, cutoff=0)
             for item in profile["items"]:
                 item["allowed"] = item.get("quality", {}).get("id") == 0
             response = http.post("/qualityprofile", json=profile)
@@ -154,12 +176,16 @@ if "--episode-search" in sys.argv:
             response = http.post("/rootfolder", json={"path": "/downloads/library"})
             response.raise_for_status()
         series = next(
-            (s for s in http.get("/series").json() if s["tvdbId"] == 81189), None
+            (s for s in http.get("/series").json() if s["tvdbId"] == args.tvdb_id), None
         )
         if series is None:
-            response = http.get("/series/lookup", params={"term": "tvdb:81189"})
+            response = http.get(
+                "/series/lookup", params={"term": f"tvdb:{args.tvdb_id}"}
+            )
             response.raise_for_status()
-            series = response.json()[0]
+            selected = [row for row in response.json() if row["tvdbId"] == args.tvdb_id]
+            assert len(selected) == 1
+            series = selected[0]
             series.update(
                 qualityProfileId=profile["id"],
                 rootFolderPath="/downloads/library",
@@ -178,18 +204,19 @@ if "--episode-search" in sys.argv:
                 (
                     e
                     for e in episodes
-                    if e["seasonNumber"] == 1 and e["episodeNumber"] == 1
+                    if e["seasonNumber"] == args.season
+                    and e["episodeNumber"] == args.episode
                 ),
                 None,
             )
             if episode:
                 break
             time.sleep(1)
-        assert episode is not None and episode["monitored"] is False
+        assert episode is not None and all(e["monitored"] is False for e in episodes)
         response = http.get("/release", params={"episodeId": episode["id"]})
         response.raise_for_status()
         releases = response.json()
-        assert len(releases) == 2
+        assert len(releases) == args.expected_episode_releases
         assert all(release["quality"]["quality"]["id"] == 0 for release in releases)
         print(
             json.dumps(
@@ -199,7 +226,48 @@ if "--episode-search" in sys.argv:
                     "quality": "Unknown",
                     "monitored": False,
                     "grab": False,
-                    "public_descriptor_lookup": "TVDB 81189 via Sonarr lookup only",
+                    "public_descriptor_lookup": f"TVDB {args.tvdb_id} via Sonarr lookup only",
+                    "season": args.season,
+                    "episode": args.episode,
                 }
             )
         )
+
+        if args.season_search:
+            response = http.get(
+                "/release",
+                params={"seriesId": series["id"], "seasonNumber": args.season},
+            )
+            response.raise_for_status()
+            releases = response.json()
+            assert len(releases) == args.expected_season_releases
+            assert all(release["quality"]["quality"]["id"] == 0 for release in releases)
+            # Sonarr reports discovery identity in mappedSeriesId; seriesId is
+            # reserved for manually queued unknown releases and may be absent.
+            assert all(
+                release["mappedSeriesId"] == series["id"] for release in releases
+            )
+            assert all(
+                release["mappedSeasonNumber"] == args.season for release in releases
+            )
+            assert all(
+                release["mappedEpisodeNumbers"] == release["episodeNumbers"]
+                for release in releases
+            )
+            assert all(release["rejected"] is False for release in releases)
+            print(
+                json.dumps(
+                    {
+                        "sonarr_season_search": "passed",
+                        "matched_episode_numbers": sorted(
+                            {n for r in releases for n in r["mappedEpisodeNumbers"]}
+                        ),
+                        "tvdb_id": args.tvdb_id,
+                        "season": args.season,
+                        "releases": len(releases),
+                        "quality": "Unknown",
+                        "monitored": False,
+                        "grab": False,
+                    }
+                )
+            )
