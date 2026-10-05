@@ -24,8 +24,7 @@ def publish_config(path: Path, provider: str | None = None) -> None:
 
 
 if __name__ == "__main__":
-    budget = limit_child(512 * 1024**2, 420)
-    try:
-        publish_config(Path(sys.argv[1]), sys.argv[2] if len(sys.argv) > 2 else None)
-    finally:
-        budget.close()
+    # File bytes and supervisor wall time are separate limits. Passing 420 as
+    # the second positional argument capped SQLite files at 420 bytes.
+    limit_child(memory_bytes=512 * 1024**2, output_bytes=1024**3)
+    publish_config(Path(sys.argv[1]), sys.argv[2] if len(sys.argv) > 2 else None)

@@ -3,7 +3,7 @@
 import hashlib
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
 from catalog_core import identity, magnet
 from catalog_core.json_codec import dumps
@@ -46,6 +46,18 @@ class Request(Model):
     languages: list[Literal["de-dub", "en-dub", "de-sub", "en-sub"]] = Field(
         default_factory=lambda: sorted(identity.LANGUAGES), max_length=4
     )
+
+    def wire(self) -> dict:
+        body = self.model_dump()
+        if self.season is None and self.episode is None and not self.include_entities:
+            for key in (
+                "coordinate_namespace",
+                "season",
+                "episode",
+                "include_entities",
+            ):
+                body.pop(key)
+        return body
 
     @model_validator(mode="after")
     def bounded(self) -> Self:
@@ -108,6 +120,15 @@ class Title(Model):
     detail_status: Literal["pending", "partial", "complete", "stale"]
     aliases: list[str] = Field(default_factory=list, max_length=32)
     mappings: list[TitleMap] = Field(default_factory=list, max_length=4)
+
+    @model_serializer(mode="wrap")
+    def serialize(self, handler):
+        body = handler(self)
+        # Existing AniWorld-only v1 consumers reject unknown fields. Expanded
+        # providers need the field; the historical AniWorld default does not.
+        if self.provider == "aniworld.to":
+            body.pop("provider")
+        return body
 
     @model_validator(mode="after")
     def identities(self) -> Self:
@@ -187,7 +208,7 @@ class Row(Model):
 
 
 def request_digest(request: Request) -> str:
-    return hashlib.sha256(dumps(request.model_dump())).hexdigest()
+    return hashlib.sha256(dumps(request.wire())).hexdigest()
 
 
 class Response(Model):

@@ -230,7 +230,7 @@ class Client:
                 async with self.http.stream(
                     "POST",
                     self.origin + "/catalog/v1/query",
-                    json=request.model_dump(),
+                    json=request.wire(),
                 ) as response:
                     if response.status_code != 200:
                         if response.status_code == 400:

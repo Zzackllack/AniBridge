@@ -100,6 +100,19 @@ class Collector:
                 hourly=config.limits["provider_requests_per_hour"],
             )
         )
+        if (
+            work is not None
+            and state.provider == "megakino"
+            and not work["path"].startswith("/films/")
+        ):
+            # Retain explicit unknown-series inventory without repeatedly parsing
+            # it as a movie and poisoning the provider circuit.
+            with atomic(state.db):
+                state.db.execute(
+                    "UPDATE work SET due=?,lease_until=0 WHERE path=?",
+                    (now + config.limits["historical_interval_s"], work["path"]),
+                )
+            return None
         if not listing and not recent and work is None:
             return None
         traversal = Traversal(state.db) if listing else None

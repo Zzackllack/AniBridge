@@ -4,6 +4,8 @@ import re
 
 from catalog_core.identity import search_key
 
+from .state import State
+
 # AniWorld's demonstrated suffix. Keep other brackets and meaningful text.
 FINALE = re.compile(r"\s*\[Final Episode\]\s*$", re.IGNORECASE)
 
@@ -15,7 +17,7 @@ def source_keys(title: str, provider: str) -> tuple[str, ...]:
     return (exact, fallback) if fallback and fallback != exact else (exact,)
 
 
-def infer_seasons(state, tid: str) -> dict[int, int]:
+def infer_seasons(state: State, tid: str) -> dict[int, int]:
     """Require three distinct unique name anchors, with no conflicting season.
 
     Provider numbers never enter the evidence. Reviewed correspondence is handled

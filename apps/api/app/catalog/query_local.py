@@ -240,7 +240,7 @@ class Search:
 
     async def fetch(self, request: Request, results: list[Result]) -> Response:
         request = request.model_copy(update={"provider": self.provider})
-        require(len(dumps(request.model_dump())) <= 16384, "query_too_broad")
+        require(len(dumps(request.wire())) <= 16384, "query_too_broad")
         result = await self.client.fetch(request)
         results.append(result)
         return result.response

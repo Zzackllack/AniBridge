@@ -4,7 +4,6 @@ import asyncio
 from pathlib import Path
 
 from catalog_core import query
-from catalog_core.json_codec import require
 from catalog_core.query_client import Client, Unavailable
 
 from .query_local import Search
@@ -34,7 +33,6 @@ class ProviderSearch:
         try:
             parsed = query.parse(params)
             window = parsed.offset + parsed.limit
-            require(window <= 2000, "query_too_broad")
             rows, total, headers, failed = [], 0, {}, []
             successful = 0
             async with asyncio.timeout(15):

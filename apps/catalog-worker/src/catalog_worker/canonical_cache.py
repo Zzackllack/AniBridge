@@ -1,5 +1,7 @@
 """Private validated canonical episode hints; cache reuse never guesses numbering."""
 
+from collections import Counter
+
 from catalog_core.identity import search_key
 
 from .episode_matching import infer_seasons, source_keys
@@ -48,6 +50,13 @@ def missing(state: State, tid: str) -> bool:
 def apply(state: State, tid: str, checked_at: int) -> str:
     outcome = "matched"
     inferred = infer_seasons(state, tid)
+    source_counts = Counter(
+        (row["native_season"], source_keys(row["display_title"], state.provider)[-1])
+        for row in state.db.execute(
+            "SELECT native_season,display_title FROM entity WHERE title_id=? AND kind='episode' AND display_title IS NOT NULL",
+            (tid,),
+        )
+    )
     # Use the same Unicode normalizer and per-entity primary-key probes; an
     # entity×full-series hint join would needlessly multiply every refresh.
     for mapping in state.db.execute(
@@ -60,7 +69,10 @@ def apply(state: State, tid: str, checked_at: int) -> str:
             (tid,),
         ):
             eid, native, name = entity
-            if not name:
+            if (
+                not name
+                or source_counts[(native, source_keys(name, state.provider)[-1])] != 1
+            ):
                 continue
             season = state.db.execute(
                 "SELECT canonical_season FROM season_correspondence WHERE title_id=? AND namespace=? AND external_id=? AND native_season=?",

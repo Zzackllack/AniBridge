@@ -20,7 +20,13 @@ def build(
 ) -> tuple[Path, dict, bytes, bytes]:
     directory.mkdir(parents=True, exist_ok=True)
     db_path = directory / "fixture.sqlite"
-    title_path = "/anime/stream/example"
+    title_path = (
+        "/serie/example"
+        if provider == "s.to"
+        else "/films/123-example.html"
+        if provider == "megakino" and movie
+        else "/anime/stream/example"
+    )
     entity_path = title_path if movie else title_path + "/staffel-1/episode-2"
     title_id = identity.title_id(provider, title_path)
     entity_id = identity.entity_id(provider, entity_path)

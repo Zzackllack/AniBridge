@@ -45,6 +45,14 @@ def report(config: Config) -> dict:
                 "SELECT sum(checked_at IS NULL),sum(failures>0),count(checked_at),min(checked_at) FROM work"
             ).fetchone()
             signal = dict(db.execute("SELECT * FROM signal_meta").fetchone())
+            if provider == "megakino":
+                signal["coverage"] = "unsupported"
+            ambiguous_hints = db.execute(
+                "SELECT count(*) FROM canonical_hint WHERE episode IS NULL"
+            ).fetchone()[0]
+            unsupported = db.execute(
+                "SELECT count(*) FROM title WHERE media_type='unknown'"
+            ).fetchone()[0]
             mapping = {
                 row[0]: row[1]
                 for row in db.execute(
@@ -59,6 +67,7 @@ def report(config: Config) -> dict:
                 "counts": counts,
                 "pending_pages": pending or 0,
                 "failed_pages": failures or 0,
+                "unsupported_titles": unsupported,
                 "checked_pages": checked,
                 "oldest_check_age_s": None if oldest is None else max(0, now - oldest),
                 "mapping": {
@@ -67,6 +76,7 @@ def report(config: Config) -> dict:
                     "episodes": episode_total,
                     "episode_mapped": episode_mapped or 0,
                     "ambiguous_ids": ambiguous,
+                    "ambiguous_episode_hints": ambiguous_hints,
                     "outcomes": mapping,
                 },
                 "recent": signal,

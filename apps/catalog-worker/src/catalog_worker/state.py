@@ -230,6 +230,7 @@ class State:
             base = """SELECT w.* FROM work w JOIN title_schedule s USING(title_id)
                 WHERE w.due<=? AND w.lease_until<=?
                 AND NOT EXISTS (SELECT 1 FROM omissions o WHERE o.kind='title' AND o.id=w.title_id AND o.tombstoned=1)
+                AND (?<>'megakino' OR w.path LIKE '/films/%')
                 """
             # Separate indexed selections preserve new → active → historical
             # priority without sorting the whole due queue by a computed class.
@@ -244,7 +245,7 @@ class State:
                     return row
                 return None
             row = self.db.execute(
-                base + " AND w.checked_at IS NULL" + order, (now, now)
+                base + " AND w.checked_at IS NULL" + order, (now, now, self.provider)
             ).fetchone()
             for comparison in bands:
                 if row is not None:
@@ -253,7 +254,7 @@ class State:
                     base
                     + f" AND w.checked_at IS NOT NULL AND s.changed_at{comparison}?"
                     + order,
-                    (now, now, now - 2592000),
+                    (now, now, self.provider, now - 2592000),
                 ).fetchone()
             if row is None:
                 return None
