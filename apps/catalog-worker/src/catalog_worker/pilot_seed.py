@@ -23,7 +23,7 @@ NAME = "Breaking Bad"
 TVDB = "81189"
 
 
-def prepare(config_root: Path) -> Path:
+def prepare(config_root: Path, provider: str = "aniworld.to") -> Path:
     """No user state, public source, provider request or media is touched."""
     for directory in (config_root, Path("/state"), Path("/read")):
         directory.mkdir(parents=True, exist_ok=True)
@@ -35,7 +35,7 @@ def prepare(config_root: Path) -> Path:
             worker,
             dumps(
                 {
-                    "providers": {"aniworld.to": "https://fixture.invalid"},
+                    "providers": {provider: "https://fixture.invalid"},
                     "canonical_sources": {"tv": "off", "movie": "off"},
                     "state_dir": "/state",
                     "output_dir": "/read",
@@ -68,15 +68,21 @@ def prepare(config_root: Path) -> Path:
 
 async def seed(config_path: Path) -> dict:
     config = load(config_path)
-    state = State(config.state_dir / "aniworld.to.sqlite", "aniworld.to")
+    provider = next(iter(config.providers))
+    title = TITLE if provider == "aniworld.to" else "/serie/generated-client-fixture"
+    from .read_catalog import provider_root
+
+    state = State(config.state_dir / f"{provider}.sqlite", provider)
     try:
-        if (config.output_dir / "current.json").exists():
+        if (provider_root(config.output_dir, provider) / "current.json").exists():
             return {"already_seeded": True}
         now = int(time.time())
-        episodes = [TITLE + f"/staffel-1/episode-{n}" for n in range(1, 21)]
+        episodes = [title + f"/staffel-1/episode-{n}" for n in range(1, 21)]
         pages = {
-            "/animes-alphabet": f'<html><body><a href="{TITLE}">{NAME}</a></body></html>',
-            TITLE: "<html><body><h1>"
+            (
+                "/animes-alphabet" if provider == "aniworld.to" else "/serien"
+            ): f'<html><body><a href="{title}">{NAME}</a></body></html>',
+            title: "<html><body><h1>"
             + NAME
             + "</h1>"
             + "".join(f'<a href="{path}">Episode</a>' for path in episodes)
@@ -95,7 +101,10 @@ async def seed(config_path: Path) -> dict:
             requests += 1
             if requests > 24:
                 raise ValueError("fixture request bound")
-            return Fetch("ok", pages[path].encode())
+            body = pages[path]
+            if provider == "s.to" and "/episode-" in path:
+                body = '<html><body><h1>Generated</h1><button data-play-url="/player" data-provider-name="Vidoza" data-language-label="Deutsch"></button><button data-play-url="/player" data-provider-name="Vidoza" data-language-label="Englisch"></button></body></html>'
+            return Fetch("ok", body.encode())
 
         collector = Collector(config, state, fetcher=fetch)
         async with asyncio.timeout(60):
@@ -109,8 +118,8 @@ async def seed(config_path: Path) -> dict:
                         "generated parser fixture failed: " + ready.outcome
                     )
                 collector.apply(ready)
-        tid = title_id("aniworld.to", TITLE)
-        mid = mapping_id("aniworld.to", tid, "tvdb", TVDB)
+        tid = title_id(provider, title)
+        mid = mapping_id(provider, tid, "tvdb", TVDB)
         with state.db:
             state.db.execute(
                 "INSERT INTO canonical_title VALUES(?,?,?,?,?,?,?)",
@@ -119,7 +128,7 @@ async def seed(config_path: Path) -> dict:
             for n, path in enumerate(episodes, 1):
                 state.db.execute(
                     "INSERT INTO canonical_episode VALUES(?,?,?,?,?,?,?)",
-                    (mid, entity_id("aniworld.to", path), 1, n, None, "reviewed", now),
+                    (mid, entity_id(provider, path), 1, n, None, "reviewed", now),
                 )
         metadata = publish(config, state, int(time.time()))
         return {
@@ -137,8 +146,11 @@ def main() -> None:
         description="Prepare isolated generated query pilot"
     )
     parser.add_argument("config_root", type=Path)
+    parser.add_argument(
+        "--provider", choices=("aniworld.to", "s.to"), default="aniworld.to"
+    )
     args = parser.parse_args()
-    config_path = prepare(args.config_root)
+    config_path = prepare(args.config_root, args.provider)
     if os.geteuid() == 0:
         os.setgid(1000)
         os.setuid(1000)

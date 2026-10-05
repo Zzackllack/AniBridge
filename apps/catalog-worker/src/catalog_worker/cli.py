@@ -17,6 +17,7 @@ from .collector import Collector
 from .config import load
 from .events import Events
 from .pipeline import Pipeline
+from .read_catalog import provider_root
 from .state import State
 from .storage import check, migration_reserve, recover_scratch
 
@@ -25,40 +26,50 @@ async def collect(path: Path, once: bool) -> None:
     if sys.platform != "linux":
         raise ValueError("collector resource enforcement requires Linux")
     config = load(path)
-    if set(config.providers) != {"aniworld.to"}:
-        raise ValueError("query pilot currently serves AniWorld only")
     config.output_dir.mkdir(parents=True, exist_ok=True)
     owner = ProcessLock(config.state_dir / "worker.lock")
-    state = None
+    states = []
     events = Events(config.state_dir / "logs")
     tasks = []
     try:
         recover_scratch(config.state_dir)
         check(config, startup=True, state_reserve=migration_reserve(config))
-        state = State(config.state_dir / "aniworld.to.sqlite", "aniworld.to")
-        pipeline = Pipeline([Collector(config, state)], events.emit)
+        states = [
+            State(config.state_dir / f"{provider}.sqlite", provider)
+            for provider in config.providers
+        ]
+        pipeline = Pipeline([Collector(config, state) for state in states], events.emit)
+        publication_slot = asyncio.Lock()
         enricher = Enricher(config.canonical_sources)
         loop = asyncio.get_running_loop()
         loop.add_signal_handler(signal.SIGTERM, asyncio.current_task().cancel)
 
-        async def maintain() -> None:
+        async def maintain(state: State) -> None:
             while True:
                 try:
                     check(config)
                     await enricher.tick(state, int(time.time()))
                     meta = state.meta()
                     if (
-                        meta["listing_checked_at"]
+                        state.db.execute("SELECT 1 FROM release LIMIT 1").fetchone()
                         and (
                             meta["dirty"]
-                            or not (config.output_dir / "current.json").exists()
+                            or not (
+                                provider_root(config.output_dir, state.provider)
+                                / "current.json"
+                            ).exists()
                         )
                         and time.time() - meta["published_at"]
                         >= config.limits["publish_interval_s"]
                     ):
-                        async with pipeline.publication(state.provider):
+                        async with (
+                            publication_slot,
+                            pipeline.publication(state.provider),
+                        ):
                             await run_child_async(
-                                "catalog_worker.query_publish", [str(path)], 420
+                                "catalog_worker.query_publish",
+                                [str(path), state.provider],
+                                420,
                             )
                 except (ValueError, OSError, sqlite3.Error) as exc:
                     events.emit(state.provider, "maintain", type(exc).__name__, 0)
@@ -68,56 +79,69 @@ async def collect(path: Path, once: bool) -> None:
 
         if once:
             await pipeline.run(once=True)
-            await maintain()
+            await asyncio.gather(*(maintain(state) for state in states))
         else:
             tasks = [
                 asyncio.create_task(pipeline.run()),
-                asyncio.create_task(maintain()),
+                *(asyncio.create_task(maintain(state)) for state in states),
             ]
             await asyncio.gather(*tasks)
     finally:
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
-        if state is not None:
+        for state in states:
             state.close()
         events.close()
         owner.close()
 
 
-async def collect_title(path: Path, title_path: str) -> None:
+async def collect_title(
+    path: Path, title_path: str, provider: str = "aniworld.to"
+) -> None:
     """One deliberately selected title, at most 30 metadata requests/120 seconds."""
     from catalog_core.identity import path as validate_path
-    from catalog_core.providers.aniworld import TITLE, Link, Page
+    from catalog_core.providers.adapters import adapter
+    from catalog_core.providers.aniworld import Link
 
     from .read_catalog import publish
 
     config = load(path)
-    if sys.platform != "linux" or not TITLE.fullmatch(validate_path(title_path)):
-        raise ValueError("Linux and a valid AniWorld title path required")
+    if (
+        sys.platform != "linux"
+        or provider not in config.providers
+        or not adapter(provider).TITLE.fullmatch(validate_path(title_path))
+    ):
+        raise ValueError("Linux and an enabled provider title path required")
     config.state_dir.mkdir(parents=True, exist_ok=True)
     config.output_dir.mkdir(parents=True, exist_ok=True)
     owner = ProcessLock(config.state_dir / "worker.lock")
     state = None
     try:
         check(config, startup=True, state_reserve=migration_reserve(config))
-        state = State(config.state_dir / "aniworld.to.sqlite", "aniworld.to")
-        existing = state.db.execute("SELECT path,display_title FROM title").fetchall()
-        if existing and [row["path"] for row in existing] != [title_path]:
-            raise ValueError(
-                "targeted command requires empty or matching single-title state"
-            )
+        state = State(config.state_dir / f"{provider}.sqlite", provider)
+        existing = state.db.execute(
+            "SELECT path,display_title FROM title WHERE path=?", (title_path,)
+        ).fetchall()
         now = int(time.time())
         # This is a synthetic discovery hint, not a fresh provider listing.
         # Resuming must keep the heading already obtained from the detail page.
         name = (
             existing[0]["display_title"] if existing else title_path.rsplit("/", 1)[-1]
         )
-        state.listing(Page((Link(title_path, name),), (), 0, None), now)
+        tid = state.discover(Link(title_path, name), now)
+        state.db.commit()
         collector = Collector(config, state)
         async with asyncio.timeout(120):
             for _ in range(30):
-                plan = collector.prepare(listing_allowed=False, signal_allowed=False)
+                work = state.claim_title(
+                    tid, int(time.time()), config.limits["title_deadline_s"]
+                )
+                if work is None:
+                    break
+                from .collector import Plan
+
+                plan = Plan(int(time.time()), False, work, work["path"])
                 if plan is None:
                     break
                 ready = await collector.collect(plan)
@@ -139,6 +163,11 @@ def main() -> None:
         description="AniBridge private metadata collector/API"
     )
     parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument(
+        "--provider", choices=("aniworld.to", "s.to", "megakino"), default="aniworld.to"
+    )
+    parser.add_argument("--status", action="store_true")
+    parser.add_argument("--backup", action="store_true")
     parser.add_argument("--serve", action="store_true")
     parser.add_argument("--token-file", type=Path)
     parser.add_argument("--once", action="store_true")
@@ -147,7 +176,18 @@ def main() -> None:
     parser.add_argument("--review-season", type=Path)
     args = parser.parse_args()
     config = load(args.config)
-    if args.serve:
+    if args.status:
+        import json
+
+        from .operator_status import report
+
+        print(json.dumps(report(config), indent=2))
+    elif args.backup:
+        from .backup import backup
+
+        with closing(ProcessLock(config.state_dir / "worker.lock")):
+            print(backup(config))
+    elif args.serve:
         import uvicorn
 
         from .query_server import create_app
@@ -155,7 +195,10 @@ def main() -> None:
 
         if args.token_file is None:
             parser.error("--serve requires --token-file")
-        verify(config.output_dir)
+        for provider in config.providers:
+            root = provider_root(config.output_dir, provider)
+            if (root / "current.json").exists():
+                verify(root)
         uvicorn.run(
             create_app(config.output_dir, args.token_file.read_text().strip()),
             host=config.bind_host,
@@ -168,14 +211,14 @@ def main() -> None:
             proxy_headers=False,
         )
     elif args.collect_title:
-        asyncio.run(collect_title(args.config, args.collect_title))
+        asyncio.run(collect_title(args.config, args.collect_title, args.provider))
     elif args.review_season:
         from catalog_core.json_codec import loads
 
         from .review import season
 
         with closing(ProcessLock(config.state_dir / "worker.lock")):
-            state = State(config.state_dir / "aniworld.to.sqlite", "aniworld.to")
+            state = State(config.state_dir / f"{args.provider}.sqlite", args.provider)
             try:
                 season(state, loads(args.review_season.read_bytes(), 16384))
             finally:
@@ -188,7 +231,7 @@ def main() -> None:
     else:
         try:
             asyncio.run(collect(args.config, args.once))
-        except (KeyboardInterrupt, asyncio.CancelledError):
+        except KeyboardInterrupt, asyncio.CancelledError:
             pass
 
 

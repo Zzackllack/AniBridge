@@ -26,7 +26,7 @@ class Parser(aniworld.Parser):
     ] = {}  # Legacy AniWorld data-lang-key has no meaning here.
 
     def is_listing_root(self, href: str) -> bool:
-        return href in ("/serien", "/serien?by=alpha")
+        return href in ("/serien", "/serien?by=alpha", "/serien?by=genre")
 
     def listing_target(self, href: str) -> str:
         parsed = urlsplit(href)
@@ -52,6 +52,12 @@ class Parser(aniworld.Parser):
         super().handle_starttag(tag, attrs)
         values = dict(attrs)
         if (
+            tag == "p"
+            and self.title
+            and {"small", "text-muted"} <= set((values.get("class") or "").split())
+        ):
+            self.year_range = True
+        if (
             tag == "button"
             and values.get("data-play-url")
             and values.get("data-provider-name")
@@ -66,8 +72,15 @@ class Parser(aniworld.Parser):
             href = values.get("href") or ""
             year = re.fullmatch(r"/jahr/([0-9]{4})", href)
             if year and 1800 <= int(year[1]) <= 2200:
-                require(self.year in (None, int(year[1])), "conflicting release years")
-                self.year = int(year[1])
+                if getattr(self, "year_range", False):
+                    # The header displays first–last broadcast years. Mapping
+                    # needs the first year, not the end of the run.
+                    self.year = min(self.year or int(year[1]), int(year[1]))
+                else:
+                    require(
+                        self.year in (None, int(year[1])), "conflicting release years"
+                    )
+                    self.year = int(year[1])
             imdb = re.fullmatch(r"https://www.imdb.com/title/(tt[0-9]{7,12})/?", href)
             if imdb:
                 require(
@@ -80,6 +93,8 @@ class Parser(aniworld.Parser):
             self.episode_tag, self.episode_text = tag, []
 
     def handle_endtag(self, tag: str) -> None:
+        if tag == "p":
+            self.year_range = False
         if tag == "h2" and self.episode_tag == tag:
             text = " ".join("".join(self.episode_text).split())
             match = re.fullmatch(r"S[0-9]+E[0-9]+: .+ \(([^()]+)\)", text)

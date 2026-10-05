@@ -264,6 +264,23 @@ class State:
             )
             return dict(row)
 
+    def claim_title(self, title_id: str, now: int, lease_s: int = 120) -> dict | None:
+        """Bounded selected-title work also works inside a normal bootstrap ledger."""
+        with atomic(self.db):
+            if self.meta()["blocked_until"] > now:
+                return None
+            row = self.db.execute(
+                "SELECT * FROM work WHERE title_id=? AND due<=? AND lease_until<=? ORDER BY due,path LIMIT 1",
+                (title_id, now, now),
+            ).fetchone()
+            if row is None:
+                return None
+            self.db.execute(
+                "UPDATE work SET lease_until=? WHERE path=?",
+                (now + lease_s, row["path"]),
+            )
+            return dict(row)
+
     def detail(
         self,
         work: dict,

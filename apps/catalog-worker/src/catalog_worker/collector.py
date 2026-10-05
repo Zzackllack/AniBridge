@@ -187,6 +187,7 @@ class Collector:
                         path,
                         state.provider,
                         config.providers[state.provider],
+                        json.dumps(config.sitemap_origins.get(state.provider, [])),
                     ],
                     config.limits["request_deadline_s"],
                 )
@@ -294,6 +295,12 @@ class Collector:
                     traversal.clear()
                 state.failure(None, "unexpected_structure", now)
                 return
+            # Positive pages can be useful before the enumeration is finished.
+            # Only a complete traversal supplies disappearance evidence.
+            with atomic(state.db):
+                for link in page.links:
+                    state.discover(link, now)
+                state.db.execute("UPDATE worker_meta SET dirty=1")
             if complete:
                 state.listing(
                     Page(Links(state.db), (), 0, None),

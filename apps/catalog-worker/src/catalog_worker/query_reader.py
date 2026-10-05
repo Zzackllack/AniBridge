@@ -11,7 +11,7 @@ from catalog_core import query, schema
 from catalog_core.json_codec import loads, require
 from catalog_core.protocol import Request, Response, Row, Title, request_digest
 
-from .read_catalog import lease
+from .read_catalog import lease, provider_root
 
 
 class CancelConnection:
@@ -39,7 +39,7 @@ class ReadStore:
         yield {self.providers[0]: (self.db, self.metadata)}, None
 
 
-def titles(db: sqlite3.Connection, ids: set[str]) -> list[Title]:
+def titles(db: sqlite3.Connection, ids: set[str], provider: str) -> list[Title]:
     if not ids:
         return []
     placeholders = ",".join("?" for _ in ids)
@@ -62,7 +62,9 @@ def titles(db: sqlite3.Connection, ids: set[str]) -> list[Title]:
                 "SELECT * FROM canonical_title WHERE title_id=?", (row["title_id"],)
             )
         ]
-        result.append(Title(**dict(row), aliases=aliases, mappings=maps))
+        result.append(
+            Title(**dict(row), provider=provider, aliases=aliases, mappings=maps)
+        )
     return result
 
 
@@ -71,6 +73,7 @@ def execute(
 ) -> Response:
     cancel = cancel or threading.Event()
     deadline = time.monotonic() + 2
+    root = provider_root(root, request.provider)
     with lease(root):
         metadata = loads((root / "current.json").read_bytes(), 65536)
         require(metadata["provider"] == request.provider, "provider_unavailable")
@@ -98,26 +101,48 @@ def execute(
                         )
                     )
                 require(len(selected) <= 200, "query_too_broad")
-                title_rows = titles(db, selected)
+                title_rows = titles(db, selected, request.provider)
                 total = len(title_rows)
             else:
                 selected = (
                     set(request.title_ids) if request.operation == "native" else None
                 )
+                entities = None
+                if request.operation == "native" and request.season is not None:
+                    # One indexed batch of canonical matches plus correction IDs;
+                    # never fetch an entire long show's history to find one season.
+                    terms = "ce.season=?"
+                    values = [request.coordinate_namespace, request.season]
+                    if request.episode is not None:
+                        terms += " AND ce.episode=?"
+                        values.append(request.episode)
+                    placeholders = ",".join("?" for _ in selected)
+                    entities = {
+                        r[0]
+                        for r in db.execute(
+                            "SELECT ce.entity_id FROM canonical_episode ce JOIN canonical_title ct USING(mapping_id) "
+                            f"WHERE ct.namespace=? AND {terms} AND ct.title_id IN ({placeholders}) LIMIT 2001",
+                            [*values, *sorted(selected)],
+                        )
+                    }
+                    entities.update(request.include_entities)
+                    require(len(entities) <= 2000, "query_too_broad")
                 parsed = replace(parsed, limit=request.limit, offset=request.offset)
                 rows, total, headers = query.query(
                     ReadStore(CancelConnection(db, interrupted), metadata),
                     parsed,
                     now=now,
                     title_ids=selected,
+                    entity_ids=entities,
                     languages={request.provider: set(request.languages)}
-                    if request.operation == "recent"
+                    if request.operation in {"recent", "native"}
                     else None,
                 )
                 db.set_progress_handler(interrupted, 1000)
                 title_rows = titles(
                     db,
                     selected if selected is not None else {r["title_id"] for r in rows},
+                    request.provider,
                 )
             records = []
             for row in rows:

@@ -189,11 +189,17 @@ class Client:
             )
         ).hexdigest()
 
-    def revision_floor(self) -> int:
+    def scope(self, provider: str) -> str:
+        return hashlib.sha256(
+            dumps([1, self.origin, self.source_id, self.auth_context, provider])
+        ).hexdigest()
+
+    def revision_floor(self, provider: str = "aniworld.to") -> int:
         # Retain the older private-pilot floor conservatively while using an
         # unambiguous context key for new writes/source configurations.
         return max(
-            self.cache.floor(self.revision_scope), self.cache.floor(self.legacy_scope)
+            self.cache.floor(self.scope(provider)),
+            self.cache.floor(self.legacy_scope) if provider == "aniworld.to" else 0,
         )
 
     async def _fetch(self, request: Request, *, now: float | None = None) -> Result:
@@ -201,7 +207,7 @@ class Client:
         key = self.key(request)
         try:
             cached = self.cache.get(key, now)
-        except (sqlite3.Error, ValueError):
+        except sqlite3.Error, ValueError:
             cached = None
         old = None
         age = 0.0
@@ -209,13 +215,13 @@ class Client:
             try:
                 old = Response.model_validate(loads(cached[0], MAX_RESPONSE))
                 old.check_request(request, self.source_id)
-                if old.revision < self.revision_floor():
+                if old.revision < self.revision_floor(request.provider):
                     raise ValueError("cached revision regressed")
                 age = now - cached[1]
                 if 0 <= age < self.ttl_s:
                     self.hits += 1
                     return Result(old, "hit", age)
-            except (ValueError, TypeError, sqlite3.Error):
+            except ValueError, TypeError, sqlite3.Error:
                 old = None  # Corrupt cache cannot become an outage answer.
         error = "invalid_response"
         try:
@@ -257,8 +263,8 @@ class Client:
                             raise ValueError("response too large")
                 result = Response.model_validate(loads(bytes(body), MAX_RESPONSE))
                 result.check_request(request, self.source_id)
-                scope = self.revision_scope
-                if result.revision < self.revision_floor():
+                scope = self.scope(request.provider)
+                if result.revision < self.revision_floor(request.provider):
                     raise ValueError("response revision regressed")
                 try:
                     self.cache.accept(scope, result.revision)

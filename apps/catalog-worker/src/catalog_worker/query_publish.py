@@ -11,20 +11,21 @@ from .read_catalog import publish
 from .state import State
 
 
-def publish_config(path: Path) -> None:
+def publish_config(path: Path, provider: str | None = None) -> None:
     config = load(path)
-    if set(config.providers) != {"aniworld.to"}:
-        raise ValueError("AniWorld only in the first query pilot")
-    state = State(config.state_dir / "aniworld.to.sqlite", "aniworld.to")
-    try:
-        publish(config, state, int(time.time()))
-    finally:
-        state.close()
+    for selected in [provider] if provider else config.providers:
+        if selected not in config.providers:
+            raise ValueError("provider unavailable")
+        state = State(config.state_dir / f"{selected}.sqlite", selected)
+        try:
+            publish(config, state, int(time.time()))
+        finally:
+            state.close()
 
 
 if __name__ == "__main__":
     budget = limit_child(512 * 1024**2, 420)
     try:
-        publish_config(Path(sys.argv[1]))
+        publish_config(Path(sys.argv[1]), sys.argv[2] if len(sys.argv) > 2 else None)
     finally:
         budget.close()

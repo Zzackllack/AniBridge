@@ -22,7 +22,7 @@ from .movie_canonical import lookup as movie_lookup
 from .state import State
 from .transport import fetch
 
-MATCHER = "exact-title-year-2"
+MATCHER = "exact-title-year-3"
 ORIGIN = "https://skyhook.sonarr.tv"
 
 

@@ -1,7 +1,7 @@
 """Strict worker configuration; finite limits are part of the protocol pilot."""
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -43,6 +43,7 @@ class Config:
     bind_port: int
     limits: dict[str, int]
     publication_sources: frozenset[str] = frozenset()
+    sitemap_origins: dict[str, list[str]] = field(default_factory=dict)
 
 
 def load(path: Path) -> Config:
@@ -55,7 +56,14 @@ def load(path: Path) -> Config:
             "output_dir",
             "source_id",
         },
-        {"bind_host", "bind_port", "limits", "publication_sources", "signing_key_file"},
+        {
+            "bind_host",
+            "bind_port",
+            "limits",
+            "publication_sources",
+            "sitemap_origins",
+            "signing_key_file",
+        },
     )
     providers = raw["providers"]
     require(
@@ -77,6 +85,21 @@ def load(path: Path) -> Config:
             and not url.fragment,
             "invalid HTTPS origin",
         )
+    sitemap_origins = fields(raw.get("sitemap_origins", {}), set(), {"megakino"})
+    for aliases in sitemap_origins.values():
+        require(type(aliases) is list and len(aliases) <= 4, "invalid sitemap origins")
+        for alias in aliases:
+            url = urlsplit(alias)
+            require(
+                url.scheme == "https"
+                and bool(url.hostname)
+                and url.path in {"", "/"}
+                and not url.username
+                and not url.password
+                and not url.query
+                and not url.fragment,
+                "invalid sitemap origin",
+            )
     sources = fields(
         raw["canonical_sources"], set(), {"tv", "movie", "tmdb_token_file"}
     )
@@ -104,7 +127,7 @@ def load(path: Path) -> Config:
     )
     require(len(set(approved)) == len(approved), "duplicate publication source")
     paths = [
-        Path(raw.get(key, str(Path(raw["state_dir"])/"unused-signing-key"))).resolve()
+        Path(raw.get(key, str(Path(raw["state_dir"]) / "unused-signing-key"))).resolve()
         for key in ("state_dir", "output_dir", "signing_key_file")
     ]
     state, output, key = paths
@@ -147,4 +170,5 @@ def load(path: Path) -> Config:
         integer(raw.get("bind_port", 8080), 1, 65535),
         limits,
         frozenset(approved),
+        sitemap_origins,
     )

@@ -29,7 +29,7 @@ LABELS = {
 }
 
 
-def local_path(value: str, origin: str) -> str:
+def local_path(value: str, origin: str, aliases: tuple[str, ...] = ()) -> str:
     parsed, expected = urlsplit(value), urlsplit(origin)
     require(
         not parsed.query and not parsed.fragment and not parsed.username,
@@ -37,13 +37,17 @@ def local_path(value: str, origin: str) -> str:
     )
     require(
         (parsed.scheme, parsed.netloc)
-        in (("", ""), (expected.scheme, expected.netloc)),
+        in (
+            ("", ""),
+            (expected.scheme, expected.netloc),
+            *((urlsplit(a).scheme, urlsplit(a).netloc) for a in aliases),
+        ),
         "foreign sitemap target",
     )
     return normalize_path(parsed.path)
 
 
-def listing(body: bytes, origin: str) -> Page:
+def listing(body: bytes, origin: str, aliases: tuple[str, ...] = ()) -> Page:
     # The caller enforces the body ceiling and parses in a memory-limited child.
     root = ElementTree.fromstring(
         body, forbid_dtd=True, forbid_entities=True, forbid_external=True
@@ -65,7 +69,7 @@ def listing(body: bytes, origin: str) -> Page:
         require(
             len(locations) == 1 and bool(locations[0].text), "missing sitemap location"
         )
-        path = local_path(locations[0].text.strip(), origin)
+        path = local_path(locations[0].text.strip(), origin, aliases)
         if index:
             require(SITEMAP.fullmatch(path) is not None, "unexpected child sitemap")
             paths.add(path)
@@ -180,10 +184,17 @@ class Detail(HTMLParser):
             self.script = None
 
 
-def parse(body: bytes, kind: str, page_path: str | None = None, *, origin: str) -> Page:
+def parse(
+    body: bytes,
+    kind: str,
+    page_path: str | None = None,
+    *,
+    origin: str,
+    sitemap_origins: tuple[str, ...] = (),
+) -> Page:
     require(len(body) <= 16 * 1024**2, "body overflow")
     if kind == "listing":
-        return listing(body, origin)
+        return listing(body, origin, sitemap_origins)
     match = TITLE.fullmatch(page_path or "")
     require(match is not None and match[1] == "films", "unsupported movie structure")
     parser = Detail(origin)

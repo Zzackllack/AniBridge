@@ -126,6 +126,7 @@ def query(
     movie_category: int = 2000,
     mapping_view=None,
     title_ids: set[str] | None = None,
+    entity_ids: set[str] | None = None,
 ) -> tuple[list[dict], int, dict[str, str]]:
     deadline = time.monotonic() + 2
     total, results = 0, []
@@ -184,6 +185,11 @@ def query(
                     f"t.title_id IN ({','.join('?' for _ in selected_titles)})"
                 )
                 args.extend(sorted(selected_titles))
+            if entity_ids is not None:
+                if not entity_ids:
+                    continue
+                where.append(f"e.entity_id IN ({','.join('?' for _ in entity_ids)})")
+                args.extend(sorted(entity_ids))
             if request.season is not None:
                 where.append("ce.season=?")
                 args.append(request.season)

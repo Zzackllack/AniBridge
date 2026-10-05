@@ -1,8 +1,8 @@
 """Own the finite metadata cache and user-local durable job scheduler."""
 
 import asyncio
-import sys
 import sqlite3
+import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -11,14 +11,14 @@ from types import SimpleNamespace
 from catalog_core.files import ProcessLock
 from catalog_core.query_client import Cache, Client
 
+from .async_database import call
 from .client import ClientJobs
 from .config import Config
 from .executor import SubprocessExecutor
 from .jobs import Jobs
-from .query_local import Search
+from .query_providers import ProviderSearch
 from .runner import Runner
 from .strm_http import Playback
-from .async_database import call
 
 
 class Runtime:
@@ -36,8 +36,8 @@ class Runtime:
         clock=time.time,
         strm_mode="direct",
     ) -> None:
-        if config.mode != "query" or set(origins) != {"aniworld.to"}:
-            raise ValueError("query pilot requires only AniWorld enabled")
+        if config.mode != "query" or not origins:
+            raise ValueError("query pilot requires enabled provider origins")
         if executor is None and sys.platform != "linux":
             raise ValueError("private job enforcement requires Linux; use Docker")
         directory.mkdir(parents=True, exist_ok=True)
@@ -58,7 +58,9 @@ class Runtime:
                     transport=transport,
                     allow_private_http=config.allow_private_http,
                 )
-                self.search = Search(self.metadata, database, directory)
+                self.search = ProviderSearch(
+                    self.metadata, database, directory, tuple(origins)
+                )
             except sqlite3.Error:
                 # A broken disposable cache cannot stop already accepted local jobs.
                 # Search fails explicitly until the operator repairs that cache.
@@ -109,7 +111,7 @@ class Runtime:
                     set(self.runner.running),
                     int(self.clock()),
                 )
-            except (OSError, sqlite3.Error):
+            except OSError, sqlite3.Error:
                 await asyncio.sleep(1)
             await asyncio.sleep(0.1)
 

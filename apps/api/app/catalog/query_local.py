@@ -9,18 +9,18 @@ from dataclasses import replace
 from pathlib import Path
 
 from catalog_core import identity, query, schema
-from catalog_core.json_codec import require
+from catalog_core.json_codec import dumps, require
 from catalog_core.protocol import Request, Response
 from catalog_core.query_client import Client, Result, Unavailable
-from .async_database import call
 
+from .async_database import call
 from .override_view import view
 
 
 class LocalRead:
     def __init__(self, database: Path, metadata: dict, overrides: list[dict]) -> None:
         self.database, self.metadata, self.overrides = database, metadata, overrides
-        self.providers = ("aniworld.to",)
+        self.providers = (metadata["provider"],)
 
     @contextmanager
     def acquire(self):
@@ -54,7 +54,7 @@ class LocalRead:
             ],
         )
         try:
-            yield {"aniworld.to": (db, self.metadata)}, private
+            yield {self.providers[0]: (db, self.metadata)}, private
         finally:
             db.close()
             private.close()
@@ -63,8 +63,8 @@ class LocalRead:
 def materialize(filename: Path, responses: list[Response]) -> dict:
     """Small request-owned schema1 view; never a full provider download."""
     db = schema.create(filename)
-    provider = "aniworld.to"
     metadata = responses[0]
+    provider = metadata.provider
     seen_titles, seen_entities, seen_maps, seen_episodes, seen_releases = (
         set(),
         set(),
@@ -152,13 +152,14 @@ def materialize(filename: Path, responses: list[Response]) -> dict:
     finally:
         db.close()
     return {
+        "provider": provider,
         "catalog_schema_version": 1,
         "artifact": {"sqlite_sha256": metadata.snapshot_digest},
         "counts": {"release": len(seen_releases)},
     }
 
 
-def overrides(database: Path) -> list[dict]:
+def overrides(database: Path, provider: str = "aniworld.to") -> list[dict]:
     with closing(
         sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True, timeout=0.2)
     ) as db:
@@ -166,7 +167,8 @@ def overrides(database: Path) -> list[dict]:
         rows = [
             dict(r)
             for r in db.execute(
-                "SELECT * FROM catalog_override WHERE provider='aniworld.to' AND json_extract(body,'$.enabled')=1 LIMIT 1001"
+                "SELECT * FROM catalog_override WHERE provider=? AND json_extract(body,'$.enabled')=1 LIMIT 1001",
+                (provider,),
             )
         ]
         require(len(rows) <= 1000, "query_too_broad")
@@ -174,9 +176,16 @@ def overrides(database: Path) -> list[dict]:
 
 
 class Search:
-    def __init__(self, client: Client, database: Path, directory: Path) -> None:
+    def __init__(
+        self,
+        client: Client,
+        database: Path,
+        directory: Path,
+        provider: str = "aniworld.to",
+    ) -> None:
         self.client, self.database, self.directory = client, database, directory
         self.active = 0
+        self.provider = provider
 
     async def candidates(
         self,
@@ -209,9 +218,20 @@ class Search:
         # Look up target IDs normally to detect published assignment conflicts.
         # No reason, fingerprint, corrected coordinates or override body is sent.
         for namespace, value in sorted(targets):
-            key = {"tvdb": "tvdbid", "tmdb-tv": "tmdbid", "imdb": "imdbid"}[namespace]
+            key = {
+                "tvdb": "tvdbid",
+                "tmdb-tv": "tmdbid",
+                "tmdb-movie": "tmdbid",
+                "imdb": "imdbid",
+            }[namespace]
             response = await self.fetch(
-                Request(operation="titles", params={"t": "tvsearch", key: value}),
+                Request(
+                    operation="titles",
+                    params={
+                        "t": "movie" if namespace == "tmdb-movie" else parsed.mode,
+                        key: value,
+                    },
+                ),
                 results,
             )
             selected.update(title.title_id for title in response.titles)
@@ -219,6 +239,8 @@ class Search:
         return selected
 
     async def fetch(self, request: Request, results: list[Result]) -> Response:
+        request = request.model_copy(update={"provider": self.provider})
+        require(len(dumps(request.model_dump())) <= 16384, "query_too_broad")
         result = await self.client.fetch(request)
         results.append(result)
         return result.response
@@ -238,7 +260,7 @@ class Search:
             remote = {
                 key: value
                 for key, value in params.items()
-                if key in {"t", "maxage", "year"}
+                if key in {"t", "maxage", "year", "cat"}
             }
             remote.setdefault("t", parsed.mode)
             request = Request(
@@ -247,10 +269,22 @@ class Search:
                 limit=min(100, (parsed.limit + len(modes) - 1) // len(modes) + 1),
                 offset=parsed.offset // len(modes),
                 languages=sorted(
-                    (languages or {}).get("aniworld.to", identity.LANGUAGES)
+                    (languages or {}).get(self.provider, identity.LANGUAGES)
                 ),
             )
-            return [await self.fetch(request, results)]
+            pages = []
+            end = (parsed.offset + parsed.limit + len(modes) - 1) // len(modes)
+            for offset in range(request.offset, end, 100):
+                batch = await self.fetch(
+                    request.model_copy(
+                        update={"offset": offset, "limit": min(100, end - offset)}
+                    ),
+                    results,
+                )
+                pages.append(batch)
+                if offset + len(batch.rows) >= batch.total:
+                    break
+            return pages
         selected = await self.candidates(params, parsed, local, results)
         if not selected:
             return [results[0].response]
@@ -262,6 +296,21 @@ class Search:
                     params={"t": "search"},
                     title_ids=sorted(selected),
                     offset=offset,
+                    coordinate_namespace="tmdb-tv"
+                    if "tmdb-tv" in parsed.ids and "tvdb" not in parsed.ids
+                    else "tvdb",
+                    season=parsed.season,
+                    episode=parsed.episode,
+                    include_entities=sorted(
+                        {
+                            row["entity_id"]
+                            for row in local
+                            if row["title_id"] in selected and row["entity_id"]
+                        }
+                    ),
+                    languages=sorted(
+                        (languages or {}).get(self.provider, identity.LANGUAGES)
+                    ),
                 ),
                 results,
             )
@@ -304,9 +353,11 @@ class Search:
             )
         if parsed.recent:
             total = batches[0].total * len(modes)
-            if (
-                parsed.categories is not None
-                and anime_category not in parsed.categories
+            if parsed.categories is not None and not parsed.categories.intersection(
+                {
+                    anime_category if self.provider == "aniworld.to" else 5000,
+                    movie_category,
+                }
             ):
                 rows, total = [], 0
             start = parsed.offset % len(modes)
@@ -322,6 +373,7 @@ class Search:
         languages: dict[str, set[str]] | None = None,
         anime_category: int = 5070,
         movie_category: int = 2000,
+        _window: int | None = None,
     ) -> tuple[list[dict], int, dict[str, str]]:
         if self.active >= 8:
             raise Unavailable("search_busy")
@@ -329,7 +381,9 @@ class Search:
         try:
             async with asyncio.timeout(15):
                 parsed = query.parse(params)
-                local = await call(overrides, self.database)
+                if _window is not None:
+                    parsed = replace(parsed, offset=0, limit=_window)
+                local = await call(overrides, self.database, self.provider)
                 for attempt in range(2):
                     results: list[Result] = []
                     batches = await self.batches(

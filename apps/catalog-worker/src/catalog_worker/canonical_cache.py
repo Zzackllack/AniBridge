@@ -2,6 +2,7 @@
 
 from catalog_core.identity import search_key
 
+from .episode_matching import infer_seasons, source_keys
 from .mapping import CanonicalEpisode
 from .state import State
 from .transactions import atomic
@@ -35,8 +36,7 @@ def store(
 def missing(state: State, tid: str) -> bool:
     return (
         state.db.execute(
-            "SELECT 1 FROM entity e JOIN season_correspondence s ON s.title_id=e.title_id AND s.native_season=e.native_season "
-            "JOIN canonical_title c ON c.title_id=s.title_id AND c.namespace=s.namespace AND c.external_id=s.external_id "
+            "SELECT 1 FROM entity e JOIN canonical_title c ON c.title_id=e.title_id "
             "WHERE e.title_id=? AND e.kind='episode' AND c.namespace='tvdb' AND e.display_title IS NOT NULL "
             "AND NOT EXISTS(SELECT 1 FROM canonical_episode p WHERE p.mapping_id=c.mapping_id AND p.entity_id=e.entity_id) LIMIT 1",
             (tid,),
@@ -47,6 +47,7 @@ def missing(state: State, tid: str) -> bool:
 
 def apply(state: State, tid: str, checked_at: int) -> str:
     outcome = "matched"
+    inferred = infer_seasons(state, tid)
     # Use the same Unicode normalizer and per-entity primary-key probes; an
     # entity×full-series hint join would needlessly multiply every refresh.
     for mapping in state.db.execute(
@@ -66,11 +67,17 @@ def apply(state: State, tid: str, checked_at: int) -> str:
                 (tid, namespace, external, native),
             ).fetchone()
             if season is None:
-                continue
-            hint = state.db.execute(
-                "SELECT episode FROM canonical_hint WHERE title_id=? AND season=? AND title_key=?",
-                (tid, season[0], search_key(name)),
-            ).fetchone()
+                if native not in inferred:
+                    continue
+                season = (inferred[native],)
+            hint = None
+            for key in source_keys(name, state.provider):
+                hint = state.db.execute(
+                    "SELECT episode FROM canonical_hint WHERE title_id=? AND season=? AND title_key=?",
+                    (tid, season[0], key),
+                ).fetchone()
+                if hint is not None:
+                    break
             if hint is None or hint[0] is None:
                 continue
             previous = state.db.execute(

@@ -22,6 +22,7 @@ PARAMS = {
     "limit",
     "offset",
     "maxage",
+    "cat",
 }
 
 
@@ -31,11 +32,17 @@ class Model(BaseModel):
 
 class Request(Model):
     operation: Literal["titles", "native", "recent"]
-    provider: Literal["aniworld.to"] = "aniworld.to"
+    provider: Literal["aniworld.to", "s.to", "megakino"] = "aniworld.to"
     params: dict[str, str] = Field(default_factory=dict)
     title_ids: list[str] = Field(default_factory=list, max_length=200)
     limit: int = Field(default=500, ge=1, le=500)
     offset: int = Field(default=0, ge=0, le=10000)
+    # Requested canonical coordinates select a superset; local overrides still
+    # win. Include their entity IDs even when the published map is elsewhere.
+    coordinate_namespace: Literal["tvdb", "tmdb-tv"] = "tvdb"
+    season: int | None = Field(default=None, ge=0, le=2**31 - 1)
+    episode: int | None = Field(default=None, ge=1, le=2**31 - 1)
+    include_entities: list[str] = Field(default_factory=list, max_length=1000)
     languages: list[Literal["de-dub", "en-dub", "de-sub", "en-sub"]] = Field(
         default_factory=lambda: sorted(identity.LANGUAGES), max_length=4
     )
@@ -47,7 +54,13 @@ class Request(Model):
         query = parse(self.params)
         if len(set(self.title_ids)) != len(self.title_ids):
             raise ValueError("duplicate title IDs")
-        for value in self.title_ids:
+        if self.operation != "native" and (
+            self.season is not None or self.episode is not None or self.include_entities
+        ):
+            raise ValueError("target selection requires native operation")
+        if self.episode is not None and self.season is None:
+            raise ValueError("episode requires season")
+        for value in [*self.title_ids, *self.include_entities]:
             if len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
                 raise ValueError("invalid title ID")
         if self.operation == "native" and (not self.title_ids or not query.recent):
@@ -82,6 +95,7 @@ class EpisodeMap(Model):
 
 
 class Title(Model):
+    provider: Literal["aniworld.to", "s.to", "megakino"] = "aniworld.to"
     title_id: str = Field(pattern=r"^[0-9a-f]{64}$")
     identity_anchor: str = Field(max_length=1024)
     slug: str = Field(max_length=256)
@@ -97,7 +111,7 @@ class Title(Model):
 
     @model_validator(mode="after")
     def identities(self) -> Self:
-        if identity.title_id("aniworld.to", self.identity_anchor) != self.title_id:
+        if identity.title_id(self.provider, self.identity_anchor) != self.title_id:
             raise ValueError("title identity mismatch")
         if (
             identity.path(self.path) != self.path
@@ -107,7 +121,7 @@ class Title(Model):
         for item in self.mappings:
             identity.validate_external_id(item.namespace, item.external_id)
             if item.title_id != self.title_id or item.mapping_id != identity.mapping_id(
-                "aniworld.to", self.title_id, item.namespace, item.external_id
+                self.provider, self.title_id, item.namespace, item.external_id
             ):
                 raise ValueError("mapping identity mismatch")
         return self
@@ -204,6 +218,8 @@ class Response(Model):
                 raise ValueError("invalid candidates")
         elif len(self.rows) != min(request.limit, max(0, self.total - self.offset)):
             raise ValueError("response page mismatch")
+        if any(title.provider != self.provider for title in self.titles):
+            raise ValueError("title provider mismatch")
         titles = {title.title_id: title for title in self.titles}
         if len(titles) != len(self.titles):
             raise ValueError("duplicate titles")

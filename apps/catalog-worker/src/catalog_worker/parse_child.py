@@ -1,5 +1,6 @@
 """Private bounded parser process; communicates normalized records only."""
 
+import json
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -16,7 +17,16 @@ def main() -> None:
     source, destination, kind, page_path, *providers = sys.argv[1:]
     provider = providers[0] if providers else "aniworld.to"
     body = Path(source).read_bytes()
-    options = {"origin": providers[1]} if provider == "megakino" else {}
+    options = (
+        {
+            "origin": providers[1],
+            "sitemap_origins": tuple(json.loads(providers[2]))
+            if len(providers) > 2
+            else (),
+        }
+        if provider == "megakino"
+        else {}
+    )
     page = (
         parse_recent(body, provider, providers[1])
         if kind == "signal"
