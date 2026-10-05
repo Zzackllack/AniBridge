@@ -147,3 +147,43 @@ Obsolete client artifact/renewal gates are replaced by response/cache/revision/
 outage tests; retained identity/mapping/migration/jobs/storage gates still apply.
 The generated pilot containers were stopped/removed after validation, retaining
 only that named project's disposable volumes and locally built images.
+
+
+## Maintainer-selected live metadata pass (2026-10-05)
+
+Input explicitly supplied by the maintainer:
+`https://aniworld.to/anime/stream/rascal-does-not-dream-of-bunny-girl-senpai`.
+Executed committed `36ad9408fb6691f2dbddde9a6fa59f9167a45c36` images in
+separate Compose project `anibridge-query-bunny-pilot`, using the base and
+`show.yaml` overlays. Source `private-bunny-pilot`, canonical TV source `off`.
+No application source changed for this experiment.
+
+Two explicit `--collect-title` passes used the documented 30-page/120-second
+per-pass bound. The first completed 30 checked work pages with three pending;
+the second resumed them, reaching 33 checked pages and zero pending. This is
+work-page accounting, not an instrumented total of HTTP starts/redirects.
+One title, 29 native entities: season 1 has 13, season 2 has 13, and source
+season 0 has three film entries. Observed variants: 16 German dub, 29 German
+sub, 25 English sub (70 total). The title detail status became complete; export
+coverage remains conservatively partial and canonical mappings are absent.
+No assertion of full provider coverage, working host offers or video quality.
+
+Actual local `t=search&q=Rascal Does Not Dream&limit=100` returned HTTP 200,
+70 items in 0.126 seconds, partial mapping status, and no manufactured
+720p/1080p/H264 release tokens. Initial full-title search returned 64 items in
+0.153 seconds before the resume. `tvsearch` for season 1 returned empty with
+canonical mapping off; this does not prove Sonarr discovery. Local qBittorrent
+queue contained zero jobs. No video-host resolution, grab, media download,
+client import or playback occurred.
+
+**Observed defect:** the resume resets `title.display_title` to the URL slug.
+`collect_title` seeds its listing with `Link(title_path, slug)` on every pass;
+existing detail work is not due again, leaving the previously fetched heading
+replaced. The first export preserved the proper heading; the second export
+and release names used the slug. Fix this before canonical/live-client testing;
+do not hide it by guessing a canonical mapping.
+
+Stopped/removed only this project's service containers and network with
+`docker compose ... down`. Its disposable volumes/config/catalog remain for
+reproduction; the earlier synthetic project volumes were not changed. No
+provider HTML, cookies, credentials or live catalog database is committed.
