@@ -62,3 +62,7 @@ lifecycle/migration tests preserve mainline state and local grab ownership.
 The [Compose smoke](../../scripts/catalog/query_pilot/README.md) accepts a
 paused generated grab; it does not prove live extraction, import or playback.
 Historical snapshot validator timeouts remain failed; no endurance rerun.
+Metadata/season-1 discovery is closed. The single generated-media production-job
+acceptance scenario is [ACCEPTANCE.md](../../scripts/catalog/query_pilot/ACCEPTANCE.md).
+Its test-only HTTP input hook must never be installed in normal deployments;
+it does not substitute the executor/download child or fabricate completion.

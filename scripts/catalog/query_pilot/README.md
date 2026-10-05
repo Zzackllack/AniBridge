@@ -1,5 +1,9 @@
 # Private request API pilot
 
+Metadata/season-1 discovery is closed. The finite next acceptance and private
+readiness verdict are in [ACCEPTANCE.md](ACCEPTANCE.md). Do not expand the pilot
+or recollect the retained selected show to run that generated-media scenario.
+
 Run from the repository root. Everything below uses a **new disposable stack**;
 no existing installation, supplied media, hosted endpoint or credentials are used.
 Requires Docker Compose and enough free disk for the images (check `df -h .`).

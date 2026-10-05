@@ -250,3 +250,35 @@ Repeat discovery and finish the queue check with
 [BUNNY_MATCHING.md](../../../scripts/catalog/query_pilot/BUNNY_MATCHING.md).
 Extraction/import/playback/public gates remain open; historical validator
 failures remain failed evidence.
+
+## Closed milestone and finite acceptance handoff (2026-10-05)
+
+The selected AniWorld metadata/season-1 discovery milestone is **closed**.
+No collection, mapping change, server access/deployment, live extraction,
+endurance run or new product feature is authorized by this handoff.
+[ACCEPTANCE.md](../../../scripts/catalog/query_pilot/ACCEPTANCE.md) records
+implemented/demonstrated behavior, operational prerequisites, the single
+remaining generated workflow acceptance and deferred release coverage.
+
+The prepared scenario uses a fresh named disposable project, existing API/
+collector/client images, generated test-pattern/sine bytes and a test-only
+fixed HTTP input fixture. It keeps normal API startup, Runner, SubprocessExecutor,
+job_child, yt-dlp transfer, remux/probe/receipt/publication and Jobs.finish intact.
+Sonarr queries through Prowlarr, initiates one grab and performs actual import.
+No fake completed job, replacement download-child result or direct status write.
+One attempt is required; no restart/retry matrix. Library/download path sharing,
+UID ownership and explicit Unknown test policy are supplied by the scenario.
+
+Preparation checks: Compose overlay parses without a running daemon; Ruff
+check/format pass; native focused generated-input test **1 passed** through the
+real maintained resolver and streaming transfer. It rejects undeclared fixture
+paths and leaves HOME unchanged. This small test does not prove child resource
+enforcement, complete job publication or Sonarr import. The full Linux scenario
+is **not executed** because Docker is unavailable, and no PASS result is recorded.
+
+No confirmed implementation defect currently blocks this configured generated
+workflow. Metadata/discovery is private-pilot ready. End-to-end acceptance
+remains pending the one finite run; a PASS closes the scoped generated workflow.
+Live provider extraction/provider-media import, annotated entries, broader
+coverage/platform/public-launch gates remain separate limitations. The Bunny
+queue check is only a short operational check when Docker becomes available.

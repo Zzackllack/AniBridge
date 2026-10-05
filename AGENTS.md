@@ -33,6 +33,9 @@ Request API private pilot
   never mix those with a real installation. No query/IP access logs by default.
 - Keep `EVIDENCE.md` current; synthetic/client/live extraction/import/playback
   proofs are distinct. The maintainer guide is `scripts/catalog/query_pilot/README.md`.
+- Metadata/season-1 discovery is closed. The finite generated-media acceptance
+  handoff is `scripts/catalog/query_pilot/ACCEPTANCE.md`; its HTTP input hook is
+  test-only and must never be installed in a normal deployment.
 
 Common pitfalls
 
