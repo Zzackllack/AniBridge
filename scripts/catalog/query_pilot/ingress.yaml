@@ -1,0 +1,20 @@
+# Attach only metadata serving to an existing operator-managed Traefik network.
+services:
+  metadata:
+    networks: [default, ingress]
+    labels:
+      traefik.enable: 'true'
+      traefik.docker.network: ${PILOT_PROXY_NETWORK:?Select existing proxy network}
+      traefik.http.routers.anibridge-private-catalog.rule: 'Host(`${PILOT_METADATA_HOST:?Select metadata DNS hostname}`) && Path(`/catalog/v1/query`) && Method(`POST`)'
+      traefik.http.routers.anibridge-private-catalog.entrypoints: ${PILOT_TLS_ENTRYPOINT:-https}
+      traefik.http.routers.anibridge-private-catalog.tls: 'true'
+      traefik.http.routers.anibridge-private-catalog.tls.certresolver: ${PILOT_TLS_RESOLVER:?Select existing resolver}
+      traefik.http.routers.anibridge-private-catalog.observability.accesslogs: 'false'
+      traefik.http.routers.anibridge-private-catalog.observability.metrics: 'false'
+      traefik.http.routers.anibridge-private-catalog.observability.tracing: 'false'
+      traefik.http.routers.anibridge-private-catalog.service: anibridge-private-catalog
+      traefik.http.services.anibridge-private-catalog.loadbalancer.server.port: '8080'
+networks:
+  ingress:
+    external: true
+    name: ${PILOT_PROXY_NETWORK:?Select existing proxy network}
