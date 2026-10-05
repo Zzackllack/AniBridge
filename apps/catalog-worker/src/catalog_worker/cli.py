@@ -102,15 +102,18 @@ async def collect_title(path: Path, title_path: str) -> None:
     try:
         check(config, startup=True, state_reserve=migration_reserve(config))
         state = State(config.state_dir / "aniworld.to.sqlite", "aniworld.to")
-        existing = [r[0] for r in state.db.execute("SELECT path FROM title")]
-        if existing and existing != [title_path]:
+        existing = state.db.execute("SELECT path,display_title FROM title").fetchall()
+        if existing and [row["path"] for row in existing] != [title_path]:
             raise ValueError(
                 "targeted command requires empty or matching single-title state"
             )
         now = int(time.time())
-        state.listing(
-            Page((Link(title_path, title_path.rsplit("/", 1)[-1]),), (), 0, None), now
+        # This is a synthetic discovery hint, not a fresh provider listing.
+        # Resuming must keep the heading already obtained from the detail page.
+        name = (
+            existing[0]["display_title"] if existing else title_path.rsplit("/", 1)[-1]
         )
+        state.listing(Page((Link(title_path, name),), (), 0, None), now)
         collector = Collector(config, state)
         async with asyncio.timeout(120):
             for _ in range(30):
