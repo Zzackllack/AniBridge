@@ -25,6 +25,11 @@ def backup(config: Config) -> Path:
     )
     check(config, state_reserve=reserve + 512 * 1024**2)
     root.mkdir(mode=0o700)
+    # Write the fence first: SIGKILL cannot run an exception handler.
+    incomplete = root / "INCOMPLETE"
+    incomplete.touch()
+    fsync_directory(root)
+    fsync_directory(config.state_dir)
     try:
         for path in files:
             with (
@@ -38,6 +43,7 @@ def backup(config: Config) -> Path:
                     target.execute("PRAGMA integrity_check").fetchone()[0] == "ok",
                     "invalid backup",
                 )
+        incomplete.unlink()
         fsync_directory(root)
         return root
     except BaseException:

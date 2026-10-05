@@ -113,3 +113,28 @@ def test_normal_multi_provider_command_resumes_and_keeps_failed_provider(
     assert len(list(path.glob("*.sqlite"))) == 2
     with pytest.raises(ValueError, match="already exists"):
         backup(config)
+
+
+def test_failed_backup_set_cannot_be_restored(tmp_path):
+    import sqlite3
+
+    from catalog_worker.config import LIMITS, Config
+
+    config = Config(
+        {"aniworld.to": "https://fixture.invalid"},
+        {"tv": "off"},
+        tmp_path / "state",
+        tmp_path / "read",
+        tmp_path / "unused",
+        "backup-test",
+        "127.0.0.1",
+        8080,
+        {key: value[0] for key, value in LIMITS.items()},
+    )
+    config.state_dir.mkdir()
+    (config.state_dir / "aniworld.to.sqlite").write_bytes(b"not a SQLite database")
+    with pytest.raises(sqlite3.DatabaseError):
+        backup(config)
+    assert (config.state_dir / "backup/INCOMPLETE").is_file()
+    with pytest.raises(ValueError, match="already exists"):
+        backup(config)
