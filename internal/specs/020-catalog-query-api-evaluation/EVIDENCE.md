@@ -409,3 +409,50 @@ These are short live samples, not peak/endurance/capacity estimates. Collector
 bootstrap runs on Linux, not on the development Mac. Full collection, a copied
 maintainer-state migration rehearsal and authorized live media/import/playback
 remain unverified.
+
+### Authorized network repair and Docker restart — 2026-10-06
+
+The maintainer reported an OpenStatus NetBird outage and authorized both the
+pilot-network replacement and permanent Docker address-pool configuration.
+Read-only diagnosis confirmed that the pilot's
+`ev7cds2lpqyvqfxpcm4wp4tc_default` bridge allocated `192.168.0.0/20`; Linux chose
+that bridge for `192.168.2.1` before the existing NetBird policy route. Its only
+endpoints were metadata and the shared proxy, both with other attached networks.
+After removing those endpoints and the bridge, the host selected `wt0 table
+netbird` and ping succeeded 3/3. Coolify's saved source pins its replacement to
+`172.16.27.0/24`; the actual replacement allocation was inspected.
+
+`/etc/docker/daemon.json` now sets `default-address-pools` to
+`[{"base":"10.254.0.0/16","size":24}]`, after an overlap check against all IPv4
+routing tables and Docker IPAM, and successful `dockerd --validate`. The previous
+configuration was absent. Configuration, network and running-container inventory
+are retained in `/var/backups/anibridge-network-20261006T202626Z`. The authorized
+daemon restart applied the new pool. A disposable automatic network obtained
+`10.254.1.0/24` and was removed. Existing user-defined networks were retained;
+changing the pools alone would not have repaired the existing conflicting route.
+
+All **21 previously running container names** returned to running. Wings restored
+its managed game container automatically; the recovery check initially caught
+the interval before that recreation completed, then verified it returned. No
+container with a configured healthcheck remained unhealthy, and no OOM was
+reported in the final inventory. The OpenStatus probe's network namespace also
+pinged `192.168.2.1` **3/3** after the restart. An HTTP diagnostic to port 80 was
+refused by the destination; it is not evidence of an HTTP monitor recovery or
+dashboard alarm clearance. No probe configuration was changed.
+
+Authenticated remote metadata POSTs returned **200**, with totals **195 AniWorld
+and 225 Serienstream releases**, and unauthenticated POST returned **401**.
+The Mac client's health returned **200**. A first operator probe omitted the
+required `params.t=search` and correctly returned 400; the corrected probe passed.
+At the postrestart status check, both provider cooldowns had cleared and checked
+pages had increased to **592 AniWorld / 591 Serienstream**. Managed storage was
+**48,218,112 bytes**, plus the fixed runtime reserve. Bootstrap remained partial.
+
+The earlier cooldowns were three transport failures within five minutes, rather
+than a proven 401/403/challenge or 429 response. Hundreds of successful pages and
+successful collection after automatic cooldown show the same origins/request
+headers remain usable. The current transport collapses timeouts, connection/TLS
+errors and other unsuccessful HTTP statuses into `transport_failure`; original
+status/exception details were not retained. IP reputation, provider throttling
+and header sensitivity cannot be distinguished retrospectively from this data.
+The LAN-route conflict does not establish a cause for public-provider failures.

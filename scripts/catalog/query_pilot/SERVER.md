@@ -20,6 +20,28 @@ collector's Coolify terminal:
 anibridge-catalog-worker --config /config/worker.json --status
 ```
 
+Normal collection events are in `/state/logs/worker.jsonl`, rather than Docker
+stdout. In the same collector terminal, run:
+
+```sh
+tail -n 50 -f /state/logs/worker.jsonl
+```
+
+Coolify's Runtime Logs show startup/runtime errors; the metadata API deliberately
+has no request access logs. A provider's `blocked` status also covers transport
+cooldowns: three transport failures within five minutes defer that provider for
+30 minutes. This status alone does not prove a provider IP ban. HTTP 401/403,
+429 and recognized challenge pages have separate outcomes. The current transport
+does not retain the original HTTP status/exception for a `transport_failure`.
+
+The pilot backend is pinned to **172.16.27.0/24**. On October 6, the unpinned
+Coolify `default` network had allocated `192.168.0.0/20`, shadowing NetBird's
+route to `192.168.2.1`. The source Compose was updated and that network replaced.
+The authorized host-level repair also sets Docker's `default-address-pools` to
+`[{"base":"10.254.0.0/16","size":24}]`; these ranges were checked against the
+host's existing Docker and VPN routes. Changing the daemon pools does **not**
+renumber existing networks. Preserve volumes when replacing a conflicting network.
+
 The disposable Mac client configuration is under
 `$HOME/anibridge-private-client-config`; its `pilot.env` contains paths/image tag,
 not the bearer token. From the AniBridge checkout, start or stop that client with:
@@ -56,6 +78,8 @@ cd anibridge-private-pilot
 git checkout zzackllack-aux/catalog-query-api-implementation
 export PILOT_COMMIT=$(git rev-parse HEAD)
 export PILOT_CONFIG_DIR="$HOME/anibridge-private-config"
+# Verify this unused subnet against `ip route show table all` and Docker IPAM.
+export PILOT_BACKEND_SUBNET=172.16.27.0/24
 # Choose your DNS name; the HTTPS origin must have a normally verified certificate.
 export PILOT_METADATA_HOST=YOUR-METADATA-HOSTNAME
 python3 scripts/catalog/query_pilot/prepare_server.py "$PILOT_CONFIG_DIR" \

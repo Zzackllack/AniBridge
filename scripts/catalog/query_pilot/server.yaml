@@ -36,3 +36,9 @@ volumes:
   config:
   worker-state:
   read-catalog:
+networks:
+  default:
+    # Docker's automatic pools can shadow a NetBird-advertised home LAN.
+    ipam:
+      config:
+        - subnet: ${PILOT_BACKEND_SUBNET:-172.16.27.0/24}
