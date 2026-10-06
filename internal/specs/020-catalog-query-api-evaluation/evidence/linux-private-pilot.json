@@ -1,0 +1,153 @@
+{
+  "checked_at_utc": "2026-10-06T19:57:32.930962+00:00",
+  "collector_image_commit": "3bf551e280d00f462d3d493611ef162e1aa93527",
+  "local_client_image_commit": "71988fc8251e6a89823828ca3e871ab47ba2fc28",
+  "initial_first_publication_seconds": {
+    "aniworld.to": 289,
+    "s.to": 409
+  },
+  "proof": "Live remote metadata and local Torznab queries; no acquisition/import/playback",
+  "http_checks": {
+    "unauthenticated_post": 401,
+    "authenticated_aniworld_post": 200,
+    "authenticated_serienstream_post": 200,
+    "excluded_get_routes": 503
+  },
+  "tvsearch_checks": [
+    {
+      "provider": "aniworld.to",
+      "tvdbid": 450072,
+      "season": 2,
+      "episode": 10,
+      "releases": 3
+    },
+    {
+      "provider": "s.to",
+      "tvdbid": 442050,
+      "season": 1,
+      "episode": 1,
+      "releases": 2
+    }
+  ],
+  "restart_resume_verified": true,
+  "operator_restart_recreated_containers_and_retained_volumes": true,
+  "status": {
+    "storage": {
+      "state_used_bytes": 30072832,
+      "public_used_bytes": 9293824,
+      "managed_used_bytes": 39366656,
+      "runtime_reserved_bytes": 1000000000,
+      "total_used_bytes": 1039366656,
+      "state_quota_bytes": 20000000000,
+      "public_quota_bytes": 9000000000,
+      "total_quota_bytes": 30000000000,
+      "state_free_bytes": 111963394048,
+      "public_free_bytes": 111963394048,
+      "warning": false
+    },
+    "providers": {
+      "aniworld.to": {
+        "singleton": 1,
+        "revision": 0,
+        "wall": 1791316652,
+        "state": "blocked",
+        "next_listing": 1791330049,
+        "blocked_until": 1791318137,
+        "block_count": 0,
+        "dirty": 1,
+        "published_at": 1791316543,
+        "listing_checked_at": 1791315649,
+        "counts": {
+          "title": 2515,
+          "entity": 85,
+          "release": 195,
+          "canonical_title": 421,
+          "canonical_episode": 3
+        },
+        "pending_pages": 5736,
+        "failed_pages": 5,
+        "unsupported_titles": 0,
+        "checked_pages": 354,
+        "oldest_check_age_s": 1000,
+        "mapping": {
+          "title_mapped": 141,
+          "title_unresolved": 2374,
+          "episodes": 85,
+          "episode_mapped": 3,
+          "ambiguous_ids": 0,
+          "ambiguous_episode_hints": 0,
+          "outcomes": {
+            "matched": 141,
+            "not_found": 15,
+            "source_failure": 44
+          }
+        },
+        "recent": {
+          "singleton": 1,
+          "origin": "https://aniworld.to",
+          "checked_at": 1791315652,
+          "next_due": 1791316552,
+          "lease_until": 0,
+          "coverage": "gap",
+          "gap_since": 1791315892,
+          "entries": 150,
+          "overlaps": 0,
+          "unknown_languages": 0,
+          "polls": 1
+        },
+        "complete": false
+      },
+      "s.to": {
+        "singleton": 1,
+        "revision": 0,
+        "wall": 1791316652,
+        "state": "blocked",
+        "next_listing": 1791330049,
+        "blocked_until": 1791318044,
+        "block_count": 0,
+        "dirty": 0,
+        "published_at": 1791316361,
+        "listing_checked_at": 1791315649,
+        "counts": {
+          "title": 10938,
+          "entity": 110,
+          "release": 162,
+          "canonical_title": 153,
+          "canonical_episode": 8
+        },
+        "pending_pages": 12715,
+        "failed_pages": 3,
+        "unsupported_titles": 0,
+        "checked_pages": 309,
+        "oldest_check_age_s": 998,
+        "mapping": {
+          "title_mapped": 52,
+          "title_unresolved": 10886,
+          "episodes": 110,
+          "episode_mapped": 8,
+          "ambiguous_ids": 0,
+          "ambiguous_episode_hints": 4,
+          "outcomes": {
+            "matched": 52,
+            "not_found": 4,
+            "source_failure": 38
+          }
+        },
+        "recent": {
+          "singleton": 1,
+          "origin": "https://serienstream.to",
+          "checked_at": 1791315654,
+          "next_due": 1791316554,
+          "lease_until": 0,
+          "coverage": "gap",
+          "gap_since": 1791315654,
+          "entries": 181,
+          "overlaps": 0,
+          "unknown_languages": 8,
+          "polls": 1
+        },
+        "complete": false
+      }
+    }
+  }
+}

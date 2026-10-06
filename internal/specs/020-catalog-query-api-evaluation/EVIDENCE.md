@@ -366,3 +366,46 @@ Historical 019/evaluation endurance failures remain failed evidence.
 Concrete operator handoff: choose one Linux host with measured disk headroom,
 transfer this committed branch, and run SERVER.md's fresh configuration/bootstrap
 and private HTTPS ingress commands; then connect the separate disposable client.
+
+## Authorized private Linux deployment — 2026-10-06
+
+The maintainer selected `fra-node-01`, requested SSH continuation, created DNS and
+clicked the initial Coolify deployment. A separate Coolify project now owns the
+collector/metadata stack; the Mac runs a separate disposable query client. No
+registry push, PR, existing installation change or live media acquisition occurred.
+The runtime fix below was built on ARM Linux and applied through Coolify while
+retaining the same config, ledger and read-catalog volumes.
+
+Measured snapshot: [linux-private-pilot.json](evidence/linux-private-pilot.json).
+Initial useful publication took **289 seconds for AniWorld** and **409 seconds for
+Serienstream**, measured from the first listing checkpoint. These are partial
+publication times, not full-bootstrap durations. Authenticated HTTPS returned 200
+for both providers; missing bearer returned 401. The restricted ingress excluded
+GET, compatibility and docs requests (the existing proxy fallback returned 503).
+Local category searches returned the correct provider results. Actual local TVDB
+episode requests returned three AniWorld releases (450072/S02E10) and two
+Serienstream releases (442050/S01E01). These are metadata/query proofs only.
+
+A collector restart and the subsequent Coolify image update retained checkpoints,
+195 AniWorld releases and 162 Serienstream releases. Both providers entered a
+30-minute transport-failure cooldown; last-good catalogs continued serving 200.
+At the snapshot, only 3/85 AniWorld and 8/110 Serienstream collected episodes had
+canonical mappings. Explicit unresolved mappings, recent-feed coverage gaps and
+the eight unlabelled Serienstream feed entries remain visible. No complete
+bootstrap or universal Sonarr match coverage is claimed. Megakino remains disabled.
+
+The deployed worker is `3bf551e`; the local API is `71988fc`. The mapping fix defers
+an entire lookup when fewer than three requests remain in the existing 30/minute
+budget. It no longer counts its own throttling as an upstream failure or adds
+failure backoff. Cached episode enrichment can still run. Focused TV/movie
+canonical checks: **17 passed**; Ruff check/format passed. Historical failures
+already persisted by the old worker are retained and retry normally.
+
+Server free space was **105 GiB**. A sample after the update was collector
+**60.83 MiB** and metadata **53.07 MiB** under their 512 MiB caps; the local API
+sample was **162 MiB** under 1 GiB. The JSON contains measured managed storage and
+the unchanged 30,000,000,000-byte total including the 1,000,000,000-byte reserve.
+These are short live samples, not peak/endurance/capacity estimates. Collector
+bootstrap runs on Linux, not on the development Mac. Full collection, a copied
+maintainer-state migration rehearsal and authorized live media/import/playback
+remain unverified.

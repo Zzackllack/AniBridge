@@ -5,6 +5,36 @@ AniWorld and Serienstream are enabled. Megakino is optional and currently has a
 live language-observation blocker; it is not required for this pilot. Nothing in
 this guide deploys a host automatically or authorizes a public/default service.
 
+### Running the deployed Coolify pilot
+
+The authorized October 6 pilot is managed in the separate **AniBridge Private
+Pilot** project, service **anibridge-private-catalog**, on `fra-node-01`. Use its
+**Actions → Restart** after saving an image update. Images are built locally on
+that server and pinned by commit; keep `pull_policy: never` and avoid **Restart
+(pull latest)**. Retain its three prefixed volumes. Do not start a second manual
+Compose stack for this deployment. **Running (no healthcheck)** describes these
+worker containers; inspect actual collection progress with this command in the
+collector's Coolify terminal:
+
+```sh
+anibridge-catalog-worker --config /config/worker.json --status
+```
+
+The disposable Mac client configuration is under
+`$HOME/anibridge-private-client-config`; its `pilot.env` contains paths/image tag,
+not the bearer token. From the AniBridge checkout, start or stop that client with:
+
+```sh
+docker compose --env-file "$HOME/anibridge-private-client-config/pilot.env" \
+  -p anibridge-private-client -f scripts/catalog/query_pilot/local-client.yaml up -d --no-build
+docker compose --env-file "$HOME/anibridge-private-client-config/pilot.env" \
+  -p anibridge-private-client -f scripts/catalog/query_pilot/local-client.yaml stop
+```
+
+Its Torznab URL is `http://127.0.0.1:18000/torznab/api`, and its
+qBittorrent-compatible base URL is `http://127.0.0.1:18000`. They are local only.
+Use a separate test client/library, not the maintainer's real installation.
+
 `Configs/docs/Infos.md` lists `eyg-node-01` (24fire, Debian 13) and `fra-node-01`
 (OCI ARM, Ubuntu). Its hardware/disk figures are inventory, not current free-space
 measurements. Either architecture is usable; choose a host with **at least 30 GB
