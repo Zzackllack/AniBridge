@@ -133,6 +133,13 @@ class Enricher:
                 state, row["title_id"], digest, self.matcher, now
             ):
                 return True
+            # A lookup can use two search terms plus one descriptor. Defer the
+            # whole lookup when our own budget is low; this isn't a source failure.
+            request_now = self.clock()
+            while self.starts and self.starts[0] <= request_now - 60:
+                self.starts.popleft()
+            if len(self.starts) > 27:
+                return False
             outcome, mapped = "not_found", None
             failures = row["failures"]
             try:

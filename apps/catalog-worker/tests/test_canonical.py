@@ -97,6 +97,31 @@ def test_missing_year_and_ambiguous_results_stay_unresolved(tmp_path):
     state.close()
 
 
+def test_local_request_budget_defers_without_recording_source_failure(tmp_path):
+    state = ready(tmp_path)
+    clock = [NOW]
+    calls = []
+
+    async def fetch(origin, path, **kwargs):
+        calls.append(path)
+        item = {"tvdbId": 123, "title": "Example", "year": 2020, "episodes": []}
+        return Fetch("ok", json.dumps([item] if "search" in path else item).encode())
+
+    enricher = Enricher({}, fetcher=fetch, clock=lambda: clock[0])
+    enricher.starts.extend([NOW] * 28)
+    previous = dict(state.db.execute("SELECT * FROM mapping_input").fetchone())
+    assert not asyncio.run(enricher.tick(state, NOW))
+    assert calls == []
+    assert dict(state.db.execute("SELECT * FROM mapping_input").fetchone()) == previous
+
+    clock[0] += 60
+    assert asyncio.run(enricher.tick(state, clock[0]))
+    assert len(calls) == 2
+    result = state.db.execute("SELECT * FROM mapping_input").fetchone()
+    assert result["outcome"] == "matched" and result["failures"] == 0
+    state.close()
+
+
 def test_explicit_id_must_match_search_and_detail(tmp_path):
     state = ready(tmp_path, year=None, imdb="tt1234567")
 
