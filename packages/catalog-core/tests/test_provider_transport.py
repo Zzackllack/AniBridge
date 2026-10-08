@@ -142,3 +142,33 @@ def test_pool_timeout_is_a_local_resource_outcome(monkeypatch):
     )
     result = asyncio.run(fetch("https://provider.example", "/episode"))
     assert result.outcome == "local_resource" and result.error_class == "PoolTimeout"
+
+
+def test_canonical_pool_retains_identifying_default_headers(monkeypatch):
+    def respond(request):
+        assert request.headers["User-Agent"] == "AniBridge-Metadata/1.0"
+        assert request.headers["Accept"] == "*/*"
+        assert request.headers["Accept-Encoding"] == "identity"
+        assert "cookie" not in request.headers and "authorization" not in request.headers
+        return httpx.Response(200, stream=Stream(b"[]"))
+
+    monkeypatch.setattr(
+        httpx, "AsyncHTTPTransport", lambda **kwargs: httpx.MockTransport(respond)
+    )
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [(2, 1, 6, "", ("93.184.216.34", 443))],
+    )
+
+    async def scenario():
+        session = Session("https://skyhook.sonarr.tv", 1)
+        try:
+            result = await session.fetch(
+                session.origin, "/v1/tvdb/search/en/", query={"term": "example"}
+            )
+            assert result.outcome == "ok" and result.body == b"[]"
+        finally:
+            await session.close()
+
+    asyncio.run(scenario())

@@ -59,7 +59,14 @@ class Session:
 
     def __init__(self, origin: str, concurrency: int = 2, headers=None) -> None:
         self.origin = origin
-        self.headers = headers or {}
+        # Direct transport requests don't inherit AsyncClient's default headers.
+        # Skyhook rejects an absent User-Agent with 400; retain identifying
+        # defaults for canonical calls as well as configured provider profiles.
+        self.headers = {
+            "User-Agent": "AniBridge-Metadata/1.0",
+            "Accept": "*/*",
+            **(headers or {}),
+        }
         self.transport = httpx.AsyncHTTPTransport(
             trust_env=False,
             verify=True,
