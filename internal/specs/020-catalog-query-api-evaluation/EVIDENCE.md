@@ -621,3 +621,39 @@ historical failed-page counts remain 249/738. Authenticated HTTPS is still 200,
 unauthenticated 401; total accounted storage 1,743,608,320 bytes. AniWorld's
 falling global mapping fraction during discovery is explicit, despite improved
 unique-name cohorts; enrichment/translation coverage is not universal.
+
+
+### Redirect and bounded-queue follow-up
+
+Review found a redirect admission edge case: durable deferral of every short
+spacing wait could restart the original hop indefinitely. `1edbda8` resumes the
+same redirect chain outside the HTTP deadline, releasing/reacquiring a
+cancellable fetch lease during local spacing. Hourly admission still defers
+durably. HTTPX pool exhaustion is now a local resource wait, not provider
+evidence. `9afc52f` reserves result-queue capacity before acquiring that lease,
+avoiding deadlock with a one-entry queue and one global fetch slot.
+
+Final native worker **122 passed/13 platform skips**, core **302 passed**.
+The locally built Linux image at `9afc52fd2c439126e22a353b9100eb834bfb1022`
+passed **30 focused installed-package checks** (collector admission/HTTP,
+pipeline, transport). These include zero-request budget deferral/reopen,
+redirect continuation, cancellation without duplicate release, local pool
+timeout and small-queue scheduling. No repeated endurance/crash campaign or
+full-crawl benchmark was run. The finite throughput window above measures
+`128f9eb`; it is not relabelled as a new measurement of the follow-up image.
+
+The follow-up image ID is
+`sha256:bc89461128b83deec7b7c470a78aff049546929c8f49727439e4c804da8eadc3`.
+At this checkpoint its Coolify save/restart is pending because the Mac locked;
+the existing pilot still runs the tested `128f9eb` build. No alternate writer
+or unmanaged replacement stack was started.
+
+The pre-follow-up sample at **14:10:22 UTC** is `followup-current.json`.
+AniWorld: 2,516 titles / 38,184 episodes / 71,845 releases; 21,344 of
+38,178 usable episodes mapped (**55.91%**), 17,236 pending pages.
+Serienstream: 10,947 titles / 26,838 episodes / 29,174 releases; 13,823 of
+23,263 usable episodes mapped (**59.42%**), 147,236 pending pages.
+Historical failed pages remain 249/738. Authenticated HTTPS is 200/200 and
+unauthenticated 401. Accounted storage including reserve: **1,803,766,272
+bytes**. Both collections remain incomplete; AniWorld enrichment continues
+to trail accelerated native discovery.

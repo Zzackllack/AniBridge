@@ -28,11 +28,11 @@ tail -n 50 -f /state/logs/worker.jsonl
 ```
 
 Coolify's Runtime Logs show startup/runtime errors; the metadata API deliberately
-has no request access logs. A provider's `blocked` status also covers transport
-cooldowns: three transport failures within five minutes defer that provider for
-30 minutes. This status alone does not prove a provider IP ban. HTTP 401/403,
-429 and recognized challenge pages have separate outcomes. The current transport
-does not retain the original HTTP status/exception for a `transport_failure`.
+has no request access logs. Timestamped worker events retain sanitized HTTP
+status/error classes, admission waits and retry reasons. A provider's `blocked`
+status alone does not prove an IP ban: explicit challenges, remote throttling
+and sustained actual transport failures have separate policies described below.
+Local budget/pool waits and parser errors never establish a provider ban.
 
 The pilot backend is pinned to **172.16.27.0/24**. On October 6, the unpinned
 Coolify `default` network had allocated `192.168.0.0/20`, shadowing NetBird's
@@ -174,7 +174,10 @@ Retain the current ledgers/volumes during upgrades. Existing failure and cooldow
 checkpoints are not cleared. First-pass season refreshes accelerate the old
 never-checked episode queue exactly once, including rows unsupported by batching.
 
-Local budgets defer before acquiring fetch slots. Transient pages retry with
+Hourly budgets defer before acquiring fetch slots. Short start-spacing waits
+within redirect chains release/reacquire their cancellable slot outside HTTP
+deadlines, retaining the same hop chain. Local pool timeouts defer work without
+a provider failure. Transient pages retry with
 5-second exponential base, jitter and a 300-second base ceiling; eight real
 consecutive failures spanning at least 30 seconds in a two-minute window open a
 60-second exponential circuit (900-second base ceiling). Success resets the

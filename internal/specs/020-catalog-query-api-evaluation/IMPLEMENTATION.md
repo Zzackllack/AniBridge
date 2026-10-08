@@ -167,7 +167,10 @@ pilot request limits and backoff delays are not accepted production defaults.
 
 ## Collector repair contract (2026-10-08)
 
-Local admission is a durable deferral, never transport/circuit evidence. Checked
+Hourly admission is a durable deferral, never transport/circuit evidence.
+Short redirect-spacing waits release their fetch slot and resume the same chain
+outside HTTP deadlines; cancellation cannot leak or double-release a slot.
+Connection-pool timeouts are local resource deferrals. Checked
 season rows can provide bounded positive episode names/aliases and explicit
 language flags; absent flags do not remove releases. Missing, unknown or changed
 row evidence retains detail requests. A one-time checkpointed season refresh

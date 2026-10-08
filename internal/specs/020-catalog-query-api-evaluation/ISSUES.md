@@ -22,7 +22,7 @@ and concurrency from bounded measurements of real responses and resource usage.
 
 | ID | State / priority | Issue and required outcome |
 | --- | --- | --- |
-| CQ-01 | Fixed + verified | Nonblocking durable admission defers outside network deadlines and before fetch slots. Exhausted-budget regression sends zero HTTP calls, records no failure and survives reopen. Redirect admission remains bounded. |
+| CQ-01 | Fixed + verified | Nonblocking durable admission defers outside network deadlines and before fetch slots. Exhausted-budget regression sends zero HTTP calls, records no failure and survives reopen. Short redirect spacing releases its slot and resumes the same chain; pool exhaustion also defers locally. Redirect/cancellation/pool regressions pass. |
 | CQ-02 | Fixed + verified | Short jittered page retries (5s exponential base, 300s base ceiling), sustained-real-failure circuits, success reset and single half-open probes. Parser/local waits never establish bans; explicit blocks start at 15m, capped at 6h. |
 | CQ-03 | Fixed + verified | Valid Retry-After seconds and HTTP dates are respected with a 1s–24h bound; malformed values default to 60s. 12-second/date regressions pass. Local exhaustion is admission_deferred, never remote 429. |
 | CQ-04 | Fixed + verified | Bounded timestamped JSON outcomes retain HTTP status, error class, request count, network/parser durations, retries and budget waits. Live 200 page/batch events verified without sensitive values. |
@@ -64,8 +64,8 @@ Inspected [PR #119](https://github.com/Zzackllack/AniBridge/pull/119) at head
 
 HTTPX's maintained [async documentation](https://www.python-httpx.org/async/)
 explicitly recommends client reuse outside hot loops for connection pooling.
-Pooling with our DNS-pinned transport needs implementation and verification;
-simply replacing the client with ordinary URL fetching would weaken that boundary.
+Origin-scoped pooling is now implemented and verified while retaining per-hop
+DNS pinning; ordinary unpinned URL fetching would weaken that boundary.
 
 ## Validation outcome and remaining measurement
 
