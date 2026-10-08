@@ -124,14 +124,14 @@ class Parser(HTMLParser):
                 self.year = int(match[1])
         if attrs.get("data-imdb"):
             candidate = attrs["data-imdb"]
-            require(
-                re.fullmatch(r"tt[0-9]{7,10}", candidate) is not None,
-                "invalid explicit IMDb ID",
-            )
-            require(
-                self.explicit_imdb in (None, candidate), "conflicting explicit IMDb IDs"
-            )
-            self.explicit_imdb = candidate
+            # Optional upstream hints may be malformed. Discard that hint, not
+            # an otherwise valid native series; never publish/coerce the bad ID.
+            if re.fullmatch(r"tt[0-9]{7,10}", candidate):
+                require(
+                    self.explicit_imdb in (None, candidate),
+                    "conflicting explicit IMDb IDs",
+                )
+                self.explicit_imdb = candidate
         if tag == "li" and attrs.get("data-link-target") and attrs.get("data-lang-key"):
             code = attrs["data-lang-key"]
             if code in self.languages_map:

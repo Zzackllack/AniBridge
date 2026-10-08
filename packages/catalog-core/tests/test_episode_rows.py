@@ -54,3 +54,25 @@ def test_conflicting_rows_and_incomplete_markup_reject():
     )
     with pytest.raises(ValueError, match="conflicting episode rows"):
         sto_parse(body.encode(), "detail", season)
+
+
+def test_invalid_optional_imdb_hint_keeps_native_series_without_inventing_id():
+    page = ani_parse(
+        b'<html><body><h1>Example</h1><a data-imdb="not-an-imdb-id"></a>'
+        b'<a href="/anime/stream/example/staffel-1">Season 1</a></body></html>',
+        "detail",
+        "/anime/stream/example",
+    )
+    assert page.title == "Example" and page.explicit_imdb is None
+    assert [link.path for link in page.links] == ["/anime/stream/example/staffel-1"]
+
+
+def test_conflicting_valid_imdb_hints_are_still_rejected():
+    with pytest.raises(ValueError, match="conflicting explicit IMDb IDs"):
+        ani_parse(
+            b'<html><body><h1>Example</h1><a data-imdb="tt1234567"></a>'
+            b'<a data-imdb="tt7654321"></a>'
+            b'<a href="/anime/stream/example/staffel-1">Season 1</a></body></html>',
+            "detail",
+            "/anime/stream/example",
+        )
