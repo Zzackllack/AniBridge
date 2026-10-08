@@ -507,8 +507,8 @@ request rates or provider headers.
 
 CQ-01–11 are implemented on the preserved branch. Commits: `a4810e6`
 (transport), `c6cb6ea` (durable admission/retries, batching/pools/parser imports),
-`128f9eb` (source aliases, conservative matching and progress). The existing
-fra-node-01 Coolify service now runs worker/metadata image
+`128f9eb` (source aliases, conservative matching and progress). The initial
+fra-node-01 Coolify cutover used worker/metadata image
 `128f9eb53b6a21e75b013f2c52ff1f99bcade162`, image ID
 `sha256:19e40f9f61d8f732455a89f23b43e7f6ef7cb0a5d08bb39b80855e4e848e36dc`.
 It was built locally on that server and applied through authenticated Coolify UI.
@@ -644,9 +644,8 @@ full-crawl benchmark was run. The finite throughput window above measures
 
 The follow-up image ID is
 `sha256:bc89461128b83deec7b7c470a78aff049546929c8f49727439e4c804da8eadc3`.
-At this checkpoint its Coolify save/restart is pending because the Mac locked;
-the existing pilot still runs the tested `128f9eb` build. No alternate writer
-or unmanaged replacement stack was started.
+The authenticated Coolify save/restart subsequently applied this image to the
+existing pilot. No alternate writer or unmanaged replacement stack was started.
 
 The pre-follow-up sample at **14:10:22 UTC** is `followup-current.json`.
 AniWorld: 2,516 titles / 38,184 episodes / 71,845 releases; 21,344 of
@@ -657,3 +656,49 @@ Historical failed pages remain 249/738. Authenticated HTTPS is 200/200 and
 unauthenticated 401. Accounted storage including reserve: **1,803,766,272
 bytes**. Both collections remain incomplete; AniWorld enrichment continues
 to trail accelerated native discovery.
+
+### Final deployed follow-up — 2026-10-08
+
+The existing collector and metadata containers now run
+`9afc52fd2c439126e22a353b9100eb834bfb1022`; both running containers' image IDs
+and revision labels match the follow-up image above. Coolify shows Running and
+no pending configuration changes. Retained mounts, 512 MiB/2 CPU/64 PID limits,
+bounded logs, private authentication and both Docker/VPN network settings were
+verified unchanged. No push, registry publication or additional writer occurred.
+
+[final-deployment.json](evidence/collector-repair-2026-10-08/final-deployment.json)
+records a **136.201-second** resumed window: **62/67 requests**, **674/673 new
+episodes**, **1,329/768 new releases**, and **zero new failures** for
+AniWorld/Serienstream. Both providers published after the restart; authenticated
+HTTPS returned 200/200, unauthenticated 401, and Mac-client health 200.
+All **200 sampled release IDs/first-seen times** survived, with both pre-v4 backup
+sizes unchanged. Historical failed pages are now **243/735**, reflecting normal
+successful retries during ongoing collection; no failures were manually cleared.
+
+Latest sample **16:39:08 CEST / 14:39:08 UTC**:
+
+| Coverage | AniWorld | Serienstream |
+| --- | ---: | ---: |
+| Discovered / checked titles | 2,516 / 2,512 | 10,947 / 10,853 |
+| Discovered / checked episode work | 58,193 / 50,038 | 155,297 / 34,124 |
+| Collected episode entities / releases | 50,247 / 92,242 | 37,898 / 41,651 |
+| Mapped / usable episodes | 26,011 / 50,225 (51.79%) | 21,188 / 33,299 (63.63%) |
+| Pending first-check pages | 9,013 | 141,249 |
+
+The ongoing read-only status/count queries are sampled sequentially, not one
+atomic snapshot of the running writer. Both first passes remain incomplete;
+discovery can grow and ETA remains withheld. AniWorld's mapping fraction trails
+its accelerated discovery despite improved unique-name cohorts. Serienstream's
+unresolved/unknown-language work still requires detail evidence.
+
+The new container's finite-window memory peak was **348,897,280 bytes**, with
+zero max-limit/OOM events and zero restarts. One CPU/RAM sample was 175.71% /
+137.7 MiB for collector, 0.13% / 53.09 MiB for metadata. Accounted storage including
+reserve was **1,878,899,200 bytes**, below the unchanged 30 GB aggregate limit.
+These short observations do not supersede earlier near-cap cache pressure or
+prove endurance. Final native/installed-package results above remain applicable;
+no code changed after the tested image.
+
+The browser deployment blocker is resolved. Remaining limits are the complete
+bootstrap/sustained-capacity measurement and optional CQ-12 external validation
+gaps listed above. The retained Linux collector continues collecting normally.

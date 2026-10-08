@@ -84,3 +84,9 @@ volumes, checkpoints, failures and pre-v4 backups. Remaining measurement limits:
 a complete supported-provider bootstrap and sustained production-capacity run;
 short cohorts and queue projections do not close those gates. CQ-12 remains
 optional. CQ-13/CQ-14 fixes and historical endurance failures are preserved.
+
+The final follow-up `9afc52f` is deployed through the existing Coolify service.
+Its 136-second restart/resume window added 674/673 episodes with zero new
+failures; 200/200 sampled identities and unchanged limits/volumes were verified.
+Latest phase/mapping/resource counts are in `final-deployment.json` and
+[EVIDENCE.md](EVIDENCE.md). No deployment blocker remains.
