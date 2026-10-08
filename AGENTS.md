@@ -30,6 +30,10 @@ Request API private pilot
   on the user's instance. Do not introduce snapshot client download machinery.
 - Total collector/service storage is 30,000,000,000 bytes, including state, read
   catalog/staging, backups, logs and 1,000,000,000-byte runtime reserve.
+- Collector/index worker minimum: 2 vCPU/2 GiB; recommended: 4 vCPU/4 GiB.
+  Optional 6 GiB needs measured benefit. The old 2-vCPU/512-MiB private pilot
+  is a constrained test profile, not a production ceiling. Local client target
+  is 1 vCPU/512 MiB for metadata/search; whole-job peaks remain unverified there.
 - Use disposable pilot volumes and `scripts/catalog/query_pilot/compose.yaml`;
   never mix those with a real installation. No query/IP access logs by default.
 - Keep `EVIDENCE.md` current; synthetic/client/live extraction/import/playback
@@ -43,7 +47,9 @@ Request API private pilot
 - Confirmed pilot defects and production throughput requirements are tracked in
   `internal/specs/020-catalog-query-api-evaluation/ISSUES.md`. Local budget waits
   are not provider failures; tune collection from measured work efficiency and
-  classified responses, while retaining the existing storage/resource budgets.
+  classified responses, while retaining storage bounds and explicit resource
+  profiles. A daily full recrawl is not the maintenance model; search remains
+  catalog-only. Background demand refresh is proposed, not implemented.
 - The original AniWorld metadata/season-1 discovery is closed. The finite generated
   media acceptance handoff is `scripts/catalog/query_pilot/ACCEPTANCE.md`; its HTTP input hook is
   test-only and must never be installed in a normal deployment.

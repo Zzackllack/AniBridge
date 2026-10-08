@@ -135,3 +135,10 @@ that configured origin's root; encoding remains identity. Defaults retain four
 total slots, two/provider and 2-second spacing; 1,800/hour matches that spacing
 without the old 1,200/hour idle period. This is a bounded measured setting, not
 a full-bootstrap or sustained provider-capacity guarantee. API env is unchanged.
+
+Collector/index worker sizing: minimum 2 vCPU/2 GiB; recommended 4 vCPU/4 GiB,
+with 6 GiB optional after measured benefit. Metadata serving has its own budget.
+The deployed 512-MiB worker is a constrained test profile. Local client target
+is 1 vCPU/512 MiB for metadata/search; extraction/job peaks need separate proof.
+These profiles are independent of provider request-rate limits and the retained
+30,000,000,000-byte aggregate storage budget. See the selected 020 contract.

@@ -78,3 +78,9 @@ Collector repair regressions: `test_collection_repairs.py`,
 case. Linux-only checks retain parser termination/publication enforcement.
 `scripts/catalog/collector_benchmark` compares finite metadata cohorts; raw
 bodies and ledger copies stay in disposable private scratch, never in Git.
+
+Resource profiles are independent: collector minimum 2 vCPU/2 GiB, recommended
+4 vCPU/4 GiB (6 GiB optional after profiling), local metadata/search target
+1 vCPU/512 MiB. The old 512-MiB collector and 1-GiB client runs retain their
+historical proof level. A smaller stress test does not establish a production
+requirement; no whole-job 512-MiB client claim has been validated.

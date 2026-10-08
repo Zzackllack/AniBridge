@@ -30,13 +30,17 @@
 5. For actively releasing titles, aim to discover a new episode within about
    six hours under normal provider availability. Historical titles have a
    slower schedule. This is a service target to measure, not a hard claim.
-6. Measure ordinary AniBridge under a 1 GiB RAM / 2 vCPU envelope. Existing
+6. Historical test profile: measure ordinary AniBridge under a 1 GiB RAM / 2 vCPU envelope. Existing
    installations start using their last good catalog without waiting for a
    network fetch. Fresh-install time and disk cost need benchmarks.
 7. Package the worker as a portable Docker service. The maintainer may use an
    external server; no Oracle, home-network, GCP, or object-store SDK may be
    required for correctness. Worker resource use must remain bounded even if
    the maintainer has a 4-vCPU/24-GiB machine.
+   Resource-profile clarification (2026-10-08): the selected 020 contract now
+   specifies collector minimum 2 vCPU/2 GiB, recommended 4 vCPU/4 GiB (6 GiB
+   optional), independently of the client's 1-vCPU/512-MiB metadata/search target.
+   Prior small-container measurements and gate outcomes remain historical evidence.
 8. Keep the last compatible catalog on failed or stale updates. Default to
    catalog-only fallback; offer explicit, targeted local refresh as an option.
    Targeted results live in a separate local layer.

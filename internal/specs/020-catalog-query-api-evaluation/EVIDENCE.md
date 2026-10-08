@@ -702,3 +702,93 @@ no code changed after the tested image.
 The browser deployment blocker is resolved. Remaining limits are the complete
 bootstrap/sustained-capacity measurement and optional CQ-12 external validation
 gaps listed above. The retained Linux collector continues collecting normally.
+
+
+## Later pilot review and resource clarification — 2026-10-08
+
+At **22:13 CEST / 20:13 UTC**, the retained `9afc52f` pilot was still running
+without OOMs/restarts. AniWorld had 60,704 episode entities / 110,939 releases,
+36,149 of 60,681 usable episodes mapped (**59.57%**), 705 pending pages and
+**one failed title** (down from 243). Serienstream had 152,540 / 161,029,
+80,719 of 135,156 usable episodes mapped (**59.72%**), 103,864 pending pages
+and **711 failed pages** (down from 735). HTTPS remained 200/200, unauthenticated
+401; storage including reserve was 2,352,388,608 bytes. This is continued
+collection from retained state, not a measured fresh complete bootstrap.
+
+Follow-up findings and fixes:
+
+- **CQ-15**, `211a68d`: direct pooling lost AsyncClient's default User-Agent on
+  canonical calls. Four source-failure samples returned HTTP 400. A three-request
+  control was 400 with no headers, 200 with identifying UA, 400 with Accept alone.
+  Restored identifying transport defaults, preserving provider overrides and
+  all pinning/cookie/encoding boundaries. Candidate checks in isolated scratch
+  state recovered one failed lookup per provider into a genuine matched result
+  (four HTTP 200 requests); no production ledger was mutated by those checks.
+- **CQ-16**, `c75a150`: 704 nonfailed AniWorld descendants were left a week ahead
+  by recent-hint admission while otherwise eligible bootstrap work was exhausted.
+  Idle bootstrap now fills that backlog after all due/targeted/history work,
+  excluding failures, targeted hints, leased and tombstoned work. Retry deadlines
+  survive restart. Queue diagnostics distinguish due/deferred/leased work and
+  due failures; failed work is never silently treated as complete.
+- **CQ-18**, `39ba345`: the remaining AniWorld title returned HTTP 200 but an
+  invalid optional IMDb hint caused whole-page rejection. Ignore that malformed
+  hint without coercing/publishing it; conflicting valid hints still fail. A
+  bounded check using the deployed parser now returns `ok` for the same page.
+  Its real retry deadline was retained (**23:08:38 CEST**), not forced forward.
+- **CQ-17 remains open**: the guide's four-hour active-work promise did not match
+  the incremental scheduler. Corrected that promise; capped recent feeds and
+  weekly reconciliation do not establish lossless freshness. A bounded active-
+  parent/gap reconciliation policy and optional background demand refresh remain
+  future work. No synchronous search crawl or daily complete recrawl was added.
+
+The production sizing policy now separates collector minimum **2 vCPU/2 GiB**,
+recommended **4 vCPU/4 GiB** (6 GiB only for demonstrated headroom benefit), from
+the client's **1-vCPU/512-MiB metadata/search target**. Job peaks need separate
+proof. The existing 512-MiB collector stays a constrained test profile; specs
+alone do not change host allocations, provider budgets or the 30 GB disk budget.
+User-facing public documentation is deferred as requested.
+
+Validation: native core **305 passed**, worker **125 passed/13 platform skips**;
+final installed Linux focused checks **57 passed**, with four SIGKILL cases
+deliberately deselected rather than repeating the crash campaign. Ruff/diff
+checks pass. Regressions cover default canonical headers, idle-bootstrap priority,
+protected failure/hint deadlines across reopen, queue diagnostics, malformed
+optional IDs and conflicting valid IDs.
+
+The existing Coolify service now runs collector/metadata image
+`39ba345626a9535aac31e7e356c34b4e889530af`, image ID
+`sha256:a1adffcffc1e178ef8aed121af7c0b45e4f32a35e6d7e71292e97de90708527a`.
+Both containers run with zero restarts/OOMs. All 200 sampled release IDs and
+first-seen times survived; pre-v4 backups remain 112,742,400 / 210,939,904 bytes.
+Original volumes, caps, authentication and source configuration were retained.
+No push, PR, registry publication, media acquisition or competing writer occurred.
+
+In **63.698 seconds** after the initial resumed sample, AniWorld/Serienstream
+made **30/29 provider requests**, admitted **1,132/341 season-row observations**,
+and recorded **zero new failures**. AniWorld pending work fell 488 → 410;
+Serienstream 101,816 → 101,654. Canonical source-failure title outcomes fell
+1,552 → 1,544 and 3,910 → 3,900 through normal successful/rejected lookups;
+16 became matched and two became not-found. No failure counters were cleared
+manually. Last-good authenticated publications remained available (200/200;
+unauthenticated 401) while the next scheduled publication was pending.
+
+Latest sample **22:36:54 CEST / 20:36:54 UTC**: AniWorld 62,568 entities /
+113,934 releases, 36,279 of 62,557 usable episodes mapped (**57.99%**), 410
+pending / one failed page. Serienstream 159,434 / 168,508, 84,592 of 141,196
+usable episodes mapped (**59.91%**), 101,654 pending / 710 failed pages.
+Counts are sequential read-only samples while the collector runs. Both remain
+incomplete; AniWorld discovery again advances faster than enrichment.
+
+The new container reached **536,875,008 bytes** in cache accounting/reclaim, with
+238 max-limit events, zero OOMs/kills and zero restarts. The resource snapshot
+separates 123,645,952 anonymous bytes from 312,066,048 file-cache bytes. This
+reinforces that the old 512-MiB profile is a stress test with cache pressure;
+it does not demonstrate a throughput gain at the newly recommended allocation.
+Accounted storage including reserve was **2,305,653,248 bytes**.
+
+Sanitized diagnostics and before/after/retry/resource results are in
+[later-review.json](evidence/collector-repair-2026-10-08/later-review.json).
+Source response bodies, lookup terms, provider paths and sampled IDs are omitted.
+Failures remain durable retry work. Tombstoned confirmed removals and unsupported
+work are distinct; no sampled omission was tombstoned. Unknown language labels
+and ambiguous canonical evidence remain unresolved instead of being invented.

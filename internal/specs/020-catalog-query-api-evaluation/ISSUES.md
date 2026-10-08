@@ -13,8 +13,10 @@ pilot cap and current retry delays are tuning choices, not accepted production
 defaults. Establish an actual complete-bootstrap benchmark; partial publication,
 title enumeration and extrapolation from a growing queue are not that benchmark.
 
-Keep the 30,000,000,000-byte total collector/service budget, existing container
-resource limits, durable resume, useful partial publication and query availability.
+Keep the 30,000,000,000-byte total collector/service budget, durable resume,
+useful partial publication and query availability. Production collector sizing
+is minimum 2 vCPU/2 GiB, recommended 4 vCPU/4 GiB; 6 GiB is a measured-headroom
+option. The current 2-vCPU/512-MiB pilot is a constrained test, not that minimum.
 Improve work efficiency before raising rates; select higher per-provider rates
 and concurrency from bounded measurements of real responses and resource usage.
 
@@ -36,6 +38,10 @@ and concurrency from bounded measurements of real responses and resource usage.
 | CQ-12 | Optional environment blocker | Megakino remains disabled: unresolved live language observations and unstable origins/challenge behavior. Keep AniWorld/Serienstream completion independent of it. Live extraction/import/playback and a copied real-state upgrade rehearsal remain separate, unverified gates. |
 | CQ-13 | Fixed + verified | Coolify allocated `192.168.0.0/20`, shadowing NetBird. Pilot backend is now `172.16.27.0/24`; fra-node-01's automatic Docker pool is `10.254.0.0/16` split into `/24`s. Existing conflicting bridge was replaced, Docker restarted, and host/probe-network pings passed. Keep overlap checks in deployment instructions. |
 | CQ-14 | Fixed + verified | Canonical enrichment previously treated its own 30/minute budget exhaustion as source failure. Deployed `3bf551e` defers the lookup without failure/backoff; 17 focused checks passed. CQ-01 is a separate provider-fetch budget defect. |
+| CQ-15 | Fixed + deployed + verified | Direct pooled canonical requests lost AsyncClient's identifying default headers. Skyhook control returned 400 without User-Agent and 200 with it; identifying defaults restored without changing provider overrides, pinning or cookies. |
+| CQ-16 | Fixed + deployed + verified | Recent-hint descendants were deferred a week even when bootstrap would otherwise idle: 704 AniWorld pages remained. Idle bootstrap now admits never-checked, nonfailed, non-targeted descendants after all due work; actual retry deadlines and recent hints remain protected. Status distinguishes due/deferred/leased first-pass work and due failures. |
+| CQ-17 | Remaining freshness gap | Four-hour active-work claims did not match the incremental scheduler. Current feeds/inventory/weekly reconciliation remain useful, but capped feeds cannot prove lossless updates. Add measured bounded active-parent/gap reconciliation; separately consider authenticated background demand refresh. No synchronous query crawl or daily full-episode recrawl is selected. |
+| CQ-18 | Fixed + deployed + verified | The last failed AniWorld title returned HTTP 200 but contained an invalid optional IMDb hint. Ignore malformed optional hints while retaining native metadata; reject conflicting valid IDs and never coerce/publish malformed values. |
 
 Backoff must follow evidence: honor explicit 429 instructions; briefly retry
 isolated network/5xx failures per page with bounded exponential delay and jitter;

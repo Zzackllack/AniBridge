@@ -61,6 +61,43 @@ existing migration backups and logs within 30,000,000,000 bytes including a
 1,000,000,000-byte runtime reserve. Reject builds/admission under disk pressure.
 Collector and query serving have independent finite work limits.
 
+## Resource profiles and freshness (clarified 2026-10-08)
+
+The collector/catalog index worker has a **minimum allocation of 2 vCPU and
+2 GiB RAM**, including its supervised parser/publication children. The selected
+recommended profile is **4 vCPU / 4 GiB RAM**. Use 6 GiB only if profiling shows
+useful cache retention, publication headroom or memory pressure at 4 GiB; it is
+an optional larger profile, not a requirement or a measured speed promise.
+This is an operator sizing policy, not proof of complete-bootstrap capacity.
+The metadata read service has a separate budget and must remain available during
+collection. Host sizing must leave room for that service, the OS and other apps.
+
+The local AniBridge target is **1 vCPU / 512 MiB for startup, idle operation,
+metadata requests and search**. Extraction/job peaks and job concurrency need
+separate validation; existing whole-client acceptance used 2 vCPU / 1 GiB and
+does not establish that all jobs fit the smaller target. The currently deployed
+2-vCPU/512-MiB worker is a deliberately constrained private test profile, not
+the production minimum. Historical measurements keep their original limits.
+No resource allocation or request budget changes follow automatically from this
+documentation correction. The 30,000,000,000-byte storage budget remains intact.
+
+A full bootstrap is retained across restarts; daily maintenance must not restart
+it or recrawl every episode. Current collection polls recent TV feeds every
+15 minutes, refreshes the title inventory every four hours, and admits bounded
+targeted work, bootstrap progress and weekly historical reconciliation. Capped
+recent feeds are hints, not lossless change streams; latched gaps remain visible.
+The incremental path does **not** implement the previously documented four-hour
+refresh of all active title/season/detail work. A bounded active-parent fallback
+and a proof of gap reconciliation remain freshness work, not completed features.
+
+Recommended next extension: a separately authenticated, deduplicated background
+metadata-refresh request for an existing stable title with missing episode
+evidence, plus a throttled inventory refresh for a genuinely missing title.
+Normal search/query responses stay catalog-only and do not wait for provider
+fetches. Use negative caching and independent admission budgets; a canonical
+mapping miss is not proof that the provider lacks an episode. This extension is
+not implemented or enabled, and never authorizes extraction or guessed mapping.
+
 Local cache: source/origin/token fingerprint/protocol/complete request keys,
 128 entries, 2 MiB serialized payload and 16 MiB SQLite page cap. TTL 60 seconds;
 positive validated stale responses allowed for at most 24 hours after fetching,

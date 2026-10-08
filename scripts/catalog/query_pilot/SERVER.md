@@ -145,9 +145,10 @@ with partial detail coverage and thereafter uses a 300-second minimum interval.
 Each provider has its own immutable pointer and last-good catalog. Publication
 fences that provider's writer only; other providers and queries continue.
 
-Current repaired defaults: four fetch slots, two per provider, 2-second start spacing and at most
-1,800 provider requests/hour; recent feeds every 15 minutes for TV, full listings
-and active work every four hours. Historical work has a weekly target cadence,
+Current repaired defaults: four fetch slots, two per provider, 2-second start
+spacing and at most 1,800 provider requests/hour; recent feeds every 15 minutes
+for TV, full listings every four hours. Targeted recent hints take priority;
+historical work has a weekly target cadence,
 a reserved scheduler share and a 20% hourly request budget. Those are targets,
 not a promise to finish a provider in a week. Failed/blocked requests use durable
 provider-specific cooldowns. Restarts reuse page checkpoints, leases, first-seen
@@ -161,9 +162,14 @@ The fixed **30,000,000,000-byte aggregate** is shared by all providers: state an
 backups 20 GB, read catalogs/staging 9 GB, runtime/log/image reserve 1 GB. Builds
 and collection refuse storage pressure. One globally serialized publication
 child, current file per provider and bounded staging; no historical read archive.
-Each collector/API container is 512 MiB, two CPUs, no swap, 64 PIDs. Docker logs
+The current constrained pilot gives each collector/API container 512 MiB, two
+CPUs, no swap, 64 PIDs. This is not the production worker requirement: minimum
+2 vCPU/2 GiB, recommended 4 vCPU/4 GiB, optional 6 GiB after profiling. The
+metadata API has a separate budget. Docker logs
 are 3 × 10 MB per service and worker events are 5 × 10 MiB. Do not raise limits to
-mask a failure. Run one collector; its process lock rejects a competing writer.
+mask a failure; change explicit profiles from measurements. Run one collector;
+its process lock rejects a competing writer. The local client's metadata/search
+target is 1 vCPU/512 MiB; whole extraction/job peaks still need separate proof.
 
 Collector state v4 adds source episode aliases, season-row checkpoints and
 bounded lifetime counters; the verified `.pre-v4.backup` is never overwritten.
@@ -173,6 +179,8 @@ or discard records collected after that backup.
 Retain the current ledgers/volumes during upgrades. Existing failure and cooldown
 checkpoints are not cleared. First-pass season refreshes accelerate the old
 never-checked episode queue exactly once, including rows unsupported by batching.
+After due work is exhausted, idle bootstrap admits never-checked descendants
+deferred by a recent hint; failed/targeted work keeps its real retry deadline.
 
 Hourly budgets defer before acquiring fetch slots. Short start-spacing waits
 within redirect chains release/reacquire their cancellable slot outside HTTP
@@ -198,7 +206,8 @@ TLS or JavaScript. See `apps/catalog-worker/config.example.json`.
 Status `progress` separates first-pass/detail evidence from usable and mapped
 counts, reports current-queue rates and suppresses ETA while discovery can grow.
 `complete` describes supported first-pass detail coverage, never universal
-canonical resolution or lossless recent-feed coverage. Recent gaps remain latched
+canonical resolution or lossless recent-feed coverage. Queue counts expose due,
+deferred and leased first-pass work plus due failures. Recent gaps remain latched
 until a separate reconciliation proof exists. Events include UTC timestamps,
 HTTP status/error class, retry due/reason, budget waits and network/parser times.
 No paths, response bodies, bearer credentials or private query/IP history.
@@ -206,7 +215,14 @@ No paths, response bodies, bearer credentials or private query/IP history.
 Finite Linux measurements and remaining complete-bootstrap limit are in
 [EVIDENCE.md](../../../internal/specs/020-catalog-query-api-evaluation/EVIDENCE.md).
 The repaired defaults are not a measured full-bootstrap duration or sustained
-provider-capacity promise. Preserve the 512 MiB/2 CPU/64 PID and disk limits.
+provider-capacity promise. Keep historical 512-MiB measurements labelled as the
+constrained test profile and retain the 30 GB aggregate storage budget.
+
+Do not restart bootstrap daily. The normal work is recent-feed polling, targeted
+metadata checks and rolling historical reconciliation. Four-hour active-parent
+fallback is not currently implemented by the incremental scheduler; it and
+latched-gap reconciliation remain explicit freshness gaps. A separate background
+demand-refresh operation is proposed in the selected spec, not enabled in search.
 
 ## HTTPS ingress
 

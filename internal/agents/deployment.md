@@ -59,4 +59,6 @@ Confirmed pilot defects and production collection requirements are tracked in
 [the catalog issue backlog](../specs/020-catalog-query-api-evaluation/ISSUES.md).
 The current pilot's rate/backoff defaults are not production throughput promises.
 Check Docker/VPN subnet overlap before deployment; retain disposable state and
-existing limits when validating collection improvements on the authorized host.
+explicit test profiles when validating collection improvements on the authorized
+host. Production collector minimum is 2 vCPU/2 GiB, recommended 4 vCPU/4 GiB;
+the 512-MiB pilot is a constrained test. Specs alone do not change live allocations.
