@@ -244,6 +244,8 @@ async def _fetch(
         exc.requests = requests
         exc.duration_s = time.monotonic() - started
         raise
+    except httpx.PoolTimeout as exc:
+        return result("local_resource", error=type(exc).__name__)
     except (httpx.HTTPError, TimeoutError, OSError) as exc:
         return result("transport_failure", error=type(exc).__name__)
     except ValueError as exc:

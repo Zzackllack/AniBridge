@@ -17,6 +17,7 @@ from catalog_core.supervisor import run_child_async
 from .adapters import listing_path
 from .aniworld import Link, Page
 from .config import Config
+from .fetch_slot import FetchSlot
 from .listing import Links, Traversal
 from .signals import Signals
 from .state import State
@@ -32,6 +33,7 @@ class Plan:
     started: float = field(default_factory=time.monotonic)
     circuit_lease: int | None = None
     signal: bool = False
+    fetch_slot: FetchSlot | None = None
 
 
 @dataclass(frozen=True)
@@ -70,22 +72,40 @@ class Collector:
             clock,
         )
 
-    async def before_request(self, *, reconciliation: bool = False) -> None:
+    async def before_request(
+        self, *, reconciliation: bool = False, fetch_slot: FetchSlot | None = None
+    ) -> None:
         limits = self.config.provider_limits(self.state.provider)
-        now = int(self.clock())
-        delay = self.state.request_delay(
-            now,
-            limits["provider_request_interval_s"],
-            limits["provider_requests_per_hour"],
-            reconciliation=reconciliation,
-        )
-        if delay or not self.state.allow_request(
-            now,
-            limits["provider_request_interval_s"],
-            limits["provider_requests_per_hour"],
-            reconciliation=reconciliation,
-        ):
-            raise AdmissionDeferred(delay or 1)
+        while True:
+            now = int(self.clock())
+            budget = self.state.budget_delay(
+                now, limits["provider_requests_per_hour"], reconciliation=reconciliation
+            )
+            if budget:
+                raise AdmissionDeferred(budget)
+            delay = self.state.request_delay(
+                now,
+                limits["provider_request_interval_s"],
+                limits["provider_requests_per_hour"],
+                reconciliation=reconciliation,
+            )
+            if delay:
+                # A redirect resumes in this transport attempt. Restarting the
+                # original hop after each spacing deferral could loop forever.
+                # These short waits sit outside HTTP deadlines and relinquish
+                # global fetch capacity; hourly waits still checkpoint and exit.
+                if fetch_slot is not None:
+                    await fetch_slot.pause(delay)
+                else:
+                    await asyncio.sleep(delay)
+                continue
+            if self.state.allow_request(
+                now,
+                limits["provider_request_interval_s"],
+                limits["provider_requests_per_hour"],
+                reconciliation=reconciliation,
+            ):
+                return
 
     def admission_delay(self) -> int:
         limits = self.config.provider_limits(self.state.provider)
@@ -205,13 +225,14 @@ class Collector:
                 "title_request_limit",
             )
             await self.before_request(
+                fetch_slot=plan.fetch_slot,
                 reconciliation=bool(
                     plan.work
                     and plan.work.get("incremental")
                     and not plan.work.get("targeted")
                     and not plan.work.get("batch_bootstrap")
                     and plan.work["checked_at"] is not None
-                )
+                ),
             )
             starts += 1
 
@@ -325,7 +346,12 @@ class Collector:
                     int(ready.parser_s * 1000),
                     int(
                         ready.outcome
-                        not in ("ok", "admission_deferred", "local_deadline")
+                        not in (
+                            "ok",
+                            "admission_deferred",
+                            "local_deadline",
+                            "local_resource",
+                        )
                     ),
                     int(ready.outcome == "admission_deferred"),
                 ),
@@ -352,7 +378,7 @@ class Collector:
 
     def _apply(self, ready: Ready) -> None:
         """One checkpoint transaction admits a complete observation or failure."""
-        if ready.outcome in ("admission_deferred", "local_deadline"):
+        if ready.outcome in ("admission_deferred", "local_deadline", "local_resource"):
             self.state.defer(ready.plan, int(self.clock()), ready.retry_after or 1)
             return
         if ready.outcome != "ok":

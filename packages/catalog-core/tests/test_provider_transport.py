@@ -126,3 +126,19 @@ def test_dns_every_hop_rejects_unsafe_answer(monkeypatch):
     )
     r = asyncio.run(fetch("https://provider.example", "/first"))
     assert r.outcome == "unexpected_structure" and len(calls) == 1
+
+
+def test_pool_timeout_is_a_local_resource_outcome(monkeypatch):
+    def timeout(request):
+        raise httpx.PoolTimeout("sensitive URL must not be emitted")
+
+    monkeypatch.setattr(
+        httpx, "AsyncHTTPTransport", lambda **kwargs: httpx.MockTransport(timeout)
+    )
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [(2, 1, 6, "", ("93.184.216.34", 443))],
+    )
+    result = asyncio.run(fetch("https://provider.example", "/episode"))
+    assert result.outcome == "local_resource" and result.error_class == "PoolTimeout"

@@ -261,3 +261,90 @@ def test_first_pass_can_complete_without_claiming_canonical_or_recent_completene
         assert status["mapping_fraction"] == 0
     finally:
         state.close()
+
+
+def test_short_redirect_spacing_releases_slot_and_resumes_chain(tmp_path, monkeypatch):
+    import socket
+
+    import httpx
+    from catalog_core.providers.transport import Session
+    from catalog_worker.fetch_slot import FetchSlot
+
+    class Stream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield b""
+
+    group = collectors(tmp_path, fetch_concurrency=1)
+    c = group[0]
+    now = NOW
+    calls = []
+    ticks = []
+
+    async def advance(seconds):
+        nonlocal now
+        assert not slot.held and semaphore._value == 1
+        ticks.append(seconds)
+        now += seconds
+
+    monkeypatch.setattr(
+        socket, "getaddrinfo", lambda *a, **k: [(2, 1, 6, "", ("93.184.216.34", 443))]
+    )
+
+    def respond(request):
+        calls.append(request.url.path)
+        return httpx.Response(
+            302 if len(calls) == 1 else 200,
+            headers={"Location": "/second"} if len(calls) == 1 else {},
+            stream=Stream(),
+        )
+
+    monkeypatch.setattr(
+        httpx, "AsyncHTTPTransport", lambda **k: httpx.MockTransport(respond)
+    )
+    monkeypatch.setattr(asyncio, "sleep", advance)
+    semaphore = asyncio.Semaphore(1)
+    slot = FetchSlot(semaphore, lambda delta: None)
+    c.clock = lambda: now
+
+    async def scenario():
+        session = Session("https://fixture.invalid")
+        async with slot:
+            try:
+                result = await session.fetch(
+                    "https://fixture.invalid",
+                    "/first",
+                    before_request=lambda: c.before_request(fetch_slot=slot),
+                )
+                assert result.outcome == "ok" and result.requests == 2
+            finally:
+                await session.close()
+        assert semaphore._value == 1 and not slot.held
+
+    try:
+        asyncio.run(scenario())
+        assert calls == ["/first", "/second"] and ticks == [2]
+    finally:
+        for c in group:
+            c.state.close()
+
+
+def test_cancelled_spacing_does_not_leak_or_double_release_slot():
+    from catalog_worker.fetch_slot import FetchSlot
+
+    async def scenario():
+        semaphore = asyncio.Semaphore(1)
+        counts = []
+        slot = FetchSlot(semaphore, counts.append)
+
+        async def paused():
+            async with slot:
+                await slot.pause(60)
+
+        task = asyncio.create_task(paused())
+        await asyncio.sleep(0)
+        assert not slot.held and semaphore._value == 1
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        assert semaphore._value == 1 and counts == [1, -1]
+
+    asyncio.run(scenario())

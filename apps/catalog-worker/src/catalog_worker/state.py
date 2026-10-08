@@ -47,17 +47,14 @@ class State:
             self.db.execute("UPDATE worker_meta SET wall=?", (now,))
         return now
 
-    def request_delay(
-        self, now: int, interval: int, hourly: int, *, reconciliation=False
+    def budget_delay(
+        self, now: int, hourly: int, *, reconciliation: bool = False
     ) -> int:
-        """Read persisted admission times without consuming or waiting for a slot."""
-        count, first, last = self.db.execute(
-            "SELECT count(*),min(at),max(at) FROM request_start WHERE at>?",
-            (now - 3600,),
+        """Hourly exhaustion is durable deferral, separate from brief start spacing."""
+        count, first = self.db.execute(
+            "SELECT count(*),min(at) FROM request_start WHERE at>?", (now - 3600,)
         ).fetchone()
-        delay = max(0, (last or 0) + interval - now)
-        if count >= hourly:
-            delay = max(delay, first + 3600 - now)
+        delay = first + 3600 - now if count >= hourly else 0
         if reconciliation:
             count, first = self.db.execute(
                 "SELECT count(*),min(at) FROM reconciliation_start WHERE at>?",
@@ -66,6 +63,18 @@ class State:
             if count >= max(1, hourly // 5):
                 delay = max(delay, first + 3600 - now)
         return delay
+
+    def request_delay(
+        self, now: int, interval: int, hourly: int, *, reconciliation: bool = False
+    ) -> int:
+        last = self.db.execute(
+            "SELECT max(at) FROM request_start WHERE at>?", (now - 3600,)
+        ).fetchone()[0]
+        return max(
+            0,
+            (last or 0) + interval - now,
+            self.budget_delay(now, hourly, reconciliation=reconciliation),
+        )
 
     def defer(self, plan, now: int, seconds: int) -> None:
         """Release durable reservations without failure, gap or circuit evidence."""

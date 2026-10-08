@@ -9,8 +9,10 @@ import asyncio
 import sqlite3
 import time
 from contextlib import asynccontextmanager
+from dataclasses import replace
 
 from .collector import Collector, Ready
+from .fetch_slot import FetchSlot
 
 
 class Pipeline:
@@ -26,6 +28,10 @@ class Pipeline:
         self.paused: set[str] = set()
         self.busy = {c.state.provider: 0 for c in collectors}
         self.max_fetching = self.fetching = self.max_ready = 0
+
+    def fetching_changed(self, delta: int) -> None:
+        self.fetching += delta
+        self.max_fetching = max(self.max_fetching, self.fetching)
 
     @asynccontextmanager
     async def publication(self, provider: str):
@@ -72,7 +78,8 @@ class Pipeline:
                 if owner is not None and hasattr(owner, "admission"):
                     owner.admission(provider, delay)
             return False
-        async with self.fetch_slots, self.ready_slots:
+        slot = FetchSlot(self.fetch_slots, self.fetching_changed)
+        async with slot, self.ready_slots:
             async with self.condition:
                 if provider in self.paused:
                     return False
@@ -84,14 +91,13 @@ class Pipeline:
                 )
                 if plan is None:
                     return False
+                plan = replace(plan, fetch_slot=slot)
                 self.busy[provider] += 1
                 if plan.listing:
                     collector.listing_busy = True
                 if plan.signal:
                     collector.signal_busy = True
             try:
-                self.fetching += 1
-                self.max_fetching = max(self.max_fetching, self.fetching)
                 try:
                     ready = await collector.collect(plan)
                 except TimeoutError:
@@ -100,8 +106,6 @@ class Pipeline:
                     )
                 except (ValueError, UnicodeError):
                     ready = Ready(plan, None, "unexpected_structure")
-                finally:
-                    self.fetching -= 1
                 settled = asyncio.get_running_loop().create_future()
                 await self.ready.put((collector, ready, settled))
                 self.max_ready = max(self.max_ready, self.ready.qsize())
