@@ -456,3 +456,40 @@ errors and other unsuccessful HTTP statuses into `transport_failure`; original
 status/exception details were not retained. IP reputation, provider throttling
 and header sensitivity cannot be distinguished retrospectively from this data.
 The LAN-route conflict does not establish a cause for public-provider failures.
+
+### Read-only pilot follow-up — 2026-10-08
+
+[Follow-up measurements](evidence/linux-private-pilot-followup-2026-10-08.json)
+cover approximately 37 hours since the last restart. Both worker containers had
+zero restarts/OOMs. Authenticated remote POSTs and both local provider category
+queries returned 200; missing authentication returned 401. The NetBird route and
+new Docker address pool remained correct. Sample RAM was 125.8 MiB collector /
+53.66 MiB metadata; managed storage was 367,706,112 bytes, or 1,367,706,112 bytes
+including the unchanged runtime reserve. These remain samples, not peak claims.
+
+The ledger grew to 36,875 AniWorld / 10,109 Serienstream releases. Approximately
+68.3% / 48.0% of episodes with releases had canonical mappings in a nearby
+read-only coverage sample. Remaining first-check queues were 31,601 / 157,790
+pages, with 231 / 657 pages carrying failures. Recent feeds had each been polled
+80 times; gaps remained latched and eight Serienstream hints remained pending.
+At roughly 1,100 checked pages/hour, the known queues represent about one / six
+more days, excluding new work discovered from remaining season pages and retries.
+Neither provider bootstrap is complete; Megakino remains disabled.
+
+Two concrete defects explain the recommended next engineering step. First, the
+HTTP deadline wraps the local `before_request` budget wait. A local reproduction
+with mocked DNS and an HTTP-call guard returned `transport_failure` with **zero
+outbound HTTP calls** when that wait exceeded the deadline. Both live ledgers
+had exactly 1,200 retained request starts at their new cooldowns. This strongly
+implicates internal throttling, without identifying every past transport error.
+Local budget exhaustion must defer work without consuming provider-failure
+backoff; diagnostics should retain sanitized status/error classes.
+
+Second, two bounded Serienstream metadata checks returned headings `S01E01:
+Folge 1` and `S01E01: Leichtfertige Versprechen`, while the parser returned no
+episode title for either. It currently requires a parenthesized English suffix.
+Among 4,394 collected, unmapped Serienstream episodes with releases, 2,577 had
+no captured episode title. Retain source-language headings and remeasure unique
+matching evidence; generic labels do not justify copying provider coordinates
+into canonical coordinates. No fixes or deployment changes were made in this
+inspection. Generated acquisition/live extraction/import/playback were not rerun.
