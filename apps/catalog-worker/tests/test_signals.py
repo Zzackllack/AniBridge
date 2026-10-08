@@ -77,6 +77,55 @@ def test_reordering_and_duplicates_do_not_reschedule_known_releases(tmp_path):
     state.close()
 
 
+def test_idle_bootstrap_fills_deferred_descendants_without_bypassing_retries(tmp_path):
+    state = prepared(tmp_path)
+    season = TITLE + "/staffel-2"
+    episode = season + "/episode-1"
+    later = NOW + 604800
+    try:
+        with state.db:
+            tid = identity.title_id(state.provider, TITLE)
+            state.db.executemany(
+                "INSERT INTO work(path,title_id,kind,due) VALUES(?,?,?,?)",
+                [(season, tid, "season", later), (episode, tid, "episode", later)],
+            )
+            state.db.execute("UPDATE work SET failures=1 WHERE path=?", (episode,))
+        work = state.claim(NOW + 1, incremental=True)
+        assert work["path"] == season
+        state.detail(work, Page((), (), 0, None), NOW + 1)
+        assert state.claim(NOW + 2, incremental=True) is None
+        # The failed child still waits for its real deadline, including restart.
+        state.close()
+        state = State(tmp_path / "worker.sqlite", "aniworld.to")
+        assert state.claim(later - 1, incremental=True) is None
+        with state.db:
+            state.db.execute(
+                "UPDATE work SET due=? WHERE checked_at IS NOT NULL", (later + 3600,)
+            )
+        work = state.claim(later, incremental=True)
+        assert work["path"] == episode and work["failures"] == 1
+    finally:
+        state.close()
+
+
+def test_idle_bootstrap_does_not_preempt_a_delayed_targeted_hint(tmp_path):
+    state = prepared(tmp_path)
+    try:
+        episode = TITLE + "/staffel-2/episode-1"
+        Signals(state).enqueue(
+            episode, identity.title_id(state.provider, TITLE), "episode", NOW
+        )
+        with state.db:
+            state.db.execute("UPDATE work SET due=? WHERE path=?", (NOW + 60, episode))
+            state.db.execute(
+                "UPDATE signal_pending SET due=? WHERE path=?", (NOW + 60, episode)
+            )
+        assert state.claim(NOW + 1, incremental=True) is None
+        assert state.claim(NOW + 60, incremental=True)["path"] == episode
+    finally:
+        state.close()
+
+
 def test_new_title_fetches_only_targeted_parents_not_whole_series(tmp_path):
     state = prepared(tmp_path)
     title = "/anime/stream/new"

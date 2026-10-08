@@ -214,6 +214,32 @@ def test_progress_does_not_confuse_discovery_and_usable_mappings(tmp_path):
             c.state.close()
 
 
+def test_progress_explains_deferred_bootstrap_and_due_retries(tmp_path):
+    from test_signals import TITLE, prepared
+
+    state = prepared(tmp_path)
+    try:
+        with state.db:
+            state.db.execute(
+                "UPDATE work SET checked_at=NULL, due=?, failures=1 WHERE path=?",
+                (NOW + 3600, TITLE),
+            )
+        status = measure(state.db, state.meta(), NOW)
+        assert status["queue"] == {
+            "pending_due_now": 0,
+            "pending_deferred": 1,
+            "pending_leased": 0,
+            "next_pending_due": NOW + 3600,
+            "failed_due_now": 0,
+        }
+        assert not status["first_pass_complete"]
+        assert (
+            measure(state.db, state.meta(), NOW + 3600)["queue"]["failed_due_now"] == 1
+        )
+    finally:
+        state.close()
+
+
 def test_upgrade_backlog_refreshes_season_once_before_episode_details(tmp_path):
     state = State(tmp_path / "state.sqlite", "aniworld.to")
     title = "/anime/stream/example"

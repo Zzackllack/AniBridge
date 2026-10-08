@@ -23,6 +23,14 @@ def measure(db, meta: dict, now: int) -> dict:
     ).fetchone()[0]
     pending = sum(v["discovered"] - v["checked"] for v in by_kind.values())
     failures = sum(v["failed"] for v in by_kind.values())
+    due, deferred, leased, next_due, retry_due = db.execute(
+        "SELECT coalesce(sum(checked_at IS NULL AND due<=? AND lease_until<=?),0),"
+        "coalesce(sum(checked_at IS NULL AND due>?),0),"
+        "coalesce(sum(checked_at IS NULL AND lease_until>?),0),"
+        "min(CASE WHEN checked_at IS NULL AND due>? THEN due END),"
+        "coalesce(sum(failures>0 AND due<=? AND lease_until<=?),0) FROM work",
+        (now, now, now, now, now, now, now),
+    ).fetchone()
     discovery_open = not meta["listing_checked_at"] or any(
         v["discovered"] != v["checked"]
         for kind, v in by_kind.items()
@@ -44,6 +52,15 @@ def measure(db, meta: dict, now: int) -> dict:
     )
     return {
         "phases": by_kind,
+        # These are scheduled deadlines, not a claim that provider budgets or
+        # circuits permit a request. Idle bootstrap may admit deferred new work.
+        "queue": {
+            "pending_due_now": due,
+            "pending_deferred": deferred,
+            "pending_leased": leased,
+            "next_pending_due": next_due,
+            "failed_due_now": retry_due,
+        },
         "first_pass_complete": first_pass,
         "detail_evidence_complete": first_pass and unknown == 0,
         "unknown_language_observations": unknown,

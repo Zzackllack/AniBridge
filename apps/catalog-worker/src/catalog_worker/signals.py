@@ -188,6 +188,18 @@ class Signals:
                 (now, now),
             ).fetchone()
 
+        def deferred_new():
+            # Recent hints avoid a synchronous whole-series fanout by deferring
+            # unrelated new descendants. Once due bootstrap work is exhausted,
+            # fill that retained backlog instead of idling for a week. Failures
+            # and targeted hints keep their explicit retry/cooldown deadlines.
+            return self.db.execute(
+                "SELECT * FROM work w WHERE checked_at IS NULL AND failures=0 AND due>? AND lease_until<=? "
+                "AND NOT EXISTS(SELECT 1 FROM omissions o WHERE o.kind='title' AND o.id=w.title_id AND o.tombstoned=1) "
+                "AND NOT EXISTS(SELECT 1 FROM signal_pending p WHERE p.path=w.path) ORDER BY due,path LIMIT 1",
+                (now, now),
+            ).fetchone()
+
         def history():
             self.db.execute(
                 "DELETE FROM reconciliation_start WHERE at<=?", (now - 3600,)
@@ -212,6 +224,8 @@ class Signals:
             else (targeted, new, history)
         )
         row = next((row for choose in choices if (row := choose()) is not None), None)
+        if row is None:
+            row = deferred_new()
         if row is None:
             return None
         self.db.execute(
