@@ -348,3 +348,28 @@ def test_cancelled_spacing_does_not_leak_or_double_release_slot():
         assert semaphore._value == 1 and counts == [1, -1]
 
     asyncio.run(scenario())
+
+
+def test_redirect_pause_and_single_ready_slot_do_not_deadlock(tmp_path):
+    from catalog_worker.collector import Ready
+
+    group = collectors(tmp_path, ready_queue_size=1, fetch_concurrency=1)
+
+    async def collect(plan):
+        await plan.fetch_slot.pause(0.01)
+        return Ready(plan, Page((), (), 0, "Observed"))
+
+    for collector in group:
+        collector.collect = collect
+
+    async def scenario():
+        pipeline = Pipeline(group, lambda *args: None)
+        await asyncio.wait_for(pipeline.run(once=True), 1)
+        assert pipeline.fetching == 0 and pipeline.max_fetching == 1
+        assert pipeline.max_ready == 1
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        for collector in group:
+            collector.state.close()

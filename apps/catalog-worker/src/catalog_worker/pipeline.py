@@ -79,7 +79,9 @@ class Pipeline:
                     owner.admission(provider, delay)
             return False
         slot = FetchSlot(self.fetch_slots, self.fetching_changed)
-        async with slot, self.ready_slots:
+        # Reserve retained-result capacity first. Otherwise a producer waiting
+        # for a small ready queue can hold the slot a paused redirect must regain.
+        async with self.ready_slots, slot:
             async with self.condition:
                 if provider in self.paused:
                     return False
