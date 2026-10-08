@@ -8,7 +8,7 @@ import pytest
 from catalog_core.providers.megakino_session import bootstrap, fetch
 from catalog_core.providers.transport import fetch as ordinary_fetch
 
-CLIENT = httpx.AsyncClient
+TRANSPORT = httpx.AsyncHTTPTransport
 
 ORIGIN = "https://movie.example"
 PATH = "/films/1-example.html"
@@ -51,11 +51,10 @@ def fixture(
             )
         return httpx.Response(200, stream=Stream(retry))
 
-    actual = CLIENT
     monkeypatch.setattr(
         httpx,
-        "AsyncClient",
-        lambda **kwargs: actual(**kwargs, transport=httpx.MockTransport(response)),
+        "AsyncHTTPTransport",
+        lambda **kwargs: httpx.MockTransport(response),
     )
     monkeypatch.setattr(
         socket,
