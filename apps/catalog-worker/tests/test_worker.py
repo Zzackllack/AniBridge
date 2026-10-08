@@ -65,7 +65,7 @@ def test_count_collapse_and_challenge_keep_good_rows(tmp_path):
     assert not state.listing(Page((), (), 0, None), NOW + 14400)
     assert state.db.execute("SELECT count(*) FROM release").fetchone()[0] == 1
     state.failure(None, "challenge_or_block", NOW + 15000)
-    assert state.meta()["blocked_until"] == NOW + 15000 + 21600
+    assert state.meta()["blocked_until"] == NOW + 15000 + 900
     assert state.db.execute("SELECT first_seen_at FROM release").fetchone()[0] == NOW
     with pytest.raises(ValueError, match="clock_error"):
         state.clock(NOW - 1000) if state.clock(NOW) else None

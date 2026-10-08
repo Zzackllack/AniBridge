@@ -1,6 +1,5 @@
 """Hard deadlines for untrusted parsing and validation, independent of threads."""
 
-import asyncio
 import os
 import signal
 import subprocess
@@ -76,6 +75,9 @@ def run_child(
 
 
 async def run_child_async(module: str, arguments: list[str], timeout: float) -> None:
+    # Parser children use limit_child only; avoid importing the async runtime there.
+    import asyncio
+
     process = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",

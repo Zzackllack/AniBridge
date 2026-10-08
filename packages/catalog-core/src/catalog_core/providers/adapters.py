@@ -2,13 +2,13 @@
 
 from catalog_core.json_codec import require
 
-from . import aniworld, megakino, sto
-
 
 def adapter(provider: str):
-    adapters = {"aniworld.to": aniworld, "s.to": sto, "megakino": megakino}
-    require(provider in adapters, "provider adapter unavailable")
-    return adapters[provider]
+    from importlib import import_module
+
+    modules = {"aniworld.to": "aniworld", "s.to": "sto", "megakino": "megakino"}
+    require(provider in modules, "provider adapter unavailable")
+    return import_module("." + modules[provider], __package__)
 
 
 def listing_path(provider: str) -> str:

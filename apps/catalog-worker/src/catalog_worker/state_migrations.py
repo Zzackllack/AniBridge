@@ -14,6 +14,12 @@ from catalog_core import schema
 from catalog_core.files import fsync_directory
 from catalog_core.json_codec import require
 
+from .collection_schema import (
+    DDL as COLLECTION_DDL,
+)
+from .collection_schema import (
+    VERSION_DDL as COLLECTION_VERSION_DDL,
+)
 from .incremental_schema import DDL as INCREMENTAL_DDL
 from .incremental_schema import VERSION_DDL as INCREMENTAL_VERSION_DDL
 from .listing import DDL as LISTING_DDL
@@ -42,7 +48,9 @@ def preflight(filename: Path, provider: str) -> int:
         tables = definitions(db)
         require("worker_schema" in tables, "unrecognized worker database")
         rows = db.execute("SELECT version FROM worker_schema").fetchall()
-        require(rows in ([(1,)], [(2,)], [(3,)]), "unsupported worker state version")
+        require(
+            rows in ([(1,)], [(2,)], [(3,)], [(4,)]), "unsupported worker state version"
+        )
         version = rows[0][0]
         with closing(sqlite3.connect(":memory:")) as expected:
             expected.executescript(schema.DDL + PRIVATE_DDL)
@@ -50,10 +58,14 @@ def preflight(filename: Path, provider: str) -> int:
                 expected.execute("DROP TABLE worker_schema")
                 expected.execute(VERSION_DDL)
             expected.executescript(LISTING_DDL)
-            if version == 3:
+            if version >= 3:
                 expected.executescript(INCREMENTAL_DDL)
                 expected.execute("DROP TABLE worker_schema")
                 expected.execute(INCREMENTAL_VERSION_DDL)
+            if version >= 4:
+                expected.executescript(COLLECTION_DDL)
+                expected.execute("DROP TABLE worker_schema")
+                expected.execute(COLLECTION_VERSION_DDL)
             contract = definitions(expected)
         # Early version-1 state created traversal tables on its first listing.
         if version == 1 and not {"listing_page", "listing_record"} & tables.keys():
@@ -152,17 +164,36 @@ def upgrade_incremental(db: sqlite3.Connection, checkpoint) -> None:
         raise
 
 
+def upgrade_collection(db: sqlite3.Connection, checkpoint) -> None:
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        for statement in COLLECTION_DDL.split(";"):
+            if statement.strip():
+                db.execute(statement)
+        db.execute("DROP TABLE worker_schema")
+        db.execute(COLLECTION_VERSION_DDL)
+        db.execute("INSERT INTO worker_schema VALUES(4)")
+        checkpoint("collection-version")
+        db.commit()
+        checkpoint("collection-commit")
+    except BaseException:
+        db.rollback()
+        raise
+
+
 def initialize(filename: Path, provider: str, checkpoint=lambda stage: None) -> None:
     if filename.exists():
         version = preflight(filename, provider)
-        if version == 3:
+        if version == 4:
             return
         backup(filename, provider, checkpoint, version)
         with closing(sqlite3.connect(filename)) as db:
             db.execute("PRAGMA synchronous=FULL")
             if version == 1:
                 upgrade(db, checkpoint)
-            upgrade_incremental(db, checkpoint)
+            if version < 3:
+                upgrade_incremental(db, checkpoint)
+            upgrade_collection(db, checkpoint)
         return
     descriptor, temporary = tempfile.mkstemp(
         prefix=".worker-create-", dir=filename.parent
@@ -176,6 +207,7 @@ def initialize(filename: Path, provider: str, checkpoint=lambda stage: None) -> 
             db.commit()
             upgrade(db, checkpoint)
             upgrade_incremental(db, checkpoint)
+            upgrade_collection(db, checkpoint)
         with path.open("rb") as stream:
             os.fsync(stream.fileno())
         os.rename(path, filename)

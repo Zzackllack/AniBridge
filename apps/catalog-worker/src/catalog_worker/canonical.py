@@ -14,6 +14,7 @@ from pathlib import Path
 
 from catalog_core.identity import mapping_id
 from catalog_core.json_codec import dumps, require
+from catalog_core.providers.transport import Session
 
 from . import canonical_cache
 from .canonical_ids import identifiers
@@ -68,6 +69,8 @@ def titles(payload: object) -> tuple[CanonicalTitle, ...]:
 class Enricher:
     def __init__(self, sources: dict, fetcher=fetch, clock=time.time) -> None:
         self.sources, self.fetcher, self.clock = sources, fetcher, clock
+        self.sessions = {}
+        self.pooled = fetcher is fetch
         self.token = None
         if sources.get("movie") == "tmdb":
             with Path(sources["tmdb_token_file"]).open("rb") as stream:
@@ -90,7 +93,12 @@ class Enricher:
             self.starts.popleft()
         require(len(self.starts) < 30, "canonical rate limit")
         self.starts.append(now)
-        response = await self.fetcher(
+        fetcher = self.fetcher
+        if self.pooled:
+            if origin not in self.sessions:
+                self.sessions[origin] = Session(origin, 1)
+            fetcher = self.sessions[origin].fetch
+        response = await fetcher(
             origin,
             path,
             query=query,
@@ -100,6 +108,10 @@ class Enricher:
         )
         require(response.outcome == "ok", "canonical " + response.outcome)
         return json.loads(response.body)
+
+    async def close(self) -> None:
+        for session in self.sessions.values():
+            await session.close()
 
     async def tick(self, state: State, now: int) -> bool:
         kinds = []

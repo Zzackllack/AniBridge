@@ -11,9 +11,9 @@ from catalog_core.json_codec import fields, integer, loads, require
 MIB, GIB = 1024**2, 1024**3
 LIMITS = {
     "fetch_concurrency": (4, 1, 8),
-    "provider_concurrency": (2, 1, 2),
+    "provider_concurrency": (2, 1, 4),
     "provider_request_interval_s": (2, 1, 60),
-    "provider_requests_per_hour": (1200, 1, 1800),
+    "provider_requests_per_hour": (1800, 1, 3600),
     "body_bytes": (8 * MIB, MIB, 16 * MIB),
     "request_deadline_s": (30, 5, 60),
     "title_deadline_s": (120, 30, 300),
@@ -44,6 +44,22 @@ class Config:
     limits: dict[str, int]
     publication_sources: frozenset[str] = frozenset()
     sitemap_origins: dict[str, list[str]] = field(default_factory=dict)
+    provider_settings: dict[str, dict] = field(default_factory=dict)
+
+    def provider_limits(self, provider: str) -> dict[str, int]:
+        return {
+            **self.limits,
+            **self.provider_settings.get(provider, {}).get("limits", {}),
+        }
+
+    def headers(self, provider: str) -> dict[str, str]:
+        profile = self.provider_settings.get(provider, {}).get("headers", {})
+        return {
+            "User-Agent": "AniBridge-Metadata/1.0",
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Language": "de,en;q=0.8",
+            **profile,
+        }
 
 
 def load(path: Path) -> Config:
@@ -63,6 +79,7 @@ def load(path: Path) -> Config:
             "publication_sources",
             "sitemap_origins",
             "signing_key_file",
+            "provider_settings",
         },
     )
     providers = raw["providers"]
@@ -157,6 +174,42 @@ def load(path: Path) -> Config:
         <= limits["total_disk_bytes"] - 1_000_000_000,
         "state/output quotas must fit the total disk budget including runtime allowance",
     )
+    settings = fields(raw.get("provider_settings", {}), set(), set(providers))
+    for provider, values in settings.items():
+        fields(values, set(), {"limits", "headers"})
+        overrides = fields(
+            values.get("limits", {}),
+            set(),
+            {
+                "provider_concurrency",
+                "provider_request_interval_s",
+                "provider_requests_per_hour",
+            },
+        )
+        for name, value in overrides.items():
+            integer(value, LIMITS[name][1], LIMITS[name][2])
+        require(
+            overrides.get("provider_concurrency", limits["provider_concurrency"])
+            <= limits["fetch_concurrency"],
+            "invalid provider concurrency",
+        )
+        profile = fields(
+            values.get("headers", {}),
+            set(),
+            {"User-Agent", "Accept", "Accept-Language", "Referer"},
+        )
+        for name, value in profile.items():
+            require(
+                type(value) is str
+                and 0 < len(value.encode()) <= 512
+                and all(32 <= ord(c) < 127 for c in value),
+                "invalid request header",
+            )
+            if name == "Referer":
+                require(
+                    value == providers[provider].rstrip("/") + "/",
+                    "invalid referer origin",
+                )
     host = raw.get("bind_host", "0.0.0.0")
     require(type(host) is str and bool(host), "invalid bind host")
     return Config(
@@ -171,4 +224,5 @@ def load(path: Path) -> Config:
         limits,
         frozenset(approved),
         sitemap_origins,
+        settings,
     )

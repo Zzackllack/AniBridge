@@ -169,10 +169,22 @@ class Signals:
             ).fetchone()
 
         def new():
+            # Upgrade backlog: one fresh season observation can replace many
+            # never-checked episode pages. Checkpoint even unsupported rows so
+            # the fallback does not repeatedly fetch the same season.
+            batch = self.db.execute(
+                "SELECT w.* FROM work w WHERE kind='season' AND checked_at IS NOT NULL AND failures=0 AND lease_until<=? "
+                "AND NOT EXISTS(SELECT 1 FROM season_batch_checkpoint b WHERE b.path=w.path) "
+                "AND EXISTS(SELECT 1 FROM work e WHERE e.title_id=w.title_id AND e.kind='episode' AND e.checked_at IS NULL AND e.path LIKE w.path||'/%') "
+                "ORDER BY w.due,w.path LIMIT 1",
+                (now,),
+            ).fetchone()
+            if batch is not None:
+                return batch
             return self.db.execute(
                 "SELECT * FROM work w WHERE checked_at IS NULL AND due<=? AND lease_until<=? "
                 "AND NOT EXISTS(SELECT 1 FROM omissions o WHERE o.kind='title' AND o.id=w.title_id AND o.tombstoned=1) "
-                "ORDER BY due,path LIMIT 1",
+                "AND NOT EXISTS(SELECT 1 FROM signal_pending p WHERE p.path=w.path) ORDER BY due,path LIMIT 1",
                 (now, now),
             ).fetchone()
 
@@ -185,7 +197,7 @@ class Signals:
             ] >= max(1, hourly // 5):
                 return None
             return self.db.execute(
-                "SELECT * FROM work w WHERE checked_at IS NOT NULL AND checked_at<=? AND due<=? AND lease_until<=? "
+                "SELECT * FROM work w WHERE checked_at IS NOT NULL AND (checked_at<=? OR failures>0) AND due<=? AND lease_until<=? "
                 "AND NOT EXISTS(SELECT 1 FROM signal_pending p WHERE p.path=w.path) "
                 "AND NOT EXISTS(SELECT 1 FROM omissions o WHERE o.kind='title' AND o.id=w.title_id AND o.tombstoned=1) "
                 "ORDER BY checked_at,path LIMIT 1",
@@ -193,7 +205,11 @@ class Signals:
             ).fetchone()
 
         choices = (
-            (history, targeted, new) if slot % 5 == 4 else (targeted, new, history)
+            (history, new, targeted)
+            if slot % 5 == 4
+            else (new, targeted, history)
+            if slot % 5 in (2, 3)
+            else (targeted, new, history)
         )
         row = next((row for choose in choices if (row := choose()) is not None), None)
         if row is None:
@@ -204,6 +220,14 @@ class Signals:
         result = dict(row)
         result["incremental"] = True
         result["targeted"] = "signal_generation" in result
+        result["batch_bootstrap"] = (
+            result["kind"] == "season"
+            and result["checked_at"] is not None
+            and self.db.execute(
+                "SELECT 1 FROM season_batch_checkpoint WHERE path=?", (result["path"],)
+            ).fetchone()
+            is None
+        )
         return result
 
     def settle(self, work: dict, now: int, *, success: bool) -> None:
@@ -242,7 +266,7 @@ class Signals:
                 due = self.db.execute(
                     "SELECT due FROM work WHERE path=?", (work["path"],)
                 ).fetchone()[0]
-                retry_due = max(now + 1800, due if not success else 0)
+                retry_due = max(now + (60 if success else 1), due if not success else 0)
                 self.db.execute(
                     "UPDATE work SET due=? WHERE path=?", (retry_due, work["path"])
                 )

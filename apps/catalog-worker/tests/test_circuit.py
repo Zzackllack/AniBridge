@@ -44,7 +44,7 @@ def test_failed_half_open_does_not_erase_a_new_block(tmp_path):
         c.clock = lambda: now
         first = c.prepare(listing_allowed=False, signal_allowed=False)
         c.apply(Ready(first, None, "challenge_or_block"))
-        assert c.state.meta()["blocked_until"] == now + 43200
+        assert c.state.meta()["blocked_until"] == now + 1800
         assert c.state.meta()["block_count"] == 2
         assert c.prepare(listing_allowed=False, signal_allowed=False) is None
     finally:
@@ -100,6 +100,7 @@ def test_probe_runs_rate_limited_transport_and_real_parser(tmp_path):
             c.state.db.execute("SELECT count(*) FROM request_start").fetchone()[0] == 1
         )
         assert c.state.meta()["blocked_until"] == 0
+        c.clock = lambda: now + 2
         assert c.prepare(listing_allowed=False, signal_allowed=False) is not None
     finally:
         for collector in group:

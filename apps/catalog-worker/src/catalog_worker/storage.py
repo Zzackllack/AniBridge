@@ -4,12 +4,10 @@ import os
 import shutil
 import stat as file_stat
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from catalog_core.json_codec import require
 
-if TYPE_CHECKING:
-    from .config import Config
+from .config import Config
 
 MIB = 1024**2
 BUILD_RESERVE = 1280 * MIB + 65536
@@ -144,7 +142,7 @@ def migration_reserve(config: Config) -> int:
         ) as db:
             version = db.execute("SELECT version FROM worker_schema").fetchone()[0]
         if (
-            version in (1, 2)
+            version in (1, 2, 3)
             and not filename.with_name(
                 filename.name + f".pre-v{version + 1}.backup"
             ).exists()

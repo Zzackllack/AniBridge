@@ -26,7 +26,7 @@ def test_private_upgrade_preserves_state_and_original_backup(tmp_path):
     legacy(filename)
     state = State(filename, "aniworld.to")
     assert state.meta()["revision"] == 17
-    assert state.db.execute("SELECT version FROM worker_schema").fetchone()[0] == 3
+    assert state.db.execute("SELECT version FROM worker_schema").fetchone()[0] == 4
     state.close()
     backup = filename.with_name(filename.name + ".pre-v2.backup")
     before = backup.read_bytes()
@@ -245,5 +245,34 @@ def test_version_two_signal_upgrade_sigkill_preserves_ledger_and_backup(
     State(filename, "aniworld.to").close()
     assert saved.read_bytes() == original
     with closing(sqlite3.connect(filename)) as db:
-        assert db.execute("SELECT version FROM worker_schema").fetchone()[0] == 3
+        assert db.execute("SELECT version FROM worker_schema").fetchone()[0] == 4
         assert db.execute("SELECT count(*) FROM signal_pending").fetchone()[0] == 0
+
+
+def test_version_three_upgrade_retains_failures_budgets_and_backup(tmp_path):
+    from catalog_worker.state_migrations import preflight, upgrade_incremental
+
+    filename = tmp_path / "worker.sqlite"
+    version_two(filename)
+    with closing(sqlite3.connect(filename)) as db:
+        upgrade_incremental(db, lambda stage: None)
+        with db:
+            db.execute("INSERT INTO request_start VALUES(1800000000)")
+            db.execute("UPDATE worker_meta SET blocked_until=1800000123,block_count=2")
+    assert preflight(filename, "aniworld.to") == 3
+    state = State(filename, "aniworld.to")
+    try:
+        assert state.meta()["revision"] == 17
+        assert (
+            state.meta()["blocked_until"] == 1800000123
+            and state.meta()["block_count"] == 2
+        )
+        assert state.db.execute("SELECT count(*) FROM request_start").fetchone()[0] == 1
+        assert preflight(filename, "aniworld.to") == 4
+        saved = filename.with_name(filename.name + ".pre-v4.backup")
+        assert preflight(saved, "aniworld.to") == 3
+        original = saved.read_bytes()
+    finally:
+        state.close()
+    State(filename, "aniworld.to").close()
+    assert saved.read_bytes() == original

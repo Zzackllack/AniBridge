@@ -6,7 +6,6 @@ from dataclasses import asdict
 from pathlib import Path
 
 from catalog_core.json_codec import dumps
-from catalog_core.providers.recent import parse as parse_recent
 from catalog_core.supervisor import limit_child
 
 from .adapters import adapter
@@ -27,6 +26,9 @@ def main() -> None:
         if provider == "megakino"
         else {}
     )
+    if kind == "signal":
+        from catalog_core.providers.recent import parse as parse_recent
+
     page = (
         parse_recent(body, provider, providers[1])
         if kind == "signal"

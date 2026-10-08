@@ -28,6 +28,15 @@ class Link:
 
 
 @dataclass(frozen=True)
+class EpisodeRow:
+    path: str
+    title: str | None
+    aliases: tuple[str, ...] = ()
+    languages: tuple[str, ...] = ()
+    unknown_languages: int = 0
+
+
+@dataclass(frozen=True)
 class Page:
     links: tuple[Link, ...]
     languages: tuple[str, ...]
@@ -38,6 +47,8 @@ class Page:
     explicit_imdb: str | None = None
     aliases: tuple[str, ...] = ()
     episode_title: str | None = None
+    episode_aliases: tuple[str, ...] = ()
+    episodes: tuple[EpisodeRow, ...] = ()
 
 
 class Parser(HTMLParser):
@@ -75,6 +86,7 @@ class Parser(HTMLParser):
         self.aliases = ()
         self.start_date = False
         self.episode_title = None
+        self.episode_aliases = ()
         self.episode_tag = None
         self.episode_text = []
 
@@ -159,10 +171,9 @@ class Parser(HTMLParser):
         if "next" in relation:
             self.next_pages.add(self.listing_target(href))
             require(len(self.next_pages) <= 100, "pagination overflow")
-        elif (
-            href.startswith((self.listing_root + "/", self.listing_root + "?"))
-            and not self.is_listing_root(href)
-        ):
+        elif href.startswith(
+            (self.listing_root + "/", self.listing_root + "?")
+        ) and not self.is_listing_root(href):
             # Unknown paging controls cannot establish a complete enumeration.
             require("prev" in relation, "unrecognized listing pagination")
         if not href.startswith(self.prefix):
@@ -200,6 +211,20 @@ def parse(
         and not parser.heading,
         "incomplete HTML document",
     )
+    from .episode_rows import parse_rows
+
+    rows = (
+        ()
+        if kind == "listing"
+        else parse_rows(
+            body,
+            "s.to" if parser.prefix == "/serie/" else "aniworld.to",
+            parser.episode_pattern,
+            page_path,
+        )
+    )
+    for row in rows:
+        parser.links[row.path] = Link(row.path, row.title or "")
     if kind == "listing":
         links = tuple(
             link
@@ -242,6 +267,8 @@ def parse(
         parser.explicit_imdb,
         parser.aliases,
         parser.episode_title,
+        parser.episode_aliases,
+        rows,
     )
 
 

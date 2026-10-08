@@ -97,17 +97,23 @@ class Parser(aniworld.Parser):
             self.year_range = False
         if tag == "h2" and self.episode_tag == tag:
             text = " ".join("".join(self.episode_text).split())
-            match = re.fullmatch(r"S[0-9]+E[0-9]+: .+ \(([^()]+)\)", text)
+            match = re.fullmatch(r"S[0-9]+E[0-9]+:\s*(.+)", text)
             self.episode_tag = None
             if match:
-                require(len(match[1].encode()) <= 512, "episode title too large")
+                names = re.fullmatch(r"(.+?)\s+\(([^()]+)\)", match[1])
+                german, english = (names[1], names[2]) if names else (match[1], None)
                 require(
-                    self.episode_title in (None, match[1]),
-                    "conflicting episode titles",
+                    all(len(n.encode()) <= 512 for n in (german, english) if n),
+                    "episode title too large",
                 )
-                # Comment/help headings follow the episode heading on live pages.
-                # They must not erase the positively observed English title.
-                self.episode_title = match[1]
+                primary = english or german
+                require(
+                    self.episode_title in (None, primary), "conflicting episode titles"
+                )
+                self.episode_title = primary
+                self.episode_aliases = (
+                    (german,) if english and german != english else ()
+                )
         super().handle_endtag(tag)
 
 

@@ -30,6 +30,8 @@ class AdmissionDeferred(Exception):
 
     def __init__(self, seconds: int) -> None:
         self.seconds = max(1, seconds)
+        self.requests = 0
+        self.duration_s = 0.0
 
 
 def retry_after(value: str | None, now: float | None = None) -> int:
@@ -238,6 +240,10 @@ async def _fetch(
                     )
                 finally:
                     await response.aclose()
+    except AdmissionDeferred as exc:
+        exc.requests = requests
+        exc.duration_s = time.monotonic() - started
+        raise
     except (httpx.HTTPError, TimeoutError, OSError) as exc:
         return result("transport_failure", error=type(exc).__name__)
     except ValueError as exc:

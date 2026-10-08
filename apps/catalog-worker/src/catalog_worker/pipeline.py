@@ -45,6 +45,9 @@ class Pipeline:
             collector, ready, settled = await self.ready.get()
             try:
                 collector.apply(ready)
+                owner = getattr(self.report, "__self__", None)
+                if owner is not None and hasattr(owner, "page"):
+                    owner.page(collector.state.provider, ready, collector.state)
             except (ValueError, OSError, sqlite3.Error) as exc:
                 if not settled.done():
                     settled.set_exception(exc)
@@ -60,6 +63,15 @@ class Pipeline:
     async def page(self, collector: Collector) -> bool:
         provider = collector.state.provider
         started = time.monotonic()
+        delay = collector.admission_delay()
+        if delay:
+            owner = getattr(self.report, "__self__", None)
+            now = int(collector.clock())
+            if delay >= 10 and now >= getattr(collector, "admission_report_after", 0):
+                collector.admission_report_after = now + delay
+                if owner is not None and hasattr(owner, "admission"):
+                    owner.admission(provider, delay)
+            return False
         async with self.fetch_slots, self.ready_slots:
             async with self.condition:
                 if provider in self.paused:
@@ -83,7 +95,9 @@ class Pipeline:
                 try:
                     ready = await collector.collect(plan)
                 except TimeoutError:
-                    ready = Ready(plan, None, "transport_failure")
+                    ready = Ready(
+                        plan, None, "local_deadline", error_class="TimeoutError"
+                    )
                 except (ValueError, UnicodeError):
                     ready = Ready(plan, None, "unexpected_structure")
                 finally:
@@ -101,7 +115,12 @@ class Pipeline:
                     if plan.signal:
                         collector.signal_busy = False
                     self.condition.notify_all()
-                self.report(provider, "collect", "settled", time.monotonic() - started)
+                self.report(
+                    provider,
+                    "collect",
+                    ready.outcome if "ready" in locals() else "cancelled",
+                    time.monotonic() - started,
+                )
 
     async def producer(self, collector: Collector, once: bool) -> None:
         while True:
@@ -119,7 +138,11 @@ class Pipeline:
         producers = [
             asyncio.create_task(self.producer(c, once))
             for c in self.collectors
-            for _ in range(1 if once else c.config.limits["provider_concurrency"])
+            for _ in range(
+                1
+                if once
+                else c.config.provider_limits(c.state.provider)["provider_concurrency"]
+            )
         ]
         try:
             await asyncio.gather(*producers)

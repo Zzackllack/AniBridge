@@ -31,6 +31,8 @@ async def collect(path: Path, once: bool) -> None:
     states = []
     events = Events(config.state_dir / "logs")
     tasks = []
+    collectors = []
+    enricher = None
     try:
         recover_scratch(config.state_dir)
         check(config, startup=True, state_reserve=migration_reserve(config))
@@ -38,7 +40,8 @@ async def collect(path: Path, once: bool) -> None:
             State(config.state_dir / f"{provider}.sqlite", provider)
             for provider in config.providers
         ]
-        pipeline = Pipeline([Collector(config, state) for state in states], events.emit)
+        collectors = [Collector(config, state) for state in states]
+        pipeline = Pipeline(collectors, events.emit)
         publication_slot = asyncio.Lock()
         enricher = Enricher(config.canonical_sources)
         loop = asyncio.get_running_loop()
@@ -90,6 +93,10 @@ async def collect(path: Path, once: bool) -> None:
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+        if enricher is not None:
+            await enricher.close()
+        for collector in collectors:
+            await collector.close()
         for state in states:
             state.close()
         events.close()
@@ -117,6 +124,7 @@ async def collect_title(
     config.output_dir.mkdir(parents=True, exist_ok=True)
     owner = ProcessLock(config.state_dir / "worker.lock")
     state = None
+    collector = None
     try:
         check(config, startup=True, state_reserve=migration_reserve(config))
         state = State(config.state_dir / f"{provider}.sqlite", provider)
@@ -132,6 +140,7 @@ async def collect_title(
         tid = state.discover(Link(title_path, name), now)
         state.db.commit()
         collector = Collector(config, state)
+        enricher = Enricher(config.canonical_sources)
         async with asyncio.timeout(120):
             for _ in range(30):
                 work = state.claim_title(
@@ -146,13 +155,19 @@ async def collect_title(
                     break
                 ready = await collector.collect(plan)
                 collector.apply(ready)
+                if ready.outcome == "admission_deferred":
+                    await asyncio.sleep(ready.retry_after)
+                    continue
                 if ready.outcome != "ok":
                     raise ValueError(
                         "selected title metadata unavailable: " + ready.outcome
                     )
-            await Enricher(config.canonical_sources).tick(state, int(time.time()))
+            await enricher.tick(state, int(time.time()))
         publish(config, state, int(time.time()))
     finally:
+        if collector is not None:
+            await enricher.close()
+            await collector.close()
         if state is not None:
             state.close()
         owner.close()

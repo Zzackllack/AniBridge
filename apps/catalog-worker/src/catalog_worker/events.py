@@ -2,6 +2,7 @@
 
 import json
 import logging
+from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -22,6 +23,7 @@ class Events:
         # add exception messages here: transport exceptions can contain tokens.
         message = json.dumps(
             {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "provider": provider,
                 "stage": stage,
                 "outcome": outcome,
@@ -44,6 +46,7 @@ class Events:
                 0,
                 json.dumps(
                     {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                         "provider": provider,
                         "stage": "signal",
                         "coverage": status["coverage"],
@@ -72,7 +75,80 @@ class Events:
                 logging.INFO,
                 "",
                 0,
-                json.dumps({"stage": "storage", **status}, separators=(",", ":")),
+                json.dumps(
+                    {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "stage": "storage",
+                        **status,
+                    },
+                    separators=(",", ":"),
+                ),
+                (),
+                None,
+            )
+        )
+
+    def admission(self, provider: str, seconds: int) -> None:
+        self.handler.handle(
+            logging.LogRecord(
+                "catalog_worker",
+                logging.INFO,
+                "",
+                0,
+                json.dumps(
+                    {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "provider": provider,
+                        "stage": "admission",
+                        "outcome": "local_budget_wait",
+                        "wait_s": seconds,
+                    },
+                    separators=(",", ":"),
+                ),
+                (),
+                None,
+            )
+        )
+
+    def page(self, provider: str, ready, state) -> None:
+        """Only counters and typed outcomes, never paths or exception messages."""
+        meta = state.meta()
+        work = state.db.execute(
+            "SELECT due,failures FROM work WHERE path=?", (ready.plan.path,)
+        ).fetchone()
+        self.handler.handle(
+            logging.LogRecord(
+                "catalog_worker",
+                logging.INFO,
+                "",
+                0,
+                json.dumps(
+                    {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "provider": provider,
+                        "stage": "page",
+                        "outcome": ready.outcome,
+                        "http_status": ready.status,
+                        "error_class": ready.error_class,
+                        "requests": ready.requests,
+                        "network_s": round(ready.network_s, 4),
+                        "parser_s": round(ready.parser_s, 4),
+                        "admission_wait_s": ready.retry_after
+                        if ready.outcome == "admission_deferred"
+                        else 0,
+                        "retry_due": work["due"]
+                        if work and ready.outcome != "ok"
+                        else None,
+                        "attempts": work["failures"] if work else 0,
+                        "retry_reason": ready.outcome
+                        if ready.outcome != "ok"
+                        else None,
+                        "blocked_until": meta["blocked_until"],
+                        "circuit_escalation": meta["block_count"],
+                        "batch_rows": len(ready.page.episodes) if ready.page else 0,
+                    },
+                    separators=(",", ":"),
+                ),
                 (),
                 None,
             )

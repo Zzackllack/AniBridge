@@ -47,6 +47,53 @@ class State:
             self.db.execute("UPDATE worker_meta SET wall=?", (now,))
         return now
 
+    def request_delay(
+        self, now: int, interval: int, hourly: int, *, reconciliation=False
+    ) -> int:
+        """Read persisted admission times without consuming or waiting for a slot."""
+        count, first, last = self.db.execute(
+            "SELECT count(*),min(at),max(at) FROM request_start WHERE at>?",
+            (now - 3600,),
+        ).fetchone()
+        delay = max(0, (last or 0) + interval - now)
+        if count >= hourly:
+            delay = max(delay, first + 3600 - now)
+        if reconciliation:
+            count, first = self.db.execute(
+                "SELECT count(*),min(at) FROM reconciliation_start WHERE at>?",
+                (now - 3600,),
+            ).fetchone()
+            if count >= max(1, hourly // 5):
+                delay = max(delay, first + 3600 - now)
+        return delay
+
+    def defer(self, plan, now: int, seconds: int) -> None:
+        """Release durable reservations without failure, gap or circuit evidence."""
+        with atomic(self.db):
+            if plan.work:
+                self.db.execute(
+                    "UPDATE work SET due=?,lease_until=0 WHERE path=?",
+                    (now + seconds, plan.work["path"]),
+                )
+            elif plan.signal:
+                self.db.execute(
+                    "UPDATE signal_meta SET next_due=?,lease_until=0", (now + seconds,)
+                )
+            else:
+                self.db.execute(
+                    "UPDATE worker_meta SET next_listing=?", (now + seconds,)
+                )
+            if plan.circuit_lease is not None:
+                self.db.execute(
+                    "UPDATE worker_meta SET blocked_until=? WHERE blocked_until=?",
+                    (now, plan.circuit_lease),
+                )
+
+    def success(self) -> None:
+        # A real positive response interrupts the sustained-failure streak.
+        self.db.execute("DELETE FROM transport_failure")
+        self.db.execute("UPDATE worker_meta SET block_count=0 WHERE blocked_until=0")
+
     def allow_request(
         self, now: int, interval: int, hourly: int, *, reconciliation: bool = False
     ) -> bool:
@@ -298,6 +345,11 @@ class State:
                     "links": [(link.path, link.name) for link in page.links],
                     "languages": page.languages,
                     "episode_title": page.episode_title,
+                    "episode_aliases": page.episode_aliases,
+                    "rows": [
+                        (r.path, r.title, r.aliases, r.languages, r.unknown_languages)
+                        for r in page.episodes
+                    ],
                     "year": page.year,
                     "explicit_imdb": page.explicit_imdb,
                     "aliases": page.aliases,
@@ -316,7 +368,7 @@ class State:
                 old = self.db.execute(
                     "SELECT count(*) FROM release WHERE entity_id=?", (eid,)
                 ).fetchone()[0]
-                if self._collapse(
+                if not work.get("batch") and self._collapse(
                     "languages", old, len(page.languages), [eid, page.languages], now
                 ):
                     self.db.execute(
@@ -330,7 +382,7 @@ class State:
                     self.db.execute("UPDATE worker_meta SET state='parser_error'")
                     return
                 self.db.execute(
-                    "INSERT INTO entity VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(entity_id) DO UPDATE SET display_title=excluded.display_title,observed_at=excluded.observed_at",
+                    "INSERT INTO entity VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(entity_id) DO UPDATE SET display_title=coalesce(excluded.display_title,entity.display_title),observed_at=excluded.observed_at",
                     (
                         eid,
                         tid,
@@ -343,6 +395,16 @@ class State:
                         now,
                     ),
                 )
+                if page.episode_title:
+                    # Replace source aliases only with a complete named observation.
+                    self.db.execute(
+                        "DELETE FROM entity_alias WHERE entity_id=?", (eid,)
+                    )
+                    for alias in page.episode_aliases:
+                        self.db.execute(
+                            "INSERT OR IGNORE INTO entity_alias VALUES(?,?,?)",
+                            (eid, identity.search_key(alias), alias),
+                        )
                 # A genuinely new positive observation extends the active window.
                 new_languages = set(page.languages) - {
                     row[0]
@@ -364,20 +426,22 @@ class State:
                     self.db.execute(
                         "DELETE FROM omissions WHERE kind='release' AND id=?", (rid,)
                     )
-                self._observe_absence(
-                    "release",
-                    [
-                        r[0]
-                        for r in self.db.execute(
-                            "SELECT release_id FROM release WHERE entity_id=?", (eid,)
-                        )
-                    ],
-                    {
-                        identity.release_id(self.provider, eid, language)
-                        for language in page.languages
-                    },
-                    now,
-                )
+                if not work.get("batch"):
+                    self._observe_absence(
+                        "release",
+                        [
+                            r[0]
+                            for r in self.db.execute(
+                                "SELECT release_id FROM release WHERE entity_id=?",
+                                (eid,),
+                            )
+                        ],
+                        {
+                            identity.release_id(self.provider, eid, language)
+                            for language in page.languages
+                        },
+                        now,
+                    )
             else:
                 parent = self.db.execute(
                     "SELECT path FROM title WHERE title_id=?", (tid,)
@@ -442,6 +506,14 @@ class State:
                         "INSERT OR IGNORE INTO work(path,title_id,kind,due) VALUES(?,?,?,?)",
                         (link.path, tid, kind, now),
                     )
+            if work["kind"] == "season":
+                from .batch import admit
+
+                admit(self, work, page, now, interval, historical_interval)
+                self.db.execute(
+                    "INSERT INTO season_batch_checkpoint VALUES(?,?) ON CONFLICT(path) DO UPDATE SET checked_at=excluded.checked_at",
+                    (work["path"], now),
+                )
             if work["kind"] == "title":
                 if page.title:
                     self.db.execute(
@@ -498,32 +570,28 @@ class State:
     def failure(
         self, work: dict | None, outcome: str, now: int, retry_after: int | None = None
     ) -> None:
+        from .retry import policy
+
         meta = self.meta()
         blocked, count = meta["blocked_until"], meta["block_count"]
-        if outcome == "challenge_or_block":
-            delay, state = min(86400, 21600 * 2 ** min(count, 2)), "blocked"
-            blocked, count = now + delay, count + 1
-        elif outcome == "rate_limited":
-            delay, state = max(3600, min(86400, retry_after or 3600)), "blocked"
-            blocked = now + delay
-        elif outcome == "unexpected_structure":
-            delay, state = 86400, "parser_error"
-        else:
-            attempts = work["failures"] if work else 0
-            delay, state = (300, 1800, 7200, 21600)[min(attempts, 3)], "transport_error"
+        attempts = work["failures"] if work else count
+        delay, state = policy(outcome, attempts, count, retry_after)
         with atomic(self.db):
-            if outcome == "transport_failure":
+            if outcome in ("challenge_or_block", "rate_limited"):
+                blocked, count = max(blocked, now + delay), count + 1
+            elif outcome == "transport_failure":
                 self.db.execute(
-                    "DELETE FROM transport_failure WHERE at<?", (now - 300,)
+                    "DELETE FROM transport_failure WHERE at<?", (now - 120,)
                 )
                 self.db.execute("INSERT INTO transport_failure VALUES(?)", (now,))
-                if (
-                    self.db.execute(
-                        "SELECT count(*) FROM transport_failure"
-                    ).fetchone()[0]
-                    >= 3
-                ):
-                    blocked = max(blocked, now + 1800)
+                failures, oldest = self.db.execute(
+                    "SELECT count(*),min(at) FROM transport_failure"
+                ).fetchone()
+                # Eight consecutive real failures spanning >=30s establish more
+                # than one unlucky page. Parser/admission failures never enter.
+                if failures >= 8 and now - oldest >= 30:
+                    circuit, _ = policy("circuit", 0, count, None)
+                    blocked, count = max(blocked, now + circuit), count + 1
             self.db.execute(
                 "UPDATE worker_meta SET state=?,blocked_until=?,block_count=?",
                 (state, blocked, count),
