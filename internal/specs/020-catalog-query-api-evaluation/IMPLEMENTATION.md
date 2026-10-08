@@ -158,4 +158,8 @@ Only the demonstrated trailing AniWorld `[Final Episode]` suffix is a fallback,
 after exact evidence, and never changes stored source titles/coordinates.
 
 Operator commands and coverage limits: `scripts/catalog/query_pilot/SERVER.md`.
-No full provider crawl was performed on the development Mac or remotely.
+No full provider crawl has completed on the development Mac or remote pilot.
+The authorized Linux bootstrap remains partial; its measurements and failures
+are recorded in EVIDENCE.md. The maintainer's production-performance requirement
+and finite repair/optimization backlog are in [ISSUES.md](ISSUES.md). Current
+pilot request limits and backoff delays are not accepted production defaults.

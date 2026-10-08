@@ -493,3 +493,12 @@ no captured episode title. Retain source-language headings and remeasure unique
 matching evidence; generic labels do not justify copying provider coordinates
 into canonical coordinates. No fixes or deployment changes were made in this
 inspection. Generated acquisition/live extraction/import/playback were not rerun.
+
+The maintainer subsequently rejected week-long bootstrap as a production outcome
+and requested better volume, request compatibility and classified backoff. The
+finite [issue/performance backlog](ISSUES.md) records these requirements and the
+confirmed defects. PR #119 was inspected at `61351bb`: its AniWorld season-row
+metadata is a candidate for reducing requests, but its direct-numbering matcher
+is unsuitable for conservative canonical identities. No verified full-crawl
+timing comparison was found. This documentation update changes no running code,
+request rates or provider headers.

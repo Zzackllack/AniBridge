@@ -165,6 +165,13 @@ Each collector/API container is 512 MiB, two CPUs, no swap, 64 PIDs. Docker logs
 are 3 × 10 MB per service and worker events are 5 × 10 MiB. Do not raise limits to
 mask a failure. Run one collector; its process lock rejects a competing writer.
 
+These are deployed **pilot defaults**, not accepted production throughput or
+retry policy. The October 8 follow-up reproduced local budget waiting being
+misclassified as transport failure and found missing German-only episode titles.
+The finite [repair/performance backlog](../../../internal/specs/020-catalog-query-api-evaluation/ISSUES.md)
+also records request reduction, pooled HTTP clients, measured concurrency and
+header compatibility work. No backlog item changes the running configuration.
+
 ## HTTPS ingress
 
 The metadata listener is loopback-only on server port 18080. For the existing

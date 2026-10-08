@@ -36,6 +36,10 @@ Request API private pilot
   proofs are distinct. The maintainer guide is `scripts/catalog/query_pilot/README.md`.
 - Normal Linux collection/server and separate local-client commands are in
   `scripts/catalog/query_pilot/SERVER.md`; Megakino live language gaps remain explicit.
+- Confirmed pilot defects and production throughput requirements are tracked in
+  `internal/specs/020-catalog-query-api-evaluation/ISSUES.md`. Local budget waits
+  are not provider failures; tune collection from measured work efficiency and
+  classified responses, while retaining the existing storage/resource budgets.
 - The original AniWorld metadata/season-1 discovery is closed. The finite generated
   media acceptance handoff is `scripts/catalog/query_pilot/ACCEPTANCE.md`; its HTTP input hook is
   test-only and must never be installed in a normal deployment.

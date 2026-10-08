@@ -54,3 +54,9 @@ and publish ports on loopback only. The generated fixture has no Internet
 access or media. Do not provision a source, SSH, or alter a real installation
 without explicit authorization. Job/resource enforcement is Linux-only; Docker
 is the supported maintainer path.
+
+Confirmed pilot defects and production collection requirements are tracked in
+[the catalog issue backlog](../specs/020-catalog-query-api-evaluation/ISSUES.md).
+The current pilot's rate/backoff defaults are not production throughput promises.
+Check Docker/VPN subnet overlap before deployment; retain disposable state and
+existing limits when validating collection improvements on the authorized host.
