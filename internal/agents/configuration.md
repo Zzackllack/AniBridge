@@ -126,3 +126,12 @@ server/client setup are in [SERVER.md](../../scripts/catalog/query_pilot/SERVER.
 `MANAGEMENT_API_TOKEN` optionally enables authenticated local job retry/cancel; it must encode 32 random bytes as base64url. Query requests
 disclose terms/IDs and service-visible IPs. No proxy/log privacy guarantees.
 See the [pilot guide](../../scripts/catalog/query_pilot/README.md).
+
+
+Collector tuning belongs in `apps/catalog-worker/config.example.json`.
+`provider_settings[provider]` can override concurrency, start spacing, hourly
+budget and User-Agent/Accept/Accept-Language/Referer. Referer is restricted to
+that configured origin's root; encoding remains identity. Defaults retain four
+total slots, two/provider and 2-second spacing; 1,800/hour matches that spacing
+without the old 1,200/hour idle period. This is a bounded measured setting, not
+a full-bootstrap or sustained provider-capacity guarantee. API env is unchanged.

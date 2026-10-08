@@ -1,8 +1,8 @@
 # Private-pilot defects and production improvements
 
 Updated 2026-10-08. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
-and [EVIDENCE.md](EVIDENCE.md). This records outstanding work; it does not claim
-that the deployed worker has these fixes or authorize another deployment.
+and [EVIDENCE.md](EVIDENCE.md). The October 8 implementation and bounded measurements are recorded below.
+Deployment is confined to the maintainer-authorized existing private pilot.
 
 ## Production requirement
 
@@ -22,17 +22,17 @@ and concurrency from bounded measurements of real responses and resource usage.
 
 | ID | State / priority | Issue and required outcome |
 | --- | --- | --- |
-| CQ-01 | Confirmed open / P0 | Local budget waits occur inside the HTTP deadline. Reproduced `transport_failure` with zero HTTP calls; both providers reached 1,200 starts at their latest cooldowns. Defer work until budget is available, outside network deadlines, without recording provider failures or occupying scarce fetch slots while waiting. |
-| CQ-02 | Confirmed open / P0 | Three transport failures in five minutes pause the whole provider for 30 minutes. Ordinary page failures retry after 5/30/120/360 minutes; challenge delays start at six hours. Replace blanket pauses with classified, bounded page retries and provider circuits for sustained actual failures. Success resets escalation. |
-| CQ-03 | Confirmed open / P0 | HTTP 429 handling forces at least one hour even for a shorter `Retry-After`; HTTP-date values are not parsed. Respect valid seconds/date instructions with bounded handling. Local throttling is never a remote 429. Explicit 401/403/challenges remain distinct from transient errors. |
-| CQ-04 | Confirmed open / P1 | Transport discards HTTP status/error class; normal event logs only say `settled` and lack timestamps. Emit timestamped sanitized outcomes, request/budget/retry counts and durations. Do not log response bodies, tokens, URLs with query strings or user query/IP histories. |
-| CQ-05 | Confirmed open / P1 | Serienstream requires a parenthesized English episode title. Live German-only heading `S01E01: Leichtfertige Versprechen` is discarded. Retain source-language names/aliases and use unique canonical evidence; generic `Folge 1`, duplicate titles and unproved numbering remain unresolved. |
-| CQ-06 | Measured gap / P1 | Only about 68% AniWorld / 48% Serienstream episodes with releases are mapped. Investigate unmapped cohorts, missing canonical titles, translations, split seasons and ambiguity; remeasure coverage after fixes. Ordinary series must not require manual review, and source coordinates must remain separate from canonical coordinates. |
-| CQ-07 | Optimization to measure / P1 | Episode-by-episode metadata fetches dominate the growing backlog. Investigate provider season/listing rows as batch sources of episode names and positively observed languages. Fetch detail pages only for missing/changed evidence. Validate row completeness and absence semantics before replacing existing observations. |
-| CQ-08 | Confirmed overhead / P1 | A new `httpx.AsyncClient` is created for each fetch, preventing cross-fetch connection reuse. Introduce scoped bounded pooling while preserving DNS validation/pinning, Host/TLS identity, verified HTTPS, redirect restrictions and `trust_env=False`. Bound cached DNS/session state; separate provider cookies and canonical credentials. |
-| CQ-09 | Optimization to measure / P1 | Async already exists: four total fetch slots, two per provider, 2-second spacing. Measure useful entities/request, budget stalls, network latency, parser startup, SQLite checkpoints and publication before selecting higher bounded concurrency. Profile per-page parser subprocess cost; preserve its memory/deadline/termination guarantees if reusing parser workers or batching. |
-| CQ-10 | Requested improvement / P1 | Evaluate stable configurable browser-compatible User-Agent/Accept/Accept-Language/Referer profiles against current provider responses. A/B measure success, actual 429/403 rates and latency. Advertise only supported encodings and retain bounded decoding. Header strings alone do not provide browser TLS/JavaScript behavior or prove an IP-reputation fix; preserve the existing no-browser/CAPTCHA-solver scope. |
-| CQ-11 | Confirmed reporting gap / P1 | `complete` is always false; discovered, checked, usable and mapped counts differ, queues grow as seasons are discovered, and recent gaps latch. Expose first-pass coverage, retry/blocked work, available releases, mapping coverage, freshness, throughput and a qualified ETA. Avoid calling title-list completion or a drained recent queue a complete scrape. |
+| CQ-01 | Fixed + verified | Nonblocking durable admission defers outside network deadlines and before fetch slots. Exhausted-budget regression sends zero HTTP calls, records no failure and survives reopen. Redirect admission remains bounded. |
+| CQ-02 | Fixed + verified | Short jittered page retries (5s exponential base, 300s base ceiling), sustained-real-failure circuits, success reset and single half-open probes. Parser/local waits never establish bans; explicit blocks start at 15m, capped at 6h. |
+| CQ-03 | Fixed + verified | Valid Retry-After seconds and HTTP dates are respected with a 1s–24h bound; malformed values default to 60s. 12-second/date regressions pass. Local exhaustion is admission_deferred, never remote 429. |
+| CQ-04 | Fixed + verified | Bounded timestamped JSON outcomes retain HTTP status, error class, request count, network/parser durations, retries and budget waits. Live 200 page/batch events verified without sensitive values. |
+| CQ-05 | Fixed + verified | German-only headings and bilingual source aliases are retained. Generic numbered headings, duplicate/conflicting evidence and source numbering remain insufficient. German/alias regression and six formerly null live Arthur headings pass. |
+| CQ-06 | Implemented + bounded measurement | Unique non-generic canonical names can prove coordinates without a numbering assumption. Copied-ledger 50-title cohorts add 11 AniWorld/7 Serienstream maps; season cohorts map 13/13, 7/7 and 33/51. Whole-provider coverage remains partial; current live counts are in evidence. |
+| CQ-07 | Implemented + verified | Validated AniWorld microdata and current Serienstream rows batch positive names/flags. Missing/unknown/changed evidence retains detail fallback; omitted flags never delete releases. One-time checkpointed season refresh accelerates retained backlogs. 18 sampled row/detail language sets agree. |
+| CQ-08 | Fixed + verified | One bounded pool per provider/canonical origin, closed with collector lifetime. Explicit requests have no ordinary cookie jar. Per-hop DNS validation/pinning, Host/TLS, verified HTTPS and trust_env=False remain enforced; regressions and live pools pass. |
+| CQ-09 | Implemented + bounded measurement | 21 baseline requests yielded 18 detail rows; three candidate season requests supplied 71 rows. Offline checkpoint/publication replay: 14.77s to 3.51s, peaks 67.9MB to 59.9MB. Parser imports reduced, fresh supervised children retained; no SQLite/publication rewrite justified. Keep 2/provider slots and 2s spacing; 1800/hour matches existing spacing. Full-bootstrap duration remains unmeasured. |
+| CQ-10 | Implemented + bounded measurement | Strict per-provider stable UA/Accept/Accept-Language/root Referer configuration. Identity encoding only. 16-request collector/Chrome A/B returned 200 throughout, no demonstrated browser-header benefit; default identifies AniBridge. No browser or solver added. |
+| CQ-11 | Fixed + verified | Status exposes discovery/check phases, first-pass/detail coverage, failures/unsupported work, usable releases/mappings, rates and qualified current-queue ETA. Growing discovery suppresses ETA. Completion can truthfully become true for supported first-pass detail evidence; mapping and recent-feed gaps stay separate. |
 | CQ-12 | Optional environment blocker | Megakino remains disabled: unresolved live language observations and unstable origins/challenge behavior. Keep AniWorld/Serienstream completion independent of it. Live extraction/import/playback and a copied real-state upgrade rehearsal remain separate, unverified gates. |
 | CQ-13 | Fixed + verified | Coolify allocated `192.168.0.0/20`, shadowing NetBird. Pilot backend is now `172.16.27.0/24`; fra-node-01's automatic Docker pool is `10.254.0.0/16` split into `/24`s. Existing conflicting bridge was replaced, Docker restarted, and host/probe-network pings passed. Keep overlap checks in deployment instructions. |
 | CQ-14 | Fixed + verified | Canonical enrichment previously treated its own 30/minute budget exhaustion as source failure. Deployed `3bf551e` defers the lookup without failure/backoff; 17 focused checks passed. CQ-01 is a separate provider-fetch budget defect. |
@@ -67,19 +67,20 @@ explicitly recommends client reuse outside hot loops for connection pooling.
 Pooling with our DNS-pinned transport needs implementation and verification;
 simply replacing the client with ordinary URL fetching would weaken that boundary.
 
-## Validation needed to close the performance work
+## Validation outcome and remaining measurement
 
-1. Regression: exhausting local budgets sends no request and adds no failure;
-   actual 429/date handling, transient retries, escalation/reset and restart pass.
-2. Bounded metadata comparison: baseline versus batch/pool/header/concurrency
-   candidates on identical sources; report useful rows/request, latency, errors,
-   memory, CPU, disk and publication/query availability. No full crawl on the Mac.
-3. Linux bootstrap: measure durable first-pass coverage and elapsed time on the
-   selected VPS, including explicit failed/unsupported/ambiguous cases. Count
-   outstanding failures separately; do not silently relabel them as complete.
-4. Verify unchanged language observations, canonical/source coordinates, frozen
-   identities, local correction precedence and last-good serving during failures.
-   Rerun job/import checks only if those paths change or a new defect warrants it.
+1. Admission, Retry-After/date, transient retries, circuits/reset and restart
+   regressions pass. Final installed Linux checks cover the changed boundaries.
+2. Bounded real metadata, offline checkpoint/publication, headers/pools and live
+   resumed throughput comparisons are in `evidence/collector-repair-2026-10-08`.
+3. Complete supported-provider bootstrap and sustained capacity remain unmeasured.
+   First-pass phases, failures, unsupported work and mappings remain separate.
+4. Stable language/source coordinates and sampled first-seen identities survived
+   cutover. Local API compatibility checks pass; unchanged generated job/import
+   evidence was retained without acquiring new media.
 
-Implement CQ-01–04 first, then request reduction/pooling and measured throughput
-tuning alongside CQ-05–06. Retain the existing pilot volumes and checkpoints.
+CQ-01–11 implementation is committed. The existing private pilot retains its
+volumes, checkpoints, failures and pre-v4 backups. Remaining measurement limits:
+a complete supported-provider bootstrap and sustained production-capacity run;
+short cohorts and queue projections do not close those gates. CQ-12 remains
+optional. CQ-13/CQ-14 fixes and historical endurance failures are preserved.

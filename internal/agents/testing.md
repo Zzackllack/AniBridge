@@ -72,3 +72,9 @@ Linux collection command is tested through restart, real publication subprocess,
 provider block isolation and backup by worker `test_private_operations.py`.
 The publication child has a 1-GiB file cap; the parent supplies the 420-second
 wall deadline. These are different arguments to `limit_child`/`run_child_async`.
+
+Collector repair regressions: `test_collection_repairs.py`,
+`test_provider_transport.py`, `test_episode_rows.py` and the v3-to-v4 upgrade
+case. Linux-only checks retain parser termination/publication enforcement.
+`scripts/catalog/collector_benchmark` compares finite metadata cohorts; raw
+bodies and ledger copies stay in disposable private scratch, never in Git.

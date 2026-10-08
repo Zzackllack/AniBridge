@@ -36,6 +36,10 @@ Request API private pilot
   proofs are distinct. The maintainer guide is `scripts/catalog/query_pilot/README.md`.
 - Normal Linux collection/server and separate local-client commands are in
   `scripts/catalog/query_pilot/SERVER.md`; Megakino live language gaps remain explicit.
+- Collector state v4 retains a no-overwrite pre-v4 backup on upgrade. Season rows
+  supply positive names/languages; missing or changed evidence keeps detail work.
+  Admission defers outside fetch slots; parser children remain fresh and bounded.
+  Provider-specific `provider_settings` live in the worker JSON, not API env vars.
 - Confirmed pilot defects and production throughput requirements are tracked in
   `internal/specs/020-catalog-query-api-evaluation/ISSUES.md`. Local budget waits
   are not provider failures; tune collection from measured work efficiency and

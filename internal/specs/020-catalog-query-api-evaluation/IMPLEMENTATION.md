@@ -163,3 +163,22 @@ The authorized Linux bootstrap remains partial; its measurements and failures
 are recorded in EVIDENCE.md. The maintainer's production-performance requirement
 and finite repair/optimization backlog are in [ISSUES.md](ISSUES.md). Current
 pilot request limits and backoff delays are not accepted production defaults.
+
+
+## Collector repair contract (2026-10-08)
+
+Local admission is a durable deferral, never transport/circuit evidence. Checked
+season rows can provide bounded positive episode names/aliases and explicit
+language flags; absent flags do not remove releases. Missing, unknown or changed
+row evidence retains detail requests. A one-time checkpointed season refresh
+accelerates the retained episode backlog. Existing failures/cooldowns survive
+upgrade and resume normally. State v4 retains a verified no-overwrite v3 backup.
+
+Scoped HTTP pools keep per-hop DNS validation/pinning and Host/TLS identity;
+ordinary requests have no cookie jar. Canonical credentials have separate pools.
+Unique non-generic names across the canonical descriptor can prove an episode's
+coordinates directly. Conflicting aliases, duplicate keys, native-season splits
+and occupied coordinates stay unresolved; source numbering is never evidence.
+Reporting distinguishes title discovery, first-pass checks, usable releases,
+mappings, failures and unknown languages. A current-queue ETA excludes growth,
+retries and enrichment and is withheld while discovery can still expand it.

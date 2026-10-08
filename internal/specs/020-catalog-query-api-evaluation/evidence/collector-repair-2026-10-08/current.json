@@ -1,0 +1,225 @@
+{
+  "storage": {
+    "state_used_bytes": 686620672,
+    "public_used_bytes": 56987648,
+    "managed_used_bytes": 743608320,
+    "runtime_reserved_bytes": 1000000000,
+    "total_used_bytes": 1743608320,
+    "state_quota_bytes": 20000000000,
+    "public_quota_bytes": 9000000000,
+    "total_quota_bytes": 30000000000,
+    "state_free_bytes": 109726302208,
+    "public_free_bytes": 109726302208,
+    "warning": false
+  },
+  "providers": {
+    "aniworld.to": {
+      "singleton": 1,
+      "revision": 0,
+      "wall": 1791467123,
+      "state": "partial",
+      "next_listing": 1791479608,
+      "blocked_until": 0,
+      "block_count": 0,
+      "dirty": 1,
+      "published_at": 1791466910,
+      "listing_checked_at": 1791465208,
+      "counts": {
+        "title": 2516,
+        "entity": 29298,
+        "release": 53394,
+        "canonical_title": 6503,
+        "canonical_episode": 18947
+      },
+      "pending_pages": 25993,
+      "failed_pages": 249,
+      "unsupported_titles": 0,
+      "checked_pages": 34238,
+      "oldest_check_age_s": 151472,
+      "mapping": {
+        "title_mapped": 2183,
+        "title_unresolved": 333,
+        "episodes": 29298,
+        "episode_mapped": 18947,
+        "ambiguous_ids": 12,
+        "ambiguous_episode_hints": 47,
+        "outcomes": {
+          "matched": 2059,
+          "not_found": 307,
+          "source_failure": 140
+        }
+      },
+      "recent": {
+        "singleton": 1,
+        "origin": "https://aniworld.to",
+        "checked_at": 1791467008,
+        "next_due": 1791467908,
+        "lease_until": 0,
+        "coverage": "gap",
+        "gap_since": 1791315892,
+        "entries": 150,
+        "overlaps": 150,
+        "unknown_languages": 0,
+        "polls": 92
+      },
+      "progress": {
+        "phases": {
+          "episode": {
+            "discovered": 53627,
+            "checked": 29226,
+            "failed": 211
+          },
+          "season": {
+            "discovered": 4088,
+            "checked": 2506,
+            "failed": 28
+          },
+          "title": {
+            "discovered": 2516,
+            "checked": 2506,
+            "failed": 10
+          }
+        },
+        "first_pass_complete": false,
+        "detail_evidence_complete": false,
+        "unknown_language_observations": 0,
+        "episodes_with_releases": 29283,
+        "mapped_with_releases": 18944,
+        "mapping_fraction": 0.6469282518867603,
+        "checked_pages_last_hour": 7341,
+        "requests_last_hour": 920,
+        "stats": {
+          "singleton": 1,
+          "started_at": 1791466263,
+          "requests": 409,
+          "pages": 409,
+          "batch_rows": 6501,
+          "network_ms": 199257,
+          "parser_ms": 161354,
+          "failures": 0,
+          "admission_deferrals": 0
+        },
+        "eta_seconds": null,
+        "eta_scope": "current discovered queue only; retries, future changes and canonical enrichment excluded",
+        "discovery_queue_can_grow": true
+      },
+      "complete": false,
+      "usable_mapping": {
+        "usable": 29283,
+        "mapped": 18944,
+        "fraction": 0.6469282518867603
+      },
+      "schema": 4
+    },
+    "s.to": {
+      "singleton": 1,
+      "revision": 0,
+      "wall": 1791467123,
+      "state": "partial",
+      "next_listing": 1791479549,
+      "blocked_until": 0,
+      "block_count": 0,
+      "dirty": 1,
+      "published_at": 1791466871,
+      "listing_checked_at": 1791465149,
+      "counts": {
+        "title": 10947,
+        "entity": 18095,
+        "release": 19013,
+        "canonical_title": 30164,
+        "canonical_episode": 8752
+      },
+      "pending_pages": 155072,
+      "failed_pages": 738,
+      "unsupported_titles": 0,
+      "checked_pages": 30866,
+      "oldest_check_age_s": 151470,
+      "mapping": {
+        "title_mapped": 10206,
+        "title_unresolved": 741,
+        "episodes": 18095,
+        "episode_mapped": 8752,
+        "ambiguous_ids": 48,
+        "ambiguous_episode_hints": 349,
+        "outcomes": {
+          "matched": 10034,
+          "not_found": 632,
+          "source_failure": 184
+        }
+      },
+      "recent": {
+        "singleton": 1,
+        "origin": "https://serienstream.to",
+        "checked_at": 1791466948,
+        "next_due": 1791467848,
+        "lease_until": 0,
+        "coverage": "gap",
+        "gap_since": 1791315654,
+        "entries": 173,
+        "overlaps": 173,
+        "unknown_languages": 9,
+        "polls": 92
+      },
+      "progress": {
+        "phases": {
+          "episode": {
+            "discovered": 152126,
+            "checked": 17455,
+            "failed": 623
+          },
+          "season": {
+            "discovered": 22865,
+            "checked": 2561,
+            "failed": 27
+          },
+          "title": {
+            "discovered": 10947,
+            "checked": 10850,
+            "failed": 88
+          }
+        },
+        "first_pass_complete": false,
+        "detail_evidence_complete": false,
+        "unknown_language_observations": 4177,
+        "episodes_with_releases": 15252,
+        "mapped_with_releases": 8423,
+        "mapping_fraction": 0.5522554419092578,
+        "checked_pages_last_hour": 5188,
+        "requests_last_hour": 954,
+        "stats": {
+          "singleton": 1,
+          "started_at": 1791466263,
+          "requests": 415,
+          "pages": 415,
+          "batch_rows": 5100,
+          "network_ms": 177305,
+          "parser_ms": 177128,
+          "failures": 0,
+          "admission_deferrals": 0
+        },
+        "eta_seconds": null,
+        "eta_scope": "current discovered queue only; retries, future changes and canonical enrichment excluded",
+        "discovery_queue_can_grow": true
+      },
+      "complete": false,
+      "usable_mapping": {
+        "usable": 15252,
+        "mapped": 8423,
+        "fraction": 0.5522554419092578
+      },
+      "schema": 4
+    }
+  },
+  "timestamp": "2026-10-08T13:45:24.882506+00:00",
+  "availability": {
+    "aniworld.to": {
+      "status": 200,
+      "total": 51392
+    },
+    "s.to": {
+      "status": 200,
+      "total": 17513
+    },
+    "unauthenticated": 401
+  }
+}

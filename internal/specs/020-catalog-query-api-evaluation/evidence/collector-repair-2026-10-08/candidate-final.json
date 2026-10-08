@@ -1,0 +1,59 @@
+{
+  "cohorts": {
+    "season-0.html": {
+      "provider": "aniworld.to",
+      "batch_rows": 13,
+      "complete_batch_rows": 13,
+      "child_parser_s": 0.38721175864338875,
+      "verified_detail_rows": 6,
+      "language_agreements": 6,
+      "language_mismatches": [],
+      "new_detail_titles": 0,
+      "batch_rows_per_request": 13,
+      "baseline_requests_for_full_season": 14,
+      "candidate_requests_for_full_season": 1,
+      "live_outcome": "ok",
+      "live_status": 200,
+      "live_s": 0.3185989079065621
+    },
+    "season-1.html": {
+      "provider": "s.to",
+      "batch_rows": 7,
+      "complete_batch_rows": 7,
+      "child_parser_s": 0.5487162941135466,
+      "verified_detail_rows": 6,
+      "language_agreements": 6,
+      "language_mismatches": [],
+      "new_detail_titles": 0,
+      "batch_rows_per_request": 7,
+      "baseline_requests_for_full_season": 8,
+      "candidate_requests_for_full_season": 1,
+      "live_outcome": "ok",
+      "live_status": 200,
+      "live_s": 0.2071694890037179
+    },
+    "season-2.html": {
+      "provider": "s.to",
+      "batch_rows": 51,
+      "complete_batch_rows": 51,
+      "child_parser_s": 0.46962482295930386,
+      "verified_detail_rows": 6,
+      "language_agreements": 6,
+      "language_mismatches": [],
+      "new_detail_titles": 6,
+      "batch_rows_per_request": 51,
+      "baseline_requests_for_full_season": 52,
+      "candidate_requests_for_full_season": 1,
+      "live_outcome": "ok",
+      "live_status": 200,
+      "live_s": 0.2403130829334259
+    }
+  },
+  "mode": "candidate",
+  "elapsed_s": 3.0535662551410496,
+  "cpu_s": 1.8813639999999998,
+  "max_rss_kib": 52140,
+  "child_max_rss_kib": 52140,
+  "cgroup_peak_bytes": 60907520,
+  "scratch_bytes": 3563891
+}

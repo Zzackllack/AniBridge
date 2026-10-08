@@ -145,8 +145,8 @@ with partial detail coverage and thereafter uses a 300-second minimum interval.
 Each provider has its own immutable pointer and last-good catalog. Publication
 fences that provider's writer only; other providers and queries continue.
 
-Defaults: four fetch slots, two per provider, 2-second start spacing and at most
-1,200 provider requests/hour; recent feeds every 15 minutes for TV, full listings
+Current repaired defaults: four fetch slots, two per provider, 2-second start spacing and at most
+1,800 provider requests/hour; recent feeds every 15 minutes for TV, full listings
 and active work every four hours. Historical work has a weekly target cadence,
 a reserved scheduler share and a 20% hourly request budget. Those are targets,
 not a promise to finish a provider in a week. Failed/blocked requests use durable
@@ -165,12 +165,45 @@ Each collector/API container is 512 MiB, two CPUs, no swap, 64 PIDs. Docker logs
 are 3 × 10 MB per service and worker events are 5 × 10 MiB. Do not raise limits to
 mask a failure. Run one collector; its process lock rejects a competing writer.
 
-These are deployed **pilot defaults**, not accepted production throughput or
-retry policy. The October 8 follow-up reproduced local budget waiting being
-misclassified as transport failure and found missing German-only episode titles.
-The finite [repair/performance backlog](../../../internal/specs/020-catalog-query-api-evaluation/ISSUES.md)
-also records request reduction, pooled HTTP clients, measured concurrency and
-header compatibility work. No backlog item changes the running configuration.
+Collector state v4 adds source episode aliases, season-row checkpoints and
+bounded lifetime counters; the verified `.pre-v4.backup` is never overwritten.
+Older worker binaries refuse v4; use a forward repair, or rehearse recovery from
+the retained backup in an isolated copy. Never blindly downgrade the live ledger
+or discard records collected after that backup.
+Retain the current ledgers/volumes during upgrades. Existing failure and cooldown
+checkpoints are not cleared. First-pass season refreshes accelerate the old
+never-checked episode queue exactly once, including rows unsupported by batching.
+
+Local budgets defer before acquiring fetch slots. Transient pages retry with
+5-second exponential base, jitter and a 300-second base ceiling; eight real
+consecutive failures spanning at least 30 seconds in a two-minute window open a
+60-second exponential circuit (900-second base ceiling). Success resets the
+streak. Parser/resource waits never open circuits. Explicit blocks use one
+half-open probe after 15 minutes, doubling up to six hours. Valid 429 seconds or
+HTTP dates use a one-second to 24-hour bound; malformed values default to 60s.
+
+`provider_settings` in worker JSON supports per-provider `limits` for
+`provider_concurrency`, `provider_request_interval_s`, `provider_requests_per_hour`
+and `headers` for `User-Agent`, `Accept`, `Accept-Language`, `Referer`. Only the
+configured origin root is a valid Referer; `Accept-Encoding` remains identity.
+Two/provider, four total and 2-second spacing are retained. The 1,800/hour cap
+matches existing spacing rather than increasing start density. Bounded live
+checks found no benefit from a Chrome header string, so the default identifies
+AniBridge with stable HTML/German-English headers. This does not simulate browser
+TLS or JavaScript. See `apps/catalog-worker/config.example.json`.
+
+Status `progress` separates first-pass/detail evidence from usable and mapped
+counts, reports current-queue rates and suppresses ETA while discovery can grow.
+`complete` describes supported first-pass detail coverage, never universal
+canonical resolution or lossless recent-feed coverage. Recent gaps remain latched
+until a separate reconciliation proof exists. Events include UTC timestamps,
+HTTP status/error class, retry due/reason, budget waits and network/parser times.
+No paths, response bodies, bearer credentials or private query/IP history.
+
+Finite Linux measurements and remaining complete-bootstrap limit are in
+[EVIDENCE.md](../../../internal/specs/020-catalog-query-api-evaluation/EVIDENCE.md).
+The repaired defaults are not a measured full-bootstrap duration or sustained
+provider-capacity promise. Preserve the 512 MiB/2 CPU/64 PID and disk limits.
 
 ## HTTPS ingress
 

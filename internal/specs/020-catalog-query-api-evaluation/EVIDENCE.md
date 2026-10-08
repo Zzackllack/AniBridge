@@ -502,3 +502,122 @@ metadata is a candidate for reducing requests, but its direct-numbering matcher
 is unsuitable for conservative canonical identities. No verified full-crawl
 timing comparison was found. This documentation update changes no running code,
 request rates or provider headers.
+
+## Collector repairs and finite Linux rollout — 2026-10-08
+
+CQ-01–11 are implemented on the preserved branch. Commits: `a4810e6`
+(transport), `c6cb6ea` (durable admission/retries, batching/pools/parser imports),
+`128f9eb` (source aliases, conservative matching and progress). The existing
+fra-node-01 Coolify service now runs worker/metadata image
+`128f9eb53b6a21e75b013f2c52ff1f99bcade162`, image ID
+`sha256:19e40f9f61d8f732455a89f23b43e7f6ef7cb0a5d08bb39b80855e4e848e36dc`.
+It was built locally on that server and applied through authenticated Coolify UI.
+No push, PR, registry publication, full Mac crawl or media acquisition occurred.
+The separate Mac client remains `71988fc`; its health returned 200. Generated
+job/import evidence remains valid and was not rerun after these collector edits.
+
+Both existing containers/three volumes, source/auth configuration, private ingress,
+512 MiB/2 CPU/64 PID limits, `172.16.27.0/24` backend and `10.254.0.0/16` automatic
+pool were preserved. State v3 upgraded to v4 with verified no-overwrite backups
+of 112,742,400 and 210,939,904 bytes. A read-only post-cutover lookup preserved
+**100/100 sampled release IDs/first-seen times per provider**. Historical failure
+counts remained 249/738 during the finite window; they were not cleared.
+
+Numeric outputs: [collector-repair-2026-10-08](evidence/collector-repair-2026-10-08/summary.json).
+Reproduction: [finite benchmark](../../../scripts/catalog/collector_benchmark/README.md).
+Private raw metadata bodies/ledger copies stay outside Git. Three real season
+inputs were used: AniWorld Bunny season 1, Serienstream Breaking Bad season 1,
+and Arthur season 1. The baseline checked six detail pages per season: **21
+requests, 18 entities**. Candidate season rows supplied **71 entities from three
+requests** (13/7/51); all **18 sampled row/detail language sets agreed**. Only
+those sampled details were independently checked. Full-season request counts in
+the output are code-path arithmetic, not a second fully measured detail crawl.
+Six formerly null Arthur detail headings now retain their German names.
+
+| Finite measure | Baseline | Candidate |
+| --- | ---: | ---: |
+| Offline replay requests / admitted entities | 21 / 18 | 3 / 71 |
+| Checkpoint + publication + reopened identity verification | 14.768 s | 3.506 s |
+| Container memory peak, replay | 67,895,296 bytes | 59,891,712 bytes |
+| Parser time, three cohorts combined | 12.958 s | 1.577 s |
+| Writer time, three cohorts combined | 0.109 s | 0.090 s |
+| Publication time, three cohorts combined | 0.617 s | 0.834 s |
+
+Publication/query totals matched admitted releases and reopened first-seen values
+in every cohort. Parent title coordinates were seeded to isolate season work;
+this is not full title discovery or an equal-work full-bootstrap benchmark.
+Parser import profiling identified avoidable async/XML imports. Lazy imports
+reduced startup while retaining fresh children, memory/file/PID limits, deadlines
+and kill/reap guarantees. Writer/publication timings did not justify a rewrite.
+16 bounded header/pool A/B requests returned 200 throughout, without 429/403.
+Chrome headers showed no demonstrated benefit. Keep stable identifying headers,
+identity encoding, two/provider slots and 2-second spacing. The **1,800/hour**
+cap matches existing spacing, removing the old forced idle period without
+increasing request start density; this sample is not a sustained safety ceiling.
+
+Copied-ledger matching: 50 unresolved title caches/provider added **11 AniWorld /
+7 Serienstream mappings**. Applying the same real season rows mapped **13/13,
+7/7 and 33/51** cohort entities. Generic, duplicate, conflicting/split evidence
+stayed unresolved. Production was not written by that copied-ledger experiment.
+Native numbers never prove canonical coordinates; unknown quality is preserved.
+
+Post-cutover live window **13:31:20–13:36:47 UTC (327.102 s)**:
+
+| Live measure | AniWorld | Serienstream |
+| --- | ---: | ---: |
+| Requests / new entities | 157 / 1,701 | 156 / 1,530 |
+| New entities/request | 10.834 | 9.808 |
+| New entities/second | 5.200 | 4.677 |
+| New releases | 2,999 | 2,143 |
+| New recorded provider failures | 0 | 0 |
+| Final titles / entities / releases | 2,516 / 26,170 / 47,118 | 10,947 / 15,445 / 15,799 |
+| Usable episodes / mapped usable episodes | 26,155 / 17,776 (67.96%) | 12,968 / 6,801 (52.44%) |
+| Remaining first-check pages / pages with failures | 29,083 / 249 | 157,190 / 738 |
+
+AniWorld mapping fraction initially falls as batch discovery outruns enrichment;
+it is not evidence of universal matching improvement. Both first passes remain
+incomplete, discovery can grow and ETA is withheld. Recent gaps remain latched;
+Serienstream still has 3,771 unknown-language observations. `live-sanitized.json`
+contains title/season/episode phase counts, checked-age, throughput and mappings.
+Live page events contain UTC timestamps, status 200, actual request counts and
+network/parser durations, without paths/bodies/credentials/query/IP histories.
+
+Authenticated HTTPS returned **200** for both providers throughout sampled
+cutover/publication checks; unauthenticated returned **401**. Final published
+query totals were 44,461/15,277, behind the current ledgers as expected between
+publications. Collector RAM samples ranged 122.5–204.8 MiB, metadata about
+52.1 MiB; instantaneous collector CPU samples 59–142% under two CPUs. The live
+cgroup peak counter reached **537,038,848 bytes**, near/slightly above the
+536,870,912-byte cap during kernel file-cache accounting/reclaim; 602 max-limit
+events, **zero OOM/kill/restarts**. Current resource sample separates 134,217,728
+anonymous bytes from 272,756,736 file-cache bytes. This is bounded operation,
+not a claim of abundant memory headroom or endurance. Managed storage including
+new backups was **723,611,648 bytes**, **1,723,611,648** including reserve, below
+the unchanged **30,000,000,000-byte** aggregate budget.
+
+Validation: final native core **301 passed**, worker **118 passed/13 skipped**;
+additional truthful-completion regression **8 focused passed**. Installed Linux
+worker suite **128 passed/1 initial spacing assertion failed**; that assertion
+was corrected to wait the required spacing. Final installed focused Linux
+worker **36 passed**, earlier changed parser/pipeline/publication cases **22
+passed**, core transport/rows/supervisor/session **25 passed**. Local API catalog
+compatibility **61 passed/18 platform skips**; known TestClient deprecation.
+Ruff check/format and diff checks pass. These overlapping suites are not additive.
+
+No collector-code or private-deployment blocker remains. **A complete supported
+provider bootstrap duration and sustained capacity remain unmeasured**; neither
+this finite throughput window nor a queue projection closes that measurement.
+The existing Linux collector continues from retained checkpoints. Optional
+Megakino languages/origins, suitable authorized live-media inputs and a supplied
+consistent real-installation upgrade copy remain external validation gaps under
+CQ-12. CQ-13/CQ-14 fixes and failed historical endurance evidence are preserved.
+
+Latest closeout sample, **13:45:24 UTC / 15:45:24 CEST**, is `current.json`:
+AniWorld 2,516 titles / 29,298 entities / 53,394 releases, 18,944 of 29,283 usable
+episodes mapped (**64.69%**), 25,993 pending pages. Serienstream 10,947 / 18,095 /
+19,013, 8,423 of 15,252 usable episodes mapped (**55.23%**), 155,072 pending pages.
+Both remain incomplete. New failure counters remain zero after 409/415 starts;
+historical failed-page counts remain 249/738. Authenticated HTTPS is still 200,
+unauthenticated 401; total accounted storage 1,743,608,320 bytes. AniWorld's
+falling global mapping fraction during discovery is explicit, despite improved
+unique-name cohorts; enrichment/translation coverage is not universal.

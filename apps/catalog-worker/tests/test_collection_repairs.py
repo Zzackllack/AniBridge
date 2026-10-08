@@ -243,3 +243,21 @@ def test_upgrade_backlog_refreshes_season_once_before_episode_details(tmp_path):
         assert state.claim(NOW, incremental=True) is None
     finally:
         state.close()
+
+
+def test_first_pass_can_complete_without_claiming_canonical_or_recent_completeness(
+    tmp_path,
+):
+    from test_signals import prepared
+
+    state = prepared(tmp_path)
+    try:
+        status = measure(state.db, state.meta(), NOW)
+        assert status["first_pass_complete"] and status["detail_evidence_complete"]
+        assert (
+            status["episodes_with_releases"] == 1
+            and status["mapped_with_releases"] == 0
+        )
+        assert status["mapping_fraction"] == 0
+    finally:
+        state.close()
