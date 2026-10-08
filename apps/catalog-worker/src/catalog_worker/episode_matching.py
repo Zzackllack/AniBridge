@@ -11,6 +11,10 @@ FINALE = re.compile(r"\s*\[Final Episode\]\s*$", re.IGNORECASE)
 
 
 def source_keys(title: str, provider: str) -> tuple[str, ...]:
+    if re.fullmatch(
+        r"(?:folge|episode|episodio|ep)\s*[0-9]+", title.strip(), re.IGNORECASE
+    ):
+        return ()
     exact = search_key(title)
     stripped = FINALE.sub("", title) if provider == "aniworld.to" else title
     fallback = search_key(stripped)

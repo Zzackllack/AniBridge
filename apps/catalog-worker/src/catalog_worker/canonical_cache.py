@@ -53,59 +53,75 @@ def missing(state: State, tid: str) -> bool:
 def apply(state: State, tid: str, checked_at: int) -> str:
     outcome = "matched"
     inferred = infer_seasons(state, tid)
-    source_counts = Counter(
-        (row["native_season"], source_keys(row["display_title"], state.provider)[-1])
-        for row in state.db.execute(
-            "SELECT native_season,display_title FROM entity WHERE title_id=? AND kind='episode' AND display_title IS NOT NULL",
-            (tid,),
-        )
-    )
-    # Use the same Unicode normalizer and per-entity primary-key probes; an
-    # entity×full-series hint join would needlessly multiply every refresh.
-    for mapping in state.db.execute(
+    entities = state.db.execute(
+        "SELECT entity_id,native_season,display_title FROM entity WHERE title_id=? AND kind='episode'",
+        (tid,),
+    ).fetchall()
+    keys = {}
+    for eid, native, name in entities:
+        names = ([name] if name else []) + [
+            row[0]
+            for row in state.db.execute(
+                "SELECT display_title FROM entity_alias WHERE entity_id=?", (eid,)
+            )
+        ]
+        keys[eid] = {
+            key for title in names for key in source_keys(title, state.provider) if key
+        }
+    counts = Counter(key for values in keys.values() for key in values)
+    observed_seasons = {}
+    for eid, native, _ in entities:
+        seasons = observed_seasons.setdefault(native, set())
+        for key in keys[eid]:
+            hints = state.db.execute(
+                "SELECT season,episode FROM canonical_hint WHERE title_id=? AND title_key=? LIMIT 2",
+                (tid, key),
+            ).fetchall()
+            if len(hints) == 1 and hints[0][1] is not None:
+                seasons.add(hints[0][0])
+    for mid, namespace, external in state.db.execute(
         "SELECT mapping_id,namespace,external_id FROM canonical_title WHERE title_id=? AND namespace='tvdb'",
         (tid,),
     ):
-        mid, namespace, external = mapping
-        for entity in state.db.execute(
-            "SELECT entity_id,native_season,display_title FROM entity WHERE title_id=? AND kind='episode'",
-            (tid,),
-        ):
-            eid, native, name = entity
-            if (
-                not name
-                or source_counts[(native, source_keys(name, state.provider)[-1])] != 1
-            ):
-                continue
+        for eid, native, name in entities:
             season = state.db.execute(
                 "SELECT canonical_season FROM season_correspondence WHERE title_id=? AND namespace=? AND external_id=? AND native_season=?",
                 (tid, namespace, external, native),
             ).fetchone()
-            if season is None:
-                if native not in inferred:
-                    continue
-                season = (inferred[native],)
-            hint = None
-            for key in source_keys(name, state.provider):
-                hint = state.db.execute(
-                    "SELECT episode FROM canonical_hint WHERE title_id=? AND season=? AND title_key=?",
-                    (tid, season[0], key),
-                ).fetchone()
-                if hint is not None:
-                    break
-            if hint is None or hint[0] is None:
+            if season is None and len(observed_seasons[native]) > 1:
                 continue
+            proven = season[0] if season else inferred.get(native)
+            candidates = set()
+            ambiguous = False
+            for key in keys[eid]:
+                hints = state.db.execute(
+                    "SELECT season,episode FROM canonical_hint WHERE title_id=? AND title_key=?"
+                    + (" AND season=?" if proven is not None else "")
+                    + " LIMIT 2",
+                    (tid, key, proven) if proven is not None else (tid, key),
+                ).fetchall()
+                if not hints:
+                    continue
+                if counts[key] != 1 or len(hints) != 1 or hints[0][1] is None:
+                    ambiguous = True
+                else:
+                    candidates.add(tuple(hints[0]))
+            # A unique name in the entire canonical descriptor proves its own
+            # coordinates. Native numbers never enter this correspondence.
+            if ambiguous or len(candidates) != 1:
+                continue
+            canonical_season, episode = next(iter(candidates))
             previous = state.db.execute(
                 "SELECT season,episode FROM canonical_episode WHERE mapping_id=? AND entity_id=?",
                 (mid, eid),
             ).fetchone()
             occupied = state.db.execute(
                 "SELECT entity_id FROM canonical_episode WHERE mapping_id=? AND season=? AND episode=?",
-                (mid, season[0], hint[0]),
+                (mid, canonical_season, episode),
             ).fetchone()
             if (
                 previous
-                and tuple(previous) != (season[0], hint[0])
+                and tuple(previous) != (canonical_season, episode)
                 or occupied
                 and occupied[0] != eid
             ):
@@ -113,7 +129,7 @@ def apply(state: State, tid: str, checked_at: int) -> str:
                 continue
             state.db.execute(
                 "INSERT INTO canonical_episode VALUES(?,?,?,?,NULL,'exact_title',?) ON CONFLICT(mapping_id,season,episode) DO UPDATE SET checked_at=excluded.checked_at",
-                (mid, eid, season[0], hint[0], checked_at),
+                (mid, eid, canonical_season, episode, checked_at),
             )
     return outcome
 

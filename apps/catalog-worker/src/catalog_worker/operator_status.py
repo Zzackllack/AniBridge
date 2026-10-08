@@ -5,6 +5,7 @@ import time
 from contextlib import closing
 
 from .config import Config
+from .progress import measure
 from .storage import status
 
 
@@ -62,6 +63,7 @@ def report(config: Config) -> dict:
             ambiguous = db.execute(
                 "SELECT count(*) FROM (SELECT namespace,external_id FROM canonical_title GROUP BY namespace,external_id HAVING count(DISTINCT title_id)>1)"
             ).fetchone()[0]
+            progress = measure(db, meta, now)
             result["providers"][provider] = {
                 **meta,
                 "counts": counts,
@@ -80,6 +82,7 @@ def report(config: Config) -> dict:
                     "outcomes": mapping,
                 },
                 "recent": signal,
-                "complete": False,  # No bounded run claims a complete current provider.
+                "progress": progress,
+                "complete": progress["detail_evidence_complete"],
             }
     return result

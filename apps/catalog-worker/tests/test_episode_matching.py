@@ -88,6 +88,6 @@ def test_unique_names_prove_season_and_annotation_without_number_guess(tmp_path)
         apply(state, tid, 1800000000)
         assert (
             state.db.execute("SELECT count(*) FROM canonical_episode").fetchone()[0]
-            == 0
+            == 2
         )
     state.close()
