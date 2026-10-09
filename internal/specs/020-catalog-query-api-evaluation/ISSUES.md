@@ -1,6 +1,6 @@
 # Private-pilot defects and production improvements
 
-Updated 2026-10-08. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
+Updated 2026-10-09. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
 and [EVIDENCE.md](EVIDENCE.md). The October 8 implementation and bounded measurements are recorded below.
 Deployment is confined to the maintainer-authorized existing private pilot.
 
@@ -42,6 +42,9 @@ and concurrency from bounded measurements of real responses and resource usage.
 | CQ-16 | Fixed + deployed + verified | Recent-hint descendants were deferred a week even when bootstrap would otherwise idle: 704 AniWorld pages remained. Idle bootstrap now admits never-checked, nonfailed, non-targeted descendants after all due work; actual retry deadlines and recent hints remain protected. Status distinguishes due/deferred/leased first-pass work and due failures. |
 | CQ-17 | Remaining freshness gap | Four-hour active-work claims did not match the incremental scheduler. Current feeds/inventory/weekly reconciliation remain useful, but capped feeds cannot prove lossless updates. Add measured bounded active-parent/gap reconciliation; separately consider authenticated background demand refresh. No synchronous query crawl or daily full-episode recrawl is selected. |
 | CQ-18 | Fixed + deployed + verified | The last failed AniWorld title returned HTTP 200 but contained an invalid optional IMDb hint. Ignore malformed optional hints while retaining native metadata; reject conflicting valid IDs and never coerce/publish malformed values. |
+| CQ-19 | Confirmed language gap | October 9 live Serienstream detail metadata contains `Ger-Sub`; the catalog parser records it as unknown. 50,426 pages have unknown-language observations, but one sample does not establish that they all share this label. Verify current detail labels, season flags and recent-feed evidence together, then support positively identified subtitles without guessing audio language or deleting existing releases. |
+| CQ-20 | Confirmed parse failures; cause unresolved | Two failed Serienstream episode samples returned complete HTTP 200 documents with titles but no recognized video section. Distinguish genuinely unavailable/unreleased episodes from changed host markup or access interstitials. Retain metadata and last-good releases conservatively; absence alone must not tombstone a release. A sampled failed title also returned HTTP 500. Collection continues despite the sticky `parser_error` provider state. |
+| CQ-21 | Confirmed diagnostic gap | Retained 24-hour logs contain 2,505 Serienstream `unexpected_structure` events, all HTTP 200 with null `error_class`. The collector collapses ValueError/UnicodeError/TimeoutError without a safe parser reason. Add bounded reason codes/classification without logging HTML, queries or player URLs; expose unresolved-language and sticky provider-state semantics clearly. This narrows CQ-04's diagnostic coverage rather than invalidating its earlier successful transport/event checks. |
 
 Backoff must follow evidence: honor explicit 429 instructions; briefly retry
 isolated network/5xx failures per page with bounded exponential delay and jitter;
@@ -79,7 +82,7 @@ DNS pinning; ordinary unpinned URL fetching would weaken that boundary.
    regressions pass. Final installed Linux checks cover the changed boundaries.
 2. Bounded real metadata, offline checkpoint/publication, headers/pools and live
    resumed throughput comparisons are in `evidence/collector-repair-2026-10-08`.
-3. Complete supported-provider bootstrap and sustained capacity remain unmeasured.
+3. Fresh complete supported-provider bootstrap and sustained capacity remain unmeasured.
    First-pass phases, failures, unsupported work and mappings remain separate.
 4. Stable language/source coordinates and sampled first-seen identities survived
    cutover. Local API compatibility checks pass; unchanged generated job/import
@@ -96,3 +99,11 @@ Its 136-second restart/resume window added 674/673 episodes with zero new
 failures; 200/200 sampled identities and unchanged limits/volumes were verified.
 Latest phase/mapping/resource counts are in `final-deployment.json` and
 [EVIDENCE.md](EVIDENCE.md). No deployment blocker remains.
+
+October 9 recheck: AniWorld's discovered first-pass/detail work is complete,
+with zero pending/failed pages and zero unknown-language observations. Canonical
+mapping is 58.20% of usable episodes; feed-gap reconciliation remains CQ-17.
+Serienstream collection continues, with 47,228 pending pages, 2,498 failed pages
+and 61.10% usable-episode mapping. This is resumed collection from retained state,
+not a fresh full-bootstrap benchmark. No runtime settings or deployments changed
+during the recheck. See [October 9 evidence](evidence/pilot-recheck-2026-10-09.json).

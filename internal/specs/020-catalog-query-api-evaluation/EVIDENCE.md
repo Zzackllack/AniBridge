@@ -792,3 +792,56 @@ Source response bodies, lookup terms, provider paths and sampled IDs are omitted
 Failures remain durable retry work. Tombstoned confirmed removals and unsupported
 work are distinct; no sampled omission was tombstoned. Unknown language labels
 and ambiguous canonical evidence remain unresolved instead of being invented.
+
+### October 9 recheck after Catalog-6
+
+Read the referenced Catalog-6 conversation and checked the existing authorized
+fra-node-01 pilot without changing services, ledgers, resource limits or retry
+deadlines. Both containers still run `39ba345626a9535aac31e7e356c34b4e889530af`,
+started October 8 at 20:34:31 UTC, with zero restarts and zero OOM kills.
+
+At approximately **21:23 UTC / 23:23 CEST**, AniWorld has **63,558 entities /
+116,308 releases**, zero pending pages and zero failed pages. Its discovered
+first-pass/detail evidence is complete, including zero unknown-language
+observations. **36,976 / 63,536 usable episodes are mapped (58.20%)**. That does
+not establish complete canonical mapping or lossless freshness: three recent
+hints and a latched feed coverage gap remain.
+
+Serienstream has **300,821 entities / 321,185 releases**, **47,228 pending pages**
+and **2,498 failed pages**, versus 101,654 pending / 710 failed in Catalog-6's
+latest sample. **161,328 / 264,030 usable episodes are mapped (61.10%)**.
+Discovery can still grow; 50,426 pages have unknown-language observations.
+The last-hour rate was 1,112 checked pages / 1,050 requests. Dividing the current
+queue by that rate gives roughly 42 hours, but excludes new discovery, failures
+and language repair and is not a promised completion time or bootstrap benchmark.
+
+Retained 24-hour logs (three files, 21,295,460 bytes) contain 19,662 Serienstream
+and 112 AniWorld successful page events, and 2,505 Serienstream
+`unexpected_structure` events. Those parse events all have HTTP 200 and null
+error class; no 403/429 or transport-failure events occur in that retained window.
+Six bounded metadata probes then checked three failed pages and three structural
+samples. Two episode samples have complete HTML/body, titles and no recognized
+video section; a language sample recognizes English audio but records `Ger-Sub`
+as unknown. A failed title sample returns HTTP 500. These checks do not prove
+all failures have one cause, and did not fetch player links or acquire media.
+CQ-19–21 record the concrete follow-ups. One language-removal quarantine remains
+unapproved; no last-good releases were deleted to make the status look complete.
+
+Authenticated HTTPS recent queries return **200 for both providers**;
+unauthenticated POST returns **401**. Serienstream's published total was 321,082
+at the API sample, slightly behind the subsequent ledger count during ongoing
+publication. `ip route get 192.168.2.1` still selects NetBird's `wt0` interface.
+The Mac's active `desktop-linux` context cannot reach the Docker daemon on two
+checks, so local client/job/import/playback availability was not verified today;
+Docker Desktop was not started as part of this read-only check.
+
+Accounted storage including the 1 GB reserve is **2,942,654,976 bytes**, within
+30 GB, with roughly **102 GiB free** on the host. A Docker stats sample reports
+collector 96.91% CPU / 215.6 MiB and metadata 0.17% / 52.21 MiB. Cgroup memory
+is 476,110,848 bytes, with peak 537,149,440 and 2,186,490 cumulative max-limit
+events but zero OOM kills. Docker stats and cgroup cache accounting differ;
+the unchanged 512 MiB profile has substantial reclaim pressure and remains a
+constrained test. No benefit from the recommended 4-vCPU/4-GiB profile was
+measured here. No fresh bootstrap duration or live acquisition was measured.
+
+Sanitized counts and observations: [pilot-recheck-2026-10-09.json](evidence/pilot-recheck-2026-10-09.json).
