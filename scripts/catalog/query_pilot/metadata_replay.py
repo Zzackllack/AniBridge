@@ -43,7 +43,8 @@ async def replay(config_path: Path, cases_path: Path, provider: str) -> dict:
             )
             if not signal and row is None:
                 raise ValueError("case absent from disposable state")
-            body = (cases_path.parent / f"{index}.html").read_bytes()
+            with (cases_path.parent / f"{index}.html").open("rb") as stream:
+                body = stream.read(config.limits["body_bytes"] + 1)
             if len(body) > config.limits["body_bytes"]:
                 raise ValueError("case body exceeds configured limit")
 

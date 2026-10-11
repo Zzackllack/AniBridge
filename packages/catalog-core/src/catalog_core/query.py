@@ -127,6 +127,7 @@ def query(
     mapping_view=None,
     title_ids: set[str] | None = None,
     entity_ids: set[str] | None = None,
+    max_releases: int | None = None,
 ) -> tuple[list[dict], int, dict[str, str]]:
     deadline = time.monotonic() + 2
     total, results = 0, []
@@ -308,6 +309,8 @@ def query(
                 count = db.execute(
                     "SELECT count(*) " + count_join + condition, args
                 ).fetchone()[0]
+            if max_releases is not None:
+                require(count <= max_releases, "query_too_broad")
             total += count * len(modes)
             if request.recent and title_ids is None and entity_ids is None:
                 # Force the release-order index so SQLite does not sort/join the

@@ -42,7 +42,14 @@ class Events:
 
         for row in records:
             if row["phase"] in PHASES and row["reason"] in REASONS:
-                self.emit(provider, row["phase"], row["reason"], row["duration_s"])
+                outcome = (
+                    row["reason"]
+                    if row["complete"]
+                    else reason
+                    if reason in REASONS
+                    else "child_exit"
+                )
+                self.emit(provider, row["phase"], outcome, row["duration_s"])
         self.handler.handle(
             logging.LogRecord(
                 "catalog_worker",

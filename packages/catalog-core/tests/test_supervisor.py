@@ -4,7 +4,6 @@ import threading
 import time
 
 import pytest
-
 from catalog_core import supervisor
 
 
@@ -40,6 +39,7 @@ def test_cancellation_kills_and_reaps_child(monkeypatch):
 
 def test_typed_report_rejects_untrusted_text_and_is_bounded(tmp_path):
     import json
+
     from catalog_core.diagnostics import read_report, reason
 
     path = tmp_path / "report"
@@ -78,3 +78,9 @@ def test_async_child_exit_and_deadline_keep_safe_information():
         assert timeout.value.reason == "deadline"
 
     asyncio.run(run())
+
+
+def test_incomplete_phase_never_masks_signal_as_success():
+    record = {"phase": "validation", "reason": "ok", "duration_s": 0, "complete": False}
+    failure = supervisor.ChildFailure(-9, [record])
+    assert failure.reason == "child_signal" and failure.exit_code == -9

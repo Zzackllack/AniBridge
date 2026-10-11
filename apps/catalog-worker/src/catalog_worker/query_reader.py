@@ -142,6 +142,7 @@ def execute(
                     now=now,
                     title_ids=selected,
                     entity_ids=entities,
+                    max_releases=2000 if request.operation == "native" else None,
                     languages={request.provider: set(request.languages)}
                     if request.operation in {"recent", "native"}
                     else None,

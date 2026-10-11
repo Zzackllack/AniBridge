@@ -45,7 +45,7 @@ class ChildFailure(ContractError):
         self.exit_code, self.records = exit_code, records
         self.reason = (
             records[-1]["reason"]
-            if records
+            if records and records[-1]["complete"] and records[-1]["reason"] != "ok"
             else "child_signal"
             if exit_code < 0
             else "child_exit"

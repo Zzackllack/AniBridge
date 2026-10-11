@@ -50,6 +50,9 @@ def publish(config: Config, state: State, now: int) -> dict:
     """Export metadata only. No signed/compressed consumer artifact is built."""
     root = provider_root(config.output_dir, state.provider)
     root.mkdir(parents=True, exist_ok=True)
+    # SQLite unlinks sort files while they remain open. Keep them under the
+    # charged worker root so storage.used can account for their /proc descriptors.
+    os.environ["SQLITE_TMPDIR"] = str(config.state_dir)
     check(config, startup=True)
     destination = root / "staging.sqlite"
     destination.unlink(missing_ok=True)  # Owned scratch, under the worker owner lock.
