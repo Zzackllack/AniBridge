@@ -399,3 +399,66 @@ def test_redirect_pause_and_single_ready_slot_do_not_deadlock(tmp_path):
     finally:
         for collector in group:
             collector.state.close()
+
+
+def test_positive_season_row_does_not_advance_failed_detail_retry(tmp_path):
+    state = State(tmp_path / "state.sqlite", "aniworld.to")
+    path = "/anime/stream/example"
+    season = path + "/staffel-1"
+    ep = season + "/episode-1"
+    try:
+        state.listing(Page((Link(path, "Example"),), (), 0, None), NOW)
+        state.detail(
+            state.claim(NOW), Page((Link(season, "Season"),), (), 0, "Example"), NOW
+        )
+        state.detail(state.claim(NOW), Page((Link(ep, "One"),), (), 0, None), NOW)
+        with state.db:
+            state.db.execute(
+                "UPDATE work SET failures=3,due=? WHERE path=?", (NOW + 300, ep)
+            )
+            state.db.execute("UPDATE work SET due=0 WHERE path=?", (season,))
+        state.detail(
+            state.claim(NOW + 1),
+            Page(
+                (Link(ep, "One"),),
+                (),
+                0,
+                None,
+                episodes=(EpisodeRow(ep, "One", (), ("de-dub",)),),
+            ),
+            NOW + 1,
+        )
+        row = state.db.execute(
+            "SELECT failures,due FROM work WHERE path=?", (ep,)
+        ).fetchone()
+        assert tuple(row) == (3, NOW + 300)
+    finally:
+        state.close()
+
+
+def test_empty_batch_probe_does_not_delay_new_work_or_survive_restart(tmp_path):
+    state = State(tmp_path / "state.sqlite", "aniworld.to")
+    title = "/anime/stream/example"
+    season = title + "/staffel-1"
+    ep = season + "/episode-1"
+    try:
+        state.listing(Page((Link(title, "Example"),), (), 0, None), NOW)
+        state.detail(
+            state.claim(NOW), Page((Link(season, "Season"),), (), 0, "Example"), NOW
+        )
+        state.detail(state.claim(NOW), Page((), (), 0, None), NOW)
+        assert state.claim(NOW + 1, incremental=True) is None
+        with state.db:
+            state.db.execute("DELETE FROM season_batch_checkpoint")
+            state.db.execute(
+                "INSERT INTO work(path,title_id,kind,due) SELECT ?,title_id,'episode',? FROM title",
+                (ep, NOW + 2),
+            )
+        work = state.claim(NOW + 2, incremental=True)
+        assert work["path"] == ep  # Empty batch-probe caching never delays new pages.
+        state.close()
+        state = State(tmp_path / "state.sqlite", "aniworld.to")
+        resumed = state.claim(NOW + 3, incremental=True)
+        assert resumed["path"] == season and resumed["batch_bootstrap"]
+    finally:
+        state.close()

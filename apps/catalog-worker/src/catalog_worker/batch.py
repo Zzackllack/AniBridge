@@ -37,6 +37,10 @@ def admit(
                     None,
                     episode_title=row.title,
                     episode_aliases=tuple(row.aliases),
+                    availability="unavailable"
+                    if not row.languages
+                    and (work["fingerprint"] or "").startswith("unavailable:")
+                    else "available",
                 ),
                 now,
                 interval,
@@ -49,7 +53,12 @@ def admit(
         if not complete or changed or work["failures"]:
             state.db.execute(
                 "UPDATE work SET checked_at=?,failures=?,due=? WHERE path=?",
-                (work["checked_at"], work["failures"], now, row.path),
+                (
+                    work["checked_at"],
+                    work["failures"],
+                    max(now, work["due"]) if work["failures"] else now,
+                    row.path,
+                ),
             )
         else:
             # Season reconciliation refreshes the row. Detail reconciliation is

@@ -172,13 +172,20 @@ class Signals:
             # Upgrade backlog: one fresh season observation can replace many
             # never-checked episode pages. Checkpoint even unsupported rows so
             # the fallback does not repeatedly fetch the same season.
-            batch = self.db.execute(
-                "SELECT w.* FROM work w WHERE kind='season' AND checked_at IS NOT NULL AND failures=0 AND lease_until<=? "
-                "AND NOT EXISTS(SELECT 1 FROM season_batch_checkpoint b WHERE b.path=w.path) "
-                "AND EXISTS(SELECT 1 FROM work e WHERE e.title_id=w.title_id AND e.kind='episode' AND e.checked_at IS NULL AND e.path LIKE w.path||'/%') "
-                "ORDER BY w.due,w.path LIMIT 1",
-                (now,),
-            ).fetchone()
+            batch = None
+            # A completed migration backlog otherwise scans the whole ledger
+            # before every episode claim (1.71s across 16 pilot-size probes).
+            # Cache only the empty local probe for a minute, not provider data.
+            if now >= self.state.batch_probe_after:
+                batch = self.db.execute(
+                    "SELECT w.* FROM work w WHERE kind='season' AND checked_at IS NOT NULL AND failures=0 AND lease_until<=? "
+                    "AND NOT EXISTS(SELECT 1 FROM season_batch_checkpoint b WHERE b.path=w.path) "
+                    "AND EXISTS(SELECT 1 FROM work e WHERE e.title_id=w.title_id AND e.kind='episode' AND e.checked_at IS NULL AND e.path LIKE w.path||'/%') "
+                    "ORDER BY w.due,w.path LIMIT 1",
+                    (now,),
+                ).fetchone()
+                if batch is None:
+                    self.state.batch_probe_after = now + 60
             if batch is not None:
                 return batch
             return self.db.execute(

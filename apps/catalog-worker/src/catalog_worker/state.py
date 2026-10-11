@@ -29,6 +29,7 @@ class State:
         self.db.execute("PRAGMA cache_size=-32768")
         self.db.execute("PRAGMA mmap_size=0")
         self.provider = provider
+        self.batch_probe_after = 0
 
     def close(self) -> None:
         self.db.close()
