@@ -86,17 +86,14 @@ it or recrawl every episode. Current collection polls recent TV feeds every
 15 minutes, refreshes the title inventory every four hours, and admits bounded
 targeted work, bootstrap progress and weekly historical reconciliation. Capped
 recent feeds are hints, not lossless change streams; latched gaps remain visible.
-The incremental path does **not** implement the previously documented four-hour
-refresh of all active title/season/detail work. A bounded active-parent fallback
-and a proof of gap reconciliation remain freshness work, not completed features.
+The incremental path admits active title/season parents after four-hour eligibility,
+and parents older than a latched feed gap, through the existing 20% hourly
+reconciliation budget. Failed work still respects its retry deadline; episodes
+retain weekly fallback. Status exposes pending gap parents. This is bounded
+eligibility, not proof of lossless feeds or a four-hour whole-provider SLA.
 
-Recommended next extension: a separately authenticated, deduplicated background
-metadata-refresh request for an existing stable title with missing episode
-evidence, plus a throttled inventory refresh for a genuinely missing title.
-Normal search/query responses stay catalog-only and do not wait for provider
-fetches. Use negative caching and independent admission budgets; a canonical
-mapping miss is not proof that the provider lacks an episode. This extension is
-not implemented or enabled, and never authorizes extraction or guessed mapping.
+Search remains catalog-only. No background demand-refresh system or synchronous
+query scraping is introduced by this repair.
 
 Local cache: source/origin/token fingerprint/protocol/complete request keys,
 128 entries, 2 MiB serialized payload and 16 MiB SQLite page cap. TTL 60 seconds;
@@ -191,8 +188,13 @@ TV season correspondence can be proved by three distinct unique episode-name
 anchors in one canonical season, with no conflicting uniquely matched name or
 second native season claiming that season. Reviewed correspondence remains
 available. Duplicate source/canonical titles and ambiguous cases stay unresolved.
-Only the demonstrated trailing AniWorld `[Final Episode]` suffix is a fallback,
-after exact evidence, and never changes stored source titles/coordinates.
+Only demonstrated trailing AniWorld `[Final Episode]` and `[Episode NNN]`
+annotations are fallback evidence, after exact matching; other annotations stay
+unresolved. Unique individual names can prove an episode across a native season
+spanning canonical seasons without proving whole-season correspondence. Source
+titles and coordinates remain unchanged. An empty explicit IMDb search permits
+one title-search fallback retaining that exact IMDb ID, reverified in the
+descriptor; title similarity alone cannot select a canonical series.
 
 Operator commands and coverage limits: `scripts/catalog/query_pilot/SERVER.md`.
 No full provider crawl has completed on the development Mac or remote pilot.
@@ -222,3 +224,23 @@ and occupied coordinates stay unresolved; source numbering is never evidence.
 Reporting distinguishes title discovery, first-pass checks, usable releases,
 mappings, failures and unknown languages. A current-queue ETA excludes growth,
 retries and enrichment and is withheld while discovery can still expand it.
+
+## October 11 read/publication and language contract
+
+Queries use physical integer joins and independently validated exact recent
+release summaries. Targeted native reads avoid recent-index hints and reject
+more than 2,000 selected releases before sorting. Empty results from a failed
+provider fail explicitly; populated sibling results remain marked partial.
+Failed publication retains the last-good pointer and cleans staging. Safe child
+reports distinguish enrichment, export, validation, lock and publication, with
+bounded reason/exit information instead of arbitrary stderr. SQLite sort scratch
+is charged under the existing state/storage budget.
+
+Serienstream Ger-Sub labels and combined English/German season flags establish
+German subtitles only. Local resolution selects that positive provider offer
+without guessing audio or reusing numeric language IDs across providers.
+Explicit unavailable player text retains metadata and previous releases using
+v4-compatible fingerprints. Missing language evidence cannot remove releases;
+unapproved quarantines remain operator decisions. Changed/missing markup and
+interstitial markers retain distinct safe failure reasons. Empty local season
+backlog probes are cached for 60 seconds without establishing provider absence.

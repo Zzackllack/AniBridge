@@ -903,3 +903,115 @@ host free space is approximately **98 GiB**. `192.168.2.1` still routes via `wt0
 in the NetBird table. No fresh complete-bootstrap benchmark or all-provider
 production-readiness claim follows from these checks. Sanitized counters and
 results: [pilot-recheck-2026-10-11.json](evidence/pilot-recheck-2026-10-11.json).
+
+## October 11 four-workstream repair
+
+Evidence: [sanitized aggregates](evidence/catalog-pilot-repair-2026-10-11.json).
+Baseline branch `8adcbfa`; packaged candidate
+`73a996cbf78c524380f3ba387ebe97ed24b692cf`. Read-only live recheck still shows
+worker `39ba345`, 2 CPU/512 MiB, zero OOM/restarts and intact NetBird routing.
+Consistent SQLite backup-API copies contain 63,579 AniWorld and 302,114
+Serienstream episode entities, with 116,359/322,291 releases respectively.
+Read-only status charged 2,791,254,528 bytes including the 1 GB reserve against
+the 30 GB cap. Raw HTML, private compose, query inputs and ledgers stay outside Git.
+
+| Workstream | Final status | Evidence and limit |
+| --- | --- | --- |
+| Query/publication, CQ-22/23 | implemented + environment-blocked | Demonstrated query defects fixed and verified; safe maintenance diagnostics implemented. Historical maintenance failures could not be reproduced from current-sized copies, including 512 MiB. Original stderr was discarded; cause confirmation requires an approved diagnostic deployment. |
+| Serienstream parser/languages, CQ-19/20/21 | implemented + verified | Ten bounded live metadata requests, sanitized fixtures and eight-response offline replay. Ger-Sub recognized in detail/season/recent and local offer resolution; explicit unavailable metadata retained. Unknown cases/quarantines remain explicit. |
+| Capacity/throughput | implemented + verified | Finite Linux copied-state profiles 2 CPU/2 GiB and 4 CPU/4 GiB, plus constrained 512 MiB control; reduced repeated empty backlog probes. No full crawl, rate increase or endurance proof. |
+| Practical matching/freshness, CQ-06/17 | implemented + verified | Selected 50-title cohorts per provider, bounded exact-ID canonical metadata fallback and copied-state parent/retry scheduling. Four-hour eligibility is budgeted; full coverage/freshness SLA remains unmeasured. |
+
+Query root causes were repeated public-ID view joins under the fixed read deadline,
+and the recent-release index hint applied to targeted native selection. The old
+Serienstream TV recent count repeatedly interrupted at about two seconds. Direct
+integer joins cut standalone counts from 3.004s to 0.746s (Serienstream) and
+0.885s to 0.191s (AniWorld). Independently validated recent summaries eliminate
+that full count when their cutoff proof applies; narrower filters still count
+exactly. A proper ordinary target remained two releases: three baseline timings
+0.715/0.594/0.565s became 0.0065/0.0024/0.0019s. Failed providers no longer cache
+empty success; positive siblings carry explicit partial status. Export/validation
+failures preserve last-good pointers and clean staging. Safe phase/reason/exit
+reports separate enrichment, export, validation, locking and publication without
+capturing stderr/HTML/player URLs/credentials/query terms/IPs.
+
+| Copied-state profile | Queries during publication | Maximum query latency | AniWorld / Serienstream publication | Peak cgroup memory |
+| --- | --- | --- | --- | --- |
+| 2 CPU / 2 GiB | 96/96 HTTP 200 | 0.162s | 9.07s / 37.25s | 1,012,838,400 bytes |
+| 4 CPU / 4 GiB | 96/96 HTTP 200 | 0.173s | 10.20s / 38.82s | 1,016,619,008 bytes |
+| 2 CPU / 512 MiB | 96/96 HTTP 200 | 0.719s | 34.13s / 123.58s | 536,870,912 bytes |
+
+These include 100-row recent search/TV pages, title selection and native targets;
+page totals remain 116,359/322,291. Publication/lease/identity/failed-validation
+fixtures supplement finite overlap requests. The 512-MiB run recorded 7,036
+memory-limit events but zero OOMs; this demonstrates pressure sensitivity, not
+CQ-22's historical cause. No child/read deadline or live allocation changed.
+The larger profile showed no benefit in this workload. CPU, anonymous/cache
+memory, child RSS and cgroup I/O counters are recorded. Docker Desktop's host
+cache/bind storage means near-zero block reads cannot establish production I/O
+capacity; these are Linux ARM64 VM runs, not Oracle hardware throughput.
+
+Three failed HTTP-200 samples explicitly say no episode player is available;
+titles/aliases and prior releases now survive that case. Three detail samples,
+25 combined-language season rows and four of 193 recent entries positively
+establish Ger-Sub. Deutsch/Englisch remain supported; other labels remain unknown.
+No subtitle audio language or unreleased date is guessed. Changed/missing markup
+and explicit interstitials have separate reason codes. The maintained upstream
+[Serienstream episode parser](https://github.com/phoenixthrush/AniWorld-Downloader/blob/d3ea32fe5e5b3175d762adb47670f5a7301ad7e1/src/aniworld/models/s_to/episode.py)
+was inspected; its label coverage did not resolve this gap. Both retained removal
+quarantines were rechecked with two metadata requests and remain unapproved;
+one still lacks evidence for a previously retained language. Missing evidence
+alone cannot remove a release.
+
+Eight saved live responses at 2 CPU/2 GiB: baseline 40.99s/zero new releases;
+candidate 14.11s/25 new releases, with all old release IDs/first-seen verified.
+At 4 CPU/4 GiB candidate replay took 42.64s; no speed benefit is established.
+Replay timings include filesystem/cache variance; the deterministic positive-row
+gain is not a threefold live-throughput claim.
+Parser/checkpoint/CPU/memory/I/O measurements are in the aggregate. A single
+season response provides 25 positive rows (0.04 responses per usable row);
+this saved-response efficiency is not live request throughput or a claim that
+all 50,933 historical unknown-language observations share the same label.
+Empty local season-backlog probes fell from 16 to one over 20 scheduler claims,
+with a 60-second negative-probe cache that establishes no provider absence.
+Pacing, bounded concurrency, Retry-After and real-failure backoff remain unchanged.
+
+Matching adds 3,816 AniWorld maps (2,281→6,097) and 823 Serienstream maps
+(2,660→3,483) in selected unresolved 50-title cohorts, zero conflicts and all
+release identities/first-seen unchanged. Unique individual episode names can
+span canonical seasons without asserting equal numbering or whole-season maps.
+Only source-specific demonstrated AniWorld annotations are stripped as fallback.
+Four bounded canonical requests establish that an empty explicit IMDb search
+can recover through title search retaining the exact ID and descriptor identity;
+three saved responses replay to a verified match. A mapped large-series target
+returns three releases in 0.091s from 3,573-release history without fetching the
+whole history. Copied AniWorld One Piece S01E01 remains unresolved: distinct title
+wording and duplicate TVDB association prohibit a guessed match. These cohorts
+are not provider-wide coverage estimates.
+
+Twenty copied-state claims per provider exercise active/gap parent reconciliation
+within the existing 360/hour share, retaining ten future failed-work deadlines.
+Pending gap parents were 90/352 in these copies. Gaps stay latched; four-hour
+eligibility cannot guarantee a four-hour sweep of all parents. Bootstrap is
+retained once, episode fallback weekly, search catalog-only. No demand-refresh
+system, synchronous scrape or daily complete episode recrawl was added.
+
+Final installed images: **450 worker/core tests passed**, 15 kill/crash cases
+excluded from this short run; **42 API tests passed**, one upstream Starlette/
+httpx deprecation warning. They cover ordinary discovery, large targeted requests,
+correction precedence, partial provider failures, cache/outage handling,
+publication overlap/exact totals, retry admission, aliases and subtitle offers.
+No live media was fetched. Historical generated acquisition/import acceptance
+remains separate; this run adds no live extraction, import or playback proof.
+
+Candidate backup at 512 MiB successfully copied and integrity-checked both
+current-sized disposable ledgers without overwrite. State remains v4-compatible;
+no API schema migration is introduced. The prepared Coolify patch changes only
+three image references and preserves other compose settings; base64 PATCH format
+and byte-identical rollback were checked against captured deployed compose.
+Exact upgrade/rollback commands are in
+[SERVER.md](../../../scripts/catalog/query_pilot/SERVER.md#october-11-existing-coolify-upgrade-and-rollback).
+No live redeploy/restart/resource change, push or PR occurred. The maintainer
+can approve that image-only diagnostic upgrade to capture CQ-22 phase/exit evidence;
+a resource change is a separate decision. All retained state/backups, networking
+and the 30 GB budget including SQL scratch/logs/staging and 1 GB reserve remain.

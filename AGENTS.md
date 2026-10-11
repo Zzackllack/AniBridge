@@ -86,3 +86,18 @@ More guidance
 Maintenance notice
 
 - Update `AGENTS.md` and the relevant `internal/agents/*` files whenever changes would make agent guidance outdated.
+
+October 11 catalog repair guidance
+
+- Safe child reports distinguish enrichment/export/validation/locking/publication;
+  do not add raw stderr, HTML, player URLs, query terms, IPs or credentials.
+- Read summaries must be independently validated; failed providers cannot yield
+  an empty successful query. Preserve last-good catalogs on publication failure.
+- Serienstream subtitle labels establish subtitles only. Missing language/player
+  evidence never deletes releases. Unavailable fingerprints are v4-compatible;
+  retained language-removal quarantines require a separate explicit decision.
+- Active/gap title and season parents share the existing 20% reconciliation
+  budget; four-hour eligibility is not a whole-provider SLA. Retry deadlines win.
+- Existing Coolify upgrade/rollback commands are in `scripts/catalog/query_pilot/SERVER.md`.
+  All three worker image references must change together; retain volumes,
+  configuration, network ranges and limits. Live actions still require approval.

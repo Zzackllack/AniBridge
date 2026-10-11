@@ -84,3 +84,9 @@ Resource profiles are independent: collector minimum 2 vCPU/2 GiB, recommended
 1 vCPU/512 MiB. The old 512-MiB collector and 1-GiB client runs retain their
 historical proof level. A smaller stress test does not establish a production
 requirement; no whole-job 512-MiB client claim has been validated.
+
+Catalog repair tools `repair_benchmark.py` and `metadata_replay.py` use disposable
+consistent ledger copies and finite offline workloads. Keep raw live HTML and
+private state outside Git; commit sanitized aggregate evidence. Short Linux
+profile runs do not establish full-bootstrap capacity, freshness SLA or media
+acceptance. No live pilot writer or long crash campaign is implied.

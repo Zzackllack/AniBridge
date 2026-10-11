@@ -62,3 +62,10 @@ Check Docker/VPN subnet overlap before deployment; retain disposable state and
 explicit test profiles when validating collection improvements on the authorized
 host. Production collector minimum is 2 vCPU/2 GiB, recommended 4 vCPU/4 GiB;
 the 512-MiB pilot is a constrained test. Specs alone do not change live allocations.
+
+For the existing fra-node-01 Coolify pilot, use the pinned image-only procedure
+and exact rollback in [SERVER.md](../../scripts/catalog/query_pilot/SERVER.md#october-11-existing-coolify-upgrade-and-rollback).
+`stage_upgrade.py` validates the service identity and changes only three image
+references, producing private base64 API patch/rollback files. Do not start a
+manual competing stack, alter allocations or restore ledgers for this compatible
+code rollback. Deployment/restart/resource changes need explicit approval.

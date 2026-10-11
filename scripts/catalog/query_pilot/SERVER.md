@@ -219,10 +219,11 @@ provider-capacity promise. Keep historical 512-MiB measurements labelled as the
 constrained test profile and retain the 30 GB aggregate storage budget.
 
 Do not restart bootstrap daily. The normal work is recent-feed polling, targeted
-metadata checks and rolling historical reconciliation. Four-hour active-parent
-fallback is not currently implemented by the incremental scheduler; it and
-latched-gap reconciliation remain explicit freshness gaps. A separate background
-demand-refresh operation is proposed in the selected spec, not enabled in search.
+metadata checks and rolling historical reconciliation. Active title/season
+parents become eligible after four hours; gap parents share the existing 20%
+reconciliation budget. Failed work keeps its retry deadline. Pending gap-parent
+counts stay visible, and gaps remain latched until a separate coverage proof.
+Eligibility does not guarantee a four-hour SLA. Search stays catalog-only.
 
 ## HTTPS ingress
 
@@ -350,8 +351,8 @@ live discovery is blocked for the tested Megakino movie's unlabelled player, not
 turned into fake S01E01. Missing TV year/title evidence, repeated episode names,
 split seasons and unresolved canonical correspondence stay explicit. Three
 unique independent episode-name anchors can prove a season; numbering cannot.
-Only AniWorld's demonstrated trailing `[Final Episode]` annotation has a
-conservative unique-name fallback. Local correction commands in README remain
+AniWorld's demonstrated trailing `[Final Episode]` and `[Episode NNN]`
+annotations have conservative unique-name fallbacks; other brackets do not. Local correction commands in README remain
 available for exceptional cases and are applied before filters/totals/pages.
 
 Use [ACCEPTANCE.md](ACCEPTANCE.md) for generated media. Add `acceptance-sto.yaml`
@@ -431,3 +432,137 @@ private backup was not supplied or accessed. For forward restoration remove
 `CATALOG_CONFIG_FILE` using this compatible build. A released-v2.6.0 downgrade
 requires the retained preupgrade backup plus matching files and loses subsequent
 jobs; do not downgrade a migrated DB in place.
+
+## October 11 existing Coolify upgrade and rollback
+
+**Prepared and rehearsed, not deployed. Explicit approval is required before
+image loading, stopping/restarting services, publication on live volumes or
+updating the disposable client.** This image-only diagnostic upgrade retains
+2 CPU/512 MiB; the independently measured production minimum remains 2 CPU/2 GiB.
+Do not change allocations or deadlines to infer CQ-22's historical cause.
+
+Both local ARM64 images were built and their OCI labels verified at
+`73a996cbf78c524380f3ba387ebe97ed24b692cf`. Copied pilot ledgers were opened,
+published and backed up without a schema upgrade. Rollback uses the same v4
+ledgers and preserves observations made since the upgrade; it needs no restore.
+All three worker references (`initialize`, `collector`, `metadata`) must change.
+Keep the original config/token, three volumes, retry/checkpoint/pre-v4 backups,
+release identities and first-seen times. Preserve backend `172.16.27.0/24`,
+Docker pool `10.254.0.0/16` in `/24`s, and NetBird routes.
+
+Prepare reviewable private API payloads locally. `COOLIFY_URL` is the existing
+operator's Coolify origin; `COOLIFY_AUTH_FILE` is a mode-0600 curl config containing
+its existing Authorization header. Do not print credentials or commit these
+files. GET returns plain compose; PATCH expects base64, as specified by the
+[maintained Coolify API schema](https://github.com/coollabsio/coolify-docs/blob/main/config/openapi.json).
+
+```sh
+set -e
+: "${COOLIFY_URL:?Set the existing Coolify origin}"
+: "${COOLIFY_AUTH_FILE:?Select private curl authorization config}"
+SERVICE_UUID=ev7cds2lpqyvqfxpcm4wp4tc
+REPAIR_REVISION=73a996cbf78c524380f3ba387ebe97ed24b692cf
+UPGRADE_DIR="$HOME/anibridge-catalog-upgrade-$REPAIR_REVISION"
+umask 077
+mkdir "$UPGRADE_DIR"
+curl --config "$COOLIFY_AUTH_FILE" --fail --silent --show-error \
+  "$COOLIFY_URL/api/v1/services/$SERVICE_UUID" > "$UPGRADE_DIR/before.json"
+uv run --with pyyaml scripts/catalog/query_pilot/stage_upgrade.py \
+  --service "$UPGRADE_DIR/before.json" --revision "$REPAIR_REVISION" \
+  --directory "$UPGRADE_DIR/patch"
+# Review candidate.json and rollback.json privately before approving deployment.
+```
+
+The helper rejects another service or unexpected component/profile, changes
+only image references, and produces `instant_deploy: false` payloads. All other
+compose fields compare equal; rollback contains the original source bytes.
+These assertions were checked against the captured deployed compose. Re-fetch
+if someone changes the service after preparation. Never replace Coolify's raw
+source with its generated prefixed-volume compose.
+
+After approval, transfer the already tested local image without a registry push:
+
+```sh
+SSH_AUTH_SOCK=/Users/zacklack/.bitwarden-ssh-agent.sock \
+  docker save "anibridge-query-worker:$REPAIR_REVISION" | \
+  SSH_AUTH_SOCK=/Users/zacklack/.bitwarden-ssh-agent.sock \
+  ssh -o BatchMode=yes -l zacklack fra-node-01.nb.internal docker load
+curl --config "$COOLIFY_AUTH_FILE" --fail --silent --show-error --request POST \
+  "$COOLIFY_URL/api/v1/services/$SERVICE_UUID/stop"
+```
+
+Wait for **both** collector and metadata to stop before a one-off volume writer.
+On `fra-node-01`, verify the stopped state and create the admitted backup:
+
+```sh
+set -e
+REPAIR_REVISION=73a996cbf78c524380f3ba387ebe97ed24b692cf
+SERVICE_UUID=ev7cds2lpqyvqfxpcm4wp4tc
+test "$(docker inspect --format '{{.State.Running}}' collector-$SERVICE_UUID)" = false
+test "$(docker inspect --format '{{.State.Running}}' metadata-$SERVICE_UUID)" = false
+docker run --rm --network none --cpus 2 --memory 512m --pids-limit 64 \
+  -v "${SERVICE_UUID}_config:/config:ro" \
+  -v "${SERVICE_UUID}_worker-state:/state" \
+  -v "${SERVICE_UUID}_read-catalog:/read" \
+  "anibridge-query-worker:$REPAIR_REVISION" --config /config/worker.json --backup
+# A pre-existing /state/backup causes an explicit refusal; never delete/overwrite it.
+# Validate and retain that existing complete set instead, then resume here only
+# after its provenance is reviewed. An INCOMPLETE set cannot be used.
+docker run --rm --network none --cpus 2 --memory 512m --pids-limit 64 \
+  -v "${SERVICE_UUID}_config:/config:ro" \
+  -v "${SERVICE_UUID}_worker-state:/state" \
+  -v "${SERVICE_UUID}_read-catalog:/read" \
+  "anibridge-query-worker:$REPAIR_REVISION" --config /config/worker.json --publish
+```
+
+`--publish` exports existing state only, without a provider request or bootstrap.
+It builds validated summaries before starting the new server. Failure retains
+last-good catalogs. Do not start the collector alongside either one-off command.
+If preparation fails after stopping, use the rollback restart below. Backup,
+logs, staging and SQL temporary space remain within the 30 GB budget and 1 GB
+reserve; a budget refusal must not be bypassed.
+
+From the original local terminal, save the candidate and restart without pulls:
+
+```sh
+curl --config "$COOLIFY_AUTH_FILE" --fail --silent --show-error --request PATCH \
+  --header 'Content-Type: application/json' \
+  --data-binary "@$UPGRADE_DIR/patch/candidate.json" \
+  "$COOLIFY_URL/api/v1/services/$SERVICE_UUID"
+curl --config "$COOLIFY_AUTH_FILE" --fail --silent --show-error --request POST \
+  "$COOLIFY_URL/api/v1/services/$SERVICE_UUID/restart?latest=false"
+# Update only the existing disposable client project, retaining corrections/data.
+PILOT_COMMIT="$REPAIR_REVISION" docker compose \
+  --env-file "$HOME/anibridge-private-client-config/pilot.env" \
+  -p anibridge-private-client -f scripts/catalog/query_pilot/local-client.yaml \
+  up -d --no-build
+```
+
+Inspect running image labels/resources, `/state/logs/worker.jsonl` phase outcomes,
+`--status` pending gaps/retries and authenticated 100-row recent plus native
+large-series queries. Repeat ordinary TV discovery and corrected targets through
+the disposable client without grabs. Confirm unchanged volume/network identities,
+NetBird routing and no OOM/restarts. Keep unknown mappings explicit. A limit-1
+health probe is insufficient. Retained diagnostic events can then resolve CQ-22;
+publication latency alone does not establish the historical failure cause.
+
+Exact code rollback, from the original local terminal (same saved payload):
+
+```sh
+curl --config "$COOLIFY_AUTH_FILE" --fail --silent --show-error --request PATCH \
+  --header 'Content-Type: application/json' \
+  --data-binary "@$UPGRADE_DIR/patch/rollback.json" \
+  "$COOLIFY_URL/api/v1/services/$SERVICE_UUID"
+curl --config "$COOLIFY_AUTH_FILE" --fail --silent --show-error --request POST \
+  "$COOLIFY_URL/api/v1/services/$SERVICE_UUID/restart?latest=false"
+PILOT_COMMIT=71988fc8251e6a89823828ca3e871ab47ba2fc28 docker compose \
+  --env-file "$HOME/anibridge-private-client-config/pilot.env" \
+  -p anibridge-private-client -f scripts/catalog/query_pilot/local-client.yaml \
+  up -d --no-build
+```
+
+The saved source restores worker `39ba345626a9535aac31e7e356c34b4e889530af`
+and its original settings. Keep both old images locally. Do not restore a ledger,
+clear failures, restart bootstrap, use `down -v`, replace networking or update
+unrelated services during rollback. New subtitle observations are valid read
+contract languages; the old worker can consume the compatible v4 state.
