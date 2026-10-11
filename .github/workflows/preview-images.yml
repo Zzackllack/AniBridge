@@ -1,0 +1,195 @@
+name: Preview / Container Images
+
+on:
+  pull_request:
+    branches: [v3]
+    paths:
+      - 'apps/api/**'
+      - 'apps/catalog-worker/**'
+      - 'packages/catalog-core/**'
+      - 'docker/**'
+      - 'VERSION'
+      - '.dockerignore'
+      - '.github/workflows/preview-images.yml'
+  push:
+    branches: [v3, 'preview/**']
+    paths:
+      - 'apps/api/**'
+      - 'apps/catalog-worker/**'
+      - 'packages/catalog-core/**'
+      - 'docker/**'
+      - 'VERSION'
+      - '.dockerignore'
+      - '.github/workflows/preview-images.yml'
+
+# PRs from forks must never execute with registry write credentials. In-repo
+# preview branches are maintainer-controlled; this deliberately avoids target events.
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-images-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  build:
+    if: >-
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+    name: Build ${{ matrix.component.name }} (${{ matrix.platform.arch }})
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - name: api
+            file: apps/api/Dockerfile
+            module: app.main
+          - name: catalog-worker
+            file: apps/catalog-worker/Dockerfile
+            module: catalog_worker.cli
+        platform:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Check out the actual source commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Select preview package
+        id: image
+        env:
+          COMPONENT: ${{ matrix.component.name }}
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}-${COMPONENT}-preview" >> "$GITHUB_OUTPUT"
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish the platform digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.component.file }}
+          platforms: linux/${{ matrix.platform.arch }}
+          build-args: PILOT_COMMIT=${{ env.SOURCE_SHA }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.SOURCE_SHA }}
+            org.opencontainers.image.title=AniBridge ${{ matrix.component.name }} preview
+          outputs: type=image,name=${{ steps.image.outputs.name }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=preview-${{ matrix.component.name }}-${{ matrix.platform.arch }}
+          cache-to: type=gha,scope=preview-${{ matrix.component.name }}-${{ matrix.platform.arch }},mode=max
+          provenance: mode=min
+          sbom: true
+      - name: Check installed modules without network access
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          MODULE: ${{ matrix.component.module }}
+        run: |
+          docker run --rm --network none --entrypoint python \
+            -e DATA_DIR=/tmp/anibridge-preview -e ANIBRIDGE_UPDATE_CHECK=false \
+            "$IMAGE@$DIGEST" -c \
+            'import importlib, sys; import catalog_core; importlib.import_module(sys.argv[1])' "$MODULE"
+      - name: Export the tested digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+      - name: Upload digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-digest-${{ matrix.component.name }}-${{ matrix.platform.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish ${{ matrix.component }} manifest
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        component: [api, catalog-worker]
+    steps:
+      - name: Select preview package
+        id: image
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}-${COMPONENT}-preview" >> "$GITHUB_OUTPUT"
+      - name: Download tested platform digests
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: preview-digest-${{ matrix.component }}-*
+          merge-multiple: true
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Select commit and moving preview tags
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ steps.image.outputs.name }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=sha-${{ env.SOURCE_SHA }}
+            type=ref,event=pr
+            type=ref,event=branch
+      - name: Publish and verify both architectures
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          META_JSON: ${{ steps.meta.outputs.json }}
+        run: |
+          set -euo pipefail
+          sources=()
+          for digest in *; do
+            [[ "$digest" =~ ^[0-9a-f]{64}$ ]]
+            sources+=("$IMAGE@sha256:$digest")
+          done
+          test "${#sources[@]}" -eq 2
+          mapfile -t tags < <(jq -r '.tags[]' <<< "$META_JSON")
+          arguments=()
+          for tag in "${tags[@]}"; do arguments+=(--tag "$tag"); done
+          docker buildx imagetools create "${arguments[@]}" "${sources[@]}"
+          docker buildx imagetools inspect "$IMAGE:sha-$SOURCE_SHA" --raw > manifest.json
+          jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort | unique == ["amd64", "arm64"]' manifest.json
+          {
+            echo "### Preview image"
+            echo
+            echo "Commit: $SOURCE_SHA"
+            echo
+            echo "\`$IMAGE:sha-$SOURCE_SHA\`"
+            echo
+            echo 'Pin the manifest digest below in Coolify for reproducible deployment and rollback.'
+            echo '```text'
+            docker buildx imagetools inspect "$IMAGE:sha-$SOURCE_SHA"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
