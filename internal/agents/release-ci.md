@@ -12,8 +12,10 @@
 - Releases are cut by the `Release / Cut Release` GitHub Actions workflow.
 - `Makefile` release targets are wrappers around `gh workflow run`; they do not
   create release commits or tags locally.
-- Real releases are allowed only from the current `main` tip; non-`main`
-  branches may run dry-runs only.
+- Real releases are allowed only from the current GitHub default-branch tip
+  (currently `main`); other branches may run dry-runs only. The Makefile still
+  defaults to `main`, so changing the repository default requires coordinated
+  release-policy changes.
 - Version bumps also update `docs/src/openapi.json` (`info.version`) and `docs/package.json` (`version`) for the docs API reference.
 - Python distributions built via `uv run --with build python -m build`.
 - PyInstaller builds use `apps/api/anibridge.spec` and `apps/api/hooks/hook-fake_useragent.py`.
@@ -78,3 +80,18 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
 - `release-on-tag.yml`: guardrail workflow that rejects manual pushes of `v*`
   tags outside the CI release workflow while allowing tags created by the
   release commit shape `chore(release): cut vX.Y.Z`.
+
+## v3 integration and preview images
+
+`main` remains default/stable; `v3` is the protected next-major integration base.
+Follow [the transition checklist](../releases/v3-transition.md) before changing
+defaults, release policy or image channels. The catalog PR is ongoing private-pilot
+work, not a release declaration.
+
+`preview-images.yml` publishes separate API/worker GHCR preview packages for
+same-repository PRs into `v3` and pushes to `v3`/`preview/**`, using native AMD64
+and ARM64 runners. It checks the actual source commit and installed imports,
+then tags combined manifests by full SHA plus a moving PR/branch alias. Forks
+and Dependabot events cannot publish. Pin digests for deployments; this workflow
+does not deploy or update stable images. Broader required tests remain a
+transition checklist item.

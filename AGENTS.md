@@ -101,3 +101,12 @@ October 11 catalog repair guidance
 - Existing Coolify upgrade/rollback commands are in `scripts/catalog/query_pilot/SERVER.md`.
   All three worker image references must change together; retain volumes,
   configuration, network ranges and limits. Live actions still require approval.
+
+v3 integration
+
+- `main` remains the default/stable branch; `v3` is the protected integration base.
+- Default-branch and release-policy prerequisites are in
+  `internal/releases/v3-transition.md`; do not infer readiness from a draft PR.
+- Preview API/worker images use separate GHCR packages, actual source SHAs and
+  native AMD64/ARM64 builds. Pin manifest digests for approved pilot rollouts;
+  publishing a preview does not authorize deployment or a resource change.
