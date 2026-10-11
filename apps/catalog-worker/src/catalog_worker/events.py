@@ -84,6 +84,7 @@ class Events:
                         "pending": status["pending"],
                         "unknown_languages": status["unknown_languages"],
                         "gap_since": status["gap_since"],
+                        "gap_parents_pending": status["gap_parents_pending"],
                         "checked_at": status["checked_at"],
                         "oldest_pending_age_s": None
                         if oldest is None

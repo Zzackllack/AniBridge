@@ -63,6 +63,13 @@ def report(config: Config) -> dict:
             ambiguous = db.execute(
                 "SELECT count(*) FROM (SELECT namespace,external_id FROM canonical_title GROUP BY namespace,external_id HAVING count(DISTINCT title_id)>1)"
             ).fetchone()[0]
+            signal["gap_parents_pending"] = db.execute(
+                "SELECT count(*) FROM work WHERE kind IN ('title','season') AND ? IS NOT NULL AND (checked_at IS NULL OR checked_at<=?)",
+                (signal["gap_since"], signal["gap_since"]),
+            ).fetchone()[0]
+            signal["reconciliation_request_budget_per_hour"] = max(
+                1, config.provider_limits(provider)["provider_requests_per_hour"] // 5
+            )
             progress = measure(db, meta, now)
             result["providers"][provider] = {
                 **meta,

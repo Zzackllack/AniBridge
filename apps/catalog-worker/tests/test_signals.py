@@ -97,7 +97,14 @@ def test_idle_bootstrap_fills_deferred_descendants_without_bypassing_retries(tmp
         # The failed child still waits for its real deadline, including restart.
         state.close()
         state = State(tmp_path / "worker.sqlite", "aniworld.to")
-        assert state.claim(later - 1, incremental=True) is None
+        parent = state.claim(later - 1, incremental=True)
+        assert parent is None or parent["kind"] in ("title", "season")
+        assert (
+            state.db.execute(
+                "SELECT due,failures FROM work WHERE path=?", (episode,)
+            ).fetchone()[0]
+            == later
+        )
         with state.db:
             state.db.execute(
                 "UPDATE work SET due=? WHERE checked_at IS NOT NULL", (later + 3600,)
@@ -228,7 +235,12 @@ def test_missing_advertised_language_retries_without_invention(tmp_path):
     Signals(state).settle(work, NOW + 1, success=True)
     assert Signals(state).status()["pending"] == 1
     assert Signals(state).status()["coverage"] == "gap"
-    assert state.claim(NOW + 2, incremental=True) is None
+    fallback = state.claim(NOW + 2, incremental=True)
+    assert fallback is None or fallback["kind"] in ("title", "season")
+    assert (
+        state.db.execute("SELECT due FROM work WHERE path=?", (EP,)).fetchone()[0]
+        > NOW + 2
+    )
     assert state.db.execute("SELECT count(*) FROM release").fetchone()[0] == 1
     state.close()
 
@@ -325,3 +337,76 @@ def test_signal_checkpoint_sigkill_preserves_whole_old_or_new_observation(
     )
     assert state.db.execute("SELECT first_seen_at FROM release").fetchone()[0] == NOW
     state.close()
+
+
+def test_active_parent_fallback_is_bounded_and_preserves_episode_retry(tmp_path):
+    state = prepared(tmp_path)
+    later = NOW + 604800
+    try:
+        with state.db:
+            state.db.execute(
+                "UPDATE work SET due=?,failures=2 WHERE kind='episode'", (later,)
+            )
+            state.db.execute(
+                "UPDATE work SET due=? WHERE kind IN ('title','season')", (later,)
+            )
+            state.db.execute("UPDATE scheduler SET slot=4")
+        assert state.claim(NOW + 14399, incremental=True) is None
+        parent = state.claim(NOW + 14400, incremental=True)
+        assert parent["kind"] in ("title", "season") and not parent["targeted"]
+        assert (
+            state.db.execute(
+                "SELECT due,failures FROM work WHERE kind='episode'"
+            ).fetchone()[0]
+            == later
+        )
+        with state.db:
+            state.db.execute(
+                "INSERT INTO reconciliation_start VALUES(?)", (NOW + 14400,)
+            )
+        # A five-request hourly profile reserves just one reconciliation start.
+        assert state.claim(NOW + 14401, incremental=True, hourly=5) is None
+        state.close()
+        state = State(tmp_path / "worker.sqlite", "aniworld.to")
+        assert (
+            state.db.execute(
+                "SELECT due,failures FROM work WHERE kind='episode'"
+            ).fetchone()[0]
+            == later
+        )
+    finally:
+        state.close()
+
+
+def test_latched_feed_gap_reconciles_old_parents_once_without_global_recrawl(tmp_path):
+    state = prepared(tmp_path)
+    try:
+        with state.db:
+            state.db.execute("UPDATE title_schedule SET changed_at=?", (NOW - 2592001,))
+            state.db.execute("UPDATE work SET due=?", (NOW + 604800,))
+            state.db.execute(
+                "UPDATE signal_meta SET coverage='gap',gap_since=?", (NOW + 1,)
+            )
+            state.db.execute("UPDATE scheduler SET slot=4")
+        for n in range(2):
+            parent = state.claim(NOW + 2 + n, incremental=True)
+            assert parent["kind"] in ("title", "season")
+            state.detail(
+                parent,
+                Page(
+                    (
+                        Link(
+                            EP if parent["kind"] == "season" else TITLE + "/staffel-1",
+                            "One",
+                        ),
+                    ),
+                    (),
+                    0,
+                    None,
+                ),
+                NOW + 2 + n,
+            )
+        assert state.claim(NOW + 5, incremental=True) is None
+        assert Signals(state).status()["coverage"] == "gap"
+    finally:
+        state.close()

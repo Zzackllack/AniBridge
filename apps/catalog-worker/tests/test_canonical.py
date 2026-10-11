@@ -287,3 +287,70 @@ def test_cached_ambiguous_names_and_unreviewed_seasons_never_map(tmp_path):
     assert canonical_cache.apply(state, tid, NOW) == "matched"
     assert not state.db.execute("SELECT 1 FROM canonical_episode").fetchone()
     state.close()
+
+
+def test_empty_explicit_search_uses_one_id_verified_title_fallback(tmp_path):
+    state = ready(tmp_path, imdb="tt1234567")
+    calls = []
+
+    async def fetch(origin, path, **kwargs):
+        calls.append((path, kwargs.get("query")))
+        item = {
+            "tvdbId": 123,
+            "imdbId": "tt1234567",
+            "title": "Example",
+            "year": 2020,
+            "episodes": [],
+        }
+        body = (
+            []
+            if (kwargs.get("query") or {}).get("term") == "imdb:tt1234567"
+            else [item]
+            if "search" in path
+            else item
+        )
+        return Fetch("ok", json.dumps(body).encode())
+
+    enricher = Enricher({}, fetcher=fetch)
+    assert asyncio.run(enricher.tick(state, NOW))
+    assert len(calls) == 3
+    assert (
+        state.db.execute(
+            "SELECT external_id FROM canonical_title WHERE namespace='tvdb'"
+        ).fetchone()[0]
+        == "123"
+    )
+    assert (
+        state.db.execute(
+            "SELECT evidence FROM canonical_title WHERE namespace='tvdb'"
+        ).fetchone()[0]
+        == "explicit_id"
+    )
+    state.close()
+
+
+def test_title_fallback_never_waives_explicit_imdb_conflict(tmp_path):
+    state = ready(tmp_path, imdb="tt1234567")
+    calls = []
+
+    async def fetch(origin, path, **kwargs):
+        calls.append(path)
+        return Fetch(
+            "ok",
+            json.dumps(
+                [
+                    {
+                        "tvdbId": 123,
+                        "imdbId": "tt7654321",
+                        "title": "Example",
+                        "year": 2020,
+                    }
+                ]
+            ).encode(),
+        )
+
+    enricher = Enricher({}, fetcher=fetch)
+    assert asyncio.run(enricher.tick(state, NOW))
+    assert len(calls) == 2
+    assert state.db.execute("SELECT count(*) FROM canonical_title").fetchone()[0] == 0
+    state.close()

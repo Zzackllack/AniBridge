@@ -511,8 +511,9 @@ def test_failed_export_or_validation_keeps_last_good_and_removes_staging(
 def test_query_failure_diagnostics_do_not_log_terms_or_credentials(
     tmp_path, monkeypatch, caplog
 ):
-    import catalog_worker.query_server as server
     import sqlite3
+
+    import catalog_worker.query_server as server
 
     def fail(*args):
         raise sqlite3.OperationalError(
@@ -544,9 +545,10 @@ def test_query_failure_diagnostics_do_not_log_terms_or_credentials(
 
 
 def test_summary_totals_match_sql_for_language_and_cutoff(tmp_path):
-    from catalog_worker.query_reader import execute
-    from catalog_core import schema
     import json
+
+    from catalog_core import schema
+    from catalog_worker.query_reader import execute
 
     state, config = seed(tmp_path)
     try:
@@ -558,12 +560,19 @@ def test_summary_totals_match_sql_for_language_and_cutoff(tmp_path):
         publish(config, state, NOW)
         all_tv = execute(
             config.output_dir,
-            Request(operation="recent", params={"t": "tvsearch"}, limit=100, languages=["de-dub"]),
+            Request(
+                operation="recent",
+                params={"t": "tvsearch"},
+                limit=100,
+                languages=["de-dub"],
+            ),
             NOW,
         )
         narrow = execute(
             config.output_dir,
-            Request(operation="recent", params={"t": "tvsearch", "maxage": "1"}, limit=100),
+            Request(
+                operation="recent", params={"t": "tvsearch", "maxage": "1"}, limit=100
+            ),
             NOW,
         )
         assert all_tv.total == 1 and narrow.total == 1
@@ -572,5 +581,23 @@ def test_summary_totals_match_sql_for_language_and_cutoff(tmp_path):
         metadata["release_summary"][0]["count"] += 1
         with pytest.raises(ValueError, match="invalid release summary"):
             schema.validate(config.output_dir / metadata["database"], metadata)
+    finally:
+        state.close()
+
+
+def test_empty_targeted_map_is_explicitly_unresolved(tmp_path):
+    from catalog_worker.query_reader import execute
+
+    state, config = seed(tmp_path)
+    try:
+        tid = state.db.execute("SELECT title_id FROM title").fetchone()[0]
+        result = execute(
+            config.output_dir,
+            Request(
+                operation="native", params={"t": "search"}, title_ids=[tid], season=99
+            ),
+            NOW,
+        )
+        assert result.total == 0 and result.mapping == "unresolved"
     finally:
         state.close()

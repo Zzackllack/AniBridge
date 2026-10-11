@@ -69,16 +69,6 @@ def apply(state: State, tid: str, checked_at: int) -> str:
             key for title in names for key in source_keys(title, state.provider) if key
         }
     counts = Counter(key for values in keys.values() for key in values)
-    observed_seasons = {}
-    for eid, native, _ in entities:
-        seasons = observed_seasons.setdefault(native, set())
-        for key in keys[eid]:
-            hints = state.db.execute(
-                "SELECT season,episode FROM canonical_hint WHERE title_id=? AND title_key=? LIMIT 2",
-                (tid, key),
-            ).fetchall()
-            if len(hints) == 1 and hints[0][1] is not None:
-                seasons.add(hints[0][0])
     for mid, namespace, external in state.db.execute(
         "SELECT mapping_id,namespace,external_id FROM canonical_title WHERE title_id=? AND namespace='tvdb'",
         (tid,),
@@ -88,8 +78,9 @@ def apply(state: State, tid: str, checked_at: int) -> str:
                 "SELECT canonical_season FROM season_correspondence WHERE title_id=? AND namespace=? AND external_id=? AND native_season=?",
                 (tid, namespace, external, native),
             ).fetchone()
-            if season is None and len(observed_seasons[native]) > 1:
-                continue
+            # A provider can pack several canonical seasons into one native
+            # season. That disproves a wholesale season map, not the unique
+            # episode names themselves. Each name still needs unique evidence.
             proven = season[0] if season else inferred.get(native)
             candidates = set()
             ambiguous = False

@@ -146,6 +146,14 @@ def execute(
                     if request.operation in {"recent", "native"}
                     else None,
                 )
+                if (
+                    request.operation == "native"
+                    and request.season is not None
+                    and total == 0
+                ):
+                    # No canonical association is not evidence of provider
+                    # absence. Keep empty targeted batches explicitly unresolved.
+                    headers["X-AniBridge-Mapping"] = "unresolved"
                 db.set_progress_handler(interrupted, 1000)
                 title_rows = titles(
                     db,

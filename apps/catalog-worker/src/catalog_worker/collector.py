@@ -152,6 +152,7 @@ class Collector:
                 config.limits["title_deadline_s"],
                 incremental=True,
                 reconciliation_s=config.limits["historical_interval_s"],
+                active_s=config.limits["active_interval_s"],
                 hourly=config.provider_limits(state.provider)[
                     "provider_requests_per_hour"
                 ],

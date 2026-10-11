@@ -30,6 +30,10 @@ class Signals:
             "SELECT count(*),min(first_observed) FROM signal_pending"
         ).fetchone()
         result.update(pending=count, oldest_pending=oldest)
+        result["gap_parents_pending"] = self.db.execute(
+            "SELECT count(*) FROM work WHERE kind IN ('title','season') AND ? IS NOT NULL AND (checked_at IS NULL OR checked_at<=?)",
+            (result["gap_since"], result["gap_since"]),
+        ).fetchone()[0]
         if signal_path(self.state.provider) is None:
             result["coverage"] = "unsupported"
         return result
@@ -158,7 +162,13 @@ class Signals:
             )
 
     def claim(
-        self, now: int, slot: int, lease_s: int, reconciliation_s: int, hourly: int
+        self,
+        now: int,
+        slot: int,
+        lease_s: int,
+        reconciliation_s: int,
+        hourly: int,
+        active_s: int = 14400,
     ) -> dict | None:
         def targeted():
             return self.db.execute(
@@ -216,11 +226,22 @@ class Signals:
             ] >= max(1, hourly // 5):
                 return None
             return self.db.execute(
-                "SELECT * FROM work w WHERE checked_at IS NOT NULL AND (checked_at<=? OR failures>0) AND due<=? AND lease_until<=? "
+                "SELECT w.* FROM work w JOIN title_schedule s USING(title_id) "
+                "WHERE w.checked_at IS NOT NULL AND w.lease_until<=? AND ("
+                "(w.due<=? AND (w.checked_at<=? OR w.failures>0)) OR "
+                "(w.failures=0 AND w.kind IN ('title','season') AND "
+                "((s.changed_at>? AND w.checked_at<=?) OR w.checked_at<=(SELECT gap_since FROM signal_meta)))) "
                 "AND NOT EXISTS(SELECT 1 FROM signal_pending p WHERE p.path=w.path) "
                 "AND NOT EXISTS(SELECT 1 FROM omissions o WHERE o.kind='title' AND o.id=w.title_id AND o.tombstoned=1) "
-                "ORDER BY checked_at,path LIMIT 1",
-                (now - reconciliation_s, now, now),
+                "ORDER BY CASE WHEN w.failures>0 THEN 0 WHEN w.kind IN ('title','season') AND s.changed_at>? THEN 1 ELSE 2 END,w.checked_at,w.path LIMIT 1",
+                (
+                    now,
+                    now,
+                    now - reconciliation_s,
+                    now - 2592000,
+                    now - active_s,
+                    now - 2592000,
+                ),
             ).fetchone()
 
         choices = (

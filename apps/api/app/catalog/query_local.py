@@ -413,6 +413,10 @@ class Search:
                         movie_category=movie_category,
                     )
                     stale = [r for r in results if r.state == "stale"]
+                    if total == 0 and any(
+                        batch.mapping == "unresolved" for batch in batches
+                    ):
+                        headers["X-AniBridge-Mapping"] = "unresolved"
                     if stale:
                         headers.update(
                             {

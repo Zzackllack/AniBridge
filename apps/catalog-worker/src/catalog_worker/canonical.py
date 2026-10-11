@@ -113,6 +113,30 @@ class Enricher:
         for session in self.sessions.values():
             await session.close()
 
+    async def imdb_candidate(
+        self, imdb: str, names: tuple[str, ...]
+    ) -> tuple[CanonicalTitle, str] | None:
+        # Skyhook's current imdb: search can return an empty list while a title
+        # search returns that exact IMDb association. One bounded fallback is
+        # safe only with the same explicit ID, rechecked on the descriptor below.
+        for term in ("imdb:" + imdb, names[0]):
+            payload = await self.request("/v1/tvdb/search/en/", {"term": term})
+            require(
+                isinstance(payload, list) and len(payload) <= 1000,
+                "invalid canonical search",
+            )
+            exact = [
+                item
+                for item in payload
+                if isinstance(item, dict) and item.get("imdbId") == imdb
+            ]
+            parsed = titles(exact)
+            if len(parsed) == 1:
+                return parsed[0], "explicit_id"
+            if parsed:
+                return None
+        return None
+
     async def tick(self, state: State, now: int) -> bool:
         kinds = []
         if self.sources.get("tv", "skyhook") != "off":
@@ -180,21 +204,7 @@ class Enricher:
                             prior[1],
                         )
                     elif row["explicit_imdb"]:
-                        payload = await self.request(
-                            "/v1/tvdb/search/en/",
-                            {"term": "imdb:" + row["explicit_imdb"]},
-                        )
-                        require(isinstance(payload, list), "invalid canonical search")
-                        exact = [
-                            item
-                            for item in payload
-                            if isinstance(item, dict)
-                            and item.get("imdbId") == row["explicit_imdb"]
-                        ]
-                        parsed = titles(exact)
-                        mapped = (
-                            (parsed[0], "explicit_id") if len(parsed) == 1 else None
-                        )
+                        mapped = await self.imdb_candidate(row["explicit_imdb"], names)
                     elif row["year"] is not None:
                         for name in names[:2]:
                             candidates.extend(

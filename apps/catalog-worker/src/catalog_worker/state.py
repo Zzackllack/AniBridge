@@ -276,6 +276,7 @@ class State:
         incremental: bool = False,
         reconciliation_s: int = 604800,
         hourly: int = 1200,
+        active_s: int = 14400,
     ) -> dict | None:
         """Reserve every fifth slot for the oldest new/historical work.
 
@@ -457,7 +458,7 @@ class State:
                     ):
                         self.db.execute("UPDATE worker_meta SET state='parser_error'")
                         self.db.execute(
-                            "UPDATE work SET lease_until=0,due=? WHERE path=?",
+                            "UPDATE work SET lease_until=0,failures=failures+1,due=? WHERE path=?",
                             (now + 86400, work["path"]),
                         )
                         self.db.execute(
@@ -532,7 +533,7 @@ class State:
                 "SELECT changed_at FROM title_schedule WHERE title_id=?", (tid,)
             ).fetchone()[0]
             cadence = interval if changed_at > now - 2592000 else historical_interval
-            if work.get("incremental"):
+            if work.get("incremental") and work["kind"] == "episode":
                 cadence = historical_interval
             self.db.execute(
                 "UPDATE work SET checked_at=?,due=?,lease_until=0,failures=0,fingerprint=? WHERE path=?",

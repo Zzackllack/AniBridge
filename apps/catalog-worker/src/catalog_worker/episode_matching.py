@@ -8,6 +8,7 @@ from .state import State
 
 # AniWorld's demonstrated suffix. Keep other brackets and meaningful text.
 FINALE = re.compile(r"\s*\[Final Episode\]\s*$", re.IGNORECASE)
+EPISODE_ANNOTATION = re.compile(r"\s*\[Episode [0-9]{1,6}\]\s*$", re.IGNORECASE)
 
 
 def source_keys(title: str, provider: str) -> tuple[str, ...]:
@@ -16,7 +17,11 @@ def source_keys(title: str, provider: str) -> tuple[str, ...]:
     ):
         return ()
     exact = search_key(title)
-    stripped = FINALE.sub("", title) if provider == "aniworld.to" else title
+    stripped = (
+        EPISODE_ANNOTATION.sub("", FINALE.sub("", title))
+        if provider == "aniworld.to"
+        else title
+    )
     fallback = search_key(stripped)
     return (exact, fallback) if fallback and fallback != exact else (exact,)
 
