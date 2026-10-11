@@ -82,8 +82,8 @@ async def replay(path: Path) -> dict:
             result["queries"].append(item)
             return body
 
-        # Twelve finite rounds, up to 96 metadata calls. Continue after the child
-        # commits so the sample includes both sides of publication replacement.
+        # Twelve finite rounds, up to 96 metadata calls during publication.
+        # Post-publication targeted checks are recorded separately.
         for _ in range(12):
             for provider, name in [
                 ("aniworld.to", "One Piece"),
