@@ -10,6 +10,7 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 from catalog_core.identity import path as validate_path
+from catalog_core.providers.sto_languages import LABELS as STO_LABELS
 
 from app.core.downloader.errors import ProviderResolutionError
 from app.hosts import catalog_sources
@@ -35,13 +36,15 @@ def offers(
     if provider == "s.to":
         # Keep the provider's explicit label semantics. AniWorld numeric keys
         # describe a different language set and cannot be reused here.
-        label = {"de-dub": "Deutsch", "en-dub": "Englisch"}.get(language)
-        if label is None:
+        labels = {
+            label for label, observed in STO_LABELS.items() if observed == language
+        }
+        if not labels:
             raise ResolutionError("unavailable")
         soup = BeautifulSoup(html, "html.parser")
         found = {}
         for row in soup.select("button[data-play-url][data-provider-name]"):
-            if row.get("data-language-label") != label:
+            if row.get("data-language-label") not in labels:
                 continue
             name, target = row.get("data-provider-name"), row.get("data-play-url")
             if name and target and name not in found:
