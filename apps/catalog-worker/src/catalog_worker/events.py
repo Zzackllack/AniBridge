@@ -35,6 +35,35 @@ class Events:
             logging.LogRecord("catalog_worker", logging.INFO, "", 0, message, (), None)
         )
 
+    def child(
+        self, provider: str, records: list[dict], exit_code=None, reason=None
+    ) -> None:
+        from catalog_core.diagnostics import PHASES, REASONS
+
+        for row in records:
+            if row["phase"] in PHASES and row["reason"] in REASONS:
+                self.emit(provider, row["phase"], row["reason"], row["duration_s"])
+        self.handler.handle(
+            logging.LogRecord(
+                "catalog_worker",
+                logging.INFO,
+                "",
+                0,
+                json.dumps(
+                    {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "provider": provider,
+                        "stage": "child",
+                        "exit_code": exit_code,
+                        "reason": reason if reason in REASONS else "ok",
+                    },
+                    separators=(",", ":"),
+                ),
+                (),
+                None,
+            )
+        )
+
     def signal(self, provider: str, status: dict, now: int) -> None:
         """Bounded counters only: do not add origin, paths or response values."""
         oldest = status["oldest_pending"]
@@ -130,6 +159,8 @@ class Events:
                         "outcome": ready.outcome,
                         "http_status": ready.status,
                         "error_class": ready.error_class,
+                        "parser_reason": ready.parser_reason,
+                        "child_exit": ready.child_exit,
                         "requests": ready.requests,
                         "network_s": round(ready.network_s, 4),
                         "parser_s": round(ready.parser_s, 4),

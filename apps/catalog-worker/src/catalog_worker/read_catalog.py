@@ -9,6 +9,8 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from catalog_core import schema
+from catalog_core.compact import release_summary
+from catalog_core.diagnostics import phase
 from catalog_core.files import atomic_write, fsync_directory
 from catalog_core.json_codec import dumps, loads
 from catalog_core.manifest import TABLE_LIMITS
@@ -60,17 +62,26 @@ def publish(config: Config, state: State, now: int) -> dict:
 
     db.set_progress_handler(exhausted, 10000)
     try:
-        copy(
-            db,
-            str(state.db.execute("PRAGMA database_list").fetchone()[2]),
-            state.provider,
-            config.publication_sources,
-        )
-        counts = {
-            name: db.execute(f"SELECT count(*) FROM {name}").fetchone()[0]
-            for name in TABLE_LIMITS
-        }
-    finally:
+        with phase("export"):
+            copy(
+                db,
+                str(state.db.execute("PRAGMA database_list").fetchone()[2]),
+                state.provider,
+                config.publication_sources,
+            )
+            counts = {
+                name: db.execute(f"SELECT count(*) FROM {name}").fetchone()[0]
+                for name in TABLE_LIMITS
+            }
+            # Exact compact groups replace repeated whole-catalog TV/language
+            # counts while a poll's cutoff includes the entire group. A later
+            # cutoff still uses SQL; bootstrap timestamps are not release dates.
+            summary = release_summary(db)
+    except BaseException:
+        db.close()
+        destination.unlink(missing_ok=True)
+        raise
+    else:
         db.close()
     try:
         with destination.open("rb") as stream:
@@ -85,30 +96,33 @@ def publish(config: Config, state: State, now: int) -> dict:
             "listing_checked_at": state.meta()["listing_checked_at"],
             "coverage": {"details": "partial", "mappings": "partial"},
             "counts": counts,
+            "release_summary": summary,
             "artifact": {"sqlite_sha256": digest},
         }
-        schema.validate(destination, metadata)
+        with phase("validation"):
+            schema.validate(destination, metadata)
         with destination.open("rb") as stream:
             os.fsync(stream.fileno())
-        with lease(root, write=True):
-            previous = (
-                loads((root / "current.json").read_bytes(), 65536)
-                if (root / "current.json").exists()
-                else {}
-            )
-            metadata["revision"] = previous.get("revision", 0) + 1
-            # The pointer is the sole commit point. A crash leaves either the old
-            # complete version or an unreferenced owned file for later cleanup.
-            metadata["database"] = f"read-{digest}.sqlite"
-            target = root / metadata["database"]
-            # Replacing identical bytes also repairs an existing corrupted file.
-            # The exclusive lease ensures no reader still owns the old inode.
-            os.replace(destination, target)
-            atomic_write(root / "current.json", dumps(metadata))
-            fsync_directory(root)
-            for old in root.glob("read-*.sqlite"):
-                if old.name != metadata["database"]:
-                    old.unlink()
+        with phase("publication_lock"), lease(root, write=True):  # noqa: SIM117 -- time lock acquisition before commit
+            with phase("publication"):
+                previous = (
+                    loads((root / "current.json").read_bytes(), 65536)
+                    if (root / "current.json").exists()
+                    else {}
+                )
+                metadata["revision"] = previous.get("revision", 0) + 1
+                # The pointer is the sole commit point. A crash leaves either the old
+                # complete version or an unreferenced owned file for later cleanup.
+                metadata["database"] = f"read-{digest}.sqlite"
+                target = root / metadata["database"]
+                # Replacing identical bytes also repairs an existing corrupted file.
+                # The exclusive lease ensures no reader still owns the old inode.
+                os.replace(destination, target)
+                atomic_write(root / "current.json", dumps(metadata))
+                fsync_directory(root)
+                for old in root.glob("read-*.sqlite"):
+                    if old.name != metadata["database"]:
+                        old.unlink()
         with state.db:
             state.db.execute("UPDATE worker_meta SET dirty=0,published_at=?", (now,))
         return metadata

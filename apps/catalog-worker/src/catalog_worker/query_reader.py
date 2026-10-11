@@ -120,8 +120,16 @@ def execute(
                     entities = {
                         r[0]
                         for r in db.execute(
-                            "SELECT ce.entity_id FROM canonical_episode ce JOIN canonical_title ct USING(mapping_id) "
-                            f"WHERE ct.namespace=? AND {terms} AND ct.title_id IN ({placeholders}) LIMIT 2001",
+                            (
+                                "SELECT e.entity_id FROM canonical_title_data ct JOIN title_data t USING(title_key) "
+                                "JOIN canonical_episode_data ce USING(mapping_key) JOIN entity_data e USING(entity_key) "
+                                f"WHERE ct.namespace=? AND {terms} AND t.title_id IN ({placeholders}) LIMIT 2001"
+                            )
+                            if metadata["catalog_schema_version"] == 2
+                            else (
+                                "SELECT ce.entity_id FROM canonical_episode ce JOIN canonical_title ct USING(mapping_id) "
+                                f"WHERE ct.namespace=? AND {terms} AND ct.title_id IN ({placeholders}) LIMIT 2001"
+                            ),
                             [*values, *sorted(selected)],
                         )
                     }

@@ -4,6 +4,7 @@ import sys
 import time
 from pathlib import Path
 
+from catalog_core.diagnostics import phase
 from catalog_core.supervisor import limit_child
 
 from .config import load
@@ -16,7 +17,8 @@ def publish_config(path: Path, provider: str | None = None) -> None:
     for selected in [provider] if provider else config.providers:
         if selected not in config.providers:
             raise ValueError("provider unavailable")
-        state = State(config.state_dir / f"{selected}.sqlite", selected)
+        with phase("state_preflight"):
+            state = State(config.state_dir / f"{selected}.sqlite", selected)
         try:
             publish(config, state, int(time.time()))
         finally:

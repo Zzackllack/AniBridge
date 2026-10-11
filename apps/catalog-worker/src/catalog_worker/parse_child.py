@@ -5,6 +5,7 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
+from catalog_core.diagnostics import phase
 from catalog_core.json_codec import dumps
 from catalog_core.supervisor import limit_child
 
@@ -38,4 +39,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    with phase("parse"):
+        main()

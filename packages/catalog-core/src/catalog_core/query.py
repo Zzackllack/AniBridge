@@ -225,10 +225,13 @@ def query(
                     "WHEN 'tvdb' THEN 0 WHEN 'tmdb-tv' THEN 1",
                     "WHEN 'tmdb-tv' THEN 0 WHEN 'tvdb' THEN 1",
                 )
-            if metadata["catalog_schema_version"] == 2 and not hasattr(db, "alias"):
-                from catalog_core.compact import query_joins
+            compact = metadata["catalog_schema_version"] == 2 and not hasattr(
+                db, "alias"
+            )
+            if compact:
+                from catalog_core.compact import physical_joins
 
-                join = query_joins(join)
+                join = physical_joins(join)
                 where = [
                     term.replace("ce.entity_id", "ce.entity_key") for term in where
                 ]
@@ -246,6 +249,8 @@ def query(
                     count_join += " JOIN entity e USING(entity_id)"
                 if any("t." in term for term in where):
                     count_join += " JOIN title t USING(title_id)"
+                if compact:
+                    count_join = physical_joins(count_join)
             # Bootstrap RSS often contains every release. The minimum lookup is
             # indexed, and the signed row count was verified on activation; do
             # not scan millions of identical recent timestamps for each poll.
@@ -256,7 +261,44 @@ def query(
                     if hasattr(db, "oldest_release")
                     else oldest_release(db, metadata["catalog_schema_version"])
                 )
-            if oldest is not None and oldest >= args[0]:
+            summary = metadata.get("release_summary") if compact else None
+            summary_count = None
+            if (
+                summary is not None
+                and request.recent
+                and request.year is None
+                and title_ids is None
+                and entity_ids is None
+            ):
+                selected_groups = [
+                    group
+                    for group in summary
+                    if group["language"] in allowed
+                    and (
+                        request.mode == "search"
+                        or group["kind"]
+                        == ("movie" if request.mode == "movie" else "episode")
+                    )
+                    and (
+                        request.categories is None
+                        or (
+                            movie_category
+                            if group["kind"] == "movie"
+                            else anime_category
+                            if provider == "aniworld.to"
+                            else 5000
+                        )
+                        in request.categories
+                    )
+                ]
+                if all(
+                    group["oldest"] >= now - request.maxage * 86400
+                    for group in selected_groups
+                ):
+                    summary_count = sum(group["count"] for group in selected_groups)
+            if summary_count is not None:
+                count = summary_count
+            elif oldest is not None and oldest >= args[0]:
                 count = (
                     db.recent_count(metadata["counts"]["release"], args[0])
                     if getattr(db, "observations", False)
@@ -267,21 +309,33 @@ def query(
                     "SELECT count(*) " + count_join + condition, args
                 ).fetchone()[0]
             total += count * len(modes)
-            if request.recent:
+            if request.recent and title_ids is None and entity_ids is None:
                 # Force the release-order index so SQLite does not sort/join the
                 # entire recent catalog before returning its first 100 rows.
-                join = join.replace(
-                    "FROM release r",
-                    release_from(
-                        1
-                        if hasattr(db, "alias")
-                        else metadata["catalog_schema_version"],
-                        ordered=True,
-                    ),
+                join = (
+                    join.replace(
+                        "FROM release_data r",
+                        "FROM release_data r INDEXED BY release_recent",
+                    )
+                    if compact
+                    else join.replace(
+                        "FROM release r",
+                        release_from(
+                            1
+                            if hasattr(db, "alias")
+                            else metadata["catalog_schema_version"],
+                            ordered=True,
+                        ),
+                    )
                 )
             select = """SELECT r.*, e.title_id,e.kind,e.native_season,e.native_episode,e.path,
                 e.identity_anchor AS entity_anchor,t.identity_anchor AS title_anchor,t.slug,t.display_title,t.year,
                 ct.namespace,ct.external_id,ce.season,ce.episode """
+            if compact:
+                select = """SELECT r.release_id,e.entity_id,r.language,r.first_seen_at,r.observed_at,
+                    t.title_id,e.kind,e.native_season,e.native_episode,coalesce(e.path,e.identity_anchor) AS path,
+                    e.identity_anchor AS entity_anchor,t.identity_anchor AS title_anchor,t.slug,t.display_title,t.year,
+                    ct.namespace,ct.external_id,ce.season,ce.episode """
             rows = db.execute(
                 select
                 + join

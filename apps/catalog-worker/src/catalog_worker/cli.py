@@ -10,7 +10,7 @@ from contextlib import closing
 from pathlib import Path
 
 from catalog_core.files import ProcessLock
-from catalog_core.supervisor import run_child_async
+from catalog_core.supervisor import ChildDeadline, ChildFailure, run_child_async
 
 from .canonical import Enricher
 from .collector import Collector
@@ -51,7 +51,20 @@ async def collect(path: Path, once: bool) -> None:
             while True:
                 try:
                     check(config)
-                    await enricher.tick(state, int(time.time()))
+                    started = time.monotonic()
+                    try:
+                        await enricher.tick(state, int(time.time()))
+                    except (ValueError, OSError, sqlite3.Error) as exc:
+                        events.emit(
+                            state.provider,
+                            "enrichment",
+                            type(exc).__name__,
+                            time.monotonic() - started,
+                        )
+                        raise
+                    events.emit(
+                        state.provider, "enrichment", "ok", time.monotonic() - started
+                    )
                     meta = state.meta()
                     if (
                         state.db.execute("SELECT 1 FROM release LIMIT 1").fetchone()
@@ -69,11 +82,14 @@ async def collect(path: Path, once: bool) -> None:
                             publication_slot,
                             pipeline.publication(state.provider),
                         ):
-                            await run_child_async(
+                            records = await run_child_async(
                                 "catalog_worker.query_publish",
                                 [str(path), state.provider],
                                 420,
                             )
+                            events.child(state.provider, records, exit_code=0)
+                except (ChildFailure, ChildDeadline) as exc:
+                    events.child(state.provider, exc.records, exc.exit_code, exc.reason)
                 except (ValueError, OSError, sqlite3.Error) as exc:
                     events.emit(state.provider, "maintain", type(exc).__name__, 0)
                 if once:

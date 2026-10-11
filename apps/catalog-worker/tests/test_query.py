@@ -475,3 +475,102 @@ def test_verified_publication_repairs_corrupt_identical_read_file(tmp_path):
         assert verify(config.output_dir)["revision"] == 2
     finally:
         state.close()
+
+
+def test_failed_export_or_validation_keeps_last_good_and_removes_staging(
+    tmp_path, monkeypatch
+):
+    import catalog_worker.read_catalog as publication
+
+    state, config = seed(tmp_path)
+    pointer = (config.output_dir / "current.json").read_bytes()
+    request = Request(operation="recent", params={"t": "tvsearch"}, limit=100)
+    from catalog_worker.query_reader import execute
+
+    before = execute(config.output_dir, request, NOW)
+    try:
+        for name in ("copy", "validate"):
+            target = publication if name == "copy" else publication.schema
+            original = getattr(target, name)
+
+            def fail(*args, **kwargs):
+                raise ValueError("sensitive https://private.invalid?token=secret")
+
+            monkeypatch.setattr(target, name, fail)
+            with pytest.raises(ValueError):
+                publication.publish(config, state, NOW + 1)
+            assert (config.output_dir / "current.json").read_bytes() == pointer
+            assert not (config.output_dir / "staging.sqlite").exists()
+            after = execute(config.output_dir, request, NOW)
+            assert after == before
+            monkeypatch.setattr(target, name, original)
+    finally:
+        state.close()
+
+
+def test_query_failure_diagnostics_do_not_log_terms_or_credentials(
+    tmp_path, monkeypatch, caplog
+):
+    import catalog_worker.query_server as server
+    import sqlite3
+
+    def fail(*args):
+        raise sqlite3.OperationalError(
+            "secret-query https://player.invalid token=secret"
+        )
+
+    monkeypatch.setattr(server, "execute", fail)
+    app = server.create_app(tmp_path, TOKEN)
+
+    async def run():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1"
+        ) as http:
+            response = await http.post(
+                "/catalog/v1/query",
+                json=Request(
+                    operation="titles", params={"t": "search", "q": "private-term"}
+                ).model_dump(),
+                headers={"Authorization": "Bearer " + TOKEN},
+            )
+            assert response.status_code == 503
+
+    asyncio.run(run())
+    assert "sqlite_error" in caplog.text
+    assert all(
+        value not in caplog.text
+        for value in ["secret-query", "player.invalid", "private-term", TOKEN]
+    )
+
+
+def test_summary_totals_match_sql_for_language_and_cutoff(tmp_path):
+    from catalog_worker.query_reader import execute
+    from catalog_core import schema
+    import json
+
+    state, config = seed(tmp_path)
+    try:
+        with state.db:
+            state.db.execute(
+                "UPDATE release SET first_seen_at=? WHERE language='de-dub'",
+                (NOW - 2 * 86400,),
+            )
+        publish(config, state, NOW)
+        all_tv = execute(
+            config.output_dir,
+            Request(operation="recent", params={"t": "tvsearch"}, limit=100, languages=["de-dub"]),
+            NOW,
+        )
+        narrow = execute(
+            config.output_dir,
+            Request(operation="recent", params={"t": "tvsearch", "maxage": "1"}, limit=100),
+            NOW,
+        )
+        assert all_tv.total == 1 and narrow.total == 1
+        assert narrow.rows[0].language == "en-sub"
+        metadata = json.loads((config.output_dir / "current.json").read_text())
+        metadata["release_summary"][0]["count"] += 1
+        with pytest.raises(ValueError, match="invalid release summary"):
+            schema.validate(config.output_dir / metadata["database"], metadata)
+    finally:
+        state.close()

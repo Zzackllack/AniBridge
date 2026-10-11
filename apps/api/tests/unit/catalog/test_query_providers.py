@@ -140,3 +140,17 @@ def test_provider_discovery_movie_identity_and_independent_outage(tmp_path):
         await client.close()
 
     asyncio.run(run())
+
+
+def test_empty_sibling_does_not_hide_provider_outage(tmp_path):
+    from catalog_core.query_client import Unavailable
+
+    client, _, database, root = setup(tmp_path)
+    search = ProviderSearch(client, database, tmp_path, ("aniworld.to", "s.to"))
+
+    async def run():
+        with pytest.raises(Unavailable, match="catalog_unavailable"):
+            await search.search({"t": "tvsearch", "q": "Absent ordinary show"}, now=NOW)
+        await client.close()
+
+    asyncio.run(run())

@@ -65,7 +65,9 @@ class ProviderSearch:
                     total += count
                     headers.update(diagnostics)
             if failed:
-                if successful == 0:
+                # An empty sibling cannot establish absence in the failed
+                # provider. Returning success here cached intermittent misses.
+                if successful == 0 or total == 0:
                     raise Unavailable("catalog_unavailable")
                 headers.update(
                     {

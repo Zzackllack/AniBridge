@@ -155,6 +155,16 @@ def oldest_release(db: sqlite3.Connection, version: int) -> int | None:
     return db.execute(f"SELECT min(first_seen_at) FROM {table}").fetchone()[0]
 
 
+def release_summary(db: sqlite3.Connection) -> list[dict]:
+    return [
+        dict(zip(("kind", "language", "count", "oldest"), row, strict=True))
+        for row in db.execute(
+            "SELECT e.kind,r.language,count(*),min(r.first_seen_at) "
+            "FROM release_data r JOIN entity_data e USING(entity_key) GROUP BY e.kind,r.language"
+        )
+    ]
+
+
 def query_joins(sql: str) -> str:
     """Avoid materializing all canonical views on the right of a LEFT JOIN.
 
@@ -173,4 +183,31 @@ def query_joins(sql: str) -> str:
             "ON ce.mapping_key=ct.mapping_key AND ce.entity_key="
             "(SELECT entity_key FROM entity_data WHERE entity_id=e.entity_id)",
         ).replace("ce.entity_id", "ce.entity_key")
+    return sql
+
+
+def physical_joins(sql: str) -> str:
+    """Use compact keys once, rather than rejoining public views by text IDs.
+
+    Recent TV totals scanned both entity views and their titles for each release.
+    The redundant public-ID lookup exceeds the two-second budget at pilot scale.
+    This applies to our fixed templates only, never arbitrary caller SQL.
+    """
+    sql = sql.replace("FROM release r", "FROM release_data r")
+    sql = sql.replace(
+        "JOIN entity e USING(entity_id)", "JOIN entity_data e USING(entity_key)"
+    )
+    sql = sql.replace(
+        "JOIN title t USING(title_id)", "JOIN title_data t USING(title_key)"
+    )
+    sql = sql.replace(
+        "LEFT JOIN canonical_title ct ON ct.mapping_id=",
+        "LEFT JOIN canonical_title_data ct ON ct.mapping_id=",
+    )
+    sql = sql.replace("FROM canonical_title c", "FROM canonical_title_data c")
+    sql = sql.replace("c.title_id=t.title_id", "c.title_key=t.title_key")
+    sql = sql.replace(
+        "LEFT JOIN canonical_episode ce ON ce.mapping_id=ct.mapping_id AND ce.entity_id=e.entity_id",
+        "LEFT JOIN canonical_episode_data ce ON ce.mapping_key=ct.mapping_key AND ce.entity_key=e.entity_key",
+    )
     return sql

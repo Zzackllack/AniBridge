@@ -285,6 +285,13 @@ def validate(path: Path, payload: dict, deadline_s: float = 120) -> dict[str, in
                 is None,
                 "false mapping coverage",
             )
+        if "release_summary" in payload:
+            from .compact import release_summary
+
+            require(
+                version == 2 and payload["release_summary"] == release_summary(db),
+                "invalid release summary",
+            )
         return counts
     finally:
         db.close()

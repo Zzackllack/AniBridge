@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import parse_qsl, urlsplit
 
+from catalog_core.diagnostics import reason
 from catalog_core.json_codec import require
 from catalog_core.providers.aniworld import EpisodeRow
 from catalog_core.providers.recent import Change, Window, signal_path
@@ -48,6 +49,8 @@ class Ready:
     requests: int = 0
     network_s: float = 0
     parser_s: float = 0
+    parser_reason: str | None = None
+    child_exit: int | None = None
 
 
 class Collector:
@@ -311,11 +314,14 @@ class Collector:
                     tuple(data.get("episode_aliases", [])),
                     tuple(EpisodeRow(**row) for row in data.get("episodes", [])),
                 )
-        except ValueError, UnicodeError, TimeoutError:
+        except (ValueError, UnicodeError, TimeoutError) as exc:
             return Ready(
                 plan,
                 None,
                 "unexpected_structure",
+                error_class=type(exc).__name__,
+                parser_reason=getattr(exc, "reason", reason(exc)),
+                child_exit=getattr(exc, "exit_code", None),
                 status=result.status,
                 requests=result.requests,
                 network_s=result.duration_s,

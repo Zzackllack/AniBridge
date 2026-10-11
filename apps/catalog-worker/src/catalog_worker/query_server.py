@@ -2,11 +2,14 @@
 
 import asyncio
 import hmac
+import json
+import logging
 import sqlite3
 import threading
 import time
 from pathlib import Path
 
+from catalog_core.diagnostics import reason
 from catalog_core.json_codec import ContractError, loads
 from catalog_core.protocol import MAX_RESPONSE, Request
 from fastapi import FastAPI
@@ -72,6 +75,34 @@ def create_app(
         cancel = threading.Event()
         work = None
         validated = False
+        request = None
+        started = time.monotonic()
+
+        def diagnostic(exc: BaseException):
+            code = (
+                "catalog_busy"
+                if isinstance(exc, TimeoutError) and str(exc) == "catalog_busy"
+                else reason(exc)
+            )
+            code = (
+                "query_deadline"
+                if isinstance(exc, ContractError) and str(exc) == "query_deadline"
+                else code
+            )
+            logging.getLogger("catalog.query").warning(
+                json.dumps(
+                    {
+                        "stage": "query",
+                        "reason": code,
+                        "error_class": type(exc).__name__,
+                        "provider": request.provider if request else None,
+                        "operation": request.operation if request else None,
+                        "duration_s": round(time.monotonic() - started, 4),
+                    },
+                    separators=(",", ":"),
+                )
+            )
+
         try:
             async with asyncio.timeout(3):
                 body = bytearray()
@@ -110,12 +141,15 @@ def create_app(
         except (ValidationError, ContractError, ValueError) as exc:
             if isinstance(exc, ContractError) and str(exc) == "query_too_broad":
                 return error(400, "query_too_broad")
+            if validated:
+                diagnostic(exc)
             return (
                 error(503, "catalog_unavailable")
                 if validated
                 else error(400, "invalid_request")
             )
-        except (OSError, sqlite3.Error, TimeoutError):
+        except (OSError, sqlite3.Error, TimeoutError) as exc:
+            diagnostic(exc)
             return error(503, "catalog_unavailable")
         finally:
             cancel.set()

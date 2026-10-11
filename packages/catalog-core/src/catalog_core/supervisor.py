@@ -4,9 +4,12 @@ import os
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
+from pathlib import Path
 
+from .diagnostics import read_report
 from .json_codec import ContractError
 
 
@@ -36,6 +39,25 @@ def limit_child(
     resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
 
 
+class ChildFailure(ContractError):
+    def __init__(self, exit_code: int, records: list[dict]) -> None:
+        super().__init__("bounded child rejected input")
+        self.exit_code, self.records = exit_code, records
+        self.reason = (
+            records[-1]["reason"]
+            if records
+            else "child_signal"
+            if exit_code < 0
+            else "child_exit"
+        )
+
+
+class ChildDeadline(TimeoutError):
+    def __init__(self, records: list[dict]) -> None:
+        super().__init__("bounded child deadline")
+        self.records, self.reason, self.exit_code = records, "deadline", None
+
+
 def run_child(
     module: str,
     arguments: list[str],
@@ -63,7 +85,7 @@ def run_child(
             except subprocess.TimeoutExpired:
                 continue
         if process.returncode:
-            raise ContractError("bounded child rejected input")
+            raise ChildFailure(process.returncode, [])
     except BaseException:
         if process.poll() is None:
             if os.name != "nt":
@@ -74,30 +96,43 @@ def run_child(
         raise
 
 
-async def run_child_async(module: str, arguments: list[str], timeout: float) -> None:
-    # Parser children use limit_child only; avoid importing the async runtime there.
+async def run_child_async(
+    module: str, arguments: list[str], timeout: float
+) -> list[dict]:
+    # A dedicated bounded file carries allowlisted fields, never raw stderr.
     import asyncio
 
-    process = await asyncio.create_subprocess_exec(
-        sys.executable,
-        "-m",
-        module,
-        *arguments,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        start_new_session=os.name != "nt",
-        env={**os.environ, "ANIBRIDGE_SUPERVISOR_PID": str(os.getpid())},
-    )
-    try:
-        async with asyncio.timeout(timeout):
-            code = await process.wait()
-        if code:
-            raise ContractError("bounded child rejected input")
-    finally:
-        if process.returncode is None:
-            if os.name != "nt":
-                os.killpg(process.pid, signal.SIGKILL)
-            else:
-                process.kill()
-            await asyncio.wait_for(asyncio.shield(process.wait()), 2)
+    with tempfile.TemporaryDirectory(prefix="catalog-diagnostic-") as directory:
+        report = Path(directory) / "report.json"
+        process = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-m",
+            module,
+            *arguments,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=os.name != "nt",
+            env={
+                **os.environ,
+                "ANIBRIDGE_SUPERVISOR_PID": str(os.getpid()),
+                "ANIBRIDGE_CHILD_REPORT": str(report),
+            },
+        )
+        try:
+            try:
+                async with asyncio.timeout(timeout):
+                    code = await process.wait()
+            except TimeoutError:
+                raise ChildDeadline(read_report(report)) from None
+            records = read_report(report)
+            if code:
+                raise ChildFailure(code, records)
+            return records
+        finally:
+            if process.returncode is None:
+                if os.name != "nt":
+                    os.killpg(process.pid, signal.SIGKILL)
+                else:
+                    process.kill()
+                await asyncio.wait_for(asyncio.shield(process.wait()), 2)
