@@ -488,7 +488,7 @@ SSH_AUTH_SOCK=/Users/zacklack/.bitwarden-ssh-agent.sock \
   SSH_AUTH_SOCK=/Users/zacklack/.bitwarden-ssh-agent.sock \
   ssh -o BatchMode=yes -l zacklack fra-node-01.nb.internal docker load
 curl --config "$COOLIFY_AUTH_FILE" --fail --silent --show-error --request POST \
-  "$COOLIFY_URL/api/v1/services/$SERVICE_UUID/stop"
+  "$COOLIFY_URL/api/v1/services/$SERVICE_UUID/stop?docker_cleanup=false"
 ```
 
 Wait for **both** collector and metadata to stop before a one-off volume writer.
@@ -566,3 +566,76 @@ and its original settings. Keep both old images locally. Do not restore a ledger
 clear failures, restart bootstrap, use `down -v`, replace networking or update
 unrelated services during rollback. New subtitle observations are valid read
 contract languages; the old worker can consume the compatible v4 state.
+
+## October 11 published preview deployment
+
+The earlier local-image preparation is historical. The existing private pilot
+was upgraded with explicit maintainer authorization through Coolify's Zen UI.
+It now uses the public multi-architecture preview package, pinned by digest:
+
+```text
+ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:1277d1fd6ec7130a53c5ed4a694dd8efada7e95db6c86bd897e3e446f2149e0a
+```
+
+OCI revision: `36fbd511890b0c08a80385b0a2542d3c6b51c1d3`. All three worker
+components use this image and `pull_policy: missing`. Only collector memory
+changed: `mem_limit: 2g`, `memswap_limit: 2g`, `cpus: 2`. Initialization and
+metadata retain 512 MiB. Never deploy the mutable `pr-170` alias implicitly:
+later commits produce another image, without authorizing another deployment.
+
+The supplied private `Configs/temp/anibridge-private-catalog.yaml` matches the
+saved live source. Its sibling `anibridge-private-catalog.rollback-39ba345.yaml`
+contains the original raw compose. Both files are ignored/private. Saved API
+payloads also remain in `/tmp/anibridge-pilot-registry-upgrade/`; retain the YAML
+sibling for rollback beyond temporary-directory cleanup. `/state/backup` now
+holds a complete, integrity-checked 1,117,626,368-byte SQLite backup set; do not
+overwrite it. Original pre-v4 backups remain. State is still v4-compatible.
+
+For a repeat of this **specific pinned upgrade**, after separate authorization:
+
+1. In the existing Coolify service's **Edit Compose File**, save the supplied
+   current YAML. Verify all three pinned image references and only the collector
+   2 GiB change. The connected API token is read-only and returns 403 for writes;
+   use an existing authenticated Zen session or an already authorized write
+   token. Do not broaden the read-only token merely to deploy.
+2. On `fra-node-01`, run the commands below. Keep volumes and networks present.
+   The existing backup is retained; no additional backup is created by this
+   repeat procedure. Review its age before using it as a recovery point.
+3. After successful publication, use **Deploy** (or **Restart current version**)
+   on that same service. Verify authenticated queries, resources, preserved
+   release identities and routes as above. This does not update the local client.
+
+```sh
+set -e
+SERVICE_UUID=ev7cds2lpqyvqfxpcm4wp4tc
+PILOT_WORKER=ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:1277d1fd6ec7130a53c5ed4a694dd8efada7e95db6c86bd897e3e446f2149e0a
+docker pull "$PILOT_WORKER"
+docker stop --timeout 45 "collector-$SERVICE_UUID"
+docker stop --timeout 15 "metadata-$SERVICE_UUID"
+test "$(docker inspect --format '{{.State.Running}}' collector-$SERVICE_UUID)" = false
+test "$(docker inspect --format '{{.State.Running}}' metadata-$SERVICE_UUID)" = false
+docker run --rm --network none --cpus 2 --memory 2g --memory-swap 2g --pids-limit 64 \
+  -v "${SERVICE_UUID}_config:/config:ro" \
+  -v "${SERVICE_UUID}_worker-state:/state" \
+  -v "${SERVICE_UUID}_read-catalog:/read" \
+  "$PILOT_WORKER" --config /config/worker.json --publish
+```
+
+Exact rollback: save `anibridge-private-catalog.rollback-39ba345.yaml` in that
+same service's compose editor, then **Restart current version**. It restores
+`anibridge-query-worker:39ba345626a9535aac31e7e356c34b4e889530af`, its original
+`pull_policy: never` and collector 512 MiB limit. That image remains on the host;
+verify before restart:
+
+```sh
+docker image inspect --format '{{.Id}} {{index .Config.Labels "org.opencontainers.image.revision"}}' \
+  anibridge-query-worker:39ba345626a9535aac31e7e356c34b4e889530af
+```
+
+With an existing write-capable API token, the exact original source payload is
+also `/tmp/anibridge-pilot-registry-upgrade/rollback.json`; PATCH it and POST
+`/api/v1/services/ev7cds2lpqyvqfxpcm4wp4tc/restart?latest=false` using the earlier
+curl pattern. Do not restore ledgers for code rollback: it would discard newly
+collected metadata. Do not clear failures, repeat bootstrap, use `down -v`, or
+call the service stop API with its default Docker cleanup behavior. The original
+512 MiB rollback profile is still constrained and can reproduce memory pressure.

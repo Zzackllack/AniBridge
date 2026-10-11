@@ -1015,3 +1015,42 @@ No live redeploy/restart/resource change, push or PR occurred. The maintainer
 can approve that image-only diagnostic upgrade to capture CQ-22 phase/exit evidence;
 a resource change is a separate decision. All retained state/backups, networking
 and the 30 GB budget including SQL scratch/logs/staging and 1 GB reserve remain.
+
+### Authorized preview deployment, later October 11
+
+The preparation-only statement above is historical. The maintainer subsequently
+authorized publication and the pilot upgrade. Draft PR #170 targets `v3`; `main`
+remains default. The existing Coolify service now runs preview revision
+`36fbd511890b0c08a80385b0a2542d3c6b51c1d3`, pinned to worker manifest digest
+`sha256:1277d1fd6ec7130a53c5ed4a694dd8efada7e95db6c86bd897e3e446f2149e0a`.
+Collector limits are 2 CPU/2 GiB without additional swap; metadata remains
+2 CPU/512 MiB. This adopts the documented minimum, not a measured 4-CPU gain
+or an explanation of the historical maintenance failures.
+
+Fresh no-overwrite SQLite backups passed integrity checks. Offline publication
+succeeded with the writer stopped. All 439,035 backed-up release IDs/first-seen
+times, pre-v4 backups, volume names/modes, three network IDs/subnets and NetBird
+route survived. No bootstrap or failures were cleared. Eight authenticated
+100-row HTTPS recent pages (search/TV, both providers, two offsets) returned 200,
+with exact published totals 116,386/322,649 in 0.040–0.301s. Ordinary discovery
+and its target returned two releases in 0.007s. A mapped large-series target
+returned three of 3,573 historical releases in 0.067s. Its live S01E06 target
+remained unmapped; copied-cohort mapping gains do not imply an immediate live
+sweep. Startup showed zero OOM kills/restarts and normal collection/enrichment
+successes. Charged storage including backup and 1 GB reserve was 3.906 GB/30 GB.
+
+Normal maintenance subsequently published both providers successfully:
+AniWorld export/validation 6.439/5.936s; Serienstream 29.930/25.594s, both child
+exit zero. Twelve 100-row HTTPS follow-ups after publication returned 200 in
+0.046–0.117s, with Serienstream's newly published total 322,732. These probes
+started after publication completed, so they add no live-overlap claim; copied
+state overlap verification remains separate.
+
+The read-only Coolify API token rejected writes, so the authorized save/deploy
+used the existing authenticated Zen session; saved source matched the candidate
+exactly. The supplied Configs YAML now matches it, with a private original YAML
+retained for rollback. Classified diagnostics are deployed; CQ-22's historical
+cause still needs an actual retained failure. The local client was not changed.
+No new extraction, acquisition, import or playback evidence is claimed. See
+[deployment aggregate](evidence/pilot-preview-upgrade-2026-10-11.json) and the
+[current rollback procedure](../../../scripts/catalog/query_pilot/SERVER.md#october-11-published-preview-deployment).

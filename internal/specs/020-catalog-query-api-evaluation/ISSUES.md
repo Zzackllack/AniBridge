@@ -16,7 +16,8 @@ title enumeration and extrapolation from a growing queue are not that benchmark.
 Keep the 30,000,000,000-byte total collector/service budget, durable resume,
 useful partial publication and query availability. Production collector sizing
 is minimum 2 vCPU/2 GiB, recommended 4 vCPU/4 GiB; 6 GiB is a measured-headroom
-option. The current 2-vCPU/512-MiB pilot is a constrained test, not that minimum.
+option. The earlier 2-vCPU/512-MiB pilot was a constrained test. The authorized
+October 11 preview upgrade now uses the 2-vCPU/2-GiB minimum for the collector.
 Improve work efficiency before raising rates; select higher per-provider rates
 and concurrency from bounded measurements of real responses and resource usage.
 
@@ -45,7 +46,7 @@ and concurrency from bounded measurements of real responses and resource usage.
 | CQ-19 | Implemented + verified | Ten bounded live metadata requests establish Ger-Sub detail labels, 25 combined season flags and four recent-feed labels. Shared parser/local resolver recognize de-sub without inferring audio. Eight saved-response replays add 25 releases, preserving all prior identities/first-seen times. Unknown cases remain explicit; both removal quarantines remain unapproved. |
 | CQ-20 | Implemented + verified | Three current HTTP-200 samples explicitly say no episode player is available. Retain positive metadata and previous releases using v4-compatible unavailable fingerprints; missing player evidence cannot delete releases. Missing/changed sections and challenge markers have separate safe reasons. Unavailable does not imply an observed release date or cause. |
 | CQ-21 | Implemented + verified | Bounded child phase/reason/exit reports and safe parser classifications replace discarded failure context. Status distinguishes sticky last fault from operational block state. No HTML, player URLs, credentials, query terms or IPs enter diagnostics. Unknown language counts and unapproved quarantines remain visible. |
-| CQ-22 | Implemented + environment-blocked | Safe enrichment/export/validation/lock/publication diagnostics and signal/deadline exit reasons implemented. Current-sized copied-state publications succeeded at 2 CPU/2 GiB, 4 CPU/4 GiB and 2 CPU/512 MiB; historical 48 ContractErrors/three timeouts were not reproduced. Original stderr was discarded, so historical cause cannot be established from retained logs. Approved image-only diagnostic deployment is required; deadlines/live allocations were not raised. |
+| CQ-22 | Implemented + environment-blocked | Safe enrichment/export/validation/lock/publication diagnostics and signal/deadline exit reasons implemented and deployed in the authorized preview upgrade. Current-sized copied-state publications succeeded at 2 CPU/2 GiB, 4 CPU/4 GiB and 2 CPU/512 MiB; historical 48 ContractErrors/three timeouts were not reproduced. Original stderr was discarded, so historical cause cannot be established from retained logs; an actual classified live failure is still needed. Collector now uses the documented 2 CPU/2 GiB minimum; this is not evidence of the historical cause. |
 | CQ-23 | Implemented + verified | Reproduced read-deadline failures from repeated public-ID view joins and a recent-index hint on targeted retrieval. Physical joins, validated exact recent summaries and target-specific access fix the demonstrated defects. 96/96 queries during current-sized publication pass at each of three profiles, including 100-row pages and native retrieval; large-series target returns three rows from 3,573-release history. Failed providers cannot produce empty success; corrections, explicit partial providers, outage cache and last-good retention regressions pass. |
 
 Backoff must follow evidence: honor explicit 429 instructions; briefly retry
@@ -126,3 +127,12 @@ The [sanitized repair evidence](evidence/catalog-pilot-repair-2026-10-11.json) a
 and fixture proofs separately. No pilot deployment, resource change, push or PR
 was performed. Exact image-only upgrade and rollback instructions are in
 [SERVER.md](../../../scripts/catalog/query_pilot/SERVER.md#october-11-existing-coolify-upgrade-and-rollback).
+
+That preparation-only result predates the subsequent explicit authorization.
+Draft PR #170 is open against `v3`, with `main` still default. The existing
+pilot now runs pinned preview revision `36fbd51` at 2 CPU/2 GiB for collection;
+metadata remains 512 MiB. See [live deployment evidence](evidence/pilot-preview-upgrade-2026-10-11.json)
+and [current upgrade/rollback](../../../scripts/catalog/query_pilot/SERVER.md#october-11-published-preview-deployment).
+All 439,035 backup release identities/first-seen times were retained; 100-row
+recent queries and ordinary/mapped large targets passed. Live One Piece S01E06
+remains unresolved, and no provider-wide mapping/freshness completion is claimed.
