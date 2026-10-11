@@ -462,3 +462,39 @@ def test_empty_batch_probe_does_not_delay_new_work_or_survive_restart(tmp_path):
         assert resumed["path"] == season and resumed["batch_bootstrap"]
     finally:
         state.close()
+
+
+def test_named_detail_without_alias_keeps_positive_season_alias(tmp_path):
+    state = State(tmp_path / "state.sqlite", "aniworld.to")
+    title = "/anime/stream/example"
+    season = title + "/staffel-1"
+    ep = season + "/episode-1"
+    try:
+        state.listing(Page((Link(title, "Example"),), (), 0, None), NOW)
+        state.detail(
+            state.claim(NOW), Page((Link(season, "Season"),), (), 0, "Example"), NOW
+        )
+        state.detail(
+            state.claim(NOW),
+            Page(
+                (Link(ep, "One"),),
+                (),
+                0,
+                None,
+                episodes=(EpisodeRow(ep, "One", ("Eins",), ("de-dub",)),),
+            ),
+            NOW,
+        )
+        work = dict(
+            state.db.execute("SELECT * FROM work WHERE path=?", (ep,)).fetchone()
+        )
+        state.detail(work, Page((), ("de-dub",), 0, None, episode_title="One"), NOW + 1)
+        assert (
+            state.db.execute("SELECT display_title FROM entity_alias").fetchone()[0]
+            == "Eins"
+        )
+        assert (
+            state.db.execute("SELECT first_seen_at FROM release").fetchone()[0] == NOW
+        )
+    finally:
+        state.close()

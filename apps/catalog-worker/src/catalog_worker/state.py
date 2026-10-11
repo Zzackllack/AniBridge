@@ -397,8 +397,10 @@ class State:
                 self.db.execute(
                     "DELETE FROM omissions WHERE kind='entity' AND id=?", (eid,)
                 )
-                if page.episode_title:
-                    # Replace source aliases only with a complete named observation.
+                if page.episode_title and page.episode_aliases:
+                    # An English-only detail heading does not disprove a German
+                    # alias observed on the season row. Replace only with positive
+                    # alias evidence, rather than erasing it on a metadata gap.
                     self.db.execute(
                         "DELETE FROM entity_alias WHERE entity_id=?", (eid,)
                     )
