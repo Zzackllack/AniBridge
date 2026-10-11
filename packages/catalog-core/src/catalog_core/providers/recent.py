@@ -12,6 +12,7 @@ from catalog_core.identity import path as normalize_path
 from catalog_core.json_codec import require
 
 from .adapters import adapter
+from .sto_languages import LABELS
 
 MAX_ENTRIES = 512
 VOID = {
@@ -36,7 +37,6 @@ FLAGS = {
     "japanese-german.svg": "de-sub",
     "japanese-english.svg": "en-sub",
 }
-LABELS = {"Deutsch": "de-dub", "Englisch": "en-dub"}
 
 
 @dataclass(frozen=True)

@@ -161,6 +161,7 @@ class Events:
                         "error_class": ready.error_class,
                         "parser_reason": ready.parser_reason,
                         "child_exit": ready.child_exit,
+                        "availability": ready.page.availability if ready.page else None,
                         "requests": ready.requests,
                         "network_s": round(ready.network_s, 4),
                         "parser_s": round(ready.parser_s, 4),

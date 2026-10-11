@@ -76,3 +76,13 @@ def test_conflicting_valid_imdb_hints_are_still_rejected():
             "detail",
             "/anime/stream/example",
         )
+
+
+def test_observed_serienstream_combined_flag_is_subtitle_evidence_only():
+    path = "/serie/example/staffel-1/episode-1"
+    body = f'<html><body><table><tr class="episode-row" onclick="window.location=\'{path}\'"><td><span class="episode-title-eng">Beginning</span></td><td><svg class="watch-language large svg-flag-english-german"></svg></td></tr></table></body></html>'
+    row = sto_parse(body.encode(), "detail", path.rsplit("/", 1)[0]).episodes[0]
+    assert row.languages == ("de-sub",) and row.unknown_languages == 0
+    unknown = body.replace("svg-flag-english-german", "svg-flag-other")
+    row = sto_parse(unknown.encode(), "detail", path.rsplit("/", 1)[0]).episodes[0]
+    assert row.languages == () and row.unknown_languages == 1

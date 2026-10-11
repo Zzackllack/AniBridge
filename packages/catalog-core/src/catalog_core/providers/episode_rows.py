@@ -10,6 +10,8 @@ from pathlib import PurePosixPath
 
 from catalog_core.json_codec import require
 
+from .sto_languages import FLAGS
+
 
 class Rows(HTMLParser):
     def __init__(self, provider: str, episode_pattern) -> None:
@@ -60,11 +62,9 @@ class Rows(HTMLParser):
                 "japanese-english.svg": "en-sub",
             }.get(code)
         elif self.provider == "s.to" and tag == "svg" and "watch-language" in classes:
-            flags = set(classes) & {"svg-flag-german", "svg-flag-english"}
+            flags = set(classes) & FLAGS.keys()
             code = ",".join(sorted(flags)) or "unknown"
-            language = {"svg-flag-german": "de-dub", "svg-flag-english": "en-dub"}.get(
-                code
-            )
+            language = FLAGS.get(code)
         else:
             return
         if language:

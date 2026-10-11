@@ -313,6 +313,7 @@ class Collector:
                     data["episode_title"],
                     tuple(data.get("episode_aliases", [])),
                     tuple(EpisodeRow(**row) for row in data.get("episodes", [])),
+                    data.get("availability", "available"),
                 )
         except (ValueError, UnicodeError, TimeoutError) as exc:
             return Ready(

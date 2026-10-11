@@ -91,3 +91,12 @@ def test_known_language_with_unknown_flag_keeps_known_evidence_and_exposes_gap()
     window = parse(body, "aniworld.to", "https://aniworld.to")
     assert window.unknown_languages == 1
     assert {v.language for v in window.entries} == {"de-dub"}
+
+
+def test_observed_gersub_recent_label_does_not_guess_audio():
+    from catalog_core.providers.recent import parse
+
+    body = b'<html><body><table class="new-episodes-table"><tr><td><a href="/serie/example/staffel-1/episode-1">Example</a></td><td><svg title="Ger-Sub"></svg></td></tr></table></body></html>'
+    window = parse(body, "s.to", "https://serienstream.to")
+    assert window.unknown_languages == 0
+    assert window.entries[0].language == "de-sub"

@@ -49,6 +49,7 @@ class Page:
     episode_title: str | None = None
     episode_aliases: tuple[str, ...] = ()
     episodes: tuple[EpisodeRow, ...] = ()
+    availability: str = "available"
 
 
 class Parser(HTMLParser):
@@ -225,6 +226,7 @@ def parse(
     )
     for row in rows:
         parser.links[row.path] = Link(row.path, row.title or "")
+    availability = "available"
     if kind == "listing":
         links = tuple(
             link
@@ -240,8 +242,11 @@ def parse(
             or parser.episode_pattern.fullmatch(link.path)
         )
         if page_path is not None and parser.episode_pattern.fullmatch(page_path):
+            if hasattr(parser, "availability"):
+                availability = parser.availability()
             require(
-                parser.title is not None and parser.video_section,
+                parser.title is not None
+                and (parser.video_section or availability == "unavailable"),
                 "unexpected episode structure",
             )
         elif page_path is not None:
@@ -269,6 +274,7 @@ def parse(
         parser.episode_title,
         parser.episode_aliases,
         rows,
+        availability,
     )
 
 

@@ -1,9 +1,4 @@
-import sqlite3
-
 import pytest
-from catalog_core import artifact, identity, manifest, schema
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-
 from catalog_worker.aniworld import Link, Page, parse
 from catalog_worker.state import State
 
@@ -86,16 +81,14 @@ def test_leases_request_caps_and_expired_claim(tmp_path):
     state.close()
 
 
-
-
-
-
-def test_rejected_language_collapse_does_not_refresh_observation(tmp_path):
+def test_missing_language_evidence_keeps_releases_and_accepts_metadata(tmp_path):
     state = seed(tmp_path / "worker.sqlite")
     work = dict(state.db.execute("SELECT * FROM work WHERE kind='episode'").fetchone())
     before = tuple(state.db.execute("SELECT * FROM entity").fetchone())
     state.detail(work, Page((), (), 0, "Wrong replacement"), NOW + 100)
-    assert tuple(state.db.execute("SELECT * FROM entity").fetchone()) == before
+    after = tuple(state.db.execute("SELECT * FROM entity").fetchone())
+    assert after[:-1] == before[:-1] and after[-1] == NOW + 100
+    assert state.db.execute("SELECT count(*) FROM quarantine").fetchone()[0] == 0
     assert state.db.execute("SELECT observed_at FROM release").fetchone()[0] == NOW
     state.close()
 
@@ -181,8 +174,6 @@ def test_pagination_cycle_does_not_admit_partial_listing(tmp_path):
     state.close()
 
 
-
-
 def test_absence_needs_own_three_complete_observations_over_48h(tmp_path):
     state = seed(tmp_path / "worker.sqlite")
     rid = state.db.execute("SELECT release_id FROM release").fetchone()[0]
@@ -203,6 +194,14 @@ def test_absence_needs_own_three_complete_observations_over_48h(tmp_path):
             state.db.execute(
                 "SELECT tombstoned FROM omissions WHERE id=?", (rid,)
             ).fetchone()[0]
+            == 0
+        )
+        state.db.execute("UPDATE omissions SET confirmed_404=1 WHERE id=?", (rid,))
+        state._observe_absence("release", [rid], set(), NOW + 172801)
+        assert (
+            state.db.execute(
+                "SELECT tombstoned FROM omissions WHERE id=?", (rid,)
+            ).fetchone()[0]
             == 1
         )
         state._observe_absence("release", [rid], {rid}, NOW + 172801)
@@ -214,8 +213,6 @@ def test_absence_needs_own_three_complete_observations_over_48h(tmp_path):
             state.db.execute("SELECT first_seen_at FROM release").fetchone()[0] == NOW
         )
     state.close()
-
-
 
 
 def test_complete_empty_episode_and_truncation_are_distinct():

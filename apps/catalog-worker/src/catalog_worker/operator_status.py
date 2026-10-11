@@ -66,6 +66,16 @@ def report(config: Config) -> dict:
             progress = measure(db, meta, now)
             result["providers"][provider] = {
                 **meta,
+                "state_semantics": "last retained worker fault; blocked_until controls provider cooldown",
+                "operational_state": "blocked"
+                if meta["blocked_until"] > now
+                else "coverage_gaps"
+                if failures
+                or progress["unknown_language_observations"]
+                or progress["unavailable_episode_observations"]
+                else "first_pass_complete"
+                if progress["first_pass_complete"]
+                else "collecting",
                 "counts": counts,
                 "pending_pages": pending or 0,
                 "failed_pages": failures or 0,

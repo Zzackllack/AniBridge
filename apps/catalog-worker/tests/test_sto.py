@@ -132,3 +132,80 @@ def test_current_header_year_range_and_genre_navigation():
         "/serie/breaking-bad",
     )
     assert page.year == 2008 and len(page.links) == 1
+
+
+def test_observed_subtitle_labels_and_unavailable_metadata(tmp_path):
+    page = sto.parse(
+        html(
+            '<h1>Example</h1><h2>S00E01: (Beginning)</h2><button data-play-url="/discarded" data-provider-name="VOE" data-language-label="Ger-Sub"></button>'
+        ),
+        "detail",
+        EPISODE,
+    )
+    assert page.languages == ("de-sub",) and page.unknown_languages == 0
+    assert page.episode_title == "Beginning" and page.episode_aliases == ()
+    state = State(tmp_path / "state.sqlite", "s.to")
+    from catalog_worker.aniworld import Link
+
+    tid = state.discover(Link(TITLE, "Example"), NOW)
+    state.db.execute(
+        "INSERT INTO work(path,title_id,kind,due) VALUES(?,?,?,?)",
+        (EPISODE, tid, "episode", NOW),
+    )
+    state.db.commit()
+    work = dict(
+        state.db.execute("SELECT * FROM work WHERE path=?", (EPISODE,)).fetchone()
+    )
+    state.detail(work, page, NOW)
+    previous = dict(state.db.execute("SELECT * FROM release").fetchone())
+    unavailable = sto.parse(
+        html(
+            '<h1>Example</h1><h2>S00E01: (Beginning)</h2><div class="player-wrap"><p>😰 Kein Videoplayer für diese Episode verfügbar.</p></div>'
+        ),
+        "detail",
+        EPISODE,
+    )
+    assert (
+        unavailable.availability == "unavailable"
+        and unavailable.episode_title == "Beginning"
+    )
+    for age in (1, 86401, 172801, 259201):
+        state.detail(work, unavailable, NOW + age)
+    assert dict(state.db.execute("SELECT * FROM release").fetchone()) == previous
+    assert (
+        state.db.execute(
+            "SELECT count(*) FROM omissions WHERE kind='release'"
+        ).fetchone()[0]
+        == 0
+    )
+    assert state.db.execute("SELECT count(*) FROM quarantine").fetchone()[0] == 0
+    from catalog_worker.progress import measure
+
+    assert (
+        measure(state.db, state.meta(), NOW + 259201)[
+            "unavailable_episode_observations"
+        ]
+        == 1
+    )
+    assert not measure(state.db, state.meta(), NOW + 259201)["detail_evidence_complete"]
+    state.close()
+
+
+@pytest.mark.parametrize(
+    "body,reason",
+    [
+        ("<h1>Example</h1><h2>S00E01: (Beginning)</h2>", "structure_changed"),
+        (
+            '<h1>Example</h1><h2>S00E01: (Beginning)</h2><div class="player-wrap"></div>',
+            "video_section_missing",
+        ),
+        ('<h1>Example</h1><form id="challenge-form"></form>', "access_interstitial"),
+        (
+            '<h1>Example</h1><div class="player-wrap"><p>Kein Videoplayer für diese Episode verfügbar.</p></div>',
+            "metadata_incomplete",
+        ),
+    ],
+)
+def test_missing_video_reason_is_explicit(body, reason):
+    with pytest.raises(ValueError, match=reason):
+        sto.parse(html(body), "detail", EPISODE)

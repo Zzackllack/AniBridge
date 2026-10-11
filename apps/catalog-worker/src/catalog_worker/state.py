@@ -168,7 +168,7 @@ class State:
                     (kind, record_id, now),
                 )
                 self.db.execute(
-                    "UPDATE omissions SET tombstoned=1 WHERE kind=? AND id=? AND count>=3 AND first_missing<=?",
+                    "UPDATE omissions SET tombstoned=1 WHERE kind=? AND id=? AND count>=3 AND confirmed_404=1 AND first_missing<=?",
                     (kind, record_id, now - 172800),
                 )
 
@@ -295,7 +295,9 @@ class State:
             if incremental:
                 from .signals import Signals
 
-                row = Signals(self).claim(now, slot, lease_s, reconciliation_s, hourly)
+                row = Signals(self).claim(
+                    now, slot, lease_s, reconciliation_s, hourly, active_s
+                )
                 if row is not None:
                     self.db.execute("UPDATE scheduler SET slot=slot+1")
                     return row
@@ -365,6 +367,8 @@ class State:
                 }
             )
         ).hexdigest()
+        if page.availability != "available":
+            fingerprint = page.availability + ":" + fingerprint
         with atomic(self.db):
             movie = self.provider == "megakino" and work["path"].startswith("/films/")
             if work["kind"] == "episode" or movie:
@@ -374,22 +378,6 @@ class State:
                     if movie
                     else adapter(self.provider).coordinates(work["path"])
                 )
-                old = self.db.execute(
-                    "SELECT count(*) FROM release WHERE entity_id=?", (eid,)
-                ).fetchone()[0]
-                if not work.get("batch") and self._collapse(
-                    "languages", old, len(page.languages), [eid, page.languages], now
-                ):
-                    self.db.execute(
-                        "UPDATE title SET detail_status='stale' WHERE title_id=?",
-                        (tid,),
-                    )
-                    self.db.execute(
-                        "UPDATE work SET lease_until=0,due=? WHERE path=?",
-                        (now + 86400, work["path"]),
-                    )
-                    self.db.execute("UPDATE worker_meta SET state='parser_error'")
-                    return
                 self.db.execute(
                     "INSERT INTO entity VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(entity_id) DO UPDATE SET display_title=coalesce(excluded.display_title,entity.display_title),observed_at=excluded.observed_at",
                     (
@@ -403,6 +391,9 @@ class State:
                         work["path"],
                         now,
                     ),
+                )
+                self.db.execute(
+                    "DELETE FROM omissions WHERE kind='entity' AND id=?", (eid,)
                 )
                 if page.episode_title:
                     # Replace source aliases only with a complete named observation.
@@ -435,22 +426,9 @@ class State:
                     self.db.execute(
                         "DELETE FROM omissions WHERE kind='release' AND id=?", (rid,)
                     )
-                if not work.get("batch"):
-                    self._observe_absence(
-                        "release",
-                        [
-                            r[0]
-                            for r in self.db.execute(
-                                "SELECT release_id FROM release WHERE entity_id=?",
-                                (eid,),
-                            )
-                        ],
-                        {
-                            identity.release_id(self.provider, eid, language)
-                            for language in page.languages
-                        },
-                        now,
-                    )
+                # These parsers report positive language offers only. Missing
+                # buttons/labels, including an explicit unavailable page, do not
+                # prove removal. Preserve old offers and existing quarantines.
             else:
                 parent = self.db.execute(
                     "SELECT path FROM title WHERE title_id=?", (tid,)
@@ -567,7 +545,11 @@ class State:
                 "UPDATE title SET observed_at=?,detail_status=? WHERE title_id=?",
                 (
                     now,
-                    "partial" if pending or page.unknown_languages else "complete",
+                    "partial"
+                    if pending
+                    or page.unknown_languages
+                    or page.availability != "available"
+                    else "complete",
                     tid,
                 ),
             )

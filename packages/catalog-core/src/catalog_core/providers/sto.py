@@ -11,11 +11,11 @@ from urllib.parse import parse_qs, urlsplit
 from catalog_core.json_codec import require
 
 from . import aniworld
+from .sto_languages import LABELS
 
 TITLE = re.compile(r"/serie/([^/]+)$")
 SEASON = re.compile(r"/serie/([^/]+)/staffel-([0-9]+)$")
 EPISODE = re.compile(r"/serie/([^/]+)/staffel-([0-9]+)/episode-([1-9][0-9]*)$")
-LABELS = {"Deutsch": "de-dub", "Englisch": "en-dub"}
 
 
 class Parser(aniworld.Parser):
@@ -24,6 +24,26 @@ class Parser(aniworld.Parser):
     languages_map: ClassVar[
         dict[str, str]
     ] = {}  # Legacy AniWorld data-lang-key has no meaning here.
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.player_wrap = False
+        self.unavailable = False
+        self.interstitial = False
+        self.paragraph = None
+
+    def missing_video(self) -> str:
+        require(not self.interstitial, "access_interstitial")
+        require(self.title and self.episode_title, "metadata_incomplete")
+        if self.player_wrap and self.unavailable:
+            return "unavailable"
+        require(
+            False, "video_section_missing" if self.player_wrap else "structure_changed"
+        )
+
+    def availability(self) -> str:
+        require(not self.interstitial, "access_interstitial")
+        return "available" if self.video_section else self.missing_video()
 
     def is_listing_root(self, href: str) -> bool:
         return href in ("/serien", "/serien?by=alpha", "/serien?by=genre")
@@ -51,6 +71,16 @@ class Parser(aniworld.Parser):
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         super().handle_starttag(tag, attrs)
         values = dict(attrs)
+        if "player-wrap" in (values.get("class") or "").split():
+            self.player_wrap = True
+        if values.get("id") in {
+            "challenge-form",
+            "cf-challenge-running",
+            "cf-chl-widget",
+        }:
+            self.interstitial = True
+        if tag == "p" and self.player_wrap:
+            self.paragraph = []
         if (
             tag == "p"
             and self.title
@@ -95,6 +125,12 @@ class Parser(aniworld.Parser):
     def handle_endtag(self, tag: str) -> None:
         if tag == "p":
             self.year_range = False
+            if self.paragraph is not None:
+                text = " ".join("".join(self.paragraph).split())
+                self.unavailable |= (
+                    "Kein Videoplayer für diese Episode verfügbar." in text
+                )
+                self.paragraph = None
         if tag == "h2" and self.episode_tag == tag:
             text = " ".join("".join(self.episode_text).split())
             match = re.fullmatch(r"S[0-9]+E[0-9]+:\s*(.+)", text)
@@ -102,6 +138,9 @@ class Parser(aniworld.Parser):
             if match:
                 names = re.fullmatch(r"(.+?)\s+\(([^()]+)\)", match[1])
                 german, english = (names[1], names[2]) if names else (match[1], None)
+                # Current pages with no German name use '(English name)'.
+                if english is None and re.fullmatch(r"\([^()]+\)", german):
+                    english, german = german[1:-1], None
                 require(
                     all(len(n.encode()) <= 512 for n in (german, english) if n),
                     "episode title too large",
@@ -112,9 +151,18 @@ class Parser(aniworld.Parser):
                 )
                 self.episode_title = primary
                 self.episode_aliases = (
-                    (german,) if english and german != english else ()
+                    (german,) if english and german and german != english else ()
                 )
         super().handle_endtag(tag)
+
+    def handle_data(self, data: str) -> None:
+        super().handle_data(data)
+        if self.paragraph is not None:
+            self.paragraph.append(data)
+            require(
+                sum(len(value) for value in self.paragraph) <= 2048,
+                "paragraph overflow",
+            )
 
 
 def parse(body: bytes, kind: str, page_path: str | None = None) -> aniworld.Page:

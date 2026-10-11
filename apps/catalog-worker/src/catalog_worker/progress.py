@@ -11,6 +11,9 @@ def measure(db, meta: dict, now: int) -> dict:
     unknown = db.execute(
         "SELECT coalesce(sum(unknown_languages),0) FROM observation_gap"
     ).fetchone()[0]
+    unavailable = db.execute(
+        "SELECT count(*) FROM work WHERE fingerprint LIKE 'unavailable:%'"
+    ).fetchone()[0]
     usable, mapped = db.execute(
         "SELECT count(*),coalesce(sum(EXISTS(SELECT 1 FROM canonical_episode c WHERE c.entity_id=e.entity_id)),0) "
         "FROM entity e WHERE kind='episode' AND EXISTS(SELECT 1 FROM release r WHERE r.entity_id=e.entity_id)"
@@ -62,7 +65,8 @@ def measure(db, meta: dict, now: int) -> dict:
             "failed_due_now": retry_due,
         },
         "first_pass_complete": first_pass,
-        "detail_evidence_complete": first_pass and unknown == 0,
+        "detail_evidence_complete": first_pass and unknown == 0 and unavailable == 0,
+        "unavailable_episode_observations": unavailable,
         "unknown_language_observations": unknown,
         "episodes_with_releases": usable,
         "mapped_with_releases": mapped,
