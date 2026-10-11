@@ -845,3 +845,61 @@ constrained test. No benefit from the recommended 4-vCPU/4-GiB profile was
 measured here. No fresh bootstrap duration or live acquisition was measured.
 
 Sanitized counts and observations: [pilot-recheck-2026-10-09.json](evidence/pilot-recheck-2026-10-09.json).
+
+### October 11 recheck: continued collection and new availability findings
+
+Read-only checks on fra-node-01 around **13:13–13:22 UTC / 15:13–15:22 CEST**
+confirm the same deployed `39ba345` image, original October 8 start time and zero
+restarts/OOM kills. No runtime settings, ledgers, retry deadlines or quarantines
+were changed; no provider metadata or media URLs were fetched during this check.
+
+AniWorld now has **63,579 episodes / 116,359 releases**, zero pending/failed pages
+and zero unknown-language observations. Discovered first-pass/detail evidence
+remains complete. **36,976 / 63,560 usable episodes are mapped (58.17%)**.
+Serienstream has **302,107 episodes / 322,284 releases**, **20,061 pending** and
+**6,620 failed pages**, versus 47,228 / 2,498 on October 9. **161,892 / 264,836
+usable episodes are mapped (61.13%)**. Unknown-language observations rise to
+**50,933**; 6,615 failed episode pages have never completed successfully. Two
+language-removal quarantines remain unapproved. Discovery can still grow, so
+the earlier queue projection is not a measured completion deadline.
+
+The retained 24-hour page log window contains **13,537 successful Serienstream
+pages, 2,400 HTTP-200 parse failures and 15 transport failures** (13 ReadTimeout,
+two HTTP 502), plus 122 AniWorld successes and three ReadTimeout failures. No
+HTTP 403/429 page events appear. These are page counts, not duplicated collect
+events. The last-hour status rate is 249 checked pages / 261 requests, compared
+with 1,112 / 1,050 on October 9. It is not established that provider pacing is
+the current bottleneck. **48 maintenance ContractError and three TimeoutError
+events** introduce CQ-22: the current logs cannot isolate enrichment, export,
+validation, child limits or contention. A publication child was observed running;
+successful publications continue, with last-good revisions 1212 / 1135 at
+13:18 UTC. No speculative root cause was marked verified.
+
+Initial authenticated remote recent checks pass 200 for both providers and
+unauthenticated access is 401. However, a subsequent remote targeted Breaking
+Bad request returns 503; local recent search also returns 503. Bounded repeats
+recover: remote 100-row recent pages return 200 in **0.392 / 0.225 seconds**,
+local recent search returns three results and total **438,643** in **3.391s**, and
+Breaking Bad S01E01 by TVDB ID and text both return two releases. Initial One
+Piece S01E01 results are empty, but the later local query returns two releases.
+The local database has zero corrections. This is an inconsistent query result,
+not proof of a persistent absent mapping. CQ-23 requires real-sized query /
+publication overlap diagnosis, safe failure classification and cache/partial
+behavior checks. The empty and failed samples are retained alongside recovery.
+The Mac client is now running (`71988fc`), health 200, zero restarts/OOM kills.
+No grab, extraction, acquisition, import or playback was attempted.
+
+Both feeds retain their coverage gap; pending hints grew from 3 / 17 to 11 / 24.
+Mapping-due counts are 816 / 7,323; canonical source failures have largely cleared
+(zero / two), while aggregate usable mapping coverage barely changes. Continued
+scraping alone does not close CQ-17 or matching gaps. Collector Docker stats
+show **168.17% CPU / 216.2 MiB**, metadata **0.16% / 52.48 MiB**. Collector cgroup
+memory is **535,523,328 bytes**, peak **537,452,544**, with **6,237,722** cumulative
+max-limit events and no OOM kills. This is substantial pressure in the unchanged
+512 MiB test allocation; a production-profile benefit remains unmeasured.
+
+Storage including the reserve is **3,024,038,400 bytes of 30,000,000,000**;
+host free space is approximately **98 GiB**. `192.168.2.1` still routes via `wt0`
+in the NetBird table. No fresh complete-bootstrap benchmark or all-provider
+production-readiness claim follows from these checks. Sanitized counters and
+results: [pilot-recheck-2026-10-11.json](evidence/pilot-recheck-2026-10-11.json).

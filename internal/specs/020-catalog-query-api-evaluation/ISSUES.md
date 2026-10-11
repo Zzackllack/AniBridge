@@ -1,6 +1,6 @@
 # Private-pilot defects and production improvements
 
-Updated 2026-10-09. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
+Updated 2026-10-11. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
 and [EVIDENCE.md](EVIDENCE.md). The October 8 implementation and bounded measurements are recorded below.
 Deployment is confined to the maintainer-authorized existing private pilot.
 
@@ -45,6 +45,8 @@ and concurrency from bounded measurements of real responses and resource usage.
 | CQ-19 | Confirmed language gap | October 9 live Serienstream detail metadata contains `Ger-Sub`; the catalog parser records it as unknown. 50,426 pages have unknown-language observations, but one sample does not establish that they all share this label. Verify current detail labels, season flags and recent-feed evidence together, then support positively identified subtitles without guessing audio language or deleting existing releases. |
 | CQ-20 | Confirmed parse failures; cause unresolved | Two failed Serienstream episode samples returned complete HTTP 200 documents with titles but no recognized video section. Distinguish genuinely unavailable/unreleased episodes from changed host markup or access interstitials. Retain metadata and last-good releases conservatively; absence alone must not tombstone a release. A sampled failed title also returned HTTP 500. Collection continues despite the sticky `parser_error` provider state. |
 | CQ-21 | Confirmed diagnostic gap | Retained 24-hour logs contain 2,505 Serienstream `unexpected_structure` events, all HTTP 200 with null `error_class`. The collector collapses ValueError/UnicodeError/TimeoutError without a safe parser reason. Add bounded reason codes/classification without logging HTML, queries or player URLs; expose unresolved-language and sticky provider-state semantics clearly. This narrows CQ-04's diagnostic coverage rather than invalidating its earlier successful transport/event checks. |
+| CQ-22 | New observed maintenance failures; cause unresolved | October 11 retained 24-hour logs contain 48 Serienstream maintenance `ContractError`s and three `TimeoutError`s. Maintenance combines enrichment and publication, while the child supervisor discards stderr and collapses nonzero exits. A publication child was observed running; successful publications also continue. Add safe phase/exit/reason diagnostics, reproduce on copied state at current catalog scale and measure export/validation costs. Do not assume invalid mappings, memory exhaustion or a particular deadline is the cause, or increase limits blindly. |
+| CQ-23 | New observed intermittent query failures | On October 11, remote Breaking Bad targeted retrieval and local recent search returned 503; bounded repeats recovered to 200, including two Breaking Bad S01E01 and two One Piece S01E01 releases. Initial empty targeted results also recovered; no local corrections were configured. Test query availability, exact totals and consistent identities while real-sized publication proceeds. Classify read deadlines/leases/validation and cache/partial behavior before tuning, while preserving bounded requests and last-good serving. A limit-1 remote health-style query is insufficient availability evidence. |
 
 Backoff must follow evidence: honor explicit 429 instructions; briefly retry
 isolated network/5xx failures per page with bounded exponential delay and jitter;
@@ -107,3 +109,12 @@ Serienstream collection continues, with 47,228 pending pages, 2,498 failed pages
 and 61.10% usable-episode mapping. This is resumed collection from retained state,
 not a fresh full-bootstrap benchmark. No runtime settings or deployments changed
 during the recheck. See [October 9 evidence](evidence/pilot-recheck-2026-10-09.json).
+
+October 11 recheck: AniWorld remains complete for discovered native first-pass
+work (63,579 episodes / 116,359 releases, zero pending/failed pages). Serienstream
+pending work falls to 20,061, but failures rise to 6,620 and unknown-language
+observations to 50,933. Usable mapping stays near 58.17% / 61.13%. Both recent
+feeds still report a coverage gap, with 11 / 24 pending hints. The old 512 MiB
+collector is near its cgroup limit with heavy cumulative reclaim pressure but
+zero OOM kills/restarts. No settings changed. CQ-22/CQ-23 prevent treating this
+as merely a queue that needs more waiting. See [October 11 evidence](evidence/pilot-recheck-2026-10-11.json).
