@@ -157,10 +157,14 @@ All 439,035 backed-up release IDs/first-seen times remain unchanged. See
 
 Next development priorities:
 
-1. Add frozen worker/core pytest CI and an always-running gate for both supported
-   PR bases before relying on green checks. Current tests CI covers only API;
-   `v3` requires only the title status plus review/CodeQL policy. Preview imports
-   do not run the worker/core regressions.
+1. Prioritize the matcher and descriptor recheck mismatch in
+   [MAPPING_REPAIR.md](MAPPING_REPAIR.md). Later read-only diagnosis found
+   15,280/92,506 usable episodes unresolved with cached descriptors, and zero
+   never-checked matching-input entries. Its 8,611 partial series cannot sustain
+   30-minute remote rechecks under the existing 30/minute shared canonical cap.
+   Add a fixed independently labelled baseline, avoid unchanged descriptor churn
+   and improve demonstrated name/identity gaps; waiting or larger limits alone
+   cannot supply missing evidence. Counts are later sequential samples.
 2. Fix the demonstrated CQ-20 heading case with a sanitized fixture, then explain
    the remaining season contract rejection. Tune repeated parser/absence work
    separately from transient HTTP 500 retries; preserve retry history and avoid
@@ -175,6 +179,13 @@ Next development priorities:
    controlled acceptance using the matching implementation. Keep generated media
    acceptance distinct from live extraction/import/playback. Complete these
    gates before moving the draft toward integration; leave `main` default.
+
+Add frozen worker/core pytest CI and an always-running gate for both supported
+PR bases alongside the mapping fixes. Current tests CI covers only API; `v3`
+requires only the title status plus review/CodeQL policy. Preview imports do
+not run worker/core regressions. CI work is not the primary remedy for stalled
+mapping coverage. The executable task handoff is
+[NEXT_AGENT_PROMPT.md](NEXT_AGENT_PROMPT.md).
 
 This recheck changed no live deployment, resources or collection schedule and
 did not reset bootstrap, failures or state. No fresh full-crawl or crash campaign

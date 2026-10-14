@@ -104,6 +104,10 @@ October 11 catalog repair guidance
   uses a pinned GHCR worker manifest, `pull_policy: missing`, and 2 CPU/2 GiB for
   the collector; metadata stays at 512 MiB. The local-image staging helper is
   historical. New deployment/restart/resource changes still require approval.
+- October 14 mapping follow-up: use spec 020's `MAPPING_REPAIR.md` and
+  `NEXT_AGENT_PROMPT.md`. Prioritize correspondence gaps and unchanged-descriptor
+  recheck demand; preserve conservative evidence and the existing canonical cap.
+  CI regression coverage supports this work and must not replace the fixes.
 
 v3 integration
 

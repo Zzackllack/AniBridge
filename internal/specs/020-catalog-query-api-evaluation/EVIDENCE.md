@@ -1105,3 +1105,22 @@ PR #170 remains a draft into `v3`, `main` default, review required; completed
 tests/lint/CodeQL/preview checks passed. Worker/core pytest CI and meaningful
 required test/build gates remain missing. Priorities are recorded in
 [ISSUES.md](ISSUES.md#october-14-read-only-recheck-and-priorities).
+
+### October 14 matching diagnosis and implementation handoff
+
+Subsequent bounded read-only ledger queries separated waiting from examined
+gaps. [Mapping diagnosis](evidence/mapping-diagnosis-2026-10-14.json) records
+15,280/92,506 usable episodes unresolved with descriptors cached, 6,775/8,345
+without a TVDB series association, and zero never-checked matching-input entries.
+Six concentrated large cohorts contain 4,739 names absent from the selected
+descriptor, 1,104 unusable names and four repeated source names. Absence can
+reflect different wording/language, incomplete canonical data or a wrong series
+association; these aggregates do not yet separate those causes.
+
+Code plus 8,611 partial-series records establish that two descriptor rechecks
+per hour would demand at least 17,222 requests/hour under the current 1,800/hour
+shared cap. This is a capacity lower bound, not a trace of actual request demand.
+The new [repair phase](MAPPING_REPAIR.md) and [agent prompt](NEXT_AGENT_PROMPT.md)
+prioritize sustainable evidence acquisition and held-out matching correctness.
+They do not replace the request API architecture or authorize a deployment.
+No code implementation or new live action is claimed by this handoff.

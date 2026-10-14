@@ -95,6 +95,12 @@ eligibility, not proof of lossless feeds or a four-hour whole-provider SLA.
 Search remains catalog-only. No background demand-refresh system or synchronous
 query scraping is introduced by this repair.
 
+The October 14 [mapping/maintenance follow-up](MAPPING_REPAIR.md) addresses
+descriptor recheck demand and examined correspondence gaps within this contract.
+Its [implementation handoff](NEXT_AGENT_PROMPT.md) requires measured correctness
+and useful mapping gains, with unresolved evidence remaining explicit. This is
+an implementation phase, not a replacement architecture or deployment approval.
+
 Local cache: source/origin/token fingerprint/protocol/complete request keys,
 128 entries, 2 MiB serialized payload and 16 MiB SQLite page cap. TTL 60 seconds;
 positive validated stale responses allowed for at most 24 hours after fetching,
