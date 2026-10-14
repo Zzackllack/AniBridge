@@ -285,7 +285,8 @@ def test_v4_matching_upgrade_interruption_retains_original_backup(tmp_path, poin
     filename = tmp_path / "worker.sqlite"
     State(filename, "aniworld.to").close()
     rollback_matching(filename, "aniworld.to")
-    original = filename.read_bytes()
+    with sqlite3.connect(filename) as db:
+        original = list(db.iterdump())
 
     def checkpoint(stage):
         if stage == point:
@@ -297,7 +298,9 @@ def test_v4_matching_upgrade_interruption_retains_original_backup(tmp_path, poin
         5 if point == "matching-commit" else 4
     )
     backup = filename.with_name(filename.name + ".pre-v5.backup")
-    assert backup.read_bytes() == original
+    with sqlite3.connect(backup) as db:
+        assert list(db.iterdump()) == original
+    retained = backup.read_bytes()
     State(filename, "aniworld.to").close()
     assert preflight(filename, "aniworld.to") == 5
-    assert backup.read_bytes() == original
+    assert backup.read_bytes() == retained
