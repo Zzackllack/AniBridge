@@ -1054,3 +1054,54 @@ cause still needs an actual retained failure. The local client was not changed.
 No new extraction, acquisition, import or playback evidence is claimed. See
 [deployment aggregate](evidence/pilot-preview-upgrade-2026-10-11.json) and the
 [current rollback procedure](../../../scripts/catalog/query_pilot/SERVER.md#october-11-published-preview-deployment).
+
+### October 14 operational recheck
+
+[Sanitized evidence](evidence/pilot-recheck-2026-10-14.json), with sequential
+snapshots beginning 08:27 UTC (10:27 Europe/Berlin). Worker remains pinned to
+`36fbd51`; collector 2 CPU/2 GiB, metadata 512 MiB, zero OOM kills/restarts since
+October 11 startup. No redeploy/restart/resource change occurred. Charged storage
+is 3.980 GB/30 GB, including the retained backup and 1 GB reserve. All 439,035
+backed-up release identities/first-seen times and pre-v4 backups remain intact;
+NetBird routing remains intact.
+
+| Observation | October 11 recheck | October 14 snapshot |
+| --- | ---: | ---: |
+| AniWorld episodes / releases | 63,579 / 116,359 | 63,601 / 116,409 |
+| AniWorld usable episode mapping | 58.17% | 65.31% |
+| Serienstream episodes / releases | 302,107 / 322,284 | 306,895 / 355,722 |
+| Serienstream pending / failed pages | 20,061 / 6,620 | 141 / 143 |
+| Serienstream unknown-language observations | 50,933 | 25,135 |
+| Serienstream usable episode mapping | 61.13% | 64.62% |
+
+Pending and failed pages overlap. There are 8,350 explicit unavailable episode
+observations; these do not establish release dates. Recent gap parents are 0/5,
+but capped-feed gaps remain latched. Four removal quarantines remain unapproved.
+This is retained-state progress, not a measured fresh-bootstrap duration.
+
+Retained last 24 hours: 568 successful publications (284/provider), no
+maintenance/child failures. Median export/validation seconds are 7.847/6.416
+AniWorld and 32.696/27.990 Serienstream; publication locks stayed below 0.126s.
+Historical maintenance cause is still unproved. Serienstream nevertheless made
+3,639 HTTP-200 parse failures: 3,522 incomplete metadata and 117 contract
+rejections. Of 288 transport failures, 278 were HTTP 500. No page 403/429 events
+were observed. Three bounded live metadata requests reproduce explicit player
+unavailability with a missing episode heading, one season contract rejection,
+and a title HTTP 500; this does not classify every remaining failed page.
+
+All 25 remote HTTPS probes returned 200. Sixteen 100-row recent pages took
+0.050–0.144s, passed contract checks, and had independently checked physical
+totals. Ordinary native retrieval returned two rows. For the exact 3,573-release
+anime source, One Piece S01E06 and S21E14 now return three rows each; S01E01
+remains explicitly unresolved. Broad-title and cross-provider results are not
+proof of that source's missing mapping. No new live-publication-overlap,
+correction or outage-injection proof was added.
+
+The disposable local client is still `71988fc`, with zero corrections. Recent
+search returned 100 items in 1.093s; ordinary and One Piece S01E01 searches each
+returned two in 0.193/0.150s. This is live catalog-only search evidence, not a
+test of the newer client's subtitle changes or new extraction/import/playback.
+PR #170 remains a draft into `v3`, `main` default, review required; completed
+tests/lint/CodeQL/preview checks passed. Worker/core pytest CI and meaningful
+required test/build gates remain missing. Priorities are recorded in
+[ISSUES.md](ISSUES.md#october-14-read-only-recheck-and-priorities).

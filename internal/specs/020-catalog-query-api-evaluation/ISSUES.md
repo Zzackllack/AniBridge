@@ -1,6 +1,6 @@
 # Private-pilot defects and production improvements
 
-Updated 2026-10-11. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
+Updated 2026-10-14. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
 and [EVIDENCE.md](EVIDENCE.md). The October 8 implementation and bounded measurements are recorded below.
 Deployment is confined to the maintainer-authorized existing private pilot.
 
@@ -44,7 +44,7 @@ and concurrency from bounded measurements of real responses and resource usage.
 | CQ-17 | Implemented + verified; SLA unmeasured | Four-hour active title/season eligibility and parents older than a latched feed gap share the existing 20% reconciliation budget; weekly episode fallback remains. Copied-state claims preserve ten future failed-work deadlines. Gap-parent counts are visible; capped feeds do not establish lossless coverage or a four-hour SLA. No query scraping, daily episode recrawl or demand-refresh system. |
 | CQ-18 | Fixed + deployed + verified | The last failed AniWorld title returned HTTP 200 but contained an invalid optional IMDb hint. Ignore malformed optional hints while retaining native metadata; reject conflicting valid IDs and never coerce/publish malformed values. |
 | CQ-19 | Implemented + verified | Ten bounded live metadata requests establish Ger-Sub detail labels, 25 combined season flags and four recent-feed labels. Shared parser/local resolver recognize de-sub without inferring audio. Eight saved-response replays add 25 releases, preserving all prior identities/first-seen times. Unknown cases remain explicit; both removal quarantines remain unapproved. |
-| CQ-20 | Implemented + verified | Three current HTTP-200 samples explicitly say no episode player is available. Retain positive metadata and previous releases using v4-compatible unavailable fingerprints; missing player evidence cannot delete releases. Missing/changed sections and challenge markers have separate safe reasons. Unavailable does not imply an observed release date or cause. |
+| CQ-20 | Implemented; follow-up defect reproduced | Three October 11 HTTP-200 samples explicitly say no episode player is available. Retain positive metadata and previous releases using v4-compatible unavailable fingerprints; missing player evidence cannot delete releases. October 14 sample has a series heading and explicit unavailable player but no episode heading: `missing_video()` rejects it as `metadata_incomplete` before recognizing unavailable evidence. Handle this demonstrated case without guessing a name, release date or audio language. Missing/changed sections and challenge markers remain distinct. |
 | CQ-21 | Implemented + verified | Bounded child phase/reason/exit reports and safe parser classifications replace discarded failure context. Status distinguishes sticky last fault from operational block state. No HTML, player URLs, credentials, query terms or IPs enter diagnostics. Unknown language counts and unapproved quarantines remain visible. |
 | CQ-22 | Implemented + environment-blocked | Safe enrichment/export/validation/lock/publication diagnostics and signal/deadline exit reasons implemented and deployed in the authorized preview upgrade. Current-sized copied-state publications succeeded at 2 CPU/2 GiB, 4 CPU/4 GiB and 2 CPU/512 MiB; historical 48 ContractErrors/three timeouts were not reproduced. Original stderr was discarded, so historical cause cannot be established from retained logs; an actual classified live failure is still needed. Collector now uses the documented 2 CPU/2 GiB minimum; this is not evidence of the historical cause. |
 | CQ-23 | Implemented + verified | Reproduced read-deadline failures from repeated public-ID view joins and a recent-index hint on targeted retrieval. Physical joins, validated exact recent summaries and target-specific access fix the demonstrated defects. 96/96 queries during current-sized publication pass at each of three profiles, including 100-row pages and native retrieval; large-series target returns three rows from 3,573-release history. Failed providers cannot produce empty success; corrections, explicit partial providers, outage cache and last-good retention regressions pass. |
@@ -136,3 +136,46 @@ and [current upgrade/rollback](../../../scripts/catalog/query_pilot/SERVER.md#oc
 All 439,035 backup release identities/first-seen times were retained; 100-row
 recent queries and ordinary/mapped large targets passed. Live One Piece S01E06
 remains unresolved, and no provider-wide mapping/freshness completion is claimed.
+
+## October 14 read-only recheck and priorities
+
+The pinned `36fbd51` worker and 2 CPU/2 GiB collector remain up with zero
+OOM kills/restarts. Last 24 hours: 284 successful publications per provider,
+no retained maintenance/child failures, 3,639 Serienstream HTTP-200 parse
+failures (3,522 `metadata_incomplete`, 117 `contract_rejected`), and 288
+Serienstream transport failures, mostly HTTP 500. No observed page 403/429.
+The original CQ-22 failure cause remains unrecoverable from discarded stderr;
+the current classified publication path is operationally healthy in this window.
+
+At the 08:27 UTC snapshot, Serienstream has 141 pending / 143 failed pages,
+25,135 unknown-language observations and 8,350 explicit unavailable observations.
+Pending and failed sets overlap. Usable mapping is 65.31% AniWorld / 64.62%
+Serienstream; recent gap-parent queues are 0 / 5, without a lossless-feed claim.
+Four quarantines remain unapproved (three language, one entity removal).
+All 439,035 backed-up release IDs/first-seen times remain unchanged. See
+[current evidence](evidence/pilot-recheck-2026-10-14.json).
+
+Next development priorities:
+
+1. Add frozen worker/core pytest CI and an always-running gate for both supported
+   PR bases before relying on green checks. Current tests CI covers only API;
+   `v3` requires only the title status plus review/CodeQL policy. Preview imports
+   do not run the worker/core regressions.
+2. Fix the demonstrated CQ-20 heading case with a sanitized fixture, then explain
+   the remaining season contract rejection. Tune repeated parser/absence work
+   separately from transient HTTP 500 retries; preserve retry history and avoid
+   turning parser errors into provider bans. The sampled title has 525 retained
+   attempts; a mere queue-count decrease does not prove efficient maintenance.
+3. Audit representative remaining language gaps and unresolved ordinary matches
+   with bounded metadata/descriptor cohorts. The anime source's One Piece S01E06
+   now returns three releases, but S01E01 remains explicitly unresolved; the
+   two local S01E01 results do not prove that source's mapping is repaired.
+4. Prepare a separately approved disposable-client preview upgrade (still
+   `71988fc`), then verify subtitle offers, local corrections, cache/outage and
+   controlled acceptance using the matching implementation. Keep generated media
+   acceptance distinct from live extraction/import/playback. Complete these
+   gates before moving the draft toward integration; leave `main` default.
+
+This recheck changed no live deployment, resources or collection schedule and
+did not reset bootstrap, failures or state. No fresh full-crawl or crash campaign
+was launched, so bootstrap-duration and whole-provider freshness gates remain.
