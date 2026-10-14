@@ -681,27 +681,44 @@ YAML replacement with generated prefixed-volume Compose is permitted.
 Only **after explicit deployment approval**, use the existing authenticated Zen
 browser to stop service `ev7cds2lpqyvqfxpcm4wp4tc`. The read-only API token cannot
 perform writes; do not broaden credentials or use the in-app browser. Transfer
-the two reviewed worker config files into an operator-owned private directory
-on `fra-node-01`, set `UPGRADE_DIR` there, and verify stopped writers:
+the reviewed config files plus `install_reviewed_worker_config.py` into an
+operator-owned private directory on `fra-node-01`, set `UPGRADE_DIR` there, and
+retain exact original source/volume config bytes as `operator-rollback.json` and
+`volume-rollback.json` there. The initializer source must match the reviewed
+active JSON before staging. Verify stopped writers:
 
 ```sh
 SERVICE_UUID=ev7cds2lpqyvqfxpcm4wp4tc
 OLD_WORKER=ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:1277d1fd6ec7130a53c5ed4a694dd8efada7e95db6c86bd897e3e446f2149e0a
-test "$(docker inspect --format '{{.State.Running}}' collector-$SERVICE_UUID)" = false
-test "$(docker inspect --format '{{.State.Running}}' metadata-$SERVICE_UUID)" = false
+test -z "$(docker ps --filter name=collector-$SERVICE_UUID --filter name=metadata-$SERVICE_UUID -q)"
 # Retain /state/backup and every pre-v4/pre-v5 backup. Never overwrite them.
 # Admit the migration copy, read staging/SQL scratch and 1 GB reserve under 30 GB.
 docker run --rm --network none --cpus 2 --memory 2g --memory-swap 2g \
-  --user root --entrypoint sh \
+  --user root --entrypoint python \
   -v "${SERVICE_UUID}_config:/config" \
-  -v "$UPGRADE_DIR/worker-candidate.json:/candidate.json:ro" \
-  "$WORKER_MANIFEST" -ec 'cp /candidate.json /config/worker.json; chown 1000:1000 /config/worker.json; chmod 600 /config/worker.json'
+  -v /root/anibridge-private-config:/operator \
+  -v "$UPGRADE_DIR:/review:ro" \
+  "$WORKER_MANIFEST" /review/install_reviewed_worker_config.py \
+  --plan /review --operator /operator --config /config
 docker run --rm --network none --cpus 2 --memory 2g --memory-swap 2g --pids-limit 96 \
   -v "${SERVICE_UUID}_config:/config:ro" \
   -v "${SERVICE_UUID}_worker-state:/state" \
   -v "${SERVICE_UUID}_read-catalog:/read" \
   "$WORKER_MANIFEST" --config /config/worker.json --publish
 ```
+
+Coolify Stop can remove the containers; the assertion above permits absent or
+exited containers but rejects either running writer. Before changing either
+configuration location, compare both current JSON objects privately against the
+reviewed rollback config and retain their exact original bytes. The initializer
+copies `/root/anibridge-private-config/worker.json` into the config volume on
+startup, so **both** locations must change together. The actual October 14
+rollout used `catalog_core.files.atomic_write`, guarded by exact original-byte
+comparisons, preserving each file's owner and its separate rollback copy. The
+maintained installer retains owner/0600 permissions and refuses an independent
+edit before changing either location. A partial I/O failure permits retry or
+rollback from either reviewed version; four focused regressions cover initializer
+copy, exact-byte rollback, independent-edit veto and second-write failure recovery.
 
 Publication is offline and upgrades only recognized private v4 state, retaining
 a verified no-overwrite `.pre-v5.backup`. Failure retains last-good read pointers.
@@ -729,10 +746,12 @@ for provider in ('aniworld.to', 's.to'):
     assert preflight(path, provider) == 4
 PY
 docker run --rm --network none --cpus 2 --memory 2g --memory-swap 2g \
-  --user root --entrypoint sh \
+  --user root --entrypoint python \
   -v "${SERVICE_UUID}_config:/config" \
-  -v "$UPGRADE_DIR/worker-rollback.json:/rollback.json:ro" \
-  "$OLD_WORKER" -ec 'cp /rollback.json /config/worker.json; chown 1000:1000 /config/worker.json; chmod 600 /config/worker.json'
+  -v /root/anibridge-private-config:/operator \
+  -v "$UPGRADE_DIR:/review:ro" \
+  "$WORKER_MANIFEST" /review/install_reviewed_worker_config.py \
+  --plan /review --operator /operator --config /config --rollback
 ```
 
 In Zen, restore `rollback.yaml` and **Restart current version**. This removes
@@ -797,10 +816,30 @@ WORKER_MANIFEST=ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:25031
 API_MANIFEST=ghcr.io/zzackllack/anibridge-api-preview@sha256:eef48b9211d2a5e01d34568d464e3cbf7d647a4ba1f4b6d4544496772f857e58
 ```
 
-Cutover has not occurred: native Zen is blocked by the Mac lock. Once manually
-unlocked, discard the unsaved form the user identified as an old unused draft;
-read the saved raw Compose and current config again before staging. Stop both
-live processes through Zen before the offline upgrade. Compare releases/first-seen
-and valid maps with the retained pre-v5 backup before resuming. Follow the full
-procedure and exact code rollback above; never bypass Zen with the read-only API
-token, start a competing collector or restore older observations over newer ones.
+After manual unlock, cutover completed through native Zen, with cleanup disabled.
+The unused form was reset/reloaded, saved raw Compose reviewed and all three image
+references changed together. Both configuration locations were updated atomically.
+Before restart, 32 retained v4 tables/provider compared against the new pre-v5
+backups: all 481,435 releases/first-seen and 239,690 existing maps survived; only
+the publication timestamp/dirty fields changed as expected. Live SQL-total/native
+queries and the authenticated public route pass. The earlier copied-state gains
+remain separate: exact AniWorld One Piece S01E01 was still unresolved in the
+short live recheck while new descriptors were being verified.
+
+The local client subsequently received the tested API-only logging privacy fix
+`6818115`, retaining its 2 CPU/1 GiB allocation, volumes and zero jobs/corrections:
+
+```sh
+API_MANIFEST=ghcr.io/zzackllack/anibridge-api-preview@sha256:5d7b6bc059ee60f5385e87c2d380c724be8fc07e869b60c0700fba0fe1d452a9
+```
+
+Hosted tests and native image builds passed; installed privacy/subtitle fixtures,
+health and real metadata queries pass. The worker stays on the original tested
+manifest above. No media acquisition/import/playback is claimed. Exact original
+operator/volume config bytes and raw Compose are retained privately at
+`/tmp/anibridge-mapping-followup-offline/live-upgrade` on fra-node-01, with the
+same review copies on the Mac. Client overrides are retained at
+`/Users/zacklack/anibridge-private-client-upgrade`; `rollback.yaml` pins `71988fc`,
+`mapping-version.yaml` retains `2240b91`. Follow the full state-preserving rollback
+above; never broaden the API token, start a competing collector or restore older
+observations over newer ones.
