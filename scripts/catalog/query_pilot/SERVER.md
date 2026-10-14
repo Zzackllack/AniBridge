@@ -644,3 +644,142 @@ curl pattern. Do not restore ledgers for code rollback: it would discard newly
 collected metadata. Do not clear failures, repeat bootstrap, use `down -v`, or
 call the service stop API with its default Docker cleanup behavior. The original
 512 MiB rollback profile is still constrained and can reproduce memory pressure.
+
+## October 14 mapping follow-up: prepared upgrade and code rollback
+
+This follow-up is **local and unpushed**. No new registry manifest exists yet.
+ARM64 installed worker/API images, copied-ledger publication/query checks, v5/v4
+rollback/resume and a copied disposable-client migration were tested. Native
+AMD64, hosted CI, registry publication and live worker/client cutover remain
+unverified. Publishing and deploying are separate approval decisions. The
+existing service remains on the October 11 pinned digest. The Mac client is
+stopped on `71988fc`; do not restart it as part of preparation.
+
+After separately approved preview publication, inspect both native manifests and
+record the actual source SHA and pinned digests. Never substitute the local
+verification image IDs for GHCR manifest digests. Obtain a fresh read-only raw
+Coolify service record and private worker configuration, then prepare files:
+
+```sh
+: "${WORKER_MANIFEST:?Reviewed ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256 digest}"
+: "${SERVICE_RECORD:?Fresh private raw service JSON}"
+: "${WORKER_CONFIG:?Private copy of current worker.json}"
+: "${UPGRADE_DIR:?New private preparation directory}"
+uv run --project apps/api --frozen python scripts/catalog/query_pilot/stage_registry_upgrade.py \
+  --service "$SERVICE_RECORD" --worker-config "$WORKER_CONFIG" \
+  --worker-image "$WORKER_MANIFEST" --directory "$UPGRADE_DIR"
+```
+
+The tested helper refuses the wrong UUID, a mutable image, unexpected old digest,
+pull policy, languages or CPU/memory/swap profile. It changes all three worker
+references together, adds `episode_languages: ["deu"]`, and retains the original
+raw Compose bytes and parsed configuration for rollback. Review the generated
+files privately. Preserve all volumes, backend `172.16.27.0/24`, Coolify's separate
+managed network, Docker pool `10.254.0.0/16` in `/24`s and NetBird routes. No source
+YAML replacement with generated prefixed-volume Compose is permitted.
+
+Only **after explicit deployment approval**, use the existing authenticated Zen
+browser to stop service `ev7cds2lpqyvqfxpcm4wp4tc`. The read-only API token cannot
+perform writes; do not broaden credentials or use the in-app browser. Transfer
+the two reviewed worker config files into an operator-owned private directory
+on `fra-node-01`, set `UPGRADE_DIR` there, and verify stopped writers:
+
+```sh
+SERVICE_UUID=ev7cds2lpqyvqfxpcm4wp4tc
+OLD_WORKER=ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:1277d1fd6ec7130a53c5ed4a694dd8efada7e95db6c86bd897e3e446f2149e0a
+test "$(docker inspect --format '{{.State.Running}}' collector-$SERVICE_UUID)" = false
+test "$(docker inspect --format '{{.State.Running}}' metadata-$SERVICE_UUID)" = false
+# Retain /state/backup and every pre-v4/pre-v5 backup. Never overwrite them.
+# Admit the migration copy, read staging/SQL scratch and 1 GB reserve under 30 GB.
+docker run --rm --network none --cpus 2 --memory 2g --memory-swap 2g \
+  --user root --entrypoint sh \
+  -v "${SERVICE_UUID}_config:/config" \
+  -v "$UPGRADE_DIR/worker-candidate.json:/candidate.json:ro" \
+  "$WORKER_MANIFEST" -ec 'cp /candidate.json /config/worker.json; chown 1000:1000 /config/worker.json; chmod 600 /config/worker.json'
+docker run --rm --network none --cpus 2 --memory 2g --memory-swap 2g --pids-limit 96 \
+  -v "${SERVICE_UUID}_config:/config:ro" \
+  -v "${SERVICE_UUID}_worker-state:/state" \
+  -v "${SERVICE_UUID}_read-catalog:/read" \
+  "$WORKER_MANIFEST" --config /config/worker.json --publish
+```
+
+Publication is offline and upgrades only recognized private v4 state, retaining
+a verified no-overwrite `.pre-v5.backup`. Failure retains last-good read pointers.
+Do not start a collector alongside this command. In Zen, save the reviewed
+`candidate.yaml` and use **Restart current version**. Recheck actual image SHA,
+limits, volumes, routes, release/first-seen preservation, due ages, safe failure
+subcodes, publication phases and exact-total metadata queries. A short recheck
+cannot establish whole-provider freshness or full-bootstrap capacity.
+
+If rollback is needed under the approved rollout, stop the same service in Zen
+and repeat both stopped-container assertions. Wait at least 60 seconds after
+its final canonical request; the tested rollback helper refuses an active durable
+admission window. Run with the **new** image before reverting its image reference:
+
+```sh
+docker run --rm -i --network none --cpus 2 --memory 2g --memory-swap 2g --pids-limit 96 \
+  --entrypoint python -v "${SERVICE_UUID}_worker-state:/state" \
+  "$WORKER_MANIFEST" - <<'PY'
+from pathlib import Path
+from catalog_worker.state_migrations import preflight, rollback_matching
+for provider in ('aniworld.to', 's.to'):
+    path = Path('/state') / (provider + '.sqlite')
+    if preflight(path, provider) == 5:
+        rollback_matching(path, provider)
+    assert preflight(path, provider) == 4
+PY
+docker run --rm --network none --cpus 2 --memory 2g --memory-swap 2g \
+  --user root --entrypoint sh \
+  -v "${SERVICE_UUID}_config:/config" \
+  -v "$UPGRADE_DIR/worker-rollback.json:/rollback.json:ro" \
+  "$OLD_WORKER" -ec 'cp /rollback.json /config/worker.json; chown 1000:1000 /config/worker.json; chmod 600 /config/worker.json'
+```
+
+In Zen, restore `rollback.yaml` and **Restart current version**. This removes
+only v5 private caches/clocks, retaining all v4 tables, accepted maps, source
+coordinates, first-seen, failures, leases, checkpoints and quarantine decisions.
+Never restore an old ledger over observations made since the upgrade. Both full
+copied ledgers opened with the old installed worker after downgrade, then reopened
+with the new worker twice; all 32 v4 table hashes and the new pre-v5 backup survived.
+
+The client cutover is a separate approved action. Retain its stopped container,
+`anibridge-private-client_local-state`, config volume, downloads and corrections.
+After a matching API preview is approved, create two private override files:
+
+```sh
+: "${API_MANIFEST:?Reviewed matching ghcr.io/zzackllack/anibridge-api-preview@sha256 digest}"
+CLIENT_PLAN="$HOME/anibridge-private-client-upgrade"
+umask 077
+mkdir "$CLIENT_PLAN"
+cat > "$CLIENT_PLAN/candidate.yaml" <<EOF
+services:
+  initialize:
+    image: $API_MANIFEST
+  api:
+    image: $API_MANIFEST
+EOF
+cat > "$CLIENT_PLAN/rollback.yaml" <<'EOF'
+services:
+  initialize:
+    image: anibridge-query-api:71988fc8251e6a89823828ca3e871ab47ba2fc28
+  api:
+    image: anibridge-query-api:71988fc8251e6a89823828ca3e871ab47ba2fc28
+EOF
+docker compose --env-file "$HOME/anibridge-private-client-config/pilot.env" \
+  -p anibridge-private-client -f scripts/catalog/query_pilot/local-client.yaml \
+  -f "$CLIENT_PLAN/candidate.yaml" config --quiet
+# After separate client approval:
+docker compose --env-file "$HOME/anibridge-private-client-config/pilot.env" \
+  -p anibridge-private-client -f scripts/catalog/query_pilot/local-client.yaml \
+  -f "$CLIENT_PLAN/candidate.yaml" up -d --no-build
+# Exact code rollback, retaining the same state and volumes:
+docker compose --env-file "$HOME/anibridge-private-client-config/pilot.env" \
+  -p anibridge-private-client -f scripts/catalog/query_pilot/local-client.yaml \
+  -f "$CLIENT_PLAN/rollback.yaml" up -d --no-build
+```
+
+The existing client DB contains no jobs or corrections; copied migration retained
+all 18 tables exactly. Current API/core metadata fixtures passed at 1 CPU/512 MiB;
+this does not verify the stopped client against live metadata, or any live
+extraction/import/playback. Retain its existing Compose allocations during a
+later cutover; the smaller verification profile is not permission to resize it.
