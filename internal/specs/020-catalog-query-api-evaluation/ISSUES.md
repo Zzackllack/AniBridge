@@ -190,3 +190,47 @@ mapping coverage. The executable task handoff is
 This recheck changed no live deployment, resources or collection schedule and
 did not reset bootstrap, failures or state. No fresh full-crawl or crash campaign
 was launched, so bootstrap-duration and whole-provider freshness gates remain.
+
+## October 14 implemented mapping/maintenance follow-up
+
+See [MAPPING_IMPLEMENTATION.md](MAPPING_IMPLEMENTATION.md) and its machine-readable
+[evidence](evidence/mapping-implementation-2026-10-14.json). Historical recheck and
+CQ-22 causes remain historical; nothing here identifies discarded stderr.
+
+- CQ-06 correspondence: implemented/verified conservative parent checks,
+  multilingual names/IDs, bounded annotations/context and conflict preservation.
+  The same full copy improves usable maps 41,530→42,871 and 184,641→188,232.
+  All labelled positive cases resolve, including both recurring held-out language
+  mismatch families. Full coverage remains open: generic/missing/duplicate names,
+  unverified parents, conflicting cuts and incomplete canonical data cannot be
+  accepted from numbering or similarity. No removal/repointing was approved.
+- CQ-17 unchanged work: implemented/verified separate descriptor/rematch clocks,
+  fingerprints, safe cross-provider evidence reuse and durable shared admission.
+  12,568 unchanged cached titles skip rematching; one genuine changed descriptor
+  replays. Snapshot two-language refresh demand is 645.929 requests/hour, excluding
+  unmatched-parent searches/retries. A finite synthetic restart/fairness trace stays
+  below 30/min; this is not a live freshness or full-bootstrap capacity promise.
+- CQ-20 missing-heading unavailable: implemented/verified availability-only parser
+  acceptance retaining useful names, releases and failure history. A 200 season
+  without episode rows remains `parent_children_missing` with stable-gap backoff;
+  sampled title 500/unknown audio evidence remain provider gaps. Missing players
+  and language evidence never create tombstones or guessed releases/dates.
+- CQ-21 local corrections/subtitles: current installed API/core fixture tests pass
+  at 1 CPU/512 MiB; copied stopped-client migration preserves all 18 tables. The
+  old disposable client remains stopped at `71988fc`, with zero corrections;
+  new live client behavior/extraction/import/playback are not claimed.
+- CI: frozen API/core/worker jobs, installed-wheel imports and unconditional gate
+  for main/v3 are implemented and checked locally. Hosted execution/native AMD64
+  manifests/protection enforcement remain environment-blocked: no push/publication
+  or policy authorization. The draft PR and default branch are unchanged.
+
+The strict prospective pre-labelled evaluation timing was **not achieved**:
+selection/splits froze before tuning, metadata labels followed initial
+implementation. This limitation and review errata are explicit; the held-out
+numbers are fixed regression evidence, not blind precision. Do not silently tick
+that acceptance requirement as met. All 474,046 full-copy release IDs/first-seen,
+239,688 old maps, retry/checkpoint/lease/quarantine state and the 439,035 historical
+backup releases survive. Worker/client upgrade preparation is tested; live cutover
+remains blocked on fresh raw service/config review, approved matching pinned
+manifests and new deployment/client approval. No allocations, routes or live
+volumes changed. Megakino is optional and outside these results.

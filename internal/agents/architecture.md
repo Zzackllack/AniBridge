@@ -68,3 +68,12 @@ server catalog; local AniBridge fetches native batches and applies corrections
 before policy, counts and pagination. Grabs retain source coordinates and run
 locally. Client whole-file snapshot distribution is omitted. Mainline remains
 the default until explicit query configuration. Public hosting is unapproved.
+
+The October 14 worker follow-up keeps acquisition and local correspondence
+separate: private v5 descriptors/IDs/fingerprints and durable admission support
+verified cross-provider evidence reuse, while each provider retains its own
+source identities and accepted maps. Public catalog/wire schemas remain unchanged.
+Stable canonical evidence is eligible weekly; meaningful newly observed gaps
+daily, under the shared 30/minute cap. This does not add demand refresh or search
+scraping. See spec 020 MAPPING_IMPLEMENTATION.md for proof limits and remaining
+missing/ambiguous evidence.

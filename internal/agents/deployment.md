@@ -71,3 +71,11 @@ and exact rollback in [SERVER.md](../../scripts/catalog/query_pilot/SERVER.md#oc
 the current registry references. Do not start a
 manual competing stack, alter allocations or restore ledgers for this compatible
 code rollback. Deployment/restart/resource changes need explicit approval.
+
+October 14 mapping rollout remains unapproved/unpublished. SERVER.md now has a
+guarded registry preparation helper, additive v5 upgrade and exact code-only
+worker/client rollback. Downgrade removes private v5 tables only after the durable
+canonical admission window expires; retain every v4 table and both pre-v4/pre-v5
+backups. Coolify writes require the existing authenticated Zen UI after explicit
+approval; its read-only token must not be broadened. Do not start a competing
+collector or restore an old ledger over newer observations.

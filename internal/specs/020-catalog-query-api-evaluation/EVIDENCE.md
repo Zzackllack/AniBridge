@@ -1124,3 +1124,42 @@ The new [repair phase](MAPPING_REPAIR.md) and [agent prompt](NEXT_AGENT_PROMPT.m
 prioritize sustainable evidence acquisition and held-out matching correctness.
 They do not replace the request API architecture or authorize a deployment.
 No code implementation or new live action is claimed by this handoff.
+
+## October 14 implemented mapping/maintenance replay
+
+The implementation, honest work-item statuses, before/after ledger and labelled
+cohort limits are in [MAPPING_IMPLEMENTATION.md](MAPPING_IMPLEMENTATION.md).
+Raw aggregate measurements are in
+[mapping-implementation-2026-10-14.json](evidence/mapping-implementation-2026-10-14.json);
+fixed provider title selections are the two `mapping-*-cohort-2026-10-14.json` files.
+Required metadata names/IDs appear only in the sanitized worker test fixture.
+
+Fresh consistent baseline copies yield +4,932 usable maps and +4,969 total maps.
+Usable coverage becomes 67.4231%/65.8926%, with zero old release/first-seen or map
+changes. Full replay runs offline at 2 CPU/2 GiB with bounded canonical metadata;
+no full crawl or live-state experimental writer was launched. The original
+439,035 backup release IDs and 221,475 maps also survive. Four quarantines remain
+unapproved. Capped feed gaps, missing audio/names and uncertain parents remain
+explicit. Existing eligible-work ages remain 3,613s/29,158s; no queues were reset.
+
+All 118 metadata-labelled positives resolve, including 26/35 held-out positives;
+38 new labelled acceptances have no observed errors. Six real supplementary
+ambiguous entities remain unmapped; seven pre-existing uncertain maps are retained.
+Labels followed initial implementation even though selections froze beforehand:
+this is regression evidence, not a blind prospective evaluation or population-wide
+accuracy guarantee. Full-copy One Piece S01E01 now resolves from verified German
+alias/episode ID evidence, with three releases; S01E06/S21E14 retain three each.
+
+Copied publications take 20.0487s/72.3104s. All 96 concurrent finite queries return
+200, median 45.1ms, max 1.0214s. Follow-up SQL totals, last-good retention, provider
+isolation and ordinary/large targeted retrieval pass. All 32 v4 tables survive
+full-copy rollback, old installed-image open, v5 reupgrade and restart. Current
+installed API/core fixtures pass 90 tests at 1 CPU/512 MiB; copied client migration
+retains all 18 tables. Linux worker installed-wheel suite passes 182 tests; core 310; Mac API 265/18 skips.
+
+Local ARM64 builds/imports, actionlint and aggregate gate failure/skip/cancellation
+cases pass. The branch is unpushed; hosted CI, native AMD64 and matching published
+manifests remain unverified. The disposable client is stopped on `71988fc` and no
+new live extraction/import/playback occurred. SERVER.md contains state-preserving
+worker/client preparation and exact code rollback. No Coolify write, restart,
+allocation/network/default/protection/PR change or preview publication was made.

@@ -142,3 +142,10 @@ The deployed 512-MiB worker is a constrained test profile. Local client target
 is 1 vCPU/512 MiB for metadata/search; extraction/job peaks need separate proof.
 These profiles are independent of provider request-rate limits and the retained
 30,000,000,000-byte aggregate storage budget. See the selected 020 contract.
+
+Worker JSON optionally supports `canonical_sources.episode_languages: ["deu"]`
+for ID-joined Skyhook v2 German episode metadata. This is a canonical background
+evidence setting, not an API environment variable or guessed audio language.
+Existing configurations without it retain the legacy English endpoint. New
+prepared pilot configuration enables it only with the matching tested worker;
+rollout still requires approval.

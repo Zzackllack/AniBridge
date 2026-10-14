@@ -97,8 +97,8 @@ query scraping is introduced by this repair.
 
 The October 14 [mapping/maintenance follow-up](MAPPING_REPAIR.md) addresses
 descriptor recheck demand and examined correspondence gaps within this contract.
-Its [implementation handoff](NEXT_AGENT_PROMPT.md) requires measured correctness
-and useful mapping gains, with unresolved evidence remaining explicit. This is
+Its [implemented result](MAPPING_IMPLEMENTATION.md) records measured correctness
+and useful mapping gains, with unresolved evidence and validation limits explicit. This is
 an implementation phase, not a replacement architecture or deployment approval.
 
 Local cache: source/origin/token fingerprint/protocol/complete request keys,

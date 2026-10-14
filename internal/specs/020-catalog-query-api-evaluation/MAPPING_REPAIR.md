@@ -164,3 +164,13 @@ Total storage remains 30,000,000,000 bytes including the 1 GB reserve.
 For each work item, state implemented+verified, implemented+environment-blocked,
 or not implemented with the precise blocker. A successful single-title query,
 smaller queue or another percentage-only report is insufficient completion.
+
+## Implementation result, October 14
+
+The code, full copied-ledger gains, focused verification, scheduling/resource
+measurements and rollout/rollback are now recorded in
+[MAPPING_IMPLEMENTATION.md](MAPPING_IMPLEMENTATION.md). Implementation proceeded
+past diagnosis. The prospective pre-labelled timing requirement was not met;
+selection/splits froze first, metadata labels followed initial implementation.
+This validation limitation is explicit alongside hosted/deployment blockers;
+no complete mapping, freshness SLA or full-bootstrap capacity is claimed.
