@@ -1189,3 +1189,28 @@ The upgrade is authorized and prepared but environment-blocked by the locked
 Mac's authenticated Zen UI. Its old unused Coolify draft remains untouched.
 No live restart/config/allocation/network/protection/default change was made.
 The stopped client remains old; live extraction/import/playback are unverified.
+
+### Subsequent authorized deployment outcome
+
+Manual unlock cleared the Zen blocker. Pilot worker `2240b91` now runs at the
+original 2 CPU/2 GiB collector and 2 CPU/512 MiB metadata limits. Both worker config
+locations persist the German metadata setting across initializer startup. All
+481,435 pre-upgrade releases/first-seen and 239,690 maps survive comparison with
+no-overwrite pre-v5 backups; 32 v4 tables/provider match except the expected
+publication dirty/time columns. NetBird/backend/pool/network ranges and volumes
+are retained. Live SQL-total/native queries and the authenticated proxy route
+return 200; zero restart-loop/OOM observations. The early live maintenance sample
+adds 144/32 maps, independently of ordinary source observations.
+
+Local client cutover retained 2 CPU/1 GiB, all volumes and zero jobs/tasks/corrections.
+It now runs the subsequently hosted-tested `6818115` API privacy fix; its installed
+subtitle and logging fixtures, health and metadata searches pass. Hosted tests
+`38604860503` and both native previews `38604860757` succeed. The unchanged worker
+remains pinned to `2240b91`. No live extraction/import/playback occurred.
+
+Live cohort diagnostics still see 19/30 AniWorld and 30/30 Serienstream unverified
+legacy descriptors. Eligible ages are 6,045s/34,788s, with 1,186/8,660 due titles;
+a joint retained canonical-window sample has max 28 starts, within the shared 30
+cap. The snapshots are sequential and do not prove sustained fairness/freshness.
+Exact AniWorld One Piece S01E01 remains unresolved live; its copied-state result
+cannot be substituted. Four quarantines and every historical limit remain explicit.

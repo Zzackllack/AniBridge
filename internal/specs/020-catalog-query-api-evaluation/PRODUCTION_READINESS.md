@@ -24,14 +24,33 @@ above. Its offline full-copy publication/query verification is recorded separate
 in the accompanying evidence. These are published preview images, not a stable
 release or proof of a deployed upgrade.
 
-Live cutover is authorized but environment-blocked: the Mac is locked and native
-Zen refuses interaction. The user identified the unsaved Coolify form as an old
-unused draft, allowing it to be discarded. It has not been reset or saved. Keep
-the read-only API credential read-only; do not bypass the required authenticated
-Zen path. Existing resources, networks, volumes and collected state are intact.
-The stopped local client remains at `71988fc`; its actual upgrade/live subtitle
-behavior is still unverified. Exact worker/client rollback is in
+After the user unlocked the Mac, the pilot cutover completed through authenticated
+native Zen, with Docker cleanup disabled. The old unused form was reset/reloaded,
+fresh raw Compose/config reviewed and all three saved images pinned together.
+The initializer's operator config and config volume were both updated atomically;
+updating the volume alone would have lost German metadata configuration on restart.
+The read-only API credential stayed read-only. Existing resources/networks/volumes
+are intact; collector/metadata run on `2240b91`, no OOM/restart loop observed.
+The local client first ran the matching `2240b91` API, then the hosted-tested
+`6818115` privacy follow-up, retaining its original 2 CPU/1 GiB allocation,
+volumes and zero jobs/tasks/corrections. Health and metadata queries pass.
+The installed client subtitle selection fixture passes without HTTP/media access;
+actual metadata Torznab queries pass. Live extraction/import/playback remains
+unverified. Exact worker/client rollback is in
 [SERVER.md](../../../scripts/catalog/query_pilot/SERVER.md).
+
+Pre-restart comparison against both retained pre-v5 backups preserves all
+481,435 releases/first-seen and 239,690 maps across 32 v4 tables per provider.
+Only `worker_meta.dirty` and `worker_meta.published_at` change as expected after
+successful publication; all other retained table columns compare exactly.
+Six SQL-total/native probes and the authenticated public route return 200.
+The early live sample adds 144/32 maps and stores 54/22 verified descriptors,
+while ordinary provider observations continue. This is not the earlier copied
+ledger's 4,932-map gain, and neither these new live maps nor an entire population
+received independent labels. Exact AniWorld One Piece S01E01 is still unresolved
+live pending descriptor acquisition; the copied-state three-release proof remains
+separate. Cross-provider client search can return Serienstream results with an
+explicit unresolved-provider header; do not attribute those to AniWorld.
 
 ## What is limiting progress
 
@@ -99,16 +118,13 @@ page cache already matter; caching is not absent.
 
 ## Ordered production work and acceptance
 
-1. **Approved deployment/client verification — implemented, environment-blocked.**
-   Unlock the Mac, discard the identified unused draft, review fresh raw Compose
-   and worker config, stage the pinned images with `stage_registry_upgrade.py`,
-   then follow SERVER.md. Stop both service processes before offline migration;
-   compare all releases/first-seen/maps against the no-overwrite pre-v5 backup
-   before resuming. Check actual image, publication phases, provider isolation,
-   totals, targeted retrieval, due ages and limits. Rehearse exact rollback on
-   copies; never restore an old ledger over newer observations. Upgrade the
-   stopped disposable client retaining state and verify real metadata/corrections
-   without initiating media acquisition.
+1. **Approved deployment/client verification — implemented and verified within
+   the stated bounds.** Pilot/client cutover, pinned image/resource/network checks,
+   offline migration/publication, pre-restart release/map/history preservation,
+   live totals/native/public route/client metadata queries pass. Keep the pre-v5
+   backup and exact rollback, including both initializer/volume config locations.
+   Existing live corrections are zero; nonempty correction precedence and outage
+   recovery remain fixture proof. No media acquisition was initiated.
 2. **Broader correspondence evidence — not implemented beyond this repair.**
    Freeze a genuinely prospective, independently labelled development/held-out
    set before further tuning; current labels are honest regression evidence.
@@ -149,3 +165,32 @@ page cache already matter; caching is not absent.
 No DB/cache migration, allocation change, new crawl or competing collector was
 performed. The accompanying aggregate evidence contains no raw stderr, HTML,
 player URLs, query terms, IPs or credentials.
+
+## Additional concrete release hygiene
+
+Legacy Torznab logging exposed rejected API keys and request search inputs even
+though opt-in catalog mode already avoided these logs. `6818115` replaces those
+messages with a bounded operation and constant authentication warning, with two
+captured-log regressions. All 267 API tests pass locally (18 existing skips),
+with Ruff lint/format clean. Hosted tests `38604860503` and both native previews
+`38604860757` pass. The local client now runs the installed privacy fix at
+`ghcr.io/zzackllack/anibridge-api-preview@sha256:5d7b6bc059ee60f5385e87c2d380c724be8fc07e869b60c0700fba0fe1d452a9`;
+its captured-log regression, health and metadata query pass. The unchanged worker
+stays on tested `2240b91`; neither matching nor public wire schemas changed in
+this API-only privacy fix. Client rollback remains the retained `71988fc` image,
+with the initial `2240b91` override also retained privately.
+
+`install_reviewed_worker_config.py` now maintains the two-location atomic config
+procedure and exact-byte rollback. Four regressions pass on Mac and the installed
+Linux worker, including partial second-write failure recovery. Copied actual
+config bytes also pass rollback/reupgrade against installed worker core helpers;
+no live volume is mounted in that rehearsal. The full Mac worker suite passes
+173 tests with 13 existing platform skips; earlier installed Linux runtime suite
+passes 182. This operations helper does not change the deployed worker runtime.
+
+Read-only Dependabot inventory found three open default-branch alerts: Werkzeug
+GHSA-g6x2-hccm-hh4m (medium, fixed 3.1.9), setuptools GHSA-h35f-9h28-mq5c (medium,
+fixed 83.0.0), esbuild GHSA-g7r4-m6w7-qqqr (low, fixed 0.28.1). This branch also
+locks Werkzeug 3.1.6 and setuptools 82.0.1. Dependency upgrades/advisory exposure
+review are not implemented in this mapping repair and remain an explicit release
+gate; the alert inventory alone does not prove exploitation of the pilot.

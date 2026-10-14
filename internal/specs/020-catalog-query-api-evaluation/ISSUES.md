@@ -266,3 +266,25 @@ the initial local handoff. The user later authorized pushing and Coolify work.
 - Live freshness/full-bootstrap capacity, new client subtitles and live media
   acceptance: **not verified**. Finite copied-state tests do not close these gates.
   No new crawl, competing writer, ledger reset, allocation or policy change was made.
+
+### Subsequent approved live cutover
+
+The Mac was unlocked and the blocker cleared. Worker `2240b91` is deployed through
+native Zen; the local client runs the subsequent tested `6818115` privacy fix.
+Both use immutable native manifests. Resources/networks/volumes remain unchanged,
+and no OOM/restart loop was observed. Both initializer-source and volume configs
+were updated, preventing startup from overwriting the German metadata setting.
+Before resuming, all retained v4 columns compared against pre-v5 backups, except
+the expected publication dirty/time fields: 481,435 releases/first-seen and
+239,690 maps survive. Live SQL totals, targeted metadata, proxy route, installed
+subtitle/privacy fixtures and client metadata queries pass; jobs/corrections stay
+zero. This supersedes the environment-blocked deployment item above.
+
+The short live sample adds 144/32 maps, not the whole copied-ledger gain. The
+bounded live cohort still has 19/30 AniWorld and 30/30 Serienstream unverified
+legacy descriptors; eligible-work ages are 6,045s/34,788s with 1,186/8,660 due.
+These sequential reads are not a fairness/capacity SLA. Exact AniWorld One Piece
+S01E01 stays explicitly unresolved live until fresh verified evidence arrives;
+do not misattribute the client's Serienstream results to AniWorld. Four removal
+quarantines remain unapproved. Live media acceptance, full capacity, prospective
+labels, publication optimization and required-check enforcement remain open.

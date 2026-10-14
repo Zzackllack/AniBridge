@@ -36,7 +36,8 @@
       "warm/cold order is uncontrolled",
       "not an engine or hardware comparison",
       "no throughput or SLA claim"
-    ]
+    ],
+    "execution": "installed legacy Python/dependencies with the already-tested worker/core source on PYTHONPATH; packaged current worker verified separately"
   },
   "work_lookup_method": {
     "parents_per_provider": 20,
@@ -55,18 +56,26 @@
   },
   "live_upgrade": {
     "authorized": true,
-    "completed": false,
-    "blocker": "locked Mac prevents required authenticated native Zen Coolify interaction",
-    "unused_draft_reset": false,
+    "completed": true,
+    "blocker": null,
+    "unused_draft_reset": true,
     "live_allocations_changed": false,
-    "live_networks_changed": false
+    "live_networks_changed": false,
+    "previous_blocker": "Mac lock cleared by user",
+    "method": "authenticated native Zen; cleanup disabled; offline exclusive migration/publication",
+    "operator_and_volume_config_updated": true,
+    "pre_v4_and_pre_v5_backups_retained": true
   },
   "proof_limits": [
     "prospective pre-labelled evaluation not achieved",
-    "client remains stopped on old source",
     "no new live extraction/import/playback",
     "no full bootstrap or endurance campaign",
-    "no DB migration or shared cache added"
+    "no DB migration or shared cache added",
+    "live eligible age is a sequential snapshot",
+    "live request/map efficiency not measured from a lifetime counter",
+    "oldest eligible-work age is not a freshness SLA",
+    "independently labelled copied before/after does not prove live population precision",
+    "nonempty local correction precedence and outage remain fixture proof"
   ],
   "preflight": {
     "aniworld.to": {
@@ -302,5 +311,944 @@
         }
       }
     }
+  },
+  "live_cutover_preservation": {
+    "at": 1791997240,
+    "providers": {
+      "aniworld.to": {
+        "pre_v5_backup_present": true,
+        "retained_v4_tables": 32,
+        "differences": {
+          "catalog": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "title": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "alias": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "entity": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "release": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "canonical_title": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "canonical_episode": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "identity_alias": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "worker_meta": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "work": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "omissions": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "quarantine": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "publication": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "request_start": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "transport_failure": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "title_schedule": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "observation_gap": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "scheduler": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "season_correspondence": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "mapping_input": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "listing_page": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "listing_record": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "signal_meta": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "signal_window": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "signal_pending": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "reconciliation_start": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "canonical_cache": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "canonical_hint": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "entity_alias": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "batch_observation": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "season_batch_checkpoint": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "collection_stats": {
+            "removed_or_changed": 0,
+            "added": 0
+          }
+        },
+        "expected_publication_fields": [
+          "worker_meta.dirty",
+          "worker_meta.published_at"
+        ],
+        "episodes": 63609,
+        "releases": 116428,
+        "existing_maps": 41533
+      },
+      "s.to": {
+        "pre_v5_backup_present": true,
+        "retained_v4_tables": 32,
+        "differences": {
+          "catalog": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "title": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "alias": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "entity": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "release": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "canonical_title": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "canonical_episode": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "identity_alias": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "worker_meta": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "work": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "omissions": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "quarantine": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "publication": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "request_start": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "transport_failure": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "title_schedule": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "observation_gap": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "scheduler": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "season_correspondence": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "mapping_input": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "listing_page": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "listing_record": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "signal_meta": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "signal_window": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "signal_pending": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "reconciliation_start": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "canonical_cache": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "canonical_hint": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "entity_alias": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "batch_observation": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "season_batch_checkpoint": {
+            "removed_or_changed": 0,
+            "added": 0
+          },
+          "collection_stats": {
+            "removed_or_changed": 0,
+            "added": 0
+          }
+        },
+        "expected_publication_fields": [
+          "worker_meta.dirty",
+          "worker_meta.published_at"
+        ],
+        "episodes": 306912,
+        "releases": 365007,
+        "existing_maps": 198157
+      }
+    }
+  },
+  "live_upgraded_queries": {
+    "at": 1791998144,
+    "queries": [
+      {
+        "case": "recent",
+        "provider": "aniworld.to",
+        "status": 200,
+        "sql_total": 116430,
+        "total": 116430,
+        "rows": 100,
+        "duration_s": 0.075531,
+        "mapping": "partial"
+      },
+      {
+        "case": "native_1_1",
+        "provider": "aniworld.to",
+        "status": 200,
+        "sql_total": 0,
+        "total": 0,
+        "rows": 0,
+        "duration_s": 0.005324,
+        "mapping": "unresolved"
+      },
+      {
+        "case": "native_1_6",
+        "provider": "aniworld.to",
+        "status": 200,
+        "sql_total": 3,
+        "total": 3,
+        "rows": 3,
+        "duration_s": 0.005613,
+        "mapping": "resolved"
+      },
+      {
+        "case": "native_21_14",
+        "provider": "aniworld.to",
+        "status": 200,
+        "sql_total": 3,
+        "total": 3,
+        "rows": 3,
+        "duration_s": 0.005366,
+        "mapping": "resolved"
+      },
+      {
+        "case": "recent",
+        "provider": "s.to",
+        "status": 200,
+        "sql_total": 365008,
+        "total": 365008,
+        "rows": 100,
+        "duration_s": 0.047768,
+        "mapping": "partial"
+      },
+      {
+        "case": "native_1_1",
+        "provider": "s.to",
+        "status": 200,
+        "sql_total": 2,
+        "total": 2,
+        "rows": 2,
+        "duration_s": 0.005903,
+        "mapping": "resolved"
+      }
+    ],
+    "public_proxy": {
+      "status": 200,
+      "duration_s": 0.060783,
+      "rows": 1
+    }
+  },
+  "live_early_maintenance": {
+    "at": 1791997725,
+    "providers": {
+      "aniworld.to": {
+        "episodes": 63610,
+        "releases": 116430,
+        "maps": 41677,
+        "verified_descriptors": 54,
+        "local_examinations": 57,
+        "request_starts_retained": 20,
+        "max_retained_canonical_window": 20,
+        "quarantines": 0
+      },
+      "s.to": {
+        "episodes": 306914,
+        "releases": 365008,
+        "maps": 198189,
+        "verified_descriptors": 22,
+        "local_examinations": 27,
+        "request_starts_retained": 12,
+        "max_retained_canonical_window": 12,
+        "quarantines": 4
+      }
+    }
+  },
+  "live_current_cohort_diagnostics": [
+    {
+      "counts": {
+        "already_mapped": 1620,
+        "no_name_candidate": 13,
+        "parent_unresolved": 1167,
+        "waiting_parent_verification": 2866
+      },
+      "descriptor_freshness": {
+        "absent": 9,
+        "current": 2,
+        "unverified_legacy": 19
+      },
+      "eligible_titles": 1186,
+      "max_cache_acquisition_age_s": 593946,
+      "oldest_eligibility_age_s": 6045,
+      "provider": "aniworld.to",
+      "source_failures": 1,
+      "titles": [
+        {
+          "rejections": {
+            "already_mapped": 1,
+            "waiting_parent_verification": 1286
+          },
+          "title_id": "813c6ac254280594da3fb968b50b5b0011ef896c98bc6ca7a070ca7582dd7285"
+        },
+        {
+          "rejections": {
+            "already_mapped": 587,
+            "waiting_parent_verification": 644
+          },
+          "title_id": "fbdfd506dde6df77c7437a459d7aa4994aff554372cd18782ebdce312e2f03c7"
+        },
+        {
+          "rejections": {
+            "waiting_parent_verification": 390
+          },
+          "title_id": "57a86f5048a57c349e760727ee254fa65fd7fc3f486cf3effc0f90633a8337a3"
+        },
+        {
+          "rejections": {
+            "parent_unresolved": 311
+          },
+          "title_id": "7788363ce4a10c01770f43200cf3cf0905b2d0b6334d17e0765b6c5c4f116985"
+        },
+        {
+          "rejections": {
+            "parent_unresolved": 237
+          },
+          "title_id": "6c3475c80afe232ac4a75d440abe4d4536bd0f3d0642a87e1087feab7375ad53"
+        },
+        {
+          "rejections": {
+            "parent_unresolved": 230
+          },
+          "title_id": "a4739560ec9033407e52680477c97061d08e93210d5fe1a533577fe8e54ce161"
+        },
+        {
+          "rejections": {
+            "parent_unresolved": 172
+          },
+          "title_id": "9245445ff0305f9dc9b31b5fc93f6496c123b7c650f02d6b7bacb1aeb07b6e9a"
+        },
+        {
+          "rejections": {
+            "already_mapped": 44,
+            "waiting_parent_verification": 166
+          },
+          "title_id": "f3303a62990e17ab5682f4acc107cda243e1129efeae16e5cb2a2e29c6064c68"
+        },
+        {
+          "rejections": {
+            "already_mapped": 142,
+            "waiting_parent_verification": 162
+          },
+          "title_id": "cc8820d5c644ce773e1e0768e26c90593840a37521ccc4fdf5a2ba7e3a6c30b6"
+        },
+        {
+          "rejections": {
+            "parent_unresolved": 162
+          },
+          "title_id": "e02fd7815f8d8702f29005c255f5e5010f7b02c063ee502e2b097ec343ab1927"
+        },
+        {
+          "rejections": {
+            "parent_unresolved": 1
+          },
+          "title_id": "3c9835dab424f88182be4a87fac236474d50a51c0b04349340ef3fa367704059"
+        },
+        {
+          "rejections": {
+            "parent_unresolved": 51
+          },
+          "title_id": "942be46ad03026479b074e40dd479ea7145241707f1906018051c0ce0a9099f5"
+        },
+        {
+          "rejections": {
+            "parent_unresolved": 1
+          },
+          "title_id": "3156d409217b3a43bcd588a8d40bddfeb57b4722ffbf59db1dd9c354a940a1ae"
+        },
+        {
+          "rejections": {
+            "waiting_parent_verification": 10
+          },
+          "title_id": "789c022a9f4420e90dbeaa84a9a20edb11c631c29ebb384ac96243f6ef0c58dc"
+        },
+        {
+          "rejections": {
+            "parent_unresolved": 2
+          },
+          "title_id": "0c86db5f9f017348111d964e5e77a70dc041bfcadc7f29d539d284efc51b6fa2"
+        },
+        {
+          "rejections": {
+            "already_mapped": 9,
+            "waiting_parent_verification": 3
+          },
+          "title_id": "207e4b5b64bcc0a17295a16b8b58f0f2283d81dfda12161b2b24539ef14c1cbb"
+        },
+        {
+          "rejections": {
+            "already_mapped": 1,
+            "waiting_parent_verification": 11
+          },
+          "title_id": "6b34de7a1342713d22695b9aaf559a307a905b17527085c2d07a6a597d13d6a2"
+        },
+        {
+          "rejections": {
+            "already_mapped": 10,
+            "waiting_parent_verification": 2
+          },
+          "title_id": "91fa46ffd2c839cb48a462e803f89ff771bb5c54ca97d24976cf36964393c079"
+        },
+        {
+          "rejections": {
+            "already_mapped": 16
+          },
+          "title_id": "36df86e00636a7cfe6557acd663c94fa551741bfa6c475544f056734bdfc9ec0"
+        },
+        {
+          "rejections": {
+            "already_mapped": 6
+          },
+          "title_id": "bf2c1c36a04741d06133e95014a77981bddaffcde929709ac88b7448c991899f"
+        },
+        {
+          "rejections": {
+            "already_mapped": 13
+          },
+          "title_id": "c3d8f0b6b327dd11e69aadd917860c3b489572e0c4f9e1a24ea46681febf311f"
+        },
+        {
+          "rejections": {
+            "already_mapped": 36
+          },
+          "title_id": "51247f5c23b1a7d95bc4b12b955590ae243b6141200e4c0d0a06c469de80eafc"
+        },
+        {
+          "rejections": {
+            "already_mapped": 12
+          },
+          "title_id": "abb082fd6a64a9aa0911f3516f374fe62ca773575556c5456b96e99e5f24295e"
+        },
+        {
+          "rejections": {
+            "already_mapped": 13
+          },
+          "title_id": "19940edf9692ee00edaf3da7c6c5186c63b617dcb19f1daca2049a8f8f3e8dc0"
+        },
+        {
+          "rejections": {
+            "already_mapped": 128
+          },
+          "title_id": "166b1fab828ca9778f7f7517a64b9ab4285396ad5a0aa6bfd8df2a35e86bd7ee"
+        },
+        {
+          "rejections": {
+            "already_mapped": 222,
+            "waiting_parent_verification": 3
+          },
+          "title_id": "1f327d40756927112d49051b9487b1d9251bd99bbaed1d0b91e79126520a7de2"
+        },
+        {
+          "rejections": {
+            "already_mapped": 143,
+            "waiting_parent_verification": 60
+          },
+          "title_id": "1f567f1e9e3d8fb7617df79211b3ca2e644571bd449df2e965e319e0c5094bd4"
+        },
+        {
+          "rejections": {
+            "already_mapped": 89,
+            "no_name_candidate": 13
+          },
+          "title_id": "0eb245a1e146012100b7b4ec00e2d45eb21fa44b8e6803580103e27827f66858"
+        },
+        {
+          "rejections": {
+            "already_mapped": 66,
+            "waiting_parent_verification": 56
+          },
+          "title_id": "a00759a11542224ecb4e834eec572997118a40278380f7f4069e11a1f4eb6429"
+        },
+        {
+          "rejections": {
+            "already_mapped": 82,
+            "waiting_parent_verification": 73
+          },
+          "title_id": "0fa554f19c96a9d6020879ca882dbba80ff8d5837ac1f1e3284047b2b503c9d9"
+        }
+      ],
+      "titles_examined": 30,
+      "waiting_first_attempt": 0
+    },
+    {
+      "counts": {
+        "already_mapped": 1246,
+        "waiting_parent_verification": 8073
+      },
+      "descriptor_freshness": {
+        "unverified_legacy": 30
+      },
+      "eligible_titles": 8660,
+      "max_cache_acquisition_age_s": 636079,
+      "oldest_eligibility_age_s": 34788,
+      "provider": "s.to",
+      "source_failures": 0,
+      "titles": [
+        {
+          "rejections": {
+            "waiting_parent_verification": 1331
+          },
+          "title_id": "4e9fdf2b674a202cd1b3c2c3cc869d7a6e404a8d1cd213c63866c1a92f01fd88"
+        },
+        {
+          "rejections": {
+            "already_mapped": 4,
+            "waiting_parent_verification": 1192
+          },
+          "title_id": "dbcbd3e14d1a6d2f7ceef77adef69326c035bc9e6b83b9bb85d97c646d85127c"
+        },
+        {
+          "rejections": {
+            "waiting_parent_verification": 1104
+          },
+          "title_id": "722566ce2414ade6d7fdc48c5745b62090962d345d8a0fc22d69a269b8ee1e9f"
+        },
+        {
+          "rejections": {
+            "already_mapped": 273,
+            "waiting_parent_verification": 955
+          },
+          "title_id": "5d1d3f080d26660b488ae8cbee75c5cf95a163b47977baa9f196d833b8e04df5"
+        },
+        {
+          "rejections": {
+            "already_mapped": 31,
+            "waiting_parent_verification": 675
+          },
+          "title_id": "0306f01387830b99f82f2e1266735784edeb15baa24b49aea71ef14498939d11"
+        },
+        {
+          "rejections": {
+            "already_mapped": 10,
+            "waiting_parent_verification": 497
+          },
+          "title_id": "15ce0a92adfaede5b672739eec69d684c8c10eb2057a731ada6abf5dcb7646a2"
+        },
+        {
+          "rejections": {
+            "already_mapped": 40,
+            "waiting_parent_verification": 470
+          },
+          "title_id": "f412fa357c3f3d56f4d65a2df1e3cafa6e4e2744a998624b04699d20c531b60d"
+        },
+        {
+          "rejections": {
+            "already_mapped": 177,
+            "waiting_parent_verification": 434
+          },
+          "title_id": "9e30ec250b4c30ef6f0ad74cfab104944fe038c9f721df4ac294ba70fad38eae"
+        },
+        {
+          "rejections": {
+            "waiting_parent_verification": 405
+          },
+          "title_id": "819f77b2f9a09dbcaa3600cf464958badeee468df2208ac9c1ea4fff99624477"
+        },
+        {
+          "rejections": {
+            "already_mapped": 66,
+            "waiting_parent_verification": 403
+          },
+          "title_id": "4c80fc92dfdefd106b9c7d787058d5711628ce894a4a02525a662a0528450f69"
+        },
+        {
+          "rejections": {
+            "waiting_parent_verification": 94
+          },
+          "title_id": "f0375a6bc1b65da0f4dfeb5a1f6707d9d592413128d9524101daa0c813e1bb3b"
+        },
+        {
+          "rejections": {
+            "waiting_parent_verification": 29
+          },
+          "title_id": "740beaa5148f03fdd9dc151f219a159181bfc433c7f29c44a2820b96548c75df"
+        },
+        {
+          "rejections": {
+            "already_mapped": 25,
+            "waiting_parent_verification": 1
+          },
+          "title_id": "d9cc96c694cf0935a1dcdf0dde1b8226272a2e210988ab9f2ee1caf4d4d1eab6"
+        },
+        {
+          "rejections": {
+            "waiting_parent_verification": 12
+          },
+          "title_id": "d083e12ef86724177a0293d7a29fb78768715b66345630f1b9dd43a439301ce8"
+        },
+        {
+          "rejections": {
+            "already_mapped": 36,
+            "waiting_parent_verification": 4
+          },
+          "title_id": "e5d25e6f9ea3e433beb17a5ac2da846e61aa2a32afcb948bc3c480b77ce48cb6"
+        },
+        {
+          "rejections": {
+            "already_mapped": 5,
+            "waiting_parent_verification": 9
+          },
+          "title_id": "ee04b4c2e33f916a718f898895ecc346f532a3dcd4629b10bc6ce594c1f6d903"
+        },
+        {
+          "rejections": {
+            "already_mapped": 3,
+            "waiting_parent_verification": 9
+          },
+          "title_id": "8991caa8dad024577a42156bb718c2ba424be3c7f38965712a6a12fcc09ee984"
+        },
+        {
+          "rejections": {
+            "already_mapped": 7,
+            "waiting_parent_verification": 3
+          },
+          "title_id": "208adf96a324d291a896b55e204acfe64a045644c7632b9a1767091503453ad3"
+        },
+        {
+          "rejections": {
+            "already_mapped": 8
+          },
+          "title_id": "2f5d64490f59261f76a4bba9d4bf29a4e3966cd51df5f85dc069408292d98ddf"
+        },
+        {
+          "rejections": {
+            "already_mapped": 19
+          },
+          "title_id": "4cd63823831af2ad5a13761c2a86308ff13c54365e80fe4ec7458a155dbfdfbd"
+        },
+        {
+          "rejections": {
+            "already_mapped": 12
+          },
+          "title_id": "8476ec50a656d0c52362a6844ad7c92b108878e8b9491212177d8ec9ee9cbc39"
+        },
+        {
+          "rejections": {
+            "already_mapped": 8
+          },
+          "title_id": "563c12444bd57f830bdc5cb2a54f95799e01ed44b65a1911791708c1728545a2"
+        },
+        {
+          "rejections": {
+            "already_mapped": 20
+          },
+          "title_id": "d9bfeea3b57cb448a8605970b850145a6212086c81560c2d56401ecc6f2c0378"
+        },
+        {
+          "rejections": {
+            "already_mapped": 13
+          },
+          "title_id": "28d56c221f9c950ecb72cd97f536484e0317ec4a8806d50d403f9731c54aea65"
+        },
+        {
+          "rejections": {
+            "already_mapped": 16
+          },
+          "title_id": "bf6f032ec1e2e1d6eed0c7bb77ac208c84822d501d0b918b385dd5a7ffa52803"
+        },
+        {
+          "rejections": {
+            "already_mapped": 3
+          },
+          "title_id": "4d0eb6829730a4da8bd2b49613decf1b2fb8f0737e74f710a272ee60b2d7d2e3"
+        },
+        {
+          "rejections": {
+            "already_mapped": 145,
+            "waiting_parent_verification": 13
+          },
+          "title_id": "b5e1ae7c03ea79df0455f3b6e1e016943323ea49b481095fbcd24ce4bd8aae2a"
+        },
+        {
+          "rejections": {
+            "already_mapped": 1,
+            "waiting_parent_verification": 103
+          },
+          "title_id": "b858fd528190ee180ac3f0c5839c5e5a6a26997f86c7d8bf1fd27fd3584fe5f0"
+        },
+        {
+          "rejections": {
+            "already_mapped": 314,
+            "waiting_parent_verification": 46
+          },
+          "title_id": "b5d2f7b75d3d91942f8406852d0f3ea4b71b2a3314ae323ccea52ff83eea459f"
+        },
+        {
+          "rejections": {
+            "already_mapped": 10,
+            "waiting_parent_verification": 284
+          },
+          "title_id": "0bcaa664b325be68ea037198014270f50d9ab5ee7d9243b06e571c1cbdb8d2fc"
+        }
+      ],
+      "titles_examined": 30,
+      "waiting_first_attempt": 0
+    }
+  ],
+  "live_joint_retained_request_window": {
+    "at": 1791997833,
+    "retained_starts": 28,
+    "oldest_at": 1791997789,
+    "newest_at": 1791997831,
+    "max_in_rolling_60s": 28,
+    "limit": 30,
+    "proof_limit": "retained current window sample, not lifetime trace"
+  },
+  "client": {
+    "initial_upgrade_revision": "2240b9119797bf3346444e719eef3e78fd0c83e4",
+    "current_revision": "681811550c06732cc7677af1659eaebe0b12d98f",
+    "current_api_manifest": "sha256:5d7b6bc059ee60f5385e87c2d380c724be8fc07e869b60c0700fba0fe1d452a9",
+    "cpu": 2,
+    "memory_bytes": 1073741824,
+    "jobs": 0,
+    "tasks": 0,
+    "corrections": 0,
+    "metadata_queries": [
+      {
+        "case": 0,
+        "status": 200,
+        "items": 100,
+        "total": "445861",
+        "duration_s": 0.864623,
+        "headers": {
+          "x-anibridge-mapping": "partial"
+        }
+      },
+      {
+        "case": 1,
+        "status": 200,
+        "items": 2,
+        "total": "2",
+        "duration_s": 0.182202,
+        "headers": {
+          "x-anibridge-mapping": "unresolved"
+        }
+      },
+      {
+        "case": 2,
+        "status": 200,
+        "items": 8,
+        "total": "8",
+        "duration_s": 0.184416,
+        "headers": {}
+      },
+      {
+        "case": 3,
+        "status": 200,
+        "items": 3,
+        "total": "3",
+        "duration_s": 0.105954,
+        "headers": {
+          "x-anibridge-mapping": "unresolved"
+        }
+      },
+      {
+        "case": 4,
+        "status": 200,
+        "items": 2,
+        "total": "2",
+        "duration_s": 0.120718,
+        "headers": {}
+      }
+    ],
+    "privacy_installed_regression_passed": true,
+    "subtitle_installed_fixture_passed": true,
+    "health_status": 200,
+    "source_overlay": false,
+    "new_media_jobs": 0
+  },
+  "privacy_fix": {
+    "source_revision": "681811550c06732cc7677af1659eaebe0b12d98f",
+    "local_api_tests_passed": 267,
+    "existing_skips": 18,
+    "ruff_lint_format_passed": true,
+    "hosted_tests_run": 38604860503,
+    "hosted_preview_run": 38604860757,
+    "both_succeeded": true,
+    "client_deployed": true,
+    "worker_runtime_changed": false
+  },
+  "post_upgrade_storage": {
+    "state_bytes": 3832428244,
+    "read_bytes": 314336823,
+    "research_bytes": 7642093199,
+    "reserve_bytes": 1000000000,
+    "budget_bytes": 30000000000,
+    "subtotal_with_reserve_bytes": 12788858266,
+    "excluded": "shared host images and unrelated applications; no Docker root disk benchmark"
+  },
+  "release_dependency_alert_inventory": [
+    {
+      "package": "Werkzeug",
+      "branch_lock": "3.1.6",
+      "advisory": "GHSA-g6x2-hccm-hh4m",
+      "fixed": "3.1.9",
+      "severity": "medium"
+    },
+    {
+      "package": "setuptools",
+      "branch_lock": "82.0.1",
+      "advisory": "GHSA-h35f-9h28-mq5c",
+      "fixed": "83.0.0",
+      "severity": "medium"
+    },
+    {
+      "package": "esbuild",
+      "manifest": "docs/pnpm-lock.yaml",
+      "advisory": "GHSA-g7r4-m6w7-qqqr",
+      "fixed": "0.28.1",
+      "severity": "low",
+      "branch_version_checked": false
+    }
+  ],
+  "config_installer": {
+    "regressions_passed_mac": 4,
+    "regressions_passed_installed_linux": 4,
+    "real_config_copy_rollback_reupgrade_passed": true,
+    "live_volume_in_rehearsal": false,
+    "worker_mac_full_suite_passed": 173,
+    "worker_mac_existing_skips": 13,
+    "worker_linux_original_full_suite_passed": 182,
+    "recovery": "atomic per location, both reviewed versions permitted for interrupted-step retry/rollback; independent edit veto",
+    "worker_core_source_overlay": false
   }
 }

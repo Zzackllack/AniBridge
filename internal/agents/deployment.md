@@ -73,8 +73,10 @@ manual competing stack, alter allocations or restore ledgers for this compatible
 code rollback. Deployment/restart/resource changes need explicit approval.
 
 October 14 mapping rollout is now authorized and matching native previews are
-published for `2240b91`; the live cutover is still pending authenticated Zen access
-while the Mac is locked. SERVER.md has a
+published for `2240b91`; the pilot and separate local client cutovers completed
+through the approved workflow. The initializer source and config volume both
+need the reviewed worker JSON; otherwise startup overwrites the language setting.
+SERVER.md has a
 guarded registry preparation helper, additive v5 upgrade and exact code-only
 worker/client rollback. Downgrade removes private v5 tables only after the durable
 canonical admission window expires; retain every v4 table and both pre-v4/pre-v5
