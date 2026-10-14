@@ -169,7 +169,7 @@ def test_probe_stops_escalation_on_throttling_and_preserves_copied_work(
         def __init__(self, *args):
             pass
 
-        async def fetch(self, path, **options):
+        async def fetch(self, origin, path, **options):
             await options["before_request"]()
             return Fetch("rate_limited", status=429, retry_after=120, requests=1)
 

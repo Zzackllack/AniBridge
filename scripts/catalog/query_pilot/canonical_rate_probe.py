@@ -85,7 +85,7 @@ class Probe:
         if origin not in self.sessions:
             self.sessions[origin] = Session(origin, 1)
         response = await self.sessions[origin].fetch(
-            path, before_request=before_request, **options
+            origin, path, before_request=before_request, **options
         )
         self.records.append(
             {
