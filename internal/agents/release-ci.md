@@ -105,3 +105,8 @@ all projects to succeed. YAML/actionlint and local Linux checks do not establish
 GitHub-hosted execution or protection enforcement. Native preview image builds,
 registry publication and any required-check policy change need their own evidence
 and authorization. The draft PR is unchanged.
+
+October 14 production-readiness follow-up replaces Ruff auto-fix/rebase/force-push
+with check-only lint and format jobs. Workflow permissions are contents:read,
+checkout persists no credentials, and main/v3 PRs run without path filtering.
+Local fixes remain explicit maintainer commits; CI never moves the reviewed SHA.

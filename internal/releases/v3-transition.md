@@ -122,7 +122,7 @@ complete because the draft exists or one image build succeeds.
   the supported architectures and actual installed wheel imports.
 - [ ] Run isolated contract/migration/backup/restore tests and bounded offline
   integration checks. Keep provider-network and media acquisition tests opt-in.
-- [ ] Replace Ruff's auto-commit/rebase/force-with-lease workflow with check-only
+- [x] Replace Ruff's auto-commit/rebase/force-with-lease workflow with check-only
   validation or a separately invoked fix workflow. A validation job should not
   move a contributor's branch while review/builds are running.
 - [ ] Audit `workflow_run`, scheduled, manual and target events for default-branch
