@@ -11,11 +11,12 @@ import json
 import math
 import time
 from collections import deque
+from collections.abc import Callable
 from pathlib import Path
 
 from catalog_core.identity import mapping_id, search_key
-from catalog_core.json_codec import dumps, require
-from catalog_core.providers.transport import AdmissionDeferred, Session
+from catalog_core.json_codec import dumps, integer, require
+from catalog_core.providers.transport import AdmissionDeferred, Fetch, Session
 
 from . import canonical_cache, descriptors, parent_evidence
 from .canonical_ids import identifiers
@@ -96,6 +97,8 @@ class Enricher:
         clock=time.time,
         *,
         states: list[State] | None = None,
+        requests_per_minute: int = 30,
+        on_fetch: Callable[[str, Fetch], None] | None = None,
     ) -> None:
         self.sources, self.fetcher, self.clock = sources, fetcher, clock
         self.sessions = {}
@@ -110,7 +113,9 @@ class Enricher:
                 bool(self.token) and not any(c.isspace() for c in self.token),
                 "invalid TMDb credential",
             )
-        self.starts = deque(maxlen=30)
+        self.requests_per_minute = integer(requests_per_minute, 4, 120)
+        self.starts = deque(maxlen=self.requests_per_minute)
+        self.on_fetch = on_fetch
         self.lock = asyncio.Lock()
         self.parent_sources = {
             key: value for key, value in sources.items() if key != "episode_languages"
@@ -137,7 +142,7 @@ class Enricher:
 
     def admit_request(self) -> None:
         now = self.clock()
-        if self.request_count(now) >= 30:
+        if self.request_count(now) >= self.requests_per_minute:
             raise AdmissionDeferred(60)
         self.starts.append(now)
         if self.current_state is not None:
@@ -176,6 +181,8 @@ class Enricher:
             before_request=before_request,
             **({"bearer": bearer} if bearer else {}),
         )
+        if self.on_fetch is not None and self.current_state is not None:
+            self.on_fetch(self.current_state.provider, response)
         if response.outcome != "ok":
             raise CanonicalUnavailable(response.retry_after)
         return json.loads(response.body)
@@ -293,7 +300,7 @@ class Enricher:
             # A lookup can use two search terms plus one descriptor. Defer the
             # whole lookup when our own budget is low; this isn't a source failure.
             request_now = self.clock()
-            if self.request_count(request_now) > 26:
+            if self.request_count(request_now) > self.requests_per_minute - 4:
                 self.last_work = "admission_deferred"
                 return False
             outcome, mapped = "not_found", None

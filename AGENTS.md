@@ -107,7 +107,7 @@ October 11 catalog repair guidance
   historical. New deployment/restart/resource changes still require approval.
 - October 14 mapping follow-up: use spec 020's `MAPPING_REPAIR.md` and
   `MAPPING_IMPLEMENTATION.md`. Prioritize correspondence gaps and unchanged-descriptor
-  recheck demand; preserve conservative evidence and the existing canonical cap.
+  recheck demand; preserve conservative evidence and shared canonical admission.
   CI regression coverage supports this work and must not replace the fixes.
 
 v3 integration
@@ -124,7 +124,10 @@ October 14 implemented follow-up
 - Descriptor acquisition and local correspondence have separate clocks. Stable
   descriptors use seven-day eligibility; recent meaningful unresolved names use
   daily eligibility. This is bounded background canonical work, not a freshness
-  SLA, demand refresh or provider episode recrawl. Keep the shared 30/minute cap.
+  SLA, demand refresh or provider episode recrawl. Canonical admission defaults
+  to a shared 30/minute budget; `limits.canonical_requests_per_minute` accepts
+  4–120 for measured tuning. This is our safety budget, not a documented Skyhook
+  quota. Changing it must not invalidate descriptors/matcher fingerprints.
 - Optional `canonical_sources.episode_languages: ["deu"]` uses verified Skyhook v2
   TVDB episode IDs and coordinates for translation joins. Legacy authority tags
   remain wire-compatible; private evidence records the actual API provenance.

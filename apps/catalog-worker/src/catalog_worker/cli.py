@@ -43,7 +43,12 @@ async def collect(path: Path, once: bool) -> None:
         collectors = [Collector(config, state) for state in states]
         pipeline = Pipeline(collectors, events.emit)
         publication_slot = asyncio.Lock()
-        enricher = Enricher(config.canonical_sources, states=states)
+        enricher = Enricher(
+            config.canonical_sources,
+            states=states,
+            requests_per_minute=config.limits["canonical_requests_per_minute"],
+            on_fetch=events.canonical,
+        )
         loop = asyncio.get_running_loop()
         loop.add_signal_handler(signal.SIGTERM, asyncio.current_task().cancel)
 
@@ -159,7 +164,10 @@ async def collect_title(
         tid = state.discover(Link(title_path, name), now)
         state.db.commit()
         collector = Collector(config, state)
-        enricher = Enricher(config.canonical_sources)
+        enricher = Enricher(
+            config.canonical_sources,
+            requests_per_minute=config.limits["canonical_requests_per_minute"],
+        )
         async with asyncio.timeout(120):
             for _ in range(30):
                 work = state.claim_title(

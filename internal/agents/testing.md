@@ -106,3 +106,11 @@ is a separate synthetic controlled-clock fairness/admission trace. Never point
 replay writers at live state. The diagnostic module opens read-only SQLite and
 uses the same allowlisted decision path. `--immutable-copy` is only for a
 WAL-free consistent frozen backup, never an active database.
+
+`test_canonical_rate.py` checks configurable shared admission across providers,
+restart and limit reductions, cache stability, safe HTTP metrics and stopping a
+copied-state rate probe on throttling. `canonical_rate_probe.py` is a finite
+canonical-only network experiment on explicitly marked disposable copies. Pause
+the ordinary collector to avoid two unmeasured budgets. It smooths HTTP starts,
+includes redirects and stops escalation on blocking, repeated errors or increased
+latency; no provider pages, publication, crawl reset or live ledger writes.

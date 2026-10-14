@@ -16,6 +16,7 @@
   "bind_host": "0.0.0.0",
   "bind_port": 8080,
   "limits": {
+    "canonical_requests_per_minute": 30,
     "state_disk_bytes": 20000000000,
     "public_disk_bytes": 9000000000,
     "total_disk_bytes": 30000000000

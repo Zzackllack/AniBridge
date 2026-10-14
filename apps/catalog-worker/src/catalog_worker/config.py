@@ -10,6 +10,7 @@ from catalog_core.json_codec import fields, integer, loads, require
 
 MIB, GIB = 1024**2, 1024**3
 LIMITS = {
+    "canonical_requests_per_minute": (30, 4, 120),
     "fetch_concurrency": (4, 1, 8),
     "provider_concurrency": (2, 1, 4),
     "provider_request_interval_s": (2, 1, 60),

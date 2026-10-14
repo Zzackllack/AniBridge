@@ -2,9 +2,11 @@
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+
+from catalog_core.providers.transport import Fetch
 
 
 class Events:
@@ -23,7 +25,7 @@ class Events:
         # add exception messages here: transport exceptions can contain tokens.
         message = json.dumps(
             {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "provider": provider,
                 "stage": stage,
                 "outcome": outcome,
@@ -58,7 +60,7 @@ class Events:
                 0,
                 json.dumps(
                     {
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                         "provider": provider,
                         "stage": "child",
                         "exit_code": exit_code,
@@ -69,6 +71,38 @@ class Events:
                 (),
                 None,
             )
+        )
+
+    def canonical(self, provider: str, response: Fetch) -> None:
+        """Measure useful network work without endpoint, term or response text."""
+        outcomes = {
+            "ok",
+            "http_error",
+            "transport_failure",
+            "rate_limited",
+            "not_found",
+            "challenge_or_block",
+            "local_resource",
+            "unexpected_structure",
+        }
+        message = json.dumps(
+            {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "provider": provider,
+                "stage": "canonical_http",
+                "outcome": response.outcome
+                if response.outcome in outcomes
+                else "rejected",
+                "http_status": response.status,
+                "requests": response.requests,
+                "network_s": round(response.duration_s, 4),
+                "decoded_bytes": len(response.body),
+                "retry_after_s": response.retry_after,
+            },
+            separators=(",", ":"),
+        )
+        self.handler.handle(
+            logging.LogRecord("catalog_worker", logging.INFO, "", 0, message, (), None)
         )
 
     def signal(self, provider: str, status: dict, now: int) -> None:
@@ -82,7 +116,7 @@ class Events:
                 0,
                 json.dumps(
                     {
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                         "provider": provider,
                         "stage": "signal",
                         "coverage": status["coverage"],
@@ -114,7 +148,7 @@ class Events:
                 0,
                 json.dumps(
                     {
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                         "stage": "storage",
                         **status,
                     },
@@ -134,7 +168,7 @@ class Events:
                 0,
                 json.dumps(
                     {
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                         "provider": provider,
                         "stage": "admission",
                         "outcome": "local_budget_wait",
@@ -161,7 +195,7 @@ class Events:
                 0,
                 json.dumps(
                     {
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                         "provider": provider,
                         "stage": "page",
                         "outcome": ready.outcome,
