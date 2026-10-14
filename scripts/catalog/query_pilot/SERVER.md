@@ -7,11 +7,13 @@ this guide deploys a host automatically or authorizes a public/default service.
 
 ### Running the deployed Coolify pilot
 
-The authorized October 6 pilot is managed in the separate **AniBridge Private
-Pilot** project, service **anibridge-private-catalog**, on `fra-node-01`. Use its
-**Actions → Restart** after saving an image update. Images are built locally on
-that server and pinned by commit; keep `pull_policy: never` and avoid **Restart
-(pull latest)**. Retain its three prefixed volumes. Do not start a second manual
+The existing pilot is managed in the separate **AniBridge Private Pilot**
+project, service **anibridge-private-catalog**, on `fra-node-01`. The authorized
+October 11 upgrade uses the pinned GHCR worker manifest and `pull_policy: missing`
+from the [current deployment procedure](#october-11-published-preview-deployment).
+Use **Restart current version** only for a separately approved change. The old
+local image and `pull_policy: never` belong to rollback. Retain the three prefixed
+volumes. Do not start a second manual
 Compose stack for this deployment. **Running (no healthcheck)** describes these
 worker containers; inspect actual collection progress with this command in the
 collector's Coolify terminal:
@@ -66,8 +68,10 @@ filesystem free space is physical Mac capacity. No full crawl was run on the Mac
 
 ## Transfer and configure
 
-Local commits have not been pushed. Transfer this branch through your chosen
-XPipe-managed connection, for example using an operator-created Git bundle:
+The implementation branch is now pushed as draft PR #170 into `v3`; `main`
+remains default. Approved existing-pilot rollouts use pinned preview manifests.
+For an offline source transfer instead, use the XPipe-managed connection and
+an operator-created Git bundle:
 
 ```sh
 # On the development machine:
@@ -162,8 +166,9 @@ The fixed **30,000,000,000-byte aggregate** is shared by all providers: state an
 backups 20 GB, read catalogs/staging 9 GB, runtime/log/image reserve 1 GB. Builds
 and collection refuse storage pressure. One globally serialized publication
 child, current file per provider and bounded staging; no historical read archive.
-The current constrained pilot gives each collector/API container 512 MiB, two
-CPUs, no swap, 64 PIDs. This is not the production worker requirement: minimum
+The initial constrained pilot gave each collector/API container 512 MiB, two
+CPUs, no swap, 64 PIDs. The authorized October 11 rollout raises only the
+collector to 2 GiB; metadata remains 512 MiB. Production worker sizing is minimum
 2 vCPU/2 GiB, recommended 4 vCPU/4 GiB, optional 6 GiB after profiling. The
 metadata API has a separate budget. Docker logs
 are 3 × 10 MB per service and worker events are 5 × 10 MiB. Do not raise limits to

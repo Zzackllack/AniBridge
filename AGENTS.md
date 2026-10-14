@@ -100,7 +100,10 @@ October 11 catalog repair guidance
   budget; four-hour eligibility is not a whole-provider SLA. Retry deadlines win.
 - Existing Coolify upgrade/rollback commands are in `scripts/catalog/query_pilot/SERVER.md`.
   All three worker image references must change together; retain volumes,
-  configuration, network ranges and limits. Live actions still require approval.
+  configuration, network ranges and limits. The authorized October 11 rollout
+  uses a pinned GHCR worker manifest, `pull_policy: missing`, and 2 CPU/2 GiB for
+  the collector; metadata stays at 512 MiB. The local-image staging helper is
+  historical. New deployment/restart/resource changes still require approval.
 
 v3 integration
 
