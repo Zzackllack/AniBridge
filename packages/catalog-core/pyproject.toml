@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=83", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anibridge-catalog-core"
+version = "1.0.0"
+description = "AniBridge signed catalog protocol and portable validators"
+requires-python = ">=3.14"
+dependencies = [
+    "cryptography>=46.0.0",
+    "httpx==0.28.1",
+    "defusedxml==0.7.1",
+    "pydantic>=2.12.5",
+]
+
+[dependency-groups]
+dev = ["pytest>=9", "ruff>=0.14"]
+
+[tool.setuptools.package-data]
+catalog_core = ["schema.sql", "schema-v2.sql"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

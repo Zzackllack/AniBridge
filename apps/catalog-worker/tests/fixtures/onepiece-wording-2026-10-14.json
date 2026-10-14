@@ -1,0 +1,32 @@
+{
+  "provider": "aniworld.to",
+  "source_name": "I'm Luffy! The Man Who Will Become the Pirate King! [Episode 001]",
+  "source_aliases": [
+    "Hier kommt Ruffy, der k\u00fcnftige K\u00f6nig der Piraten!"
+  ],
+  "native": [
+    1,
+    1
+  ],
+  "tvdb_series_id": "81797",
+  "canonical": {
+    "eng": [
+      {
+        "metadataId": 361887,
+        "metadataShowId": 81797,
+        "seasonNumber": 1,
+        "episodeNumber": 1,
+        "title": "I'm Luffy! The Man Who's Gonna Be King of the Pirates!"
+      }
+    ],
+    "deu": [
+      {
+        "metadataId": 361887,
+        "metadataShowId": 81797,
+        "seasonNumber": 1,
+        "episodeNumber": 1,
+        "title": "Hier kommt Ruffy, der k\u00fcnftige K\u00f6nig der Piraten!"
+      }
+    ]
+  }
+}

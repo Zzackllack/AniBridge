@@ -1,0 +1,777 @@
+{
+  "concurrency": 8,
+  "rounds": 16,
+  "stop_after_s": 180,
+  "network": "loopback; 0 and 40 ms injected response delay, no throughput shaping",
+  "inputs": [
+    {
+      "bytes": 1050587136,
+      "compressed_bytes": 257860702,
+      "counts": {
+        "alias": 50000,
+        "canonical_episode": 1000000,
+        "canonical_title": 50000,
+        "entity": 1000000,
+        "identity_alias": 0,
+        "release": 2000091,
+        "title": 50000
+      },
+      "revision": 91,
+      "sha256": "80dbff27bdc32d1faac4207d2410ec74f373d993f79672b626ecbfca3cb2d6da"
+    },
+    {
+      "bytes": 1050587136,
+      "compressed_bytes": 257860626,
+      "counts": {
+        "alias": 50000,
+        "canonical_episode": 1000000,
+        "canonical_title": 50000,
+        "entity": 1000000,
+        "identity_alias": 0,
+        "release": 2000092,
+        "title": 50000
+      },
+      "revision": 92,
+      "sha256": "2198babeb93f4492a9cd1c2dc9b13169a49430def523b8517f76392e4d5c0342"
+    }
+  ],
+  "environment": {
+    "python": "3.14.8 (main, Oct  1 2026, 21:39:59) [GCC 14.2.0]",
+    "sqlite": "3.46.1",
+    "cpus": 2,
+    "memory_limit_bytes": 1073741824
+  },
+  "cases": [
+    {
+      "request": {
+        "operation": "match",
+        "provider": "aniworld.to",
+        "params": {
+          "t": "search",
+          "q": "Title 000000"
+        }
+      },
+      "total": 40,
+      "rows": 40,
+      "response_body_bytes": 31217
+    },
+    {
+      "request": {
+        "operation": "match",
+        "provider": "aniworld.to",
+        "params": {
+          "t": "search",
+          "q": "Alias 000000"
+        }
+      },
+      "total": 40,
+      "rows": 40,
+      "response_body_bytes": 31217
+    },
+    {
+      "request": {
+        "operation": "match",
+        "provider": "aniworld.to",
+        "params": {
+          "t": "tvsearch",
+          "tvdbid": "100000"
+        }
+      },
+      "total": 40,
+      "rows": 40,
+      "response_body_bytes": 31217
+    },
+    {
+      "request": {
+        "operation": "season",
+        "provider": "aniworld.to",
+        "params": {
+          "t": "tvsearch",
+          "tvdbid": "100000",
+          "season": "1"
+        }
+      },
+      "total": 40,
+      "rows": 40,
+      "response_body_bytes": 31217
+    },
+    {
+      "request": {
+        "operation": "recent",
+        "provider": "aniworld.to",
+        "params": {
+          "t": "search",
+          "limit": "100"
+        }
+      },
+      "total": 2000091,
+      "rows": 100,
+      "response_body_bytes": 77546
+    },
+    {
+      "request": {
+        "operation": "recent",
+        "provider": "aniworld.to",
+        "params": {
+          "t": "search",
+          "limit": "100",
+          "offset": "100"
+        }
+      },
+      "total": 2000091,
+      "rows": 100,
+      "response_body_bytes": 77520
+    },
+    {
+      "request": {
+        "operation": "match",
+        "provider": "aniworld.to",
+        "params": {
+          "t": "tvsearch",
+          "tvdbid": "99999999"
+        }
+      },
+      "total": 0,
+      "rows": 0,
+      "response_body_bytes": 331
+    },
+    {
+      "request": {
+        "operation": "match",
+        "provider": "aniworld.to",
+        "params": {
+          "t": "search",
+          "q": "Uncollected synthetic title"
+        }
+      },
+      "total": 0,
+      "rows": 0,
+      "response_body_bytes": 329
+    }
+  ],
+  "plans": {
+    "0": [
+      {
+        "sql": "SELECT title_id FROM title WHERE search_key LIKE ? UNION SELECT title_id FROM alias WHERE search_key LIKE ? LIMIT 201",
+        "plan": [
+          "COMPOUND QUERY",
+          "LEFT-MOST SUBQUERY",
+          "SEARCH title_data USING COVERING INDEX title_search (search_key>? AND search_key<?)",
+          "UNION USING TEMP B-TREE",
+          "SEARCH a USING COVERING INDEX alias_search (search_key>? AND search_key<?)",
+          "SEARCH t USING INTEGER PRIMARY KEY (rowid=?)"
+        ]
+      },
+      {
+        "sql": "SELECT count(*) FROM release r JOIN entity e USING(entity_id) JOIN title t USING(title_id) WHERE t.title_id IN (?)",
+        "plan": [
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH title_data USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH e USING INDEX entity_title (title_key=?)",
+          "SEARCH e USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "SEARCH r USING COVERING INDEX sqlite_autoindex_release_data_2 (entity_key=?)"
+        ]
+      },
+      {
+        "sql": "SELECT r.*, e.title_id,e.kind,e.native_season,e.native_episode,e.path,\n                e.identity_anchor AS entity_anchor,t.identity_anchor AS title_anchor,t.slug,t.display_title,t.year,\n                ct.namespace,ct.external_id,ce.season,ce.episode FROM release r JOIN entity e USING(entity_id) JOIN title t USING(title_id)\n                LEFT JOIN canonical_title_data ct ON ct.mapping_id=(SELECT c.mapping_id FROM canonical_title c\n                    WHERE c.title_id=t.title_id ORDER BY CASE c.namespace WHEN 'tvdb' THEN 0 WHEN 'tmdb-tv' THEN 1 ELSE 2 END,c.namespace LIMIT 1)\n                LEFT JOIN canonical_episode_data ce ON ce.mapping_key=ct.mapping_key AND ce.entity_key=(SELECT entity_key FROM entity_data WHERE entity_id=e.entity_id) WHERE t.title_id IN (?) ORDER BY r.first_seen_at DESC,r.release_id ASC LIMIT ?",
+        "plan": [
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH title_data USING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH e USING INDEX entity_title (title_key=?)",
+          "SEARCH e USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "SEARCH r USING INDEX sqlite_autoindex_release_data_2 (entity_key=?)",
+          "SEARCH ct USING INDEX sqlite_autoindex_canonical_title_data_1 (mapping_id=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 1",
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH c USING INDEX sqlite_autoindex_canonical_title_data_2 (title_key=?)",
+          "USE TEMP B-TREE FOR ORDER BY",
+          "SEARCH ce USING COVERING INDEX canonical_episode_entity (entity_key=? AND mapping_key=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 2",
+          "SEARCH entity_data USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "USE TEMP B-TREE FOR ORDER BY"
+        ]
+      }
+    ],
+    "1": [
+      {
+        "sql": "SELECT title_id FROM title WHERE search_key LIKE ? UNION SELECT title_id FROM alias WHERE search_key LIKE ? LIMIT 201",
+        "plan": [
+          "COMPOUND QUERY",
+          "LEFT-MOST SUBQUERY",
+          "SEARCH title_data USING COVERING INDEX title_search (search_key>? AND search_key<?)",
+          "UNION USING TEMP B-TREE",
+          "SEARCH a USING COVERING INDEX alias_search (search_key>? AND search_key<?)",
+          "SEARCH t USING INTEGER PRIMARY KEY (rowid=?)"
+        ]
+      },
+      {
+        "sql": "SELECT count(*) FROM release r JOIN entity e USING(entity_id) JOIN title t USING(title_id) WHERE t.title_id IN (?)",
+        "plan": [
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH title_data USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH e USING INDEX entity_title (title_key=?)",
+          "SEARCH e USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "SEARCH r USING COVERING INDEX sqlite_autoindex_release_data_2 (entity_key=?)"
+        ]
+      },
+      {
+        "sql": "SELECT r.*, e.title_id,e.kind,e.native_season,e.native_episode,e.path,\n                e.identity_anchor AS entity_anchor,t.identity_anchor AS title_anchor,t.slug,t.display_title,t.year,\n                ct.namespace,ct.external_id,ce.season,ce.episode FROM release r JOIN entity e USING(entity_id) JOIN title t USING(title_id)\n                LEFT JOIN canonical_title_data ct ON ct.mapping_id=(SELECT c.mapping_id FROM canonical_title c\n                    WHERE c.title_id=t.title_id ORDER BY CASE c.namespace WHEN 'tvdb' THEN 0 WHEN 'tmdb-tv' THEN 1 ELSE 2 END,c.namespace LIMIT 1)\n                LEFT JOIN canonical_episode_data ce ON ce.mapping_key=ct.mapping_key AND ce.entity_key=(SELECT entity_key FROM entity_data WHERE entity_id=e.entity_id) WHERE t.title_id IN (?) ORDER BY r.first_seen_at DESC,r.release_id ASC LIMIT ?",
+        "plan": [
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH title_data USING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH e USING INDEX entity_title (title_key=?)",
+          "SEARCH e USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "SEARCH r USING INDEX sqlite_autoindex_release_data_2 (entity_key=?)",
+          "SEARCH ct USING INDEX sqlite_autoindex_canonical_title_data_1 (mapping_id=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 1",
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH c USING INDEX sqlite_autoindex_canonical_title_data_2 (title_key=?)",
+          "USE TEMP B-TREE FOR ORDER BY",
+          "SEARCH ce USING COVERING INDEX canonical_episode_entity (entity_key=? AND mapping_key=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 2",
+          "SEARCH entity_data USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "USE TEMP B-TREE FOR ORDER BY"
+        ]
+      }
+    ],
+    "2": [
+      {
+        "sql": "SELECT title_id FROM canonical_title WHERE namespace=? AND external_id=? LIMIT 2",
+        "plan": [
+          "SEARCH c USING COVERING INDEX canonical_lookup (namespace=? AND external_id=?)",
+          "SEARCH t USING INTEGER PRIMARY KEY (rowid=?)"
+        ]
+      },
+      {
+        "sql": "SELECT count(*) FROM release r JOIN entity e USING(entity_id) JOIN title t USING(title_id)\n                LEFT JOIN canonical_title_data ct ON ct.mapping_id=(SELECT c.mapping_id FROM canonical_title c\n                    WHERE c.title_id=t.title_id ORDER BY CASE c.namespace WHEN 'tvdb' THEN 0 WHEN 'tmdb-tv' THEN 1 ELSE 2 END,c.namespace LIMIT 1)\n                LEFT JOIN canonical_episode_data ce ON ce.mapping_key=ct.mapping_key AND ce.entity_key=(SELECT entity_key FROM entity_data WHERE entity_id=e.entity_id) WHERE e.kind='episode' AND ce.entity_key IS NOT NULL AND t.title_id IN (?)",
+        "plan": [
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH title_data USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH e USING INDEX entity_title (title_key=?)",
+          "SEARCH e USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "SEARCH r USING COVERING INDEX sqlite_autoindex_release_data_2 (entity_key=?)",
+          "SEARCH ct USING COVERING INDEX sqlite_autoindex_canonical_title_data_1 (mapping_id=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 1",
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH c USING INDEX sqlite_autoindex_canonical_title_data_2 (title_key=?)",
+          "USE TEMP B-TREE FOR ORDER BY",
+          "SEARCH ce USING COVERING INDEX canonical_episode_entity (entity_key=? AND mapping_key=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 2",
+          "SEARCH entity_data USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)"
+        ]
+      },
+      {
+        "sql": "SELECT r.*, e.title_id,e.kind,e.native_season,e.native_episode,e.path,\n                e.identity_anchor AS entity_anchor,t.identity_anchor AS title_anchor,t.slug,t.display_title,t.year,\n                ct.namespace,ct.external_id,ce.season,ce.episode FROM release r JOIN entity e USING(entity_id) JOIN title t USING(title_id)\n                LEFT JOIN canonical_title_data ct ON ct.mapping_id=(SELECT c.mapping_id FROM canonical_title c\n                    WHERE c.title_id=t.title_id ORDER BY CASE c.namespace WHEN 'tvdb' THEN 0 WHEN 'tmdb-tv' THEN 1 ELSE 2 END,c.namespace LIMIT 1)\n                LEFT JOIN canonical_episode_data ce ON ce.mapping_key=ct.mapping_key AND ce.entity_key=(SELECT entity_key FROM entity_data WHERE entity_id=e.entity_id) WHERE e.kind='episode' AND ce.entity_key IS NOT NULL AND t.title_id IN (?) ORDER BY r.first_seen_at DESC,r.release_id ASC LIMIT ?",
+        "plan": [
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH title_data USING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH e USING INDEX entity_title (title_key=?)",
+          "SEARCH e USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "SEARCH r USING INDEX sqlite_autoindex_release_data_2 (entity_key=?)",
+          "SEARCH ct USING INDEX sqlite_autoindex_canonical_title_data_1 (mapping_id=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 1",
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH c USING INDEX sqlite_autoindex_canonical_title_data_2 (title_key=?)",
+          "USE TEMP B-TREE FOR ORDER BY",
+          "SEARCH ce USING COVERING INDEX canonical_episode_entity (entity_key=? AND mapping_key=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 2",
+          "SEARCH entity_data USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "USE TEMP B-TREE FOR ORDER BY"
+        ]
+      }
+    ],
+    "3": [
+      {
+        "sql": "SELECT title_id FROM canonical_title WHERE namespace=? AND external_id=? LIMIT 2",
+        "plan": [
+          "SEARCH c USING COVERING INDEX canonical_lookup (namespace=? AND external_id=?)",
+          "SEARCH t USING INTEGER PRIMARY KEY (rowid=?)"
+        ]
+      },
+      {
+        "sql": "SELECT count(*) FROM release r JOIN entity e USING(entity_id) JOIN title t USING(title_id)\n                LEFT JOIN canonical_title_data ct ON ct.mapping_id=(SELECT c.mapping_id FROM canonical_title c\n                    WHERE c.title_id=t.title_id ORDER BY CASE c.namespace WHEN 'tvdb' THEN 0 WHEN 'tmdb-tv' THEN 1 ELSE 2 END,c.namespace LIMIT 1)\n                LEFT JOIN canonical_episode_data ce ON ce.mapping_key=ct.mapping_key AND ce.entity_key=(SELECT entity_key FROM entity_data WHERE entity_id=e.entity_id) WHERE e.kind='episode' AND ce.entity_key IS NOT NULL AND t.title_id IN (?) AND ce.season=?",
+        "plan": [
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH title_data USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH e USING INDEX entity_title (title_key=?)",
+          "SEARCH e USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "SEARCH r USING COVERING INDEX sqlite_autoindex_release_data_2 (entity_key=?)",
+          "SEARCH ct USING COVERING INDEX sqlite_autoindex_canonical_title_data_1 (mapping_id=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 1",
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH c USING INDEX sqlite_autoindex_canonical_title_data_2 (title_key=?)",
+          "USE TEMP B-TREE FOR ORDER BY",
+          "SEARCH ce USING COVERING INDEX canonical_episode_entity (entity_key=? AND mapping_key=? AND season=?)",
+          "CORRELATED SCALAR SUBQUERY 2",
+          "SEARCH entity_data USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)"
+        ]
+      },
+      {
+        "sql": "SELECT r.*, e.title_id,e.kind,e.native_season,e.native_episode,e.path,\n                e.identity_anchor AS entity_anchor,t.identity_anchor AS title_anchor,t.slug,t.display_title,t.year,\n                ct.namespace,ct.external_id,ce.season,ce.episode FROM release r JOIN entity e USING(entity_id) JOIN title t USING(title_id)\n                LEFT JOIN canonical_title_data ct ON ct.mapping_id=(SELECT c.mapping_id FROM canonical_title c\n                    WHERE c.title_id=t.title_id ORDER BY CASE c.namespace WHEN 'tvdb' THEN 0 WHEN 'tmdb-tv' THEN 1 ELSE 2 END,c.namespace LIMIT 1)\n                LEFT JOIN canonical_episode_data ce ON ce.mapping_key=ct.mapping_key AND ce.entity_key=(SELECT entity_key FROM entity_data WHERE entity_id=e.entity_id) WHERE e.kind='episode' AND ce.entity_key IS NOT NULL AND t.title_id IN (?) AND ce.season=? ORDER BY r.first_seen_at DESC,r.release_id ASC LIMIT ?",
+        "plan": [
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH title_data USING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH e USING INDEX entity_title (title_key=?)",
+          "SEARCH e USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "SEARCH r USING INDEX sqlite_autoindex_release_data_2 (entity_key=?)",
+          "SEARCH ct USING INDEX sqlite_autoindex_canonical_title_data_1 (mapping_id=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 1",
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH c USING INDEX sqlite_autoindex_canonical_title_data_2 (title_key=?)",
+          "USE TEMP B-TREE FOR ORDER BY",
+          "SEARCH ce USING COVERING INDEX canonical_episode_entity (entity_key=? AND mapping_key=? AND season=?)",
+          "CORRELATED SCALAR SUBQUERY 2",
+          "SEARCH entity_data USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "USE TEMP B-TREE FOR ORDER BY"
+        ]
+      }
+    ],
+    "4": [
+      {
+        "sql": "SELECT min(first_seen_at) FROM release_data",
+        "plan": [
+          "SEARCH release_data USING COVERING INDEX release_recent"
+        ]
+      },
+      {
+        "sql": "SELECT r.*, e.title_id,e.kind,e.native_season,e.native_episode,e.path,\n                e.identity_anchor AS entity_anchor,t.identity_anchor AS title_anchor,t.slug,t.display_title,t.year,\n                ct.namespace,ct.external_id,ce.season,ce.episode FROM (SELECT p.release_id,k.entity_id,p.language,p.first_seen_at,p.observed_at\n      FROM release_data p INDEXED BY release_recent\n      JOIN entity_data k USING(entity_key)) r JOIN entity e USING(entity_id) JOIN title t USING(title_id)\n                LEFT JOIN canonical_title_data ct ON ct.mapping_id=(SELECT c.mapping_id FROM canonical_title c\n                    WHERE c.title_id=t.title_id ORDER BY CASE c.namespace WHEN 'tvdb' THEN 0 WHEN 'tmdb-tv' THEN 1 ELSE 2 END,c.namespace LIMIT 1)\n                LEFT JOIN canonical_episode_data ce ON ce.mapping_key=ct.mapping_key AND ce.entity_key=(SELECT entity_key FROM entity_data WHERE entity_id=e.entity_id) WHERE r.first_seen_at>=? ORDER BY r.first_seen_at DESC,r.release_id ASC LIMIT ?",
+        "plan": [
+          "SEARCH p USING INDEX release_recent (first_seen_at>?)",
+          "SEARCH k USING INTEGER PRIMARY KEY (rowid=?)",
+          "SEARCH e USING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "SEARCH t USING INTEGER PRIMARY KEY (rowid=?)",
+          "SEARCH title_data USING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH ct USING INDEX sqlite_autoindex_canonical_title_data_1 (mapping_id=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 2",
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH c USING INDEX sqlite_autoindex_canonical_title_data_2 (title_key=?)",
+          "USE TEMP B-TREE FOR ORDER BY",
+          "SEARCH ce USING COVERING INDEX canonical_episode_entity (entity_key=? AND mapping_key=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 3",
+          "SEARCH entity_data USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)"
+        ]
+      }
+    ],
+    "5": [
+      {
+        "sql": "SELECT min(first_seen_at) FROM release_data",
+        "plan": [
+          "SEARCH release_data USING COVERING INDEX release_recent"
+        ]
+      },
+      {
+        "sql": "SELECT r.*, e.title_id,e.kind,e.native_season,e.native_episode,e.path,\n                e.identity_anchor AS entity_anchor,t.identity_anchor AS title_anchor,t.slug,t.display_title,t.year,\n                ct.namespace,ct.external_id,ce.season,ce.episode FROM (SELECT p.release_id,k.entity_id,p.language,p.first_seen_at,p.observed_at\n      FROM release_data p INDEXED BY release_recent\n      JOIN entity_data k USING(entity_key)) r JOIN entity e USING(entity_id) JOIN title t USING(title_id)\n                LEFT JOIN canonical_title_data ct ON ct.mapping_id=(SELECT c.mapping_id FROM canonical_title c\n                    WHERE c.title_id=t.title_id ORDER BY CASE c.namespace WHEN 'tvdb' THEN 0 WHEN 'tmdb-tv' THEN 1 ELSE 2 END,c.namespace LIMIT 1)\n                LEFT JOIN canonical_episode_data ce ON ce.mapping_key=ct.mapping_key AND ce.entity_key=(SELECT entity_key FROM entity_data WHERE entity_id=e.entity_id) WHERE r.first_seen_at>=? ORDER BY r.first_seen_at DESC,r.release_id ASC LIMIT ?",
+        "plan": [
+          "SEARCH p USING INDEX release_recent (first_seen_at>?)",
+          "SEARCH k USING INTEGER PRIMARY KEY (rowid=?)",
+          "SEARCH e USING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)",
+          "SEARCH t USING INTEGER PRIMARY KEY (rowid=?)",
+          "SEARCH title_data USING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH ct USING INDEX sqlite_autoindex_canonical_title_data_1 (mapping_id=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 2",
+          "SEARCH t USING COVERING INDEX sqlite_autoindex_title_data_1 (title_id=?)",
+          "SEARCH c USING INDEX sqlite_autoindex_canonical_title_data_2 (title_key=?)",
+          "USE TEMP B-TREE FOR ORDER BY",
+          "SEARCH ce USING COVERING INDEX canonical_episode_entity (entity_key=? AND mapping_key=?) LEFT-JOIN",
+          "CORRELATED SCALAR SUBQUERY 3",
+          "SEARCH entity_data USING COVERING INDEX sqlite_autoindex_entity_data_1 (entity_id=?)"
+        ]
+      }
+    ],
+    "6": [
+      {
+        "sql": "SELECT title_id FROM canonical_title WHERE namespace=? AND external_id=? LIMIT 2",
+        "plan": [
+          "SEARCH c USING COVERING INDEX canonical_lookup (namespace=? AND external_id=?)",
+          "SEARCH t USING INTEGER PRIMARY KEY (rowid=?)"
+        ]
+      }
+    ],
+    "7": [
+      {
+        "sql": "SELECT title_id FROM title WHERE search_key LIKE ? UNION SELECT title_id FROM alias WHERE search_key LIKE ? LIMIT 201",
+        "plan": [
+          "COMPOUND QUERY",
+          "LEFT-MOST SUBQUERY",
+          "SEARCH title_data USING COVERING INDEX title_search (search_key>? AND search_key<?)",
+          "UNION USING TEMP B-TREE",
+          "SEARCH a USING COVERING INDEX alias_search (search_key>? AND search_key<?)",
+          "SEARCH t USING INTEGER PRIMARY KEY (rowid=?)"
+        ]
+      }
+    ]
+  },
+  "snapshot": {
+    "latency": {
+      "n": 128,
+      "p50_ms": 15.341,
+      "p95_ms": 89.42,
+      "p99_ms": 96.631
+    },
+    "wall_s": 0.385,
+    "cpu_ms": 777,
+    "by_case": {
+      "0": {
+        "n": 16,
+        "p50_ms": 16.391,
+        "p95_ms": 21.593,
+        "p99_ms": 21.593
+      },
+      "1": {
+        "n": 16,
+        "p50_ms": 15.87,
+        "p95_ms": 21.642,
+        "p99_ms": 21.642
+      },
+      "2": {
+        "n": 16,
+        "p50_ms": 14.084,
+        "p95_ms": 26.057,
+        "p99_ms": 26.057
+      },
+      "3": {
+        "n": 16,
+        "p50_ms": 15.607,
+        "p95_ms": 26.228,
+        "p99_ms": 26.228
+      },
+      "4": {
+        "n": 16,
+        "p50_ms": 36.218,
+        "p95_ms": 48.117,
+        "p99_ms": 48.117
+      },
+      "5": {
+        "n": 16,
+        "p50_ms": 89.42,
+        "p95_ms": 106.881,
+        "p99_ms": 106.881
+      },
+      "6": {
+        "n": 16,
+        "p50_ms": 1.768,
+        "p95_ms": 3.539,
+        "p99_ms": 3.539
+      },
+      "7": {
+        "n": 16,
+        "p50_ms": 1.439,
+        "p95_ms": 2.914,
+        "p99_ms": 2.914
+      }
+    },
+    "query_network_bytes": 0
+  },
+  "snapshot_replacement": {
+    "latency": {
+      "n": 256,
+      "p50_ms": 16.182,
+      "p95_ms": 95.117,
+      "p99_ms": 133.48
+    },
+    "revisions": {
+      "91": 50,
+      "92": 206
+    },
+    "update_pointer_ms": 1.345,
+    "errors": 0,
+    "mixed_responses": 0
+  },
+  "http": {
+    "latency": {
+      "n": 128,
+      "p50_ms": 83.159,
+      "p95_ms": 119.972,
+      "p99_ms": 172.691
+    },
+    "wall_s": 1.424,
+    "consumer_cpu_ms": 747,
+    "by_case": {
+      "6": {
+        "n": 16,
+        "p50_ms": 68.233,
+        "p95_ms": 88.978,
+        "p99_ms": 88.978
+      },
+      "7": {
+        "n": 16,
+        "p50_ms": 64.25,
+        "p95_ms": 82.379,
+        "p99_ms": 82.379
+      },
+      "0": {
+        "n": 16,
+        "p50_ms": 86.091,
+        "p95_ms": 98.731,
+        "p99_ms": 98.731
+      },
+      "3": {
+        "n": 16,
+        "p50_ms": 84.873,
+        "p95_ms": 104.169,
+        "p99_ms": 104.169
+      },
+      "1": {
+        "n": 16,
+        "p50_ms": 88.056,
+        "p95_ms": 114.173,
+        "p99_ms": 114.173
+      },
+      "2": {
+        "n": 16,
+        "p50_ms": 79.501,
+        "p95_ms": 105.315,
+        "p99_ms": 105.315
+      },
+      "4": {
+        "n": 16,
+        "p50_ms": 86.403,
+        "p95_ms": 99.542,
+        "p99_ms": 99.542
+      },
+      "5": {
+        "n": 16,
+        "p50_ms": 116.298,
+        "p95_ms": 175.943,
+        "p99_ms": 175.943
+      }
+    },
+    "states": {
+      "miss": 128
+    },
+    "latency_by_state": {
+      "miss": {
+        "n": 128,
+        "p50_ms": 83.159,
+        "p95_ms": 119.972,
+        "p99_ms": 172.691
+      }
+    },
+    "requests": 128,
+    "response_bytes": 4489504,
+    "request_body_bytes": 12048,
+    "cache_file_bytes": 307200,
+    "server": {
+      "completed": 401,
+      "cpu_ms": 3524,
+      "peak_rss_bytes": 120590336,
+      "response_bytes": 14215181
+    }
+  },
+  "cached": {
+    "latency": {
+      "n": 128,
+      "p50_ms": 2.863,
+      "p95_ms": 91.272,
+      "p99_ms": 176.572
+    },
+    "wall_s": 0.49,
+    "consumer_cpu_ms": 317,
+    "by_case": {
+      "6": {
+        "n": 16,
+        "p50_ms": 0.974,
+        "p95_ms": 1.563,
+        "p99_ms": 1.563
+      },
+      "7": {
+        "n": 16,
+        "p50_ms": 0.936,
+        "p95_ms": 1.501,
+        "p99_ms": 1.501
+      },
+      "0": {
+        "n": 16,
+        "p50_ms": 2.886,
+        "p95_ms": 40.618,
+        "p99_ms": 40.618
+      },
+      "2": {
+        "n": 16,
+        "p50_ms": 2.765,
+        "p95_ms": 43.675,
+        "p99_ms": 43.675
+      },
+      "3": {
+        "n": 16,
+        "p50_ms": 2.797,
+        "p95_ms": 47.078,
+        "p99_ms": 47.078
+      },
+      "1": {
+        "n": 16,
+        "p50_ms": 2.939,
+        "p95_ms": 51.115,
+        "p99_ms": 51.115
+      },
+      "4": {
+        "n": 16,
+        "p50_ms": 5.712,
+        "p95_ms": 71.243,
+        "p99_ms": 71.243
+      },
+      "5": {
+        "n": 16,
+        "p50_ms": 5.499,
+        "p95_ms": 210.548,
+        "p99_ms": 210.548
+      }
+    },
+    "states": {
+      "miss": 16,
+      "hit": 112
+    },
+    "latency_by_state": {
+      "miss": {
+        "n": 16,
+        "p50_ms": 91.272,
+        "p95_ms": 210.548,
+        "p99_ms": 210.548
+      },
+      "hit": {
+        "n": 112,
+        "p50_ms": 2.763,
+        "p95_ms": 5.86,
+        "p99_ms": 6.284
+      }
+    },
+    "requests": 16,
+    "response_bytes": 715568,
+    "request_body_bytes": 1510,
+    "cache_file_bytes": 299008
+  },
+  "replacement": {
+    "latency": {
+      "n": 256,
+      "p50_ms": 63.061,
+      "p95_ms": 103.385,
+      "p99_ms": 121.108
+    },
+    "revisions": {
+      "91": 23,
+      "92": 233
+    },
+    "update_pointer_ms": 0.682,
+    "errors": 0,
+    "mixed_responses": 0
+  },
+  "offline": {
+    "previous_season": "stale",
+    "observation_age_s": 100.0,
+    "error": "transport",
+    "new_title": "unavailable",
+    "restart_preserves_cached_coordinates": true
+  },
+  "delay40": {
+    "latency": {
+      "n": 128,
+      "p50_ms": 117.532,
+      "p95_ms": 147.039,
+      "p99_ms": 161.216
+    },
+    "wall_s": 1.916,
+    "consumer_cpu_ms": 701,
+    "by_case": {
+      "7": {
+        "n": 16,
+        "p50_ms": 101.683,
+        "p95_ms": 115.177,
+        "p99_ms": 115.177
+      },
+      "6": {
+        "n": 16,
+        "p50_ms": 102.918,
+        "p95_ms": 122.904,
+        "p99_ms": 122.904
+      },
+      "3": {
+        "n": 16,
+        "p50_ms": 128.246,
+        "p95_ms": 151.091,
+        "p99_ms": 151.091
+      },
+      "2": {
+        "n": 16,
+        "p50_ms": 124.414,
+        "p95_ms": 138.388,
+        "p99_ms": 138.388
+      },
+      "1": {
+        "n": 16,
+        "p50_ms": 117.757,
+        "p95_ms": 136.292,
+        "p99_ms": 136.292
+      },
+      "0": {
+        "n": 16,
+        "p50_ms": 117.872,
+        "p95_ms": 134.53,
+        "p99_ms": 134.53
+      },
+      "4": {
+        "n": 16,
+        "p50_ms": 112.165,
+        "p95_ms": 136.337,
+        "p99_ms": 136.337
+      },
+      "5": {
+        "n": 16,
+        "p50_ms": 139.301,
+        "p95_ms": 161.216,
+        "p99_ms": 161.216
+      }
+    },
+    "states": {
+      "miss": 128
+    },
+    "latency_by_state": {
+      "miss": {
+        "n": 128,
+        "p50_ms": 117.532,
+        "p95_ms": 147.039,
+        "p99_ms": 161.216
+      }
+    },
+    "requests": 128,
+    "response_bytes": 4489504,
+    "request_body_bytes": 12048,
+    "cache_file_bytes": 307200,
+    "server": {
+      "completed": 128,
+      "cpu_ms": 1018,
+      "peak_rss_bytes": 117239808,
+      "response_bytes": 4489504
+    }
+  },
+  "elapsed_s": 8.342,
+  "container_peak_bytes": 185876480,
+  "owned_disk_bytes": 2102227775,
+  "consumer_peak_rss_bytes": 135852032,
+  "source": {
+    "base_commit": "88b8796",
+    "image": "sha256:c3444c9aad028a90b3dab7998c325b401481e71f2b7a6c2236d70a7afd7d80fe",
+    "query_sql_sha256": "deb40b3af53130f4c2c4290eecd6081aef737cd0337656f54fb24f1cd5329a0c",
+    "prototype_sha256": {
+      "scripts/catalog/query_api/__init__.py": "2c394fc4c5ac5764000eae086369925c1730425ec86eda7aa974d662f37b30bc",
+      "scripts/catalog/query_api/benchmark.py": "5556934c7141aa107c6e0ba820add8da5afe7f71b39a11f7c42dde0fed2ae20d",
+      "scripts/catalog/query_api/client.py": "ba2c18897720736a7b915aefe48a822a15e266df92c7dbcb1cfb210752c604ed",
+      "scripts/catalog/query_api/prepare.py": "2db487741a5e8ae8d3e5ed48ba6956a4c01606dde7c15eb3e6299dd0547464a5",
+      "scripts/catalog/query_api/protocol.py": "6ff0551d0ae023c902f05f3ec6a27ae9721b99aec4a16f2f339262e7bde8e1e7",
+      "scripts/catalog/query_api/reader.py": "50f7eabd25e6d9f56b7da4dea09e875ece45380980eebed60ef259160ccbd8fc",
+      "scripts/catalog/query_api/serve.py": "8724db175f9e2b09e838030e2576b44e13a79fa05627897d1d0577b8beb8ee27",
+      "scripts/catalog/query_api/server.py": "b4781baab89f4cbfdd4de08d07561d48848afe4ceee767ffffd21aa72562a74a",
+      "scripts/catalog/query_api/test_evaluation.py": "3959d45bd0c061ff681bf7b4026df5421b70e80debba0429c841278898418f56"
+    }
+  },
+  "validation": {
+    "native_tests": 30,
+    "linux_installed_tests": 30,
+    "ruff": "passed",
+    "post_measurement_changes": "Type hints, origin/header validation and added source-context tests; synthetic benchmark query behavior unchanged."
+  },
+  "cleanup": {
+    "original_two_artifacts_rehashed_unchanged": true,
+    "owned_large_copies_and_request_caches_removed": true,
+    "original_endurance_files_preserved": true
+  }
+}

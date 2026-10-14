@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-14",
+  "scope": "Sequential read-only live SQLite diagnostics after the operational recheck; no canonical/provider requests or state changes",
+  "worker_revision": "36fbd511890b0c08a80385b0a2542d3c6b51c1d3",
+  "providers": {
+    "aniworld.to": {
+      "unmapped_usable_episodes": {
+        "no_series_match": 6775,
+        "missing_episode_name": 0,
+        "no_descriptor_cache": 0,
+        "unresolved_with_descriptor": 15280
+      },
+      "matching_inputs_never_checked": 0,
+      "eligible_matched_title_rechecks": 1046,
+      "partial_series_with_unmapped_named_episodes": 1353,
+      "unmapped_named_episodes_in_partial_series_including_unusable": 15291,
+      "three_largest_unmapped_usable_cohorts": [
+        {"rank": 1, "episodes": 1286, "canonical_name_keys": 1300, "no_matching_name_in_descriptor": 1286},
+        {"rank": 2, "episodes": 644, "canonical_name_keys": 1242, "no_matching_name_in_descriptor": 640, "source_name_repeated": 4},
+        {"rank": 3, "episodes": 390, "canonical_name_keys": 85, "no_matching_name_in_descriptor": 390}
+      ]
+    },
+    "s.to": {
+      "unmapped_usable_episodes": {
+        "no_series_match": 8345,
+        "missing_episode_name": 4,
+        "no_descriptor_cache": 0,
+        "unresolved_with_descriptor": 92506
+      },
+      "matching_inputs_never_checked": 0,
+      "eligible_matched_title_rechecks": 8121,
+      "partial_series_with_unmapped_named_episodes": 7258,
+      "unmapped_named_episodes_in_partial_series_including_unusable": 99016,
+      "three_largest_unmapped_usable_cohorts": [
+        {"rank": 1, "episodes": 1292, "canonical_name_keys": 1386, "no_matching_name_in_descriptor": 1292},
+        {"rank": 2, "episodes": 1131, "canonical_name_keys": 1242, "no_matching_name_in_descriptor": 1131},
+        {"rank": 3, "episodes": 1104, "canonical_name_keys": 104, "no_usable_name": 1104}
+      ]
+    }
+  },
+  "scheduler": {
+    "partial_series_total": 8611,
+    "missing_recheck_seconds": 1800,
+    "shared_canonical_requests_per_minute": 30,
+    "minimum_hourly_demand_if_each_partial_series_refreshes_twice": 17222,
+    "maximum_hourly_request_admission": 1800,
+    "minimum_one_descriptor_per_series_pass_hours": 4.783888888888889,
+    "interpretation": "A capacity lower bound derived from code and partial-series count, not a measured full-pass duration or HTTP request trace; source name gaps cannot be solved by the same descriptor alone"
+  },
+  "cohort_totals": {
+    "episodes": 5847,
+    "no_matching_name_in_descriptor": 4739,
+    "no_usable_name": 1104,
+    "source_name_repeated": 4
+  },
+  "one_piece_example": {
+    "source_episode_title": "I'm Luffy! The Man Who Will Become the Pirate King! [Episode 001]",
+    "source_episode_alias": "Hier kommt Ruffy, der künftige König der Piraten!",
+    "canonical_s1e1_name_key": "i m luffy the man who s gonna be king of the pirates",
+    "interpretation": "Normalized names differ. Coordinates locate this diagnostic example; their equality is not acceptance evidence for an automatic correspondence. Duplicate series associations and candidate uniqueness still need review."
+  },
+  "limits": [
+    "No series in the existing mapping_input queue was never checked; this does not prove every newly discovered title already has a mapping_input row or performed an external HTTP lookup.",
+    "Unresolved-with-descriptor does not by itself distinguish wording/language differences, incomplete descriptors, wrong series associations, ambiguity or matcher defects.",
+    "Top-three cohorts per provider are concentrated diagnostic samples, not a representative accuracy or provider-wide gain estimate.",
+    "These counts are a later sequential snapshot than pilot-recheck-2026-10-14.json and may differ from it.",
+    "The current canonical limiter was not raised. No implementation, deployment, push or media acquisition occurred in this diagnosis."
+  ]
+}

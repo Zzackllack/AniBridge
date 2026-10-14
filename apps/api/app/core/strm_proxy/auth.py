@@ -101,7 +101,7 @@ def build_auth_params(
     raise ValueError(f"Unknown STRM_PROXY_AUTH mode: {mode}")
 
 
-def require_auth(params: Mapping[str, str]) -> None:
+def require_auth(params: Mapping[str, str], *, scope: str | None = None) -> None:
     """
     Validate request parameters against the configured STRM proxy authentication mode.
 
@@ -121,6 +121,10 @@ def require_auth(params: Mapping[str, str]) -> None:
         HTTPException: 500 if the STRM proxy secret is not configured.
     """
     logger.trace("Validating STRM proxy auth mode={}", STRM_PROXY_AUTH)
+    # New catalog tokens cannot be moved onto a legacy arbitrary-URL route.
+    # Existing legacy URLs have no scope and retain their original behavior.
+    if params.get("ab_scope") != scope:
+        raise HTTPException(status_code=401, detail="invalid stream scope")
     mode = STRM_PROXY_AUTH
     if mode == "none":
         return

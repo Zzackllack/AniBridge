@@ -1,0 +1,39 @@
+{
+  "providers": {
+    "aniworld.to": "https://aniworld.to"
+  },
+  "canonical_sources": {
+    "tv": "skyhook",
+    "movie": "off",
+    "episode_languages": ["deu"]
+  },
+  "state_dir": "/state",
+  "output_dir": "/read",
+  "source_id": "private-catalog",
+  "publication_sources": [
+    "skyhook-v1"
+  ],
+  "bind_host": "0.0.0.0",
+  "bind_port": 8080,
+  "limits": {
+    "canonical_requests_per_minute": 30,
+    "state_disk_bytes": 20000000000,
+    "public_disk_bytes": 9000000000,
+    "total_disk_bytes": 30000000000
+  },
+  "provider_settings": {
+    "aniworld.to": {
+      "limits": {
+        "provider_concurrency": 2,
+        "provider_request_interval_s": 2,
+        "provider_requests_per_hour": 1800
+      },
+      "headers": {
+        "User-Agent": "AniBridge-Metadata/1.0",
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "de,en;q=0.8",
+        "Referer": "https://aniworld.to/"
+      }
+    }
+  }
+}

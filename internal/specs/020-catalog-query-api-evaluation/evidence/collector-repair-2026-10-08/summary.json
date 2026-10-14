@@ -1,0 +1,28 @@
+{
+  "runtime_commit": "128f9eb53b6a21e75b013f2c52ff1f99bcade162",
+  "scope": "retained private pilot; finite post-cutover observation; no media",
+  "window_seconds": 327.102414,
+  "providers": {
+    "aniworld.to": {
+      "requests": 157,
+      "new_entities": 1701,
+      "new_releases": 2999,
+      "entities_per_request": 10.834394904458598,
+      "entities_per_second": 5.200206195971393,
+      "requests_per_hour_observed": 1727.8992016243574,
+      "new_failures": 0,
+      "parsed_batch_rows": 2422
+    },
+    "s.to": {
+      "requests": 156,
+      "new_entities": 1530,
+      "new_releases": 2143,
+      "entities_per_request": 9.807692307692308,
+      "entities_per_second": 4.677434144524534,
+      "requests_per_hour_observed": 1716.893474225476,
+      "new_failures": 0,
+      "parsed_batch_rows": 1832
+    }
+  },
+  "complete_bootstrap": false
+}

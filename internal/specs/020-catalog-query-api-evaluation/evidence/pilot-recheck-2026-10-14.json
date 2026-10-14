@@ -1,0 +1,636 @@
+{
+  "date": "2026-10-14",
+  "checked_at_utc": "2026-10-14T08:27:50.085426+00:00",
+  "counts_are_sequential_samples": true,
+  "host": "fra-node-01",
+  "scope": "read-only runtime/ledgers plus bounded catalog queries and three metadata observations; no media",
+  "worker_revision": "36fbd511890b0c08a80385b0a2542d3c6b51c1d3",
+  "worker_manifest": "sha256:1277d1fd6ec7130a53c5ed4a694dd8efada7e95db6c86bd897e3e446f2149e0a",
+  "runtime": {
+    "collector_cpu": 2,
+    "collector_memory_bytes": 2147483648,
+    "metadata_memory_bytes": 536870912,
+    "oom_kills_each": 0,
+    "restarts_each": 0,
+    "started_at_utc": "2026-10-11T21:56:33Z",
+    "netbird_route_retained": true,
+    "deployment_restart_resource_change": false
+  },
+  "providers": {
+    "aniworld.to": {
+      "counts": {
+        "title": 2516,
+        "entity": 63601,
+        "release": 116409,
+        "canonical_title": 6558,
+        "canonical_episode": 41533
+      },
+      "pending_pages": 0,
+      "failed_pages": 0,
+      "operational_state": "first_pass_complete",
+      "unknown_language_observations": 0,
+      "unavailable_episode_observations": 0,
+      "episodes_with_releases": 63585,
+      "mapped_with_releases": 41530,
+      "usable_mapping_fraction": 0.6531414641818039,
+      "first_pass_complete": true,
+      "detail_evidence_complete": true,
+      "recent_gap_parents_pending": 0,
+      "recent_coverage": "gap",
+      "blocked_until": 0,
+      "published_at": 1791966289,
+      "retry_queue": {
+        "pending_due_now": 0,
+        "pending_deferred": 0,
+        "pending_leased": 0,
+        "next_pending_due": null,
+        "failed_due_now": 0
+      },
+      "october_11_comparison": {
+        "pending_pages": 0,
+        "failed_pages": 0,
+        "releases": 116359,
+        "unknown_language_observations": 0,
+        "usable_mapping_fraction": 0.5817495280050347
+      }
+    },
+    "s.to": {
+      "counts": {
+        "title": 10972,
+        "entity": 306895,
+        "release": 355722,
+        "canonical_title": 30652,
+        "canonical_episode": 198149
+      },
+      "pending_pages": 141,
+      "failed_pages": 143,
+      "operational_state": "coverage_gaps",
+      "unknown_language_observations": 25135,
+      "unavailable_episode_observations": 8350,
+      "episodes_with_releases": 284555,
+      "mapped_with_releases": 183875,
+      "usable_mapping_fraction": 0.6461843931753088,
+      "first_pass_complete": false,
+      "detail_evidence_complete": false,
+      "recent_gap_parents_pending": 5,
+      "recent_coverage": "gap",
+      "blocked_until": 0,
+      "published_at": 1791966225,
+      "retry_queue": {
+        "pending_due_now": 0,
+        "pending_deferred": 141,
+        "pending_leased": 0,
+        "next_pending_due": 1791966545,
+        "failed_due_now": 0
+      },
+      "october_11_comparison": {
+        "pending_pages": 20061,
+        "failed_pages": 6620,
+        "releases": 322284,
+        "unknown_language_observations": 50933,
+        "usable_mapping_fraction": 0.6112915162591188
+      }
+    }
+  },
+  "storage": {
+    "state_used_bytes": 2667745280,
+    "public_used_bytes": 311812096,
+    "managed_used_bytes": 2979557376,
+    "runtime_reserved_bytes": 1000000000,
+    "total_used_bytes": 3979557376,
+    "state_quota_bytes": 20000000000,
+    "public_quota_bytes": 9000000000,
+    "total_quota_bytes": 30000000000,
+    "state_free_bytes": 106594439168,
+    "public_free_bytes": 106594439168,
+    "warning": false
+  },
+  "resources": {
+    "memory.current": "1301667840\n",
+    "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+    "memory.stat": "anon 139362304\nfile 560009216\nkernel 601751552\npgscan 142683\npgsteal 142680\npgmajfault 55",
+    "cpu.stat": "usage_usec 97990622426\nuser_usec 85135268293\nsystem_usec 12855354132\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 1621666\nnr_throttled 8352\nthrottled_usec 79237864\nnr_bursts 0\nburst_usec 0\n",
+    "io.stat": "8:0 rbytes=255717376 wbytes=250840494080 rios=40388 wios=6200454 dbytes=0 dios=0\n"
+  },
+  "events_last_24h": {
+    "window_hours": 24,
+    "retained_rows": 324319,
+    "oldest_timestamp_utc": "2026-10-12T13:44:45.871207+00:00",
+    "newest_timestamp_utc": "2026-10-14T08:27:48.290324+00:00",
+    "counters": [
+      {
+        "provider": "s.to",
+        "stage": "enrichment",
+        "outcome": "ok",
+        "count": 59282
+      },
+      {
+        "provider": "s.to",
+        "stage": "page",
+        "outcome": "ok",
+        "count": 9769
+      },
+      {
+        "provider": "s.to",
+        "stage": "collect",
+        "outcome": "ok",
+        "count": 9769
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "page",
+        "outcome": "ok",
+        "count": 8745
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "collect",
+        "outcome": "ok",
+        "count": 8745
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "enrichment",
+        "outcome": "ok",
+        "count": 71652
+      },
+      {
+        "provider": "s.to",
+        "stage": "state_preflight",
+        "outcome": "ok",
+        "count": 284
+      },
+      {
+        "provider": "s.to",
+        "stage": "export",
+        "outcome": "ok",
+        "count": 284
+      },
+      {
+        "provider": "s.to",
+        "stage": "validation",
+        "outcome": "ok",
+        "count": 284
+      },
+      {
+        "provider": "s.to",
+        "stage": "publication_lock",
+        "outcome": "ok",
+        "count": 284
+      },
+      {
+        "provider": "s.to",
+        "stage": "publication",
+        "outcome": "ok",
+        "count": 284
+      },
+      {
+        "provider": "s.to",
+        "stage": "child",
+        "outcome": "ok",
+        "count": 284
+      },
+      {
+        "provider": "s.to",
+        "stage": "page",
+        "outcome": "unexpected_structure",
+        "count": 3639
+      },
+      {
+        "provider": "s.to",
+        "stage": "collect",
+        "outcome": "unexpected_structure",
+        "count": 3639
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "state_preflight",
+        "outcome": "ok",
+        "count": 284
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "export",
+        "outcome": "ok",
+        "count": 284
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "validation",
+        "outcome": "ok",
+        "count": 284
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "publication_lock",
+        "outcome": "ok",
+        "count": 284
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "publication",
+        "outcome": "ok",
+        "count": 284
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "child",
+        "outcome": "ok",
+        "count": 284
+      },
+      {
+        "provider": "s.to",
+        "stage": "page",
+        "outcome": "transport_failure",
+        "count": 288
+      },
+      {
+        "provider": "s.to",
+        "stage": "collect",
+        "outcome": "transport_failure",
+        "count": 288
+      },
+      {
+        "provider": "s.to",
+        "stage": "page",
+        "outcome": "not_found",
+        "count": 42
+      },
+      {
+        "provider": "s.to",
+        "stage": "collect",
+        "outcome": "not_found",
+        "count": 42
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "page",
+        "outcome": "transport_failure",
+        "count": 6
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "collect",
+        "outcome": "transport_failure",
+        "count": 6
+      }
+    ],
+    "pages": [
+      {
+        "provider": "s.to",
+        "outcome": "ok",
+        "http_status": 200,
+        "parser_reason": null,
+        "child_exit": null,
+        "count": 9769
+      },
+      {
+        "provider": "aniworld.to",
+        "outcome": "ok",
+        "http_status": 200,
+        "parser_reason": null,
+        "child_exit": null,
+        "count": 8745
+      },
+      {
+        "provider": "s.to",
+        "outcome": "unexpected_structure",
+        "http_status": 200,
+        "parser_reason": "metadata_incomplete",
+        "child_exit": 1,
+        "count": 3522
+      },
+      {
+        "provider": "s.to",
+        "outcome": "transport_failure",
+        "http_status": 500,
+        "parser_reason": null,
+        "child_exit": null,
+        "count": 278
+      },
+      {
+        "provider": "s.to",
+        "outcome": "unexpected_structure",
+        "http_status": 200,
+        "parser_reason": "contract_rejected",
+        "child_exit": 1,
+        "count": 117
+      },
+      {
+        "provider": "s.to",
+        "outcome": "not_found",
+        "http_status": 404,
+        "parser_reason": null,
+        "child_exit": null,
+        "count": 42
+      },
+      {
+        "provider": "aniworld.to",
+        "outcome": "transport_failure",
+        "http_status": null,
+        "parser_reason": null,
+        "child_exit": null,
+        "count": 2
+      },
+      {
+        "provider": "s.to",
+        "outcome": "transport_failure",
+        "http_status": null,
+        "parser_reason": null,
+        "child_exit": null,
+        "count": 6
+      },
+      {
+        "provider": "aniworld.to",
+        "outcome": "transport_failure",
+        "http_status": 200,
+        "parser_reason": null,
+        "child_exit": null,
+        "count": 4
+      },
+      {
+        "provider": "s.to",
+        "outcome": "transport_failure",
+        "http_status": 200,
+        "parser_reason": null,
+        "child_exit": null,
+        "count": 4
+      }
+    ],
+    "phase_latency": [
+      {
+        "provider": "s.to",
+        "stage": "export",
+        "count": 284,
+        "median_s": 32.696,
+        "p95_s": 34.609,
+        "max_s": 36.153
+      },
+      {
+        "provider": "s.to",
+        "stage": "validation",
+        "count": 284,
+        "median_s": 27.99,
+        "p95_s": 29.983,
+        "max_s": 31.552
+      },
+      {
+        "provider": "s.to",
+        "stage": "publication_lock",
+        "count": 284,
+        "median_s": 0.058,
+        "p95_s": 0.074,
+        "max_s": 0.126
+      },
+      {
+        "provider": "s.to",
+        "stage": "publication",
+        "count": 284,
+        "median_s": 0.056,
+        "p95_s": 0.072,
+        "max_s": 0.12
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "export",
+        "count": 284,
+        "median_s": 7.847,
+        "p95_s": 8.623,
+        "max_s": 9.448
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "validation",
+        "count": 284,
+        "median_s": 6.416,
+        "p95_s": 6.95,
+        "max_s": 9.708
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "publication_lock",
+        "count": 284,
+        "median_s": 0.022,
+        "p95_s": 0.037,
+        "max_s": 0.099
+      },
+      {
+        "provider": "aniworld.to",
+        "stage": "publication",
+        "count": 284,
+        "median_s": 0.021,
+        "p95_s": 0.035,
+        "max_s": 0.097
+      }
+    ],
+    "child_failure_samples": []
+  },
+  "preservation": {
+    "aniworld.to": {
+      "backup_releases": 116386,
+      "missing_or_changed_first_seen": 0
+    },
+    "s.to": {
+      "backup_releases": 322649,
+      "missing_or_changed_first_seen": 0,
+      "unknown_gap_pages_with_releases": 11060
+    }
+  },
+  "quarantines": {
+    "aniworld.to": {
+      "quarantines": [],
+      "backup_exists": true,
+      "pre_v4_backup_exists": true,
+      "failed_due": 0
+    },
+    "s.to": {
+      "quarantines": [
+        {
+          "kind": "entities",
+          "old_count": 8,
+          "new_count": 6,
+          "approved": 0,
+          "count": 1
+        },
+        {
+          "kind": "languages",
+          "old_count": 1,
+          "new_count": 0,
+          "approved": 0,
+          "count": 1
+        },
+        {
+          "kind": "languages",
+          "old_count": 2,
+          "new_count": 1,
+          "approved": 0,
+          "count": 2
+        }
+      ],
+      "backup_exists": true,
+      "pre_v4_backup_exists": true,
+      "failed_due": 0
+    }
+  },
+  "remote_query_probe": {
+    "requests": 25,
+    "http_200": 25,
+    "recent_100_row_pages": 16,
+    "recent_latency_min_s": 0.05,
+    "recent_latency_max_s": 0.144,
+    "independent_totals_matched": true,
+    "failed_provider_or_query_hidden": false,
+    "large_exact_source_targets": [
+      {
+        "source_history_releases": 3573,
+        "coordinates": [
+          1,
+          1
+        ],
+        "status": 200,
+        "rows": 0,
+        "total": 0,
+        "mapping": "unresolved",
+        "duration_s": 0.138
+      },
+      {
+        "source_history_releases": 3573,
+        "coordinates": [
+          1,
+          6
+        ],
+        "status": 200,
+        "rows": 3,
+        "total": 3,
+        "mapping": "resolved",
+        "duration_s": 0.018
+      },
+      {
+        "source_history_releases": 3573,
+        "coordinates": [
+          21,
+          14
+        ],
+        "status": 200,
+        "rows": 3,
+        "total": 3,
+        "mapping": "resolved",
+        "duration_s": 0.028
+      }
+    ],
+    "ordinary_target": [
+      {
+        "case": "ordinary_target",
+        "provider": "s.to",
+        "operation": "native",
+        "status": 200,
+        "duration_s": 0.007,
+        "timestamp_utc": "2026-10-14T08:40:55.256382+00:00",
+        "rows": 2,
+        "total": 2,
+        "mapping": "resolved",
+        "revision": 1890,
+        "contract_valid": true
+      }
+    ],
+    "live_publication_overlap_tested": false
+  },
+  "local_client_probe": {
+    "image_revision": "71988fc8251e6a89823828ca3e871ab47ba2fc28",
+    "correction_count": 0,
+    "recent": {
+      "status": 200,
+      "items": 100,
+      "duration_s": 1.093
+    },
+    "ordinary": {
+      "status": 200,
+      "items": 2,
+      "duration_s": 0.193
+    },
+    "large_s1e1": {
+      "status": 200,
+      "items": 2,
+      "duration_s": 0.15
+    },
+    "not_a_new_client_correction_or_media_proof": true
+  },
+  "bounded_live_metadata_samples": [
+    {
+      "sample": 0,
+      "kind": "episode",
+      "retained_attempts": 48,
+      "http_status": 200,
+      "transport_outcome": "ok",
+      "requests": 1,
+      "shape": {
+        "series_heading": true,
+        "episode_heading": false,
+        "player_wrap": true,
+        "recognized_video_section": false,
+        "explicit_unavailable": true,
+        "interstitial": false,
+        "recognized_languages": 0,
+        "unknown_labels": 0
+      },
+      "parse": "metadata_incomplete"
+    },
+    {
+      "sample": 1,
+      "kind": "season",
+      "retained_attempts": 48,
+      "http_status": 200,
+      "transport_outcome": "ok",
+      "requests": 1,
+      "shape": {
+        "series_heading": true,
+        "episode_heading": false,
+        "player_wrap": false,
+        "recognized_video_section": false,
+        "explicit_unavailable": false,
+        "interstitial": false,
+        "recognized_languages": 0,
+        "unknown_labels": 0
+      },
+      "parse": "contract_rejected"
+    },
+    {
+      "sample": 2,
+      "kind": "title",
+      "retained_attempts": 525,
+      "http_status": 500,
+      "transport_outcome": "transport_failure",
+      "requests": 1
+    }
+  ],
+  "github": {
+    "pr": 170,
+    "draft": true,
+    "base": "v3",
+    "default": "main",
+    "head": "e0c932bae854f9656f0b81bf3f276e41dfe988e9",
+    "latest_completed_checks_successful": true,
+    "superseded_title_run_cancelled": true,
+    "review_decision": "REVIEW_REQUIRED",
+    "worker_core_pytest_ci_missing": true,
+    "v3_required_status_contexts": [
+      "Conventional Commit Title"
+    ],
+    "v3_required_approvals": 1
+  },
+  "limits": [
+    "No full bootstrap or endurance/crash campaign initiated.",
+    "Last-24-hour success does not reconstruct historical discarded maintenance failures.",
+    "No new local corrections, outage injection, extraction, acquisition, import or playback proof.",
+    "Pending and failure counts are overlapping categories; unavailable observations are not proved unreleased dates.",
+    "Three metadata samples do not classify all unknown-language observations or failed pages.",
+    "No push, PR modification or deployment performed in this recheck."
+  ],
+  "metadata_query_error_log": {
+    "requested_window_hours": 24,
+    "tail_limit_lines": 10000,
+    "retained_lines": 0,
+    "classified_query_failures": 0,
+    "not_a_complete_query_success_rate": true
+  }
+}

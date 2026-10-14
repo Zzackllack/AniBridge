@@ -1,0 +1,41 @@
+name: anibridge-private-client
+services:
+  initialize:
+    image: anibridge-query-api:${PILOT_COMMIT:?Set PILOT_COMMIT}
+    user: root
+    entrypoint: [sh, -ec]
+    command: ['mkdir -p /config; cp /operator/client.json /operator/metadata-token /config/; chmod 600 /config/*; chown -R 1000:1000 /config']
+    volumes: [config:/config, '${PILOT_CLIENT_CONFIG_DIR:?Select private client configuration}:/operator:ro']
+    network_mode: none
+    mem_limit: 128m
+    cpus: 1
+    logging: {driver: json-file, options: {max-size: 1m, max-file: '1'}}
+  api:
+    image: anibridge-query-api:${PILOT_COMMIT:?Set PILOT_COMMIT}
+    build:
+      context: ../../..
+      dockerfile: apps/api/Dockerfile
+      args: {PILOT_COMMIT: '${PILOT_COMMIT}'}
+    environment:
+      CATALOG_CONFIG_FILE: /config/client.json
+      CATALOG_SITES: ${PILOT_CATALOG_SITES:-aniworld.to,s.to}
+      ANIWORLD_BASE_URL: ${PILOT_ANIWORLD_ORIGIN:-https://aniworld.to}
+      STO_BASE_URL: ${PILOT_STO_ORIGIN:-https://serienstream.to}
+      MEGAKINO_BASE_URL: ${PILOT_MEGAKINO_ORIGIN:-https://megakino22.com}
+      DATA_DIR: /data
+      DOWNLOAD_DIR: /downloads
+      ANIBRIDGE_RELOAD: 'false'
+      ANIBRIDGE_UPDATE_CHECK: 'false'
+      STRM_FILES_MODE: 'no'
+      LOG_LEVEL: WARNING
+    depends_on: {initialize: {condition: service_completed_successfully}}
+    volumes: [config:/config:ro, local-state:/data, '${PILOT_DOWNLOAD_DIR:?Select disposable downloads}:/downloads']
+    ports: ['127.0.0.1:18000:8000']
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 2
+    logging: {driver: json-file, options: {max-size: 10m, max-file: '3'}}
+    restart: unless-stopped
+volumes:
+  config:
+  local-state:

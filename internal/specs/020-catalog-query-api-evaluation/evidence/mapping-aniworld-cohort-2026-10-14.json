@@ -1,0 +1,216 @@
+{
+  "seed": "mapping-2026-10-14-v1",
+  "provider": "aniworld.to",
+  "titles": [
+    {
+      "title_id": "813c6ac254280594da3fb968b50b5b0011ef896c98bc6ca7a070ca7582dd7285",
+      "episodes": 1287,
+      "gaps": 1286,
+      "cohort": "large",
+      "split": "development"
+    },
+    {
+      "title_id": "fbdfd506dde6df77c7437a459d7aa4994aff554372cd18782ebdce312e2f03c7",
+      "episodes": 1231,
+      "gaps": 644,
+      "cohort": "large",
+      "split": "held_out"
+    },
+    {
+      "title_id": "57a86f5048a57c349e760727ee254fa65fd7fc3f486cf3effc0f90633a8337a3",
+      "episodes": 390,
+      "gaps": 390,
+      "cohort": "large",
+      "split": "development"
+    },
+    {
+      "title_id": "7788363ce4a10c01770f43200cf3cf0905b2d0b6334d17e0765b6c5c4f116985",
+      "episodes": 311,
+      "gaps": 311,
+      "cohort": "large",
+      "split": "held_out"
+    },
+    {
+      "title_id": "6c3475c80afe232ac4a75d440abe4d4536bd0f3d0642a87e1087feab7375ad53",
+      "episodes": 237,
+      "gaps": 237,
+      "cohort": "large",
+      "split": "development"
+    },
+    {
+      "title_id": "a4739560ec9033407e52680477c97061d08e93210d5fe1a533577fe8e54ce161",
+      "episodes": 229,
+      "gaps": 229,
+      "cohort": "large",
+      "split": "held_out"
+    },
+    {
+      "title_id": "9245445ff0305f9dc9b31b5fc93f6496c123b7c650f02d6b7bacb1aeb07b6e9a",
+      "episodes": 172,
+      "gaps": 172,
+      "cohort": "large",
+      "split": "development"
+    },
+    {
+      "title_id": "f3303a62990e17ab5682f4acc107cda243e1129efeae16e5cb2a2e29c6064c68",
+      "episodes": 210,
+      "gaps": 166,
+      "cohort": "large",
+      "split": "held_out"
+    },
+    {
+      "title_id": "cc8820d5c644ce773e1e0768e26c90593840a37521ccc4fdf5a2ba7e3a6c30b6",
+      "episodes": 304,
+      "gaps": 162,
+      "cohort": "large",
+      "split": "development"
+    },
+    {
+      "title_id": "e02fd7815f8d8702f29005c255f5e5010f7b02c063ee502e2b097ec343ab1927",
+      "episodes": 162,
+      "gaps": 162,
+      "cohort": "large",
+      "split": "held_out"
+    },
+    {
+      "title_id": "3c9835dab424f88182be4a87fac236474d50a51c0b04349340ef3fa367704059",
+      "episodes": 1,
+      "gaps": 1,
+      "cohort": "ordinary",
+      "split": "development"
+    },
+    {
+      "title_id": "942be46ad03026479b074e40dd479ea7145241707f1906018051c0ce0a9099f5",
+      "episodes": 51,
+      "gaps": 51,
+      "cohort": "ordinary",
+      "split": "held_out"
+    },
+    {
+      "title_id": "3156d409217b3a43bcd588a8d40bddfeb57b4722ffbf59db1dd9c354a940a1ae",
+      "episodes": 1,
+      "gaps": 1,
+      "cohort": "ordinary",
+      "split": "development"
+    },
+    {
+      "title_id": "789c022a9f4420e90dbeaa84a9a20edb11c631c29ebb384ac96243f6ef0c58dc",
+      "episodes": 10,
+      "gaps": 10,
+      "cohort": "ordinary",
+      "split": "held_out"
+    },
+    {
+      "title_id": "0c86db5f9f017348111d964e5e77a70dc041bfcadc7f29d539d284efc51b6fa2",
+      "episodes": 2,
+      "gaps": 2,
+      "cohort": "ordinary",
+      "split": "development"
+    },
+    {
+      "title_id": "207e4b5b64bcc0a17295a16b8b58f0f2283d81dfda12161b2b24539ef14c1cbb",
+      "episodes": 12,
+      "gaps": 3,
+      "cohort": "ordinary",
+      "split": "held_out"
+    },
+    {
+      "title_id": "6b34de7a1342713d22695b9aaf559a307a905b17527085c2d07a6a597d13d6a2",
+      "episodes": 12,
+      "gaps": 11,
+      "cohort": "ordinary",
+      "split": "development"
+    },
+    {
+      "title_id": "91fa46ffd2c839cb48a462e803f89ff771bb5c54ca97d24976cf36964393c079",
+      "episodes": 12,
+      "gaps": 2,
+      "cohort": "ordinary",
+      "split": "held_out"
+    },
+    {
+      "title_id": "36df86e00636a7cfe6557acd663c94fa551741bfa6c475544f056734bdfc9ec0",
+      "episodes": 16,
+      "gaps": 0,
+      "cohort": "ordinary",
+      "split": "development"
+    },
+    {
+      "title_id": "bf2c1c36a04741d06133e95014a77981bddaffcde929709ac88b7448c991899f",
+      "episodes": 6,
+      "gaps": 0,
+      "cohort": "ordinary",
+      "split": "held_out"
+    },
+    {
+      "title_id": "c3d8f0b6b327dd11e69aadd917860c3b489572e0c4f9e1a24ea46681febf311f",
+      "episodes": 13,
+      "gaps": 0,
+      "cohort": "ordinary",
+      "split": "development"
+    },
+    {
+      "title_id": "51247f5c23b1a7d95bc4b12b955590ae243b6141200e4c0d0a06c469de80eafc",
+      "episodes": 36,
+      "gaps": 0,
+      "cohort": "ordinary",
+      "split": "held_out"
+    },
+    {
+      "title_id": "abb082fd6a64a9aa0911f3516f374fe62ca773575556c5456b96e99e5f24295e",
+      "episodes": 12,
+      "gaps": 0,
+      "cohort": "ordinary",
+      "split": "development"
+    },
+    {
+      "title_id": "19940edf9692ee00edaf3da7c6c5186c63b617dcb19f1daca2049a8f8f3e8dc0",
+      "episodes": 13,
+      "gaps": 0,
+      "cohort": "ordinary",
+      "split": "held_out"
+    },
+    {
+      "title_id": "166b1fab828ca9778f7f7517a64b9ab4285396ad5a0aa6bfd8df2a35e86bd7ee",
+      "episodes": 128,
+      "gaps": 5,
+      "cohort": "ordinary",
+      "split": "development"
+    },
+    {
+      "title_id": "1f327d40756927112d49051b9487b1d9251bd99bbaed1d0b91e79126520a7de2",
+      "episodes": 225,
+      "gaps": 3,
+      "cohort": "ordinary",
+      "split": "held_out"
+    },
+    {
+      "title_id": "1f567f1e9e3d8fb7617df79211b3ca2e644571bd449df2e965e319e0c5094bd4",
+      "episodes": 203,
+      "gaps": 60,
+      "cohort": "ordinary",
+      "split": "development"
+    },
+    {
+      "title_id": "0eb245a1e146012100b7b4ec00e2d45eb21fa44b8e6803580103e27827f66858",
+      "episodes": 102,
+      "gaps": 27,
+      "cohort": "ordinary",
+      "split": "held_out"
+    },
+    {
+      "title_id": "a00759a11542224ecb4e834eec572997118a40278380f7f4069e11a1f4eb6429",
+      "episodes": 122,
+      "gaps": 56,
+      "cohort": "ordinary",
+      "split": "development"
+    },
+    {
+      "title_id": "0fa554f19c96a9d6020879ca882dbba80ff8d5837ac1f1e3284047b2b503c9d9",
+      "episodes": 155,
+      "gaps": 73,
+      "cohort": "ordinary",
+      "split": "held_out"
+    }
+  ]
+}
