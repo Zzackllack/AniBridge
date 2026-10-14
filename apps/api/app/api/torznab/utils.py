@@ -38,7 +38,7 @@ def _require_apikey(apikey: Optional[str]) -> None:
     """
     if INDEXER_API_KEY:
         if not apikey or apikey != INDEXER_API_KEY:
-            logger.warning(f"API key missing or invalid: received '{apikey}'")
+            logger.warning("API key missing or invalid")
             raise HTTPException(status_code=401, detail="invalid apikey")
     else:
         logger.debug("No API key required for this instance.")
