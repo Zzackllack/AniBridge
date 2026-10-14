@@ -722,3 +722,54 @@ def test_readonly_diagnostics_separate_legacy_stale_and_missing_evidence(tmp_pat
     assert inspect(filename, "aniworld.to", [tid], NOW + 61)[
         "descriptor_freshness"
     ] == {"expired": 1}
+
+
+def test_observed_first_episode_wording_needs_verified_german_alias_not_numbers(
+    tmp_path,
+):
+    """English wording alone fails; identical canonical IDs can join the German name."""
+    case = json.loads(
+        (
+            Path(__file__).parent / "fixtures/onepiece-wording-2026-10-14.json"
+        ).read_text()
+    )
+    state, tid = seed(tmp_path)
+    external = case["tvdb_series_id"]
+    with state.db:
+        state.db.execute(
+            "UPDATE canonical_title SET mapping_id=?,external_id=?",
+            (mapping_id(state.provider, tid, "tvdb", external), external),
+        )
+    eid = episode(
+        state, tid, 37, 45, case["source_name"], tuple(case["source_aliases"])
+    )
+
+    def records(language):
+        return descriptors.episodes(
+            {
+                "tvdbId": int(external),
+                "metadataSource": "tvdb",
+                "episodes": case["canonical"][language],
+            }
+        )
+
+    english = records("eng")
+    with state.db:
+        canonical_cache.store(state, tid, "p", "m", NOW, english)
+        canonical_cache.apply(state, tid, NOW)
+    assert not state.db.execute("SELECT 1 FROM canonical_episode").fetchone()
+    joined = descriptors.merge(english, records("deu"))
+    with state.db:
+        canonical_cache.store(state, tid, "p", "m", NOW + 1, joined)
+        canonical_cache.apply(state, tid, NOW + 1)
+    found = state.db.execute(
+        "SELECT season,episode,external_episode_id FROM canonical_episode WHERE entity_id=?",
+        (eid,),
+    ).fetchone()
+    assert tuple(found) == (1, 1, "361887")
+    assert tuple(
+        state.db.execute(
+            "SELECT native_season,native_episode FROM entity WHERE entity_id=?", (eid,)
+        ).fetchone()
+    ) == (37, 45)
+    state.close()
