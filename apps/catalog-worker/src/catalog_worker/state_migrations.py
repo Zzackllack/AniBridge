@@ -23,6 +23,8 @@ from .collection_schema import (
 from .incremental_schema import DDL as INCREMENTAL_DDL
 from .incremental_schema import VERSION_DDL as INCREMENTAL_VERSION_DDL
 from .listing import DDL as LISTING_DDL
+from .matching_schema import DDL as MATCHING_DDL
+from .matching_schema import VERSION_DDL as MATCHING_VERSION_DDL
 from .state_schema import PRIVATE_DDL
 
 VERSION_DDL = "CREATE TABLE worker_schema(version INTEGER PRIMARY KEY CHECK(version=2))"
@@ -49,7 +51,8 @@ def preflight(filename: Path, provider: str) -> int:
         require("worker_schema" in tables, "unrecognized worker database")
         rows = db.execute("SELECT version FROM worker_schema").fetchall()
         require(
-            rows in ([(1,)], [(2,)], [(3,)], [(4,)]), "unsupported worker state version"
+            rows in ([(1,)], [(2,)], [(3,)], [(4,)], [(5,)]),
+            "unsupported worker state version",
         )
         version = rows[0][0]
         with closing(sqlite3.connect(":memory:")) as expected:
@@ -66,6 +69,10 @@ def preflight(filename: Path, provider: str) -> int:
                 expected.executescript(COLLECTION_DDL)
                 expected.execute("DROP TABLE worker_schema")
                 expected.execute(COLLECTION_VERSION_DDL)
+            if version >= 5:
+                expected.executescript(MATCHING_DDL)
+                expected.execute("DROP TABLE worker_schema")
+                expected.execute(MATCHING_VERSION_DDL)
             contract = definitions(expected)
         # Early version-1 state created traversal tables on its first listing.
         if version == 1 and not {"listing_page", "listing_record"} & tables.keys():
@@ -181,10 +188,55 @@ def upgrade_collection(db: sqlite3.Connection, checkpoint) -> None:
         raise
 
 
+def upgrade_matching(db: sqlite3.Connection, checkpoint) -> None:
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        for statement in MATCHING_DDL.split(";"):
+            if statement.strip():
+                db.execute(statement)
+        db.execute("DROP TABLE worker_schema")
+        db.execute(MATCHING_VERSION_DDL)
+        db.execute("INSERT INTO worker_schema VALUES(5)")
+        checkpoint("matching-version")
+        db.commit()
+        checkpoint("matching-commit")
+    except BaseException:
+        db.rollback()
+        raise
+
+
+def rollback_matching(filename: Path, provider: str) -> None:
+    """Stopped-writer code rollback: remove v5 private caches, retain all v4 data.
+
+    This never restores a ledger backup over newer observations. Accepted maps,
+    leases, first-seen, retry history and old recovery copies remain untouched.
+    """
+    require(preflight(filename, provider) == 5, "rollback requires v5 state")
+    with closing(sqlite3.connect(filename)) as db:
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            for table in (
+                "matching_replay",
+                "canonical_hint_identity",
+                "canonical_descriptor",
+                "canonical_request_start",
+                "canonical_scheduler",
+            ):
+                db.execute(f"DROP TABLE {table}")
+            db.execute("DROP TABLE worker_schema")
+            db.execute(COLLECTION_VERSION_DDL)
+            db.execute("INSERT INTO worker_schema VALUES(4)")
+            db.commit()
+        except BaseException:
+            db.rollback()
+            raise
+    require(preflight(filename, provider) == 4, "rollback contract rejected")
+
+
 def initialize(filename: Path, provider: str, checkpoint=lambda stage: None) -> None:
     if filename.exists():
         version = preflight(filename, provider)
-        if version == 4:
+        if version == 5:
             return
         backup(filename, provider, checkpoint, version)
         with closing(sqlite3.connect(filename)) as db:
@@ -193,7 +245,9 @@ def initialize(filename: Path, provider: str, checkpoint=lambda stage: None) -> 
                 upgrade(db, checkpoint)
             if version < 3:
                 upgrade_incremental(db, checkpoint)
-            upgrade_collection(db, checkpoint)
+            if version < 4:
+                upgrade_collection(db, checkpoint)
+            upgrade_matching(db, checkpoint)
         return
     descriptor, temporary = tempfile.mkstemp(
         prefix=".worker-create-", dir=filename.parent
@@ -208,6 +262,7 @@ def initialize(filename: Path, provider: str, checkpoint=lambda stage: None) -> 
             upgrade(db, checkpoint)
             upgrade_incremental(db, checkpoint)
             upgrade_collection(db, checkpoint)
+            upgrade_matching(db, checkpoint)
         with path.open("rb") as stream:
             os.fsync(stream.fileno())
         os.rename(path, filename)

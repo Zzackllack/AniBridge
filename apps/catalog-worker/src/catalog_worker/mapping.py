@@ -1,5 +1,6 @@
 """Conservative canonical matching. Number equality never maps an episode."""
 
+import re
 from dataclasses import dataclass
 
 from catalog_core.identity import search_key, validate_external_id
@@ -20,6 +21,16 @@ class CanonicalEpisode:
     episode: int
     title: str
     external_id: str | None = None
+    aliases: tuple[str, ...] = ()
+
+
+def title_keys(name: str, year: int | None) -> set[str]:
+    """A source's trailing year disambiguator adds no lexical series evidence."""
+    keys = {search_key(name)}
+    match = re.fullmatch(r"(.+?)\s*[\[(]([0-9]{4})[\])]", name)
+    if match and year is not None and int(match[2]) == year:
+        keys.add(search_key(match[1]))
+    return keys - {""}
 
 
 def match_title(
@@ -29,7 +40,7 @@ def match_title(
     candidates: tuple[CanonicalTitle, ...],
     explicit_id: tuple[str, str] | None = None,
 ) -> tuple[CanonicalTitle, str] | None:
-    keys = {search_key(name) for name in names if search_key(name)}
+    keys = {key for name in names for key in title_keys(name, year)}
     matches = []
     for candidate in candidates:
         validate_external_id(candidate.namespace, candidate.external_id)

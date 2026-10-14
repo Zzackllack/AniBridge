@@ -118,12 +118,22 @@ def load(path: Path) -> Config:
                 "invalid sitemap origin",
             )
     sources = fields(
-        raw["canonical_sources"], set(), {"tv", "movie", "tmdb_token_file"}
+        raw["canonical_sources"],
+        set(),
+        {"tv", "movie", "tmdb_token_file", "episode_languages"},
     )
     require(
         sources.get("tv", "skyhook") in ("skyhook", "off")
         and sources.get("movie", "off") in ("tmdb", "off"),
         "invalid canonical source",
+    )
+    require(
+        isinstance(sources.get("episode_languages", []), list)
+        and all(
+            language in ("deu",) for language in sources.get("episode_languages", [])
+        )
+        and len(sources.get("episode_languages", [])) <= 1,
+        "invalid canonical episode languages",
     )
     if sources.get("movie") == "tmdb":
         require(

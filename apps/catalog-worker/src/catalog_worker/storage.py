@@ -142,7 +142,7 @@ def migration_reserve(config: Config) -> int:
         ) as db:
             version = db.execute("SELECT version FROM worker_schema").fetchone()[0]
         if (
-            version in (1, 2, 3)
+            version in (1, 2, 3, 4)
             and not filename.with_name(
                 filename.name + f".pre-v{version + 1}.backup"
             ).exists()

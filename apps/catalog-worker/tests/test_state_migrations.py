@@ -26,7 +26,7 @@ def test_private_upgrade_preserves_state_and_original_backup(tmp_path):
     legacy(filename)
     state = State(filename, "aniworld.to")
     assert state.meta()["revision"] == 17
-    assert state.db.execute("SELECT version FROM worker_schema").fetchone()[0] == 4
+    assert state.db.execute("SELECT version FROM worker_schema").fetchone()[0] == 5
     state.close()
     backup = filename.with_name(filename.name + ".pre-v2.backup")
     before = backup.read_bytes()
@@ -245,7 +245,7 @@ def test_version_two_signal_upgrade_sigkill_preserves_ledger_and_backup(
     State(filename, "aniworld.to").close()
     assert saved.read_bytes() == original
     with closing(sqlite3.connect(filename)) as db:
-        assert db.execute("SELECT version FROM worker_schema").fetchone()[0] == 4
+        assert db.execute("SELECT version FROM worker_schema").fetchone()[0] == 5
         assert db.execute("SELECT count(*) FROM signal_pending").fetchone()[0] == 0
 
 
@@ -268,7 +268,7 @@ def test_version_three_upgrade_retains_failures_budgets_and_backup(tmp_path):
             and state.meta()["block_count"] == 2
         )
         assert state.db.execute("SELECT count(*) FROM request_start").fetchone()[0] == 1
-        assert preflight(filename, "aniworld.to") == 4
+        assert preflight(filename, "aniworld.to") == 5
         saved = filename.with_name(filename.name + ".pre-v4.backup")
         assert preflight(saved, "aniworld.to") == 3
         original = saved.read_bytes()
@@ -276,3 +276,28 @@ def test_version_three_upgrade_retains_failures_budgets_and_backup(tmp_path):
         state.close()
     State(filename, "aniworld.to").close()
     assert saved.read_bytes() == original
+
+
+@pytest.mark.parametrize("point", ["matching-version", "matching-commit"])
+def test_v4_matching_upgrade_interruption_retains_original_backup(tmp_path, point):
+    from catalog_worker.state_migrations import initialize, preflight, rollback_matching
+
+    filename = tmp_path / "worker.sqlite"
+    State(filename, "aniworld.to").close()
+    rollback_matching(filename, "aniworld.to")
+    original = filename.read_bytes()
+
+    def checkpoint(stage):
+        if stage == point:
+            raise RuntimeError("controlled upgrade interruption")
+
+    with pytest.raises(RuntimeError):
+        initialize(filename, "aniworld.to", checkpoint)
+    assert preflight(filename, "aniworld.to") == (
+        5 if point == "matching-commit" else 4
+    )
+    backup = filename.with_name(filename.name + ".pre-v5.backup")
+    assert backup.read_bytes() == original
+    State(filename, "aniworld.to").close()
+    assert preflight(filename, "aniworld.to") == 5
+    assert backup.read_bytes() == original

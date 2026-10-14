@@ -8,23 +8,45 @@ independent export decision.
 import asyncio
 import hashlib
 import json
+import math
 import time
 from collections import deque
 from pathlib import Path
 
-from catalog_core.identity import mapping_id
+from catalog_core.identity import mapping_id, search_key
 from catalog_core.json_codec import dumps, require
-from catalog_core.providers.transport import Session
+from catalog_core.providers.transport import AdmissionDeferred, Session
 
-from . import canonical_cache
+from . import canonical_cache, descriptors, parent_evidence
 from .canonical_ids import identifiers
-from .mapping import CanonicalEpisode, CanonicalTitle, match_title
+from .mapping import CanonicalTitle, match_title
 from .movie_canonical import lookup as movie_lookup
 from .state import State
 from .transport import fetch
 
 MATCHER = "exact-title-year-3"
 ORIGIN = "https://skyhook.sonarr.tv"
+
+
+class CanonicalUnavailable(ValueError):
+    """Only bounded transport outcomes/deadlines, never response text."""
+
+    def __init__(self, retry_after: int | None) -> None:
+        super().__init__("canonical unavailable")
+        self.retry_after = retry_after
+
+
+def search_terms(names: tuple[str, ...]) -> tuple[str, ...]:
+    """Keep two distinct terms without changing the historical parent digest."""
+    seen, result = set(), []
+    for name in names:
+        key = search_key(name)
+        if key and key not in seen:
+            result.append(name)
+            seen.add(key)
+        if len(result) == 2:
+            break
+    return tuple(result)
 
 
 def titles(payload: object) -> tuple[CanonicalTitle, ...]:
@@ -52,7 +74,7 @@ def titles(payload: object) -> tuple[CanonicalTitle, ...]:
             year is None or (type(year) is int and 1800 <= year <= 2200),
             "invalid canonical year",
         )
-        aliases = item.get("aliases") or []
+        aliases = item.get("aliases") or item.get("alternativeTitles") or []
         require(
             isinstance(aliases, list) and len(aliases) <= 100,
             "invalid canonical aliases",
@@ -67,7 +89,14 @@ def titles(payload: object) -> tuple[CanonicalTitle, ...]:
 
 
 class Enricher:
-    def __init__(self, sources: dict, fetcher=fetch, clock=time.time) -> None:
+    def __init__(
+        self,
+        sources: dict,
+        fetcher=fetch,
+        clock=time.time,
+        *,
+        states: list[State] | None = None,
+    ) -> None:
         self.sources, self.fetcher, self.clock = sources, fetcher, clock
         self.sessions = {}
         self.pooled = fetcher is fetch
@@ -83,16 +112,56 @@ class Enricher:
             )
         self.starts = deque(maxlen=30)
         self.lock = asyncio.Lock()
-        self.matcher = MATCHER + ":" + hashlib.sha256(dumps(sources)).hexdigest()
+        self.parent_sources = {
+            key: value for key, value in sources.items() if key != "episode_languages"
+        }
+        self.matcher = (
+            MATCHER + ":" + hashlib.sha256(dumps(self.parent_sources)).hexdigest()
+        )
+        if sources.get("episode_languages"):
+            self.matcher += ":" + ",".join(sources["episode_languages"])
+        self.states = list(states or [])
+        self.current_state = None
+        self.last_work = "idle"
+
+    def request_count(self, now: float) -> int:
+        while self.starts and self.starts[0] <= now - 60:
+            self.starts.popleft()
+        durable = sum(
+            state.db.execute(
+                "SELECT count(*) FROM canonical_request_start WHERE at>?", (now - 60,)
+            ).fetchone()[0]
+            for state in self.states
+        )
+        return max(len(self.starts), durable)
+
+    def admit_request(self) -> None:
+        now = self.clock()
+        if self.request_count(now) >= 30:
+            raise AdmissionDeferred(60)
+        self.starts.append(now)
+        if self.current_state is not None:
+            with self.current_state.db:
+                self.current_state.db.execute(
+                    "DELETE FROM canonical_request_start WHERE at<=?", (now - 60,)
+                )
+                self.current_state.db.execute(
+                    "INSERT INTO canonical_request_start VALUES(?)", (math.ceil(now),)
+                )
 
     async def request(
         self, path: str, query: dict | None = None, *, origin=ORIGIN, bearer=None
     ) -> object:
-        now = self.clock()
-        while self.starts and self.starts[0] <= now - 60:
-            self.starts.popleft()
-        require(len(self.starts) < 30, "canonical rate limit")
-        self.starts.append(now)
+        self.admit_request()
+        first_hop = True
+
+        async def before_request() -> None:
+            nonlocal first_hop
+            if first_hop:
+                first_hop = False
+            else:
+                self.admit_request()
+
         fetcher = self.fetcher
         if self.pooled:
             if origin not in self.sessions:
@@ -104,9 +173,11 @@ class Enricher:
             query=query,
             body_bytes=8 * 1024**2,
             deadline=30,
+            before_request=before_request,
             **({"bearer": bearer} if bearer else {}),
         )
-        require(response.outcome == "ok", "canonical " + response.outcome)
+        if response.outcome != "ok":
+            raise CanonicalUnavailable(response.retry_after)
         return json.loads(response.body)
 
     async def close(self) -> None:
@@ -120,7 +191,9 @@ class Enricher:
         # search returns that exact IMDb association. One bounded fallback is
         # safe only with the same explicit ID, rechecked on the descriptor below.
         for term in ("imdb:" + imdb, names[0]):
-            payload = await self.request("/v1/tvdb/search/en/", {"term": term})
+            payload = await self.request(
+                "/v2/tvdb/search", {"term": term, "language": "eng"}
+            )
             require(
                 isinstance(payload, list) and len(payload) <= 1000,
                 "invalid canonical search",
@@ -137,7 +210,9 @@ class Enricher:
                 return None
         return None
 
-    async def tick(self, state: State, now: int) -> bool:
+    async def tick(
+        self, state: State, now: int, *, title_id: str | None = None
+    ) -> bool:
         kinds = []
         if self.sources.get("tv", "skyhook") != "off":
             kinds.append("series")
@@ -146,9 +221,33 @@ class Enricher:
         if not kinds:
             return False
         async with self.lock:
+            if state not in self.states:
+                self.states.append(state)
+            self.current_state = state
+            self.last_work = "idle"
+            slot = (
+                state.db.execute("SELECT slot FROM canonical_scheduler").fetchone()[0]
+                % 5
+            )
+            # Reserve opportunities for old work and real retries even during a
+            # growing first-pass queue. The tie-break stays durable and bounded.
+            priority = (
+                "m.checked_at IS NULL",
+                "m.checked_at IS NULL",
+                "m.next_due=0 AND m.checked_at IS NOT NULL",
+                "m.failures>0",
+                "m.checked_at IS NOT NULL AND m.next_due>0 AND m.failures=0",
+            )[slot]
             row = state.db.execute(
-                f"SELECT m.*,t.display_title,t.year,t.media_type,s.changed_at FROM mapping_input m JOIN title t USING(title_id) JOIN title_schedule s USING(title_id) WHERE (m.next_due<=? OR m.matcher IS NULL OR m.matcher<>?) AND t.media_type IN ({','.join('?' for _ in kinds)}) ORDER BY m.next_due,m.title_id LIMIT 1",
-                (now, self.matcher, *kinds),
+                f"SELECT m.*,t.display_title,t.year,t.media_type,s.changed_at FROM mapping_input m JOIN title t USING(title_id) JOIN title_schedule s USING(title_id) WHERE (m.next_due<=? OR (m.failures=0 AND (m.matcher IS NULL OR m.matcher<>? OR (EXISTS(SELECT 1 FROM canonical_cache c WHERE c.title_id=m.title_id) AND NOT EXISTS(SELECT 1 FROM matching_replay r WHERE r.title_id=m.title_id AND r.matcher=?))))) AND t.media_type IN ({','.join('?' for _ in kinds)}) AND (? IS NULL OR m.title_id=?) ORDER BY NOT ({priority}),m.next_due,m.title_id LIMIT 1",
+                (
+                    now,
+                    self.matcher,
+                    canonical_cache.EPISODE_MATCHER,
+                    *kinds,
+                    title_id,
+                    title_id,
+                ),
             ).fetchone()
             if row is None:
                 return False
@@ -163,21 +262,46 @@ class Enricher:
                 ),
             )
             digest = hashlib.sha256(
-                dumps([MATCHER, self.sources, names, row["year"], row["explicit_imdb"]])
+                dumps(
+                    [
+                        MATCHER,
+                        self.parent_sources,
+                        names,
+                        row["year"],
+                        row["explicit_imdb"],
+                    ]
+                )
             ).hexdigest()
             if row["media_type"] == "series" and canonical_cache.reuse(
-                state, row["title_id"], digest, self.matcher, now
+                state,
+                row["title_id"],
+                digest,
+                self.matcher,
+                now,
+                languages=tuple(self.sources.get("episode_languages", [])),
             ):
+                with state.db:
+                    state.db.execute("UPDATE canonical_scheduler SET slot=(slot+1)%5")
+                replay = state.db.execute(
+                    "SELECT examined_at FROM matching_replay WHERE title_id=?",
+                    (row["title_id"],),
+                ).fetchone()
+                self.last_work = (
+                    "local_rematch" if replay and replay[0] == now else "unchanged"
+                )
                 return True
             # A lookup can use two search terms plus one descriptor. Defer the
             # whole lookup when our own budget is low; this isn't a source failure.
             request_now = self.clock()
-            while self.starts and self.starts[0] <= request_now - 60:
-                self.starts.popleft()
-            if len(self.starts) > 27:
+            if self.request_count(request_now) > 26:
+                self.last_work = "admission_deferred"
                 return False
             outcome, mapped = "not_found", None
+            canonical_episodes = []
+            acquired_at = now
+            reused_descriptor = False
             failures = row["failures"]
+            retry_after = None
             try:
                 if row["media_type"] == "movie":
                     mapped, details = await movie_lookup(
@@ -192,11 +316,8 @@ class Enricher:
                         "SELECT external_id,evidence FROM canonical_title WHERE title_id=? AND namespace='tvdb'",
                         (row["title_id"],),
                     ).fetchone()
-                    if (
-                        prior
-                        and row["input_hash"] == digest
-                        and row["matcher"] == self.matcher
-                    ):
+                    reused_parent = bool(prior and row["input_hash"] == digest)
+                    if prior and row["input_hash"] == digest:
                         mapped = (
                             CanonicalTitle(
                                 "tvdb", prior[0], names, row["year"], "series"
@@ -206,11 +327,12 @@ class Enricher:
                     elif row["explicit_imdb"]:
                         mapped = await self.imdb_candidate(row["explicit_imdb"], names)
                     elif row["year"] is not None:
-                        for name in names[:2]:
+                        for name in search_terms(names):
                             candidates.extend(
                                 titles(
                                     await self.request(
-                                        "/v1/tvdb/search/en/", {"term": name}
+                                        "/v2/tvdb/search",
+                                        {"term": name, "language": "eng"},
                                     )
                                 )
                             )
@@ -219,27 +341,109 @@ class Enricher:
                         )
                     if mapped:
                         candidate, evidence = mapped
-                        details = await self.request(
-                            "/v1/tvdb/shows/en/" + candidate.external_id
+                        shared = descriptors.cached(
+                            self.states,
+                            candidate.external_id,
+                            now,
+                            row["explicit_imdb"],
+                            tuple(self.sources.get("episode_languages", [])),
                         )
+                        if shared:
+                            details, canonical_episodes, acquired_at, _ = shared
+                            reused_descriptor = True
+                        else:
+                            details = await self.request(
+                                "/v2/tvdb/shows/eng/"
+                                + candidate.external_id
+                                + "/official"
+                                if self.sources.get("episode_languages")
+                                else "/v1/tvdb/shows/en/" + candidate.external_id
+                            )
                         require(
                             isinstance(details, dict)
                             and str(details.get("tvdbId")) == candidate.external_id,
                             "canonical ID mismatch",
                         )
+                        if (
+                            self.sources.get("episode_languages")
+                            and not reused_descriptor
+                        ):
+                            require(
+                                details.get("metadataSource") == "tvdb"
+                                and details.get("language") == "eng",
+                                "canonical descriptor namespace mismatch",
+                            )
                         if row["explicit_imdb"]:
                             require(
                                 details.get("imdbId") == row["explicit_imdb"],
                                 "canonical IMDb mismatch",
                             )
+                        if not reused_descriptor:
+                            canonical_episodes = descriptors.episodes(details)
+                            for language in self.sources.get("episode_languages", []):
+                                # Sonarr v5's maintained v2 route. Its IDs are
+                                # namespaced by metadataSource; never join rows
+                                # just because their season/episode numbers agree.
+                                translated = await self.request(
+                                    "/v2/tvdb/shows/"
+                                    + language
+                                    + "/"
+                                    + candidate.external_id
+                                    + "/official"
+                                )
+                                require(
+                                    isinstance(translated, dict)
+                                    and translated.get("metadataSource") == "tvdb"
+                                    and str(translated.get("tvdbId"))
+                                    == candidate.external_id
+                                    and translated.get("language") == language,
+                                    "canonical translation identity mismatch",
+                                )
+                                canonical_episodes = descriptors.merge(
+                                    canonical_episodes, descriptors.episodes(translated)
+                                )
+                            details["_episode_languages"] = self.sources.get(
+                                "episode_languages", []
+                            )
                         outcome = "matched"
+                        parent = details.get("parent") or parent_evidence.compact(
+                            details
+                        )
+                        if not reused_parent:
+                            # These names came from a canonical search with this
+                            # exact ID, not from our provider/source names. The
+                            # descriptor's own year/IDs still win on conflict.
+                            parent["names"] = list(
+                                dict.fromkeys([*parent["names"], *candidate.titles])
+                            )
+                            details["parent"] = parent
+                        if (
+                            parent_evidence.check(
+                                state, row["title_id"], candidate.external_id, parent
+                            )
+                            != "verified"
+                        ):
+                            with state.db:
+                                descriptors.save(
+                                    state,
+                                    candidate.external_id,
+                                    details,
+                                    canonical_episodes,
+                                    acquired_at,
+                                    canonical_cache.TTL,
+                                )
+                            mapped, outcome = None, "conflict"
                 if mapped:
                     compact_ids = identifiers(
                         mapped[0], details, row["media_type"] == "movie"
                     )
                 failures = 0
-            except ValueError, OSError, TimeoutError:
+            except AdmissionDeferred:
+                self.last_work = "admission_deferred"
+                return False
+            except (ValueError, OSError, TimeoutError) as exc:
                 mapped, outcome, failures = None, "source_failure", failures + 1
+                retry_after = getattr(exc, "retry_after", None)
             delay = (
                 (300, 1800, 7200, 21600)[min(failures - 1, 3)]
                 if failures
@@ -247,7 +451,10 @@ class Enricher:
                 if mapped
                 else 86400
             )
+            if retry_after is not None:
+                delay = max(delay, min(86400, max(1, retry_after)))
             with state.db:
+                state.db.execute("UPDATE canonical_scheduler SET slot=(slot+1)%5")
                 if mapped:
                     candidate, evidence = mapped
                     # Never silently replace a different previously accepted mapping.
@@ -276,6 +483,8 @@ class Enricher:
                                     external_id,
                                     "tmdb-v3"
                                     if row["media_type"] == "movie"
+                                    # Existing allowlist authority tag is kept;
+                                    # compact private evidence records the API.
                                     else "skyhook-v1",
                                     evidence
                                     if namespace == candidate.namespace
@@ -283,53 +492,38 @@ class Enricher:
                                     now,
                                 ),
                             )
-                        episodes = (
-                            (details.get("episodes") or [])
-                            if row["media_type"] == "series"
-                            else []
-                        )
-                        require(
-                            isinstance(episodes, list) and len(episodes) <= 100000,
-                            "invalid canonical episode list",
-                        )
-                        canonical_episodes = []
-                        for episode in episodes:
-                            require(
-                                isinstance(episode, dict), "invalid canonical episode"
-                            )
-                            season, number, name = (
-                                episode.get("seasonNumber"),
-                                episode.get("episodeNumber"),
-                                episode.get("title"),
-                            )
-                            if (
-                                type(season) is int
-                                and season >= 0
-                                and type(number) is int
-                                and number > 0
-                                and isinstance(name, str)
-                                and len(name.encode()) <= 512
-                            ):
-                                canonical_episodes.append(
-                                    CanonicalEpisode(season, number, name)
-                                )
                         if row["media_type"] == "series":
+                            descriptors.save(
+                                state,
+                                candidate.external_id,
+                                details,
+                                canonical_episodes,
+                                acquired_at,
+                                canonical_cache.refresh_delay(
+                                    state, row["title_id"], now
+                                ),
+                            )
                             canonical_cache.store(
                                 state,
                                 row["title_id"],
                                 digest,
                                 self.matcher,
-                                now,
+                                acquired_at,
                                 canonical_episodes,
                             )
-                            outcome = canonical_cache.apply(state, row["title_id"], now)
+                            outcome = canonical_cache.apply(
+                                state, row["title_id"], acquired_at, examined_at=now
+                            )
                         state.db.execute("UPDATE worker_meta SET dirty=1")
                 if (
                     mapped
                     and row["media_type"] == "series"
                     and canonical_cache.missing(state, row["title_id"])
                 ):
-                    delay = min(delay, canonical_cache.MISSING_RECHECK)
+                    delay = min(
+                        delay,
+                        canonical_cache.refresh_delay(state, row["title_id"], now),
+                    )
                 state.db.execute(
                     "UPDATE mapping_input SET input_hash=?,matcher=?,checked_at=?,next_due=?,outcome=?,failures=? WHERE title_id=?",
                     (
@@ -342,4 +536,11 @@ class Enricher:
                         row["title_id"],
                     ),
                 )
+            self.last_work = (
+                "descriptor_reuse"
+                if reused_descriptor
+                else "source_failure"
+                if failures
+                else "examined"
+            )
             return True

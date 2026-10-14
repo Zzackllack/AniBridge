@@ -43,7 +43,7 @@ async def collect(path: Path, once: bool) -> None:
         collectors = [Collector(config, state) for state in states]
         pipeline = Pipeline(collectors, events.emit)
         publication_slot = asyncio.Lock()
-        enricher = Enricher(config.canonical_sources)
+        enricher = Enricher(config.canonical_sources, states=states)
         loop = asyncio.get_running_loop()
         loop.add_signal_handler(signal.SIGTERM, asyncio.current_task().cancel)
 
@@ -63,7 +63,10 @@ async def collect(path: Path, once: bool) -> None:
                         )
                         raise
                     events.emit(
-                        state.provider, "enrichment", "ok", time.monotonic() - started
+                        state.provider,
+                        "enrichment",
+                        enricher.last_work,
+                        time.monotonic() - started,
                     )
                     meta = state.meta()
                     if (
@@ -178,7 +181,7 @@ async def collect_title(
                     raise ValueError(
                         "selected title metadata unavailable: " + ready.outcome
                     )
-            await enricher.tick(state, int(time.time()))
+            await enricher.tick(state, int(time.time()), title_id=tid)
         publish(config, state, int(time.time()))
     finally:
         if collector is not None:

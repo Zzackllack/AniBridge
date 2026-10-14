@@ -4,7 +4,8 @@
   },
   "canonical_sources": {
     "tv": "skyhook",
-    "movie": "off"
+    "movie": "off",
+    "episode_languages": ["deu"]
   },
   "state_dir": "/state",
   "output_dir": "/read",

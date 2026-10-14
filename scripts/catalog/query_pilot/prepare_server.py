@@ -44,7 +44,7 @@ def main() -> None:
         )
     worker = {
         "providers": origins,
-        "canonical_sources": {"tv": "skyhook", "movie": "off"},
+        "canonical_sources": {"tv": "skyhook", "movie": "off", "episode_languages": ["deu"]},
         "state_dir": "/state",
         "output_dir": "/read",
         "source_id": args.source_id,
