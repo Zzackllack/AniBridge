@@ -683,3 +683,20 @@ def test_reviewed_cohort_wording_pairs_keep_canonical_ids_and_native_coordinates
             ).fetchone()
             assert tuple(native) == tuple(row["native"])
         state.close()
+
+
+def test_code_rollback_cannot_forget_an_active_admission_window(tmp_path, monkeypatch):
+    from catalog_worker import state_migrations
+
+    state, _ = seed(tmp_path)
+    filename = Path(state.db.execute("PRAGMA database_list").fetchone()[2])
+    with state.db:
+        state.db.execute("INSERT INTO canonical_request_start VALUES(?)", (NOW,))
+    state.close()
+    monkeypatch.setattr(state_migrations.time, "time", lambda: NOW + 59)
+    with pytest.raises(ValueError, match="admission window active"):
+        rollback_matching(filename, "aniworld.to")
+    assert preflight(filename, "aniworld.to") == 5
+    monkeypatch.setattr(state_migrations.time, "time", lambda: NOW + 60)
+    rollback_matching(filename, "aniworld.to")
+    assert preflight(filename, "aniworld.to") == 4

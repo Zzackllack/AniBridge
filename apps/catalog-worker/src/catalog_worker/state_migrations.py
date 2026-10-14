@@ -7,6 +7,7 @@ Recognised private pilot v1/v2 upgrades retain each original backup untouched.
 import os
 import sqlite3
 import tempfile
+import time
 from contextlib import closing
 from pathlib import Path
 
@@ -213,6 +214,13 @@ def rollback_matching(filename: Path, provider: str) -> None:
     """
     require(preflight(filename, provider) == 5, "rollback requires v5 state")
     with closing(sqlite3.connect(filename)) as db:
+        last = db.execute("SELECT max(at) FROM canonical_request_start").fetchone()[0]
+        # The old worker cannot read this durable limiter. Don't erase an active
+        # window and admit another burst immediately after the code downgrade.
+        require(
+            last is None or time.time() >= last + 60,
+            "canonical admission window active; retry rollback after 60 seconds",
+        )
         db.execute("BEGIN IMMEDIATE")
         try:
             for table in (
