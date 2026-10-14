@@ -16,20 +16,37 @@ from pathlib import Path
 from catalog_core.providers.transport import Session
 from mapping_replay import metrics, resources
 
+from catalog_worker import canonical_cache
 from catalog_worker.canonical import Enricher
 from catalog_worker.state import State
 
 PROVIDERS = ("aniworld.to", "s.to")
 
 
-def eligible(state: State, matcher: str, now: int) -> dict:
+def eligible(state: State, enricher: Enricher, now: int) -> dict:
+    kinds = []
+    if enricher.sources.get("tv", "skyhook") != "off":
+        kinds.append("series")
+    if enricher.sources.get("movie", "off") == "tmdb":
+        kinds.append("movie")
+    if not kinds:
+        return {"parents": 0, "oldest_due_age_s": None, "unknown_eligibility_age": 0}
     row = state.db.execute(
-        "SELECT count(*),min(CASE WHEN next_due>0 THEN next_due ELSE checked_at END) "
-        "FROM mapping_input WHERE next_due<=? OR (failures=0 AND "
-        "(matcher IS NULL OR matcher<>?))",
-        (now, matcher),
+        "SELECT count(*),min(CASE WHEN m.next_due>0 AND m.next_due<=? THEN m.next_due END),"
+        "coalesce(sum(m.next_due<=0 OR m.next_due>?),0) FROM mapping_input m JOIN title t USING(title_id) "
+        "WHERE (m.next_due<=? OR (m.failures=0 AND (m.matcher IS NULL OR m.matcher<>? OR "
+        "(EXISTS(SELECT 1 FROM canonical_cache c WHERE c.title_id=m.title_id) AND "
+        "NOT EXISTS(SELECT 1 FROM matching_replay r WHERE r.title_id=m.title_id AND r.matcher=?))))) "
+        f"AND t.media_type IN ({','.join('?' for _ in kinds)})",
+        (now, now, now, enricher.matcher, canonical_cache.EPISODE_MATCHER, *kinds),
     ).fetchone()
-    return {"parents": row[0], "oldest_age_s": max(0, now - row[1]) if row[1] else None}
+    return {
+        "parents": row[0],
+        "oldest_due_age_s": max(0, now - row[1]) if row[1] else None,
+        # A changed matcher or next_due=0 has no trustworthy eligibility clock.
+        # Last attempted time is not an eligibility age.
+        "unknown_eligibility_age": row[2],
+    }
 
 
 def preservation(state: State, baseline: Path) -> dict:
@@ -128,7 +145,7 @@ async def step(args, probe: Probe, rate: int) -> dict:
     before = {
         s.provider: {
             "ledger": metrics(s.db),
-            "eligible": eligible(s, enricher.matcher, int(time.time())),
+            "eligible": eligible(s, enricher, int(time.time())),
         }
         for s in states
     }
@@ -152,7 +169,7 @@ async def step(args, probe: Probe, rate: int) -> dict:
     after = {
         s.provider: {
             "ledger": metrics(s.db),
-            "eligible": eligible(s, enricher.matcher, int(time.time())),
+            "eligible": eligible(s, enricher, int(time.time())),
             "preservation": preservation(
                 s, (args.baseline / (s.provider + ".sqlite")).resolve()
             ),

@@ -143,9 +143,8 @@ def test_fetch_observer_sees_failure_before_title_retry(tmp_path):
     state.close()
 
 
-def test_probe_stops_escalation_on_throttling_and_preserves_copied_work(
-    tmp_path, monkeypatch
-):
+@pytest.fixture
+def rate_probe(monkeypatch):
     scripts = Path(__file__).resolve().parents[3] / "scripts/catalog/query_pilot"
     monkeypatch.syspath_prepend(str(scripts))
     spec = importlib.util.spec_from_file_location(
@@ -153,6 +152,13 @@ def test_probe_stops_escalation_on_throttling_and_preserves_copied_work(
     )
     probe = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(probe)
+    return probe
+
+
+def test_probe_stops_escalation_on_throttling_and_preserves_copied_work(
+    tmp_path, monkeypatch, rate_probe
+):
+    probe = rate_probe
     baseline = tmp_path / "baseline"
     baseline.mkdir()
     (baseline / "COPY_ONLY").touch()
@@ -191,3 +197,32 @@ def test_probe_stops_escalation_on_throttling_and_preserves_copied_work(
     assert steps[0]["requests"] == 1 and steps[0]["statuses"] == {"429": 1}
     for provider in ("aniworld.to", "s.to"):
         assert not any(steps[0]["after"][provider]["preservation"].values())
+
+
+def test_eligibility_includes_episode_replay_and_does_not_guess_its_age(
+    tmp_path, rate_probe
+):
+    state = ready(tmp_path)
+
+    async def fetch(origin, path, **kwargs):
+        item = {"tvdbId": 123, "title": "Example", "year": 2020, "episodes": []}
+        return Fetch("ok", json.dumps([item] if "search" in path else item).encode())
+
+    enricher = Enricher({}, fetcher=fetch)
+    assert asyncio.run(enricher.tick(state, NOW))
+    assert rate_probe.eligible(state, enricher, NOW)["parents"] == 0
+    with state.db:
+        state.db.execute("DELETE FROM matching_replay")
+    assert rate_probe.eligible(state, enricher, NOW) == {
+        "parents": 1,
+        "oldest_due_age_s": None,
+        "unknown_eligibility_age": 1,
+    }
+    with state.db:
+        state.db.execute("UPDATE mapping_input SET next_due=?", (NOW - 20,))
+    assert rate_probe.eligible(state, enricher, NOW) == {
+        "parents": 1,
+        "oldest_due_age_s": 20,
+        "unknown_eligibility_age": 0,
+    }
+    state.close()
