@@ -158,6 +158,8 @@ def test_observed_subtitle_labels_and_unavailable_metadata(tmp_path):
     )
     state.detail(work, page, NOW)
     previous = dict(state.db.execute("SELECT * FROM release").fetchone())
+    with state.db:
+        state.db.execute("UPDATE work SET failures=7 WHERE path=?", (EPISODE,))
     unavailable = sto.parse(
         html(
             '<h1>Example</h1><h2>S00E01: (Beginning)</h2><div class="player-wrap"><p>😰 Kein Videoplayer für diese Episode verfügbar.</p></div>'
@@ -172,6 +174,12 @@ def test_observed_subtitle_labels_and_unavailable_metadata(tmp_path):
     for age in (1, 86401, 172801, 259201):
         state.detail(work, unavailable, NOW + age)
     assert dict(state.db.execute("SELECT * FROM release").fetchone()) == previous
+    assert (
+        state.db.execute(
+            "SELECT failures FROM work WHERE path=?", (EPISODE,)
+        ).fetchone()[0]
+        == 7
+    )
     assert (
         state.db.execute(
             "SELECT count(*) FROM omissions WHERE kind='release'"
@@ -200,12 +208,68 @@ def test_observed_subtitle_labels_and_unavailable_metadata(tmp_path):
             "video_section_missing",
         ),
         ('<h1>Example</h1><form id="challenge-form"></form>', "access_interstitial"),
-        (
-            '<h1>Example</h1><div class="player-wrap"><p>Kein Videoplayer für diese Episode verfügbar.</p></div>',
-            "metadata_incomplete",
-        ),
     ],
 )
 def test_missing_video_reason_is_explicit(body, reason):
     with pytest.raises(ValueError, match=reason):
         sto.parse(html(body), "detail", EPISODE)
+
+
+def test_unavailable_without_heading_preserves_name_releases_and_retry_history(
+    tmp_path,
+):
+    from catalog_worker.aniworld import Link
+
+    state = State(tmp_path / "state.sqlite", "s.to")
+    tid = state.discover(Link(TITLE, "Example"), NOW)
+    with state.db:
+        state.db.execute(
+            "INSERT INTO work(path,title_id,kind,due) VALUES(?,?,'episode',?)",
+            (EPISODE, tid, NOW),
+        )
+    work = dict(
+        state.db.execute("SELECT * FROM work WHERE path=?", (EPISODE,)).fetchone()
+    )
+    state.detail(
+        work,
+        sto.parse(
+            html(
+                '<h1>Example</h1><h2>S00E01: (A useful name)</h2><button data-play-url="/discarded" data-provider-name="VOE" data-language-label="Ger-Sub"></button>'
+            ),
+            "detail",
+            EPISODE,
+        ),
+        NOW,
+    )
+    previous = dict(state.db.execute("SELECT * FROM release").fetchone())
+    page = sto.parse(
+        html(
+            '<h1>Example</h1><div class="player-wrap"><p>Kein Videoplayer für diese Episode verfügbar.</p></div>'
+        ),
+        "detail",
+        EPISODE,
+    )
+    assert (
+        page.availability == "unavailable"
+        and page.episode_title is None
+        and page.languages == ()
+    )
+    state.detail(work, page, NOW + 1)
+    assert (
+        state.db.execute("SELECT display_title FROM entity").fetchone()[0]
+        == "A useful name"
+    )
+    assert dict(state.db.execute("SELECT * FROM release").fetchone()) == previous
+    assert not state.db.execute("SELECT 1 FROM omissions").fetchone()
+    state.close()
+
+
+def test_season_navigation_without_episode_rows_is_explicit_gap():
+    from catalog_core.diagnostics import reason
+
+    body = html(
+        f'<h1>Example</h1><a href="{TITLE}/staffel-1">Season 1</a><a href="{TITLE}/staffel-2">Season 2</a>'
+    )
+    with pytest.raises(ValueError) as caught:
+        sto.parse(body, "detail", TITLE + "/staffel-2")
+    assert reason(caught.value) == "parent_children_missing"

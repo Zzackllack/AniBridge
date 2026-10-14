@@ -13,7 +13,9 @@ def policy(
     if outcome == "challenge_or_block":
         return min(21600, 900 * 2 ** min(blocks, 5)), "blocked"
     if outcome == "unexpected_structure":
-        return 3600, "parser_error"
+        # Stable parse gaps don't need hourly identical requests forever. A
+        # changed season/recent observation still admits new evidence normally.
+        return min(86400, 3600 * 2 ** min(attempts, 5)), "parser_error"
     if outcome in ("not_found", "http_error"):
         return 3600, "partial"
     base = (

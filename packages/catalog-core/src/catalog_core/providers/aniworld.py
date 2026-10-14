@@ -253,7 +253,7 @@ def parse(
             links = tuple(
                 link for link in links if link.path.startswith(page_path + "/")
             )
-            require(bool(links), "unexpected title/season structure")
+            require(bool(links), "parent_children_missing")
         else:
             require(
                 bool(links)

@@ -238,7 +238,7 @@ def test_unrecognized_pagination_does_not_count_as_complete_listing():
         with pytest.raises(ValueError, match="pagination"):
             parse(body, "listing", "/animes-alphabet")
     # An entirely unrelated title cannot complete this title's detail work.
-    with pytest.raises(ValueError, match="title/season"):
+    with pytest.raises(ValueError, match="parent_children_missing"):
         parse(
             b'<html><body><a href="/anime/stream/other/staffel-1">Other</a></body></html>',
             "detail",

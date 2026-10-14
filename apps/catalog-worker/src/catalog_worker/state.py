@@ -525,7 +525,8 @@ class State:
                 )
             if fingerprint != work.get("fingerprint"):
                 self.db.execute(
-                    "UPDATE mapping_input SET next_due=0 WHERE title_id=?", (tid,)
+                    "UPDATE mapping_input SET next_due=CASE WHEN failures>0 THEN next_due ELSE 0 END WHERE title_id=?",
+                    (tid,),
                 )
             self.db.execute(
                 "INSERT INTO observation_gap VALUES(?,?) ON CONFLICT(path) DO UPDATE SET unknown_languages=excluded.unknown_languages",
@@ -537,9 +538,14 @@ class State:
             cadence = interval if changed_at > now - 2592000 else historical_interval
             if work.get("incremental") and work["kind"] == "episode":
                 cadence = historical_interval
+            unavailable = page.availability == "unavailable"
+            # An unavailable template is positive metadata, but doesn't resolve
+            # an old failed player/name observation. Retain its retry history
+            # until an available page actually supplies positive evidence.
+            due = max(now + cadence, work["due"]) if unavailable else now + cadence
             self.db.execute(
-                "UPDATE work SET checked_at=?,due=?,lease_until=0,failures=0,fingerprint=? WHERE path=?",
-                (now, now + cadence, fingerprint, work["path"]),
+                "UPDATE work SET checked_at=?,due=?,lease_until=0,failures=CASE WHEN ? THEN failures ELSE 0 END,fingerprint=? WHERE path=?",
+                (now, due, unavailable, fingerprint, work["path"]),
             )
             pending = self.db.execute(
                 "SELECT 1 FROM work w LEFT JOIN observation_gap g USING(path) WHERE title_id=? AND (checked_at IS NULL OR failures>0 OR coalesce(g.unknown_languages,0)>0) LIMIT 1",

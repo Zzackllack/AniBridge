@@ -34,9 +34,12 @@ class Parser(aniworld.Parser):
 
     def missing_video(self) -> str:
         require(not self.interstitial, "access_interstitial")
-        require(self.title and self.episode_title, "metadata_incomplete")
+        require(self.title, "metadata_incomplete")
+        # The site's unavailable template can omit h2 altogether. Its explicit
+        # player message proves availability only, never an episode name/date.
         if self.player_wrap and self.unavailable:
             return "unavailable"
+        require(self.episode_title, "metadata_incomplete")
         require(
             False, "video_section_missing" if self.player_wrap else "structure_changed"
         )

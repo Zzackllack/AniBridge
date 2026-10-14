@@ -35,6 +35,7 @@ REASONS = frozenset(
         "access_interstitial",
         "video_section_missing",
         "metadata_incomplete",
+        "parent_children_missing",
     }
 )
 
@@ -62,6 +63,7 @@ def reason(exc: BaseException) -> str:
         "video_section_missing": "video_section_missing",
         "metadata_incomplete": "metadata_incomplete",
         "structure_changed": "structure_changed",
+        "parent_children_missing": "parent_children_missing",
     }.get(str(exc), "contract_rejected")
 
 
