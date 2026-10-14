@@ -114,8 +114,8 @@ complete because the draft exists or one image build succeeds.
 ### 2. CI coverage and reproducibility
 
 - [ ] Add independent API, `packages/catalog-core` and `apps/catalog-worker` jobs
-  with their own frozen uv projects. Existing `tests.yml` only runs API tests.
-- [ ] Cover worker/core/Docker/workflow inputs in change detection. Prefer an
+  with their own frozen uv projects. Local October 14 YAML implements these jobs; hosted execution remains unverified.
+- [ ] Verify the October 14 unconditional worker/core/workflow coverage and an
   always-running final gate so skipped path-filter workflows do not leave a
   required check pending forever. Verify PRs into both supported base branches.
 - [ ] Add API/worker package and image smoke builds to the required gate; include
@@ -208,3 +208,12 @@ complete because the draft exists or one image build succeeds.
 - [Docker multi-platform builds](https://docs.docker.com/build/ci/github-actions/multi-platform/)
 - [Container registry authentication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
 - [Current release/CI agent guide](../agents/release-ci.md)
+
+## October 14 local implementation update
+
+`tests.yml` now includes independent frozen API/core/worker jobs, installed-wheel
+smokes and an unconditional final gate for PRs into both `main` and `v3`. These
+changes are local and unpushed; hosted checks, native AMD64/ARM64 image gates and
+protection enforcement remain open. No default-branch, protection, release or
+publication policy was changed. See spec 020's mapping implementation evidence
+for the separately tested parser, correspondence and scheduling changes.

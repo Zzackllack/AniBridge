@@ -48,7 +48,8 @@
 
 ## CI
 
-- `.github/workflows/tests.yml` runs on pushes/PRs touching `apps/api/app/**` or `apps/api/tests/**`.
+- `.github/workflows/tests.yml` runs on branch pushes and PRs into `main`/`v3`, without path filters. Independent API, core and worker projects use frozen uv locks.
+- Core/worker jobs run offline regressions and build/install wheels; the always-running `Tests / Required Gate` rejects failed, cancelled or skipped project jobs. GitHub required-check protection remains an operator decision.
 - On pull requests, failed pytest runs upload the captured console output so CI
   can post or refresh a remediation comment on the PR thread.
 
@@ -90,3 +91,18 @@ consistent ledger copies and finite offline workloads. Keep raw live HTML and
 private state outside Git; commit sanitized aggregate evidence. Short Linux
 profile runs do not establish full-bootstrap capacity, freshness SLA or media
 acceptance. No live pilot writer or long crash campaign is implied.
+
+October 14 mapping regressions: `test_matching_followup.py` covers verified
+multilingual episode IDs, source annotations, distinct context anchors,
+ambiguity/conflicts, unchanged fingerprints, shared admission across restart,
+late arrivals and outage recovery. Private v5 migration interruption/rollback
+checks retain all v4 data and no-overwrite recovery copies. The fixed 215-case
+metadata fixture records label chronology and review errata; its held-out split
+is regression evidence, not a blind prospective precision trial.
+
+Finite copied-state tools are `mapping_replay.py`, `targeted_parent_replay.py`,
+`evaluate_mapping_labels.py` and `verify_copied_catalog.py`; `maintenance_trace.py`
+is a separate synthetic controlled-clock fairness/admission trace. Never point
+replay writers at live state. The diagnostic module opens read-only SQLite and
+uses the same allowlisted decision path. `--immutable-copy` is only for a
+WAL-free consistent frozen backup, never an active database.

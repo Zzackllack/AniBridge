@@ -95,3 +95,13 @@ then tags combined manifests by full SHA plus a moving PR/branch alias. Forks
 and Dependabot events cannot publish. Pin digests for deployments; this workflow
 does not deploy or update stable images. Broader required tests remain a
 transition checklist item.
+
+## Catalog follow-up gate
+
+`tests.yml` now runs independent frozen API/core/worker projects on branch pushes
+and PRs into `main` and `v3`, without path filters. Core/worker jobs build and
+import actual installed wheels. `Tests / Required Gate` always runs and requires
+all projects to succeed. YAML/actionlint and local Linux checks do not establish
+GitHub-hosted execution or protection enforcement. Native preview image builds,
+registry publication and any required-check policy change need their own evidence
+and authorization. The draft PR is unchanged.
