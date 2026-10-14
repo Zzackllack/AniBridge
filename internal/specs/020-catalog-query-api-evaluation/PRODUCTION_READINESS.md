@@ -6,6 +6,15 @@ publication and interaction with the existing Coolify pilot. Code through
 `2240b9119797bf3346444e719eef3e78fd0c83e4` is pushed without resetting history.
 PR #170 remains a draft into protected `v3`; `main` remains default.
 
+Later canonical tuning is implemented and deployed: current worker is `d85ed05`,
+manifest `sha256:9a0df2b03fd386142f36a5ba8704c17e2e1489bd2519d88959d62753d2157218`,
+with shared admission configured at 90/minute. It followed bounded 30/60/90/120
+copied-ledger metadata trials and preserves existing state/resources/networks.
+See [rate evidence](evidence/canonical-rate-tuning-2026-10-14.json), EVIDENCE.md and
+SERVER.md's v5 code/config-only rollback. The 30/minute value was our initial
+design choice, not an established upstream quota. Broader labels, publication
+cost and sustained capacity remain open; a short rate trial does not close them.
+
 ## Delivered and remaining boundaries
 
 Hosted test run [38598340921](https://github.com/Zzackllack/AniBridge/actions/runs/38598340921)
@@ -144,7 +153,8 @@ page cache already matter; caching is not absent.
    descriptor reuse, parse time and publication occupancy over ordinary maintenance.
    The 646/hour cadence projection excludes searches/retries/initial verification.
    Profile canonical lock/network waits before adding bounded in-flight work and
-   cross-title request coalescing. Preserve the durable shared 30/min admission,
+   cross-title request coalescing. Preserve durable shared admission (default
+   30/min, approved pilot now 90/min after bounded comparison),
    leases/backoff and provider isolation. Existing HTTPX async pools are already
    used; an unbounded async rewrite or daily full recrawl is not the next step.
 5. **Source gaps — parser/backoff implemented; missing evidence remains open.**

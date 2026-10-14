@@ -4,6 +4,35 @@ Updated 2026-10-14. Evidence: [pilot follow-up](evidence/linux-private-pilot-fol
 and [EVIDENCE.md](EVIDENCE.md). The October 8 implementation and bounded measurements are recorded below.
 Deployment is confined to the maintainer-authorized existing private pilot.
 
+## Subsequent canonical budget tuning
+
+The maintainer challenged the hardcoded 30/minute budget and authorized tuning.
+It originated in the October 5 design/implementation, not an established Skyhook
+quota. `limits.canonical_requests_per_minute` accepts 4–120, defaults to 30 and
+stays outside matching fingerprints. Shared durable admission and retry deadlines
+remain intact. Safe HTTP counters contain no terms, URLs or response bodies.
+
+Same-frozen-ledger, sequential 130-second canonical-only windows at 2 CPU/2 GiB
+yielded starts/new usable maps of 61/10 at 30, 124/20 at 60, 181/99 at 90 and
+243/102 at 120. No 403/429; one HTTP 500 at 120. Series mix and eligibility clocks
+vary; this is not independent accuracy or an upstream-ceiling measurement.
+All old releases/first-seen, maps and work retry/lease fields survive each copy.
+See [rate evidence](evidence/canonical-rate-tuning-2026-10-14.json).
+
+Configurable admission, safe counters, copied-state comparisons and the approved
+90/minute pilot rollout are **implemented+verified**. Live source `d85ed05` pins
+manifest `sha256:9a0df2b03fd386142f36a5ba8704c17e2e1489bd2519d88959d62753d2157218`.
+Both configs/all three worker images changed together; schema/resources/networks
+did not. All 482,969 prior releases/first-seen and 246,689 old maps, including
+parent identities, survive. Six same-revision SQL/API totals and the public route
+pass. An initial uninstrumented query assertion failed, cause unestablished;
+instrumented retries pass. A live sample has 1,016 canonical HTTP 200s.
+
+The upstream quota, full-provider precision and sustained capacity remain
+unestablished. Absent/generic names, conflicting parents/cuts and unknown audio
+still require positive evidence. Publication cost and prospective independent
+labels remain the separate open items below. Exact v5 rollback is in SERVER.md.
+
 ## Production requirement
 
 The maintainer rejects approximately week-long full-provider bootstrap as a

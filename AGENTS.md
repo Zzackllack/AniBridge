@@ -128,6 +128,8 @@ October 14 implemented follow-up
   to a shared 30/minute budget; `limits.canonical_requests_per_minute` accepts
   4–120 for measured tuning. This is our safety budget, not a documented Skyhook
   quota. Changing it must not invalidate descriptors/matcher fingerprints.
+  The subsequent approved pilot uses 90/minute on `d85ed05`; bounded 120/minute
+  testing found no 403/429, not a discovered quota or sustained-capacity proof.
 - Optional `canonical_sources.episode_languages: ["deu"]` uses verified Skyhook v2
   TVDB episode IDs and coordinates for translation joins. Legacy authority tags
   remain wire-compatible; private evidence records the actual API provenance.

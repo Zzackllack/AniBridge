@@ -5,6 +5,69 @@
 measurements: [pilot-results.json](evidence/pilot-results.json). No database,
 credential, provider media or real search transcript is included.
 
+## Subsequent canonical budget tuning — 2026-10-14
+
+[Rate evidence](evidence/canonical-rate-tuning-2026-10-14.json) records implementation,
+bounded canonical-only trials on consistent copies and the approved 90/minute
+pilot rollout. Default is 30; configurable range 4–120 is our guard, not a Skyhook
+quota. Rate changes do not invalidate matching inputs. Runtime `d85ed05` pins
+manifest `sha256:9a0df2b03fd386142f36a5ba8704c17e2e1489bd2519d88959d62753d2157218`.
+
+| Configured/minute | Starts / completed | New usable maps | Starts/new map | HTTP results | Network p95 |
+| ---: | ---: | ---: | ---: | --- | ---: |
+| 30 | 61 / 60 | 10 | 6.1000 | 60 × 200 | 0.4373s |
+| 60 | 124 / 124 | 20 | 6.2000 | 124 × 200 | 0.5866s |
+| 90 | 181 / 180 | 99 | 1.8283 | 180 × 200 | 0.5776s |
+| 120 | 243 / 242 | 102 | 2.3824 | 241 × 200, one 500 | 0.5487s |
+
+Each enrichment window is 130 seconds at 2 CPU/2 GiB from the same frozen ledger.
+The collector is paused and automatically resumed. No provider pages, media,
+publication or copied-state import. Sequential wall clocks and series mix vary;
+new additions lack independent labels. Rolling start maxima are 28/58/88/118.
+Starts include cancelled attempts. No 403/429; the single 500 cannot establish
+rate-induced throttling. No upstream ceiling or full-service capacity claim.
+
+Process CPU deltas are 23.9329/20.5890/15.3801/14.7775s including post-window metrics
+and preservation checks, excluding copying/preflight. RSS is about 126 MiB.
+The first three steps share cumulative counters and reach about 2 GiB, mostly
+file cache, with reclamation/max events and no OOM. Separate 120-step peak is
+about 1.32 GiB. Warmth/container boundaries prevent a causal CPU/memory comparison.
+Numeric cgroup I/O counters are retained in the JSON. No larger resource profile.
+
+All four copies retain 482,963 releases/first-seen and 246,491 prior maps; work
+retry/lease differences are zero. Corrected common-clock eligibility counts
+include missing episode replays: baseline 1,710/10,290 parents; 90-step 1,666/10,246.
+Oldest positive due ages change 12,635→12,400s / 43,084→42,841s. Another 1,111/2,105
+records lack a trustworthy eligibility start clock; last attempt is not that clock.
+No freshness SLA follows from this sample. Existing frozen matching labels retain
+their separate chronology/accuracy limits; no matcher tuning occurred here.
+
+[Native previews 38620494363](https://github.com/Zzackllack/AniBridge/actions/runs/38620494363)
+and [frozen tests 38620494384](https://github.com/Zzackllack/AniBridge/actions/runs/38620494384)
+pass: worker 202, core 310, API 280 with six skips. The subsequent age correction
+passes 17 focused Mac cases. Guarded preparation verifies the current manifest,
+refuses drift and retains raw rollback/config bytes.
+
+Authenticated native Zen saved all three image references; both initializer and
+volume configs contain 90/minute. Collector remains 2 CPU/2 GiB, metadata 2 CPU/
+512 MiB, original volumes/networks and no OOM/restart loop. Full live comparison
+retains 482,969 pre-upgrade releases/first-seen, 246,689 maps and parent identities.
+Six revision/digest-paired queries match exact SQL totals and isolate providers.
+AniWorld One Piece S01E01/S01E06/S21E14 each return three releases; ordinary
+Serienstream S01E01 two. Acquisition timing cannot be attributed solely to this
+rate change. An initial query assertion lacked status/revision capture and failed;
+cause unestablished. Instrumented and repeated paired checks pass. Recorded queries
+take 5–64ms internally and about 62ms via the authenticated public route.
+Publication latency was not separately rebenchmarked per rate; new revisions and
+last-good serving are observed. This is metadata evidence, without live playback.
+
+A live counter sample has 1,016 × HTTP 200, no Retry-After and 78 joint retained
+starts in its last minute. Accounted disk upper bound is 22,213,706,800 bytes,
+including research copies, state/read, 1-GB reserve, summed worker-image logical
+sizes, writable layers and conservative Docker logs. Shared image layers are
+double-counted; unrelated host apps are outside the service budget. Original
+backups/quarantines remain. Client/generated-media evidence is unchanged.
+
 ## Baseline and provenance
 
 Implementation branch: `zzackllack-aux/catalog-query-api-implementation`, created

@@ -1,0 +1,632 @@
+{
+  "date": "2026-10-14",
+  "runtime_source_sha": "d85ed054d22ae8d117677670d6d0d29dd995ccca",
+  "worker_manifest": "sha256:9a0df2b03fd386142f36a5ba8704c17e2e1489bd2519d88959d62753d2157218",
+  "profile": {
+    "cpu": 2,
+    "memory_bytes": 2147483648,
+    "extra_swap": false,
+    "network_concurrency": 1
+  },
+  "boundaries": [
+    "canonical metadata only; no provider pages, media or copied-state import",
+    "each step starts from the same consistent frozen ledgers; sequential wall clocks and queue selection vary",
+    "130-second enrichment windows; CPU and I/O deltas also include post-window metrics and preservation checks",
+    "copy and state preflight are outside each enrichment window",
+    "30/60/90 share a container; their memory peaks and resource counters are cumulative",
+    "120 uses a separate container; no causal memory comparison",
+    "request starts include cancelled attempts; completed requests are reported separately",
+    "new map additions have no independent labels; previous frozen matching regressions remain separate"
+  ],
+  "steps": [
+    {
+      "configured_requests_per_minute": 30,
+      "duration_s": 130.0017,
+      "requests": 61,
+      "completed_requests": 60,
+      "max_actual_starts_in_rolling_60s": 28,
+      "useful_new_maps": 10,
+      "requests_per_useful_new_map": 6.1,
+      "outcomes": {
+        "ok": 60
+      },
+      "statuses": {
+        "200": 60
+      },
+      "network_p50_s": 0.07013003900647163,
+      "network_p95_s": 0.43730722879990935,
+      "decoded_bytes": 1655845,
+      "stop_reason": "bounded_window",
+      "before": {
+        "aniworld.to": {
+          "ledger": {
+            "episodes": 63611,
+            "usable_episodes": 63595,
+            "usable_mapped": 44673,
+            "maps": 44676,
+            "releases": 116432
+          }
+        },
+        "s.to": {
+          "ledger": {
+            "episodes": 307041,
+            "usable_episodes": 290688,
+            "usable_mapped": 191827,
+            "maps": 201815,
+            "releases": 366531
+          }
+        }
+      },
+      "after": {
+        "aniworld.to": {
+          "ledger": {
+            "episodes": 63611,
+            "usable_episodes": 63595,
+            "usable_mapped": 44682,
+            "maps": 44685,
+            "releases": 116432
+          },
+          "preservation": {
+            "release_identity_or_first_seen_changed": 0,
+            "old_maps_removed_or_repointed": 0,
+            "work_retry_or_lease_changed": 0
+          },
+          "examined": {
+            "examined": 14,
+            "source_failure": 5,
+            "admission_deferred": 462,
+            "descriptor_reuse": 1
+          }
+        },
+        "s.to": {
+          "ledger": {
+            "episodes": 307041,
+            "usable_episodes": 290688,
+            "usable_mapped": 191828,
+            "maps": 201816,
+            "releases": 366531
+          },
+          "preservation": {
+            "release_identity_or_first_seen_changed": 0,
+            "old_maps_removed_or_repointed": 0,
+            "work_retry_or_lease_changed": 0
+          },
+          "examined": {
+            "source_failure": 5,
+            "examined": 6,
+            "admission_deferred": 470
+          }
+        }
+      },
+      "resources_before": {
+        "cpu_s": 9.5273,
+        "rss_kib": 112968,
+        "cpu.stat": "usage_usec 9528948\nuser_usec 6108041\nsystem_usec 3420907\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 198\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n",
+        "memory.stat": "anon 97435648\nfile 1735659520\nkernel 35147776\nkernel_stack 16384\npagetables 307200\nsec_pagetables 0\npercpu 2136\nsock 0\nvmalloc 8192\nshmem 0\nzswap 0\nzswapped 0\nfile_mapped 36864\nfile_dirty 153477120\nfile_writeback 0\nswapcached 0\nanon_thp 0\nfile_thp 473956352\nshmem_thp 0\ninactive_anon 0\nactive_anon 97431552\ninactive_file 1735655424\nactive_file 8192\nunevictable 0\nslab_reclaimable 34612224\nslab_unreclaimable 200488\nslab 34812712\nworkingset_refault_anon 0\nworkingset_refault_file 46590\nworkingset_activate_anon 0\nworkingset_activate_file 0\nworkingset_restore_anon 0\nworkingset_restore_file 512\nworkingset_nodereclaim 0\npgdemote_kswapd 0\npgdemote_direct 0\npgdemote_khugepaged 0\npgdemote_proactive 0\npgpromote_success 0\npgscan 8310\npgsteal 8309\npswpin 0\npswpout 0\npgscan_kswapd 8310\npgscan_direct 0\npgscan_khugepaged 0\npgscan_proactive 0\npgsteal_kswapd 8309\npgsteal_direct 0\npgsteal_khugepaged 0\npgsteal_proactive 0\npgfault 42774\npgmajfault 0\npgrefill 77604\npgactivate 1\npgdeactivate 0\npglazyfree 0\npglazyfreed 0\nswpin_zero 0\nswpout_zero 0\nzswpin 0\nzswpout 0\nzswpwb 0\nthp_fault_alloc 0\nthp_collapse_alloc 0\nthp_swpout 0\nthp_swpout_fallback 0\nnuma_pages_migrated 0\nnuma_pte_updates 0\nnuma_hint_faults 0\n",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "io.stat": "8:0 rbytes=570925056 wbytes=1045291008 rios=4170 wios=251 dbytes=0 dios=0\n",
+        "memory.peak": "1868505088\n"
+      },
+      "resources_after": {
+        "cpu_s": 33.4602,
+        "rss_kib": 129184,
+        "cpu.stat": "usage_usec 33461816\nuser_usec 28520383\nsystem_usec 4941433\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 827\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n",
+        "memory.stat": "anon 111984640\nfile 1749647360\nkernel 27197440\nkernel_stack 32768\npagetables 348160\nsec_pagetables 0\npercpu 2136\nsock 0\nvmalloc 8192\nshmem 0\nzswap 0\nzswapped 0\nfile_mapped 65536\nfile_dirty 45056\nfile_writeback 0\nswapcached 0\nanon_thp 0\nfile_thp 473956352\nshmem_thp 0\ninactive_anon 0\nactive_anon 111980544\ninactive_file 1749475328\nactive_file 36864\nunevictable 0\nslab_reclaimable 26572144\nslab_unreclaimable 228464\nslab 26800608\nworkingset_refault_anon 0\nworkingset_refault_file 47147\nworkingset_activate_anon 0\nworkingset_activate_file 7\nworkingset_restore_anon 0\nworkingset_restore_file 512\nworkingset_nodereclaim 0\npgdemote_kswapd 0\npgdemote_direct 0\npgdemote_khugepaged 0\npgdemote_proactive 0\npgpromote_success 0\npgscan 8310\npgsteal 8309\npswpin 0\npswpout 0\npgscan_kswapd 8310\npgscan_direct 0\npgscan_khugepaged 0\npgscan_proactive 0\npgsteal_kswapd 8309\npgsteal_direct 0\npgsteal_khugepaged 0\npgsteal_proactive 0\npgfault 46683\npgmajfault 1\npgrefill 77604\npgactivate 1\npgdeactivate 0\npglazyfree 0\npglazyfreed 0\nswpin_zero 0\nswpout_zero 0\nzswpin 0\nzswpout 0\nzswpwb 0\nthp_fault_alloc 0\nthp_collapse_alloc 0\nthp_swpout 0\nthp_swpout_fallback 0\nnuma_pages_migrated 0\nnuma_pte_updates 0\nnuma_hint_faults 0\n",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "io.stat": "8:0 rbytes=581410816 wbytes=1202864128 rios=5534 wios=545 dbytes=0 dios=0\n",
+        "memory.peak": "1889546240\n"
+      }
+    },
+    {
+      "configured_requests_per_minute": 60,
+      "duration_s": 130.0094,
+      "requests": 124,
+      "completed_requests": 124,
+      "max_actual_starts_in_rolling_60s": 58,
+      "useful_new_maps": 20,
+      "requests_per_useful_new_map": 6.2,
+      "outcomes": {
+        "ok": 124
+      },
+      "statuses": {
+        "200": 124
+      },
+      "network_p50_s": 0.07359079085290432,
+      "network_p95_s": 0.5866262749768794,
+      "decoded_bytes": 2898286,
+      "stop_reason": "bounded_window",
+      "before": {
+        "aniworld.to": {
+          "ledger": {
+            "episodes": 63611,
+            "usable_episodes": 63595,
+            "usable_mapped": 44673,
+            "maps": 44676,
+            "releases": 116432
+          }
+        },
+        "s.to": {
+          "ledger": {
+            "episodes": 307041,
+            "usable_episodes": 290688,
+            "usable_mapped": 191827,
+            "maps": 201815,
+            "releases": 366531
+          }
+        }
+      },
+      "after": {
+        "aniworld.to": {
+          "ledger": {
+            "episodes": 63611,
+            "usable_episodes": 63595,
+            "usable_mapped": 44676,
+            "maps": 44679,
+            "releases": 116432
+          },
+          "preservation": {
+            "release_identity_or_first_seen_changed": 0,
+            "old_maps_removed_or_repointed": 0,
+            "work_retry_or_lease_changed": 0
+          },
+          "examined": {
+            "examined": 25,
+            "source_failure": 7,
+            "descriptor_reuse": 1,
+            "admission_deferred": 283
+          }
+        },
+        "s.to": {
+          "ledger": {
+            "episodes": 307041,
+            "usable_episodes": 290688,
+            "usable_mapped": 191844,
+            "maps": 201832,
+            "releases": 366531
+          },
+          "preservation": {
+            "release_identity_or_first_seen_changed": 0,
+            "old_maps_removed_or_repointed": 0,
+            "work_retry_or_lease_changed": 0
+          },
+          "examined": {
+            "source_failure": 10,
+            "examined": 22,
+            "admission_deferred": 282,
+            "descriptor_reuse": 2
+          }
+        }
+      },
+      "resources_before": {
+        "cpu_s": 48.8765,
+        "rss_kib": 129184,
+        "cpu.stat": "usage_usec 48878180\nuser_usec 35856580\nsystem_usec 13021600\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 2126\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n",
+        "memory.stat": "anon 111984640\nfile 2008363008\nkernel 26411008\nkernel_stack 32768\npagetables 348160\nsec_pagetables 0\npercpu 2136\nsock 0\nvmalloc 8192\nshmem 0\nzswap 0\nzswapped 0\nfile_mapped 65536\nfile_dirty 28672\nfile_writeback 0\nswapcached 0\nanon_thp 0\nfile_thp 484442112\nshmem_thp 0\ninactive_anon 111677440\nactive_anon 303104\ninactive_file 2008141824\nactive_file 45056\nunevictable 0\nslab_reclaimable 25793464\nslab_unreclaimable 220720\nslab 26014184\nworkingset_refault_anon 0\nworkingset_refault_file 510938\nworkingset_activate_anon 0\nworkingset_activate_file 15\nworkingset_restore_anon 0\nworkingset_restore_file 4288\nworkingset_nodereclaim 0\npgdemote_kswapd 0\npgdemote_direct 0\npgdemote_khugepaged 0\npgdemote_proactive 0\npgpromote_success 0\npgscan 706437\npgsteal 706417\npswpin 0\npswpout 0\npgscan_kswapd 16256\npgscan_direct 690181\npgscan_khugepaged 0\npgscan_proactive 0\npgsteal_kswapd 16255\npgsteal_direct 690162\npgsteal_khugepaged 0\npgsteal_proactive 0\npgfault 46693\npgmajfault 2\npgrefill 645951\npgactivate 2\npgdeactivate 0\npglazyfree 0\npglazyfreed 0\nswpin_zero 0\nswpout_zero 0\nzswpin 0\nzswpout 0\nzswpwb 0\nthp_fault_alloc 0\nthp_collapse_alloc 0\nthp_swpout 0\nthp_swpout_fallback 0\nnuma_pages_migrated 0\nnuma_pte_updates 0\nnuma_hint_faults 0\n",
+        "memory.events": "low 0\nhigh 0\nmax 5322\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "io.stat": "8:0 rbytes=2504003584 wbytes=2403332096 rios=272613 wios=1158 dbytes=0 dios=0\n",
+        "memory.peak": "2147483648\n"
+      },
+      "resources_after": {
+        "cpu_s": 69.4655,
+        "rss_kib": 129184,
+        "cpu.stat": "usage_usec 69467132\nuser_usec 53441319\nsystem_usec 16025812\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 3053\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n",
+        "memory.stat": "anon 111984640\nfile 2008678400\nkernel 26435584\nkernel_stack 32768\npagetables 348160\nsec_pagetables 0\npercpu 2136\nsock 0\nvmalloc 8192\nshmem 0\nzswap 0\nzswapped 0\nfile_mapped 61440\nfile_dirty 0\nfile_writeback 0\nswapcached 0\nanon_thp 0\nfile_thp 484442112\nshmem_thp 0\ninactive_anon 111677440\nactive_anon 303104\ninactive_file 2008518656\nactive_file 73728\nunevictable 0\nslab_reclaimable 25807832\nslab_unreclaimable 232328\nslab 26040160\nworkingset_refault_anon 0\nworkingset_refault_file 609055\nworkingset_activate_anon 0\nworkingset_activate_file 15\nworkingset_restore_anon 0\nworkingset_restore_file 6821\nworkingset_nodereclaim 0\npgdemote_kswapd 0\npgdemote_direct 0\npgdemote_khugepaged 0\npgdemote_proactive 0\npgpromote_success 0\npgscan 806344\npgsteal 806317\npswpin 0\npswpout 0\npgscan_kswapd 16256\npgscan_direct 790088\npgscan_khugepaged 0\npgscan_proactive 0\npgsteal_kswapd 16255\npgsteal_direct 790062\npgsteal_khugepaged 0\npgsteal_proactive 0\npgfault 46740\npgmajfault 2\npgrefill 659997\npgactivate 9\npgdeactivate 0\npglazyfree 0\npglazyfreed 0\nswpin_zero 0\nswpout_zero 0\nzswpin 0\nzswpout 0\nzswpwb 0\nthp_fault_alloc 0\nthp_collapse_alloc 0\nthp_swpout 0\nthp_swpout_fallback 0\nnuma_pages_migrated 0\nnuma_pte_updates 0\nnuma_hint_faults 0\n",
+        "memory.events": "low 0\nhigh 0\nmax 6164\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "io.stat": "8:0 rbytes=2905890816 wbytes=2412281856 rios=332357 wios=1712 dbytes=0 dios=0\n",
+        "memory.peak": "2147602432\n"
+      }
+    },
+    {
+      "configured_requests_per_minute": 90,
+      "duration_s": 130.0021,
+      "requests": 181,
+      "completed_requests": 180,
+      "max_actual_starts_in_rolling_60s": 88,
+      "useful_new_maps": 99,
+      "requests_per_useful_new_map": 1.8282828282828283,
+      "outcomes": {
+        "ok": 180
+      },
+      "statuses": {
+        "200": 180
+      },
+      "network_p50_s": 0.06760569429025054,
+      "network_p95_s": 0.5776277505792677,
+      "decoded_bytes": 4078456,
+      "stop_reason": "bounded_window",
+      "before": {
+        "aniworld.to": {
+          "ledger": {
+            "episodes": 63611,
+            "usable_episodes": 63595,
+            "usable_mapped": 44673,
+            "maps": 44676,
+            "releases": 116432
+          }
+        },
+        "s.to": {
+          "ledger": {
+            "episodes": 307041,
+            "usable_episodes": 290688,
+            "usable_mapped": 191827,
+            "maps": 201815,
+            "releases": 366531
+          }
+        }
+      },
+      "after": {
+        "aniworld.to": {
+          "ledger": {
+            "episodes": 63611,
+            "usable_episodes": 63595,
+            "usable_mapped": 44705,
+            "maps": 44708,
+            "releases": 116432
+          },
+          "preservation": {
+            "release_identity_or_first_seen_changed": 0,
+            "old_maps_removed_or_repointed": 0,
+            "work_retry_or_lease_changed": 0
+          },
+          "examined": {
+            "examined": 39,
+            "source_failure": 8,
+            "descriptor_reuse": 1,
+            "admission_deferred": 79
+          }
+        },
+        "s.to": {
+          "ledger": {
+            "episodes": 307041,
+            "usable_episodes": 290688,
+            "usable_mapped": 191894,
+            "maps": 201882,
+            "releases": 366531
+          },
+          "preservation": {
+            "release_identity_or_first_seen_changed": 0,
+            "old_maps_removed_or_repointed": 0,
+            "work_retry_or_lease_changed": 0
+          },
+          "examined": {
+            "source_failure": 14,
+            "examined": 31,
+            "descriptor_reuse": 4,
+            "admission_deferred": 78
+          }
+        }
+      },
+      "resources_before": {
+        "cpu_s": 88.2964,
+        "rss_kib": 129184,
+        "cpu.stat": "usage_usec 88298046\nuser_usec 61583024\nsystem_usec 26715022\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 4926\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n",
+        "memory.stat": "anon 111984640\nfile 2007683072\nkernel 27348992\nkernel_stack 32768\npagetables 348160\nsec_pagetables 0\npercpu 2136\nsock 0\nvmalloc 8192\nshmem 0\nzswap 0\nzswapped 0\nfile_mapped 36864\nfile_dirty 28672\nfile_writeback 0\nswapcached 0\nanon_thp 0\nfile_thp 484442112\nshmem_thp 0\ninactive_anon 109928448\nactive_anon 2052096\ninactive_file 2006700032\nactive_file 847872\nunevictable 0\nslab_reclaimable 26726912\nslab_unreclaimable 223632\nslab 26950544\nworkingset_refault_anon 0\nworkingset_refault_file 1142335\nworkingset_activate_anon 0\nworkingset_activate_file 15\nworkingset_restore_anon 0\nworkingset_restore_file 7828\nworkingset_nodereclaim 0\npgdemote_kswapd 0\npgdemote_direct 0\npgdemote_khugepaged 0\npgdemote_proactive 0\npgpromote_success 0\npgscan 1631316\npgsteal 1631114\npswpin 0\npswpout 0\npgscan_kswapd 16256\npgscan_direct 1615060\npgscan_khugepaged 0\npgscan_proactive 0\npgsteal_kswapd 16255\npgsteal_direct 1614859\npgsteal_khugepaged 0\npgsteal_proactive 0\npgfault 46750\npgmajfault 2\npgrefill 1255461\npgactivate 10\npgdeactivate 0\npglazyfree 0\npglazyfreed 0\nswpin_zero 0\nswpout_zero 0\nzswpin 0\nzswpout 0\nzswpwb 0\nthp_fault_alloc 0\nthp_collapse_alloc 0\nthp_swpout 0\nthp_swpout_fallback 0\nnuma_pages_migrated 0\nnuma_pte_updates 0\nnuma_hint_faults 0\n",
+        "memory.events": "low 0\nhigh 0\nmax 12452\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "io.stat": "8:0 rbytes=5090729984 wbytes=3614191616 rios=669495 wios=2600 dbytes=0 dios=0\n",
+        "memory.peak": "2147602432\n"
+      },
+      "resources_after": {
+        "cpu_s": 103.6765,
+        "rss_kib": 129184,
+        "cpu.stat": "usage_usec 103678115\nuser_usec 73316855\nsystem_usec 30361259\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 5969\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n",
+        "memory.stat": "anon 111984640\nfile 2007224320\nkernel 27406336\nkernel_stack 32768\npagetables 348160\nsec_pagetables 0\npercpu 2136\nsock 0\nvmalloc 8192\nshmem 0\nzswap 0\nzswapped 0\nfile_mapped 65536\nfile_dirty 0\nfile_writeback 0\nswapcached 0\nanon_thp 0\nfile_thp 484442112\nshmem_thp 0\ninactive_anon 109928448\nactive_anon 2052096\ninactive_file 2006249472\nactive_file 888832\nunevictable 0\nslab_reclaimable 26778544\nslab_unreclaimable 229824\nslab 27008368\nworkingset_refault_anon 0\nworkingset_refault_file 1254906\nworkingset_activate_anon 0\nworkingset_activate_file 22\nworkingset_restore_anon 0\nworkingset_restore_file 15070\nworkingset_nodereclaim 0\npgdemote_kswapd 0\npgdemote_direct 0\npgdemote_khugepaged 0\npgdemote_proactive 0\npgpromote_success 0\npgscan 1746219\npgsteal 1746014\npswpin 0\npswpout 0\npgscan_kswapd 16256\npgscan_direct 1729963\npgscan_khugepaged 0\npgscan_proactive 0\npgsteal_kswapd 16255\npgsteal_direct 1729759\npgsteal_khugepaged 0\npgsteal_proactive 0\npgfault 46812\npgmajfault 3\npgrefill 1267187\npgactivate 13\npgdeactivate 0\npglazyfree 0\npglazyfreed 0\nswpin_zero 0\nswpout_zero 0\nzswpin 0\nzswpout 0\nzswpwb 0\nthp_fault_alloc 0\nthp_collapse_alloc 0\nthp_swpout 0\nthp_swpout_fallback 0\nnuma_pages_migrated 0\nnuma_pte_updates 0\nnuma_hint_faults 0\n",
+        "memory.events": "low 0\nhigh 0\nmax 13390\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "io.stat": "8:0 rbytes=5551820800 wbytes=3632168960 rios=742548 wios=3974 dbytes=0 dios=0\n",
+        "memory.peak": "2147602432\n"
+      }
+    },
+    {
+      "configured_requests_per_minute": 120,
+      "duration_s": 130.0023,
+      "requests": 243,
+      "completed_requests": 242,
+      "max_actual_starts_in_rolling_60s": 118,
+      "useful_new_maps": 102,
+      "requests_per_useful_new_map": 2.3823529411764706,
+      "outcomes": {
+        "ok": 241,
+        "transport_failure": 1
+      },
+      "statuses": {
+        "200": 241,
+        "500": 1
+      },
+      "network_p50_s": 0.07604869594797492,
+      "network_p95_s": 0.5486786989495158,
+      "decoded_bytes": 5678304,
+      "stop_reason": "bounded_window",
+      "before": {
+        "aniworld.to": {
+          "ledger": {
+            "episodes": 63611,
+            "usable_episodes": 63595,
+            "usable_mapped": 44673,
+            "maps": 44676,
+            "releases": 116432
+          }
+        },
+        "s.to": {
+          "ledger": {
+            "episodes": 307041,
+            "usable_episodes": 290688,
+            "usable_mapped": 191827,
+            "maps": 201815,
+            "releases": 366531
+          }
+        }
+      },
+      "after": {
+        "aniworld.to": {
+          "ledger": {
+            "episodes": 63611,
+            "usable_episodes": 63595,
+            "usable_mapped": 44704,
+            "maps": 44707,
+            "releases": 116432
+          },
+          "preservation": {
+            "release_identity_or_first_seen_changed": 0,
+            "old_maps_removed_or_repointed": 0,
+            "work_retry_or_lease_changed": 0
+          },
+          "examined": {
+            "examined": 56,
+            "source_failure": 11,
+            "descriptor_reuse": 1,
+            "admission_deferred": 95
+          }
+        },
+        "s.to": {
+          "ledger": {
+            "episodes": 307041,
+            "usable_episodes": 290688,
+            "usable_mapped": 191898,
+            "maps": 201886,
+            "releases": 366531
+          },
+          "preservation": {
+            "release_identity_or_first_seen_changed": 0,
+            "old_maps_removed_or_repointed": 0,
+            "work_retry_or_lease_changed": 0
+          },
+          "examined": {
+            "source_failure": 18,
+            "examined": 39,
+            "descriptor_reuse": 6,
+            "admission_deferred": 100
+          }
+        }
+      },
+      "resources_before": {
+        "cpu_s": 9.6798,
+        "rss_kib": 112888,
+        "cpu.stat": "usage_usec 9681537\nuser_usec 6070669\nsystem_usec 3610867\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 119\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n",
+        "memory.stat": "anon 97419264\nfile 1263554560\nkernel 28897280\nkernel_stack 16384\npagetables 311296\nsec_pagetables 0\npercpu 2136\nsock 0\nvmalloc 8192\nshmem 0\nzswap 0\nzswapped 0\nfile_mapped 65536\nfile_dirty 69578752\nfile_writeback 109056000\nswapcached 0\nanon_thp 0\nfile_thp 0\nshmem_thp 0\ninactive_anon 0\nactive_anon 97415168\ninactive_file 1263468544\nactive_file 90112\nunevictable 0\nslab_reclaimable 28354144\nslab_unreclaimable 200008\nslab 28554152\nworkingset_refault_anon 0\nworkingset_refault_file 13250\nworkingset_activate_anon 0\nworkingset_activate_file 0\nworkingset_restore_anon 0\nworkingset_restore_file 0\nworkingset_nodereclaim 0\npgdemote_kswapd 0\npgdemote_direct 0\npgdemote_khugepaged 0\npgdemote_proactive 0\npgpromote_success 0\npgscan 992\npgsteal 992\npswpin 0\npswpout 0\npgscan_kswapd 913\npgscan_direct 79\npgscan_khugepaged 0\npgscan_proactive 0\npgsteal_kswapd 913\npgsteal_direct 79\npgsteal_khugepaged 0\npgsteal_proactive 0\npgfault 42877\npgmajfault 3\npgrefill 42257\npgactivate 0\npgdeactivate 0\npglazyfree 0\npglazyfreed 0\nswpin_zero 0\nswpout_zero 0\nzswpin 0\nzswpout 0\nzswpwb 0\nthp_fault_alloc 0\nthp_collapse_alloc 0\nthp_swpout 0\nthp_swpout_fallback 0\nnuma_pages_migrated 0\nnuma_pte_updates 0\nnuma_hint_faults 0\n",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "io.stat": "8:0 rbytes=68845568 wbytes=1129189376 rios=622 wios=273 dbytes=0 dios=0\n",
+        "memory.peak": "1390133248\n"
+      },
+      "resources_after": {
+        "cpu_s": 24.4573,
+        "rss_kib": 129192,
+        "cpu.stat": "usage_usec 24458975\nuser_usec 18903003\nsystem_usec 5555972\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 949\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n",
+        "memory.stat": "anon 112001024\nfile 1276690432\nkernel 25714688\nkernel_stack 32768\npagetables 352256\nsec_pagetables 0\npercpu 2136\nsock 0\nvmalloc 8192\nshmem 0\nzswap 0\nzswapped 0\nfile_mapped 65536\nfile_dirty 40960\nfile_writeback 0\nswapcached 0\nanon_thp 0\nfile_thp 0\nshmem_thp 0\ninactive_anon 0\nactive_anon 111996928\ninactive_file 1276604416\nactive_file 90112\nunevictable 0\nslab_reclaimable 25061728\nslab_unreclaimable 248496\nslab 25310224\nworkingset_refault_anon 0\nworkingset_refault_file 13431\nworkingset_activate_anon 0\nworkingset_activate_file 0\nworkingset_restore_anon 0\nworkingset_restore_file 0\nworkingset_nodereclaim 0\npgdemote_kswapd 0\npgdemote_direct 0\npgdemote_khugepaged 0\npgdemote_proactive 0\npgpromote_success 0\npgscan 992\npgsteal 992\npswpin 0\npswpout 0\npgscan_kswapd 913\npgscan_direct 79\npgscan_khugepaged 0\npgscan_proactive 0\npgsteal_kswapd 913\npgsteal_direct 79\npgsteal_khugepaged 0\npgsteal_proactive 0\npgfault 47065\npgmajfault 3\npgrefill 42257\npgactivate 0\npgdeactivate 0\npglazyfree 0\npglazyfreed 0\nswpin_zero 0\nswpout_zero 0\nzswpin 0\nzswpout 0\nzswpwb 0\nthp_fault_alloc 0\nthp_collapse_alloc 0\nthp_swpout 0\nthp_swpout_fallback 0\nnuma_pages_migrated 0\nnuma_pte_updates 0\nnuma_hint_faults 0\n",
+        "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "io.stat": "8:0 rbytes=72654848 wbytes=1223016448 rios=1283 wios=2106 dbytes=0 dios=0\n",
+        "memory.peak": "1414713344\n"
+      }
+    }
+  ],
+  "eligibility_recheck": {
+    "at": 1792008334,
+    "note": "common post-experiment reporting clock, not per-window eligibility timestamps",
+    "before": {
+      "aniworld.to": {
+        "parents": 1710,
+        "oldest_due_age_s": 12635,
+        "unknown_eligibility_age": 1111
+      },
+      "s.to": {
+        "parents": 10290,
+        "oldest_due_age_s": 43084,
+        "unknown_eligibility_age": 2105
+      }
+    },
+    "after": {
+      "30": {
+        "aniworld.to": {
+          "parents": 1693,
+          "oldest_due_age_s": 12574,
+          "unknown_eligibility_age": 1111
+        },
+        "s.to": {
+          "parents": 10281,
+          "oldest_due_age_s": 43063,
+          "unknown_eligibility_age": 2105
+        }
+      },
+      "60": {
+        "aniworld.to": {
+          "parents": 1681,
+          "oldest_due_age_s": 12503,
+          "unknown_eligibility_age": 1111
+        },
+        "s.to": {
+          "parents": 10260,
+          "oldest_due_age_s": 42955,
+          "unknown_eligibility_age": 2105
+        }
+      },
+      "90": {
+        "aniworld.to": {
+          "parents": 1666,
+          "oldest_due_age_s": 12400,
+          "unknown_eligibility_age": 1111
+        },
+        "s.to": {
+          "parents": 10246,
+          "oldest_due_age_s": 42841,
+          "unknown_eligibility_age": 2105
+        }
+      },
+      "120": {
+        "aniworld.to": {
+          "parents": 1647,
+          "oldest_due_age_s": 12336,
+          "unknown_eligibility_age": 1111
+        },
+        "s.to": {
+          "parents": 10233,
+          "oldest_due_age_s": 42793,
+          "unknown_eligibility_age": 2105
+        }
+      }
+    }
+  },
+  "live_preservation": {
+    "at": 1792006798,
+    "providers": {
+      "aniworld.to": {
+        "prior_releases": 116433,
+        "prior_maps": 44744,
+        "release_identity_or_first_seen_changed": 0,
+        "old_maps_removed_or_repointed": 0,
+        "old_parent_identity_changed": 0,
+        "current_releases": 116433,
+        "current_maps": 45095,
+        "state_version": 5
+      },
+      "s.to": {
+        "prior_releases": 366536,
+        "prior_maps": 201945,
+        "release_identity_or_first_seen_changed": 0,
+        "old_maps_removed_or_repointed": 0,
+        "old_parent_identity_changed": 0,
+        "current_releases": 366625,
+        "current_maps": 202112,
+        "state_version": 5
+      }
+    },
+    "both_configs_match": true,
+    "canonical_requests_per_minute": 90
+  },
+  "live_queries": {
+    "at": 1792008072,
+    "queries": [
+      {
+        "case": "recent",
+        "provider": "aniworld.to",
+        "status": 200,
+        "sql_total": 116433,
+        "total": 116433,
+        "rows": 100,
+        "duration_s": 0.063304,
+        "mapping": "partial",
+        "revision": 2120,
+        "sql_revision": 2120
+      },
+      {
+        "case": "native_1_1",
+        "provider": "aniworld.to",
+        "status": 200,
+        "sql_total": 3,
+        "total": 3,
+        "rows": 3,
+        "duration_s": 0.00589,
+        "mapping": "resolved",
+        "revision": 2120,
+        "sql_revision": 2120
+      },
+      {
+        "case": "native_1_6",
+        "provider": "aniworld.to",
+        "status": 200,
+        "sql_total": 3,
+        "total": 3,
+        "rows": 3,
+        "duration_s": 0.005013,
+        "mapping": "resolved",
+        "revision": 2120,
+        "sql_revision": 2120
+      },
+      {
+        "case": "native_21_14",
+        "provider": "aniworld.to",
+        "status": 200,
+        "sql_total": 3,
+        "total": 3,
+        "rows": 3,
+        "duration_s": 0.005071,
+        "mapping": "resolved",
+        "revision": 2120,
+        "sql_revision": 2120
+      },
+      {
+        "case": "recent",
+        "provider": "s.to",
+        "status": 200,
+        "sql_total": 367175,
+        "total": 367175,
+        "rows": 100,
+        "duration_s": 0.044129,
+        "mapping": "partial",
+        "revision": 2020,
+        "sql_revision": 2020
+      },
+      {
+        "case": "native_1_1",
+        "provider": "s.to",
+        "status": 200,
+        "sql_total": 2,
+        "total": 2,
+        "rows": 2,
+        "duration_s": 0.005385,
+        "mapping": "resolved",
+        "revision": 2020,
+        "sql_revision": 2020
+      }
+    ],
+    "public_proxy": {
+      "status": 200,
+      "duration_s": 0.063193,
+      "rows": 1
+    }
+  },
+  "live_canonical_sample": {
+    "http_events": 1016,
+    "http_200": 1016,
+    "retained_starts_last_60s": 78,
+    "retry_after_events": 0
+  },
+  "storage": {
+    "research_logical_bytes": 16038966354,
+    "managed_state_and_read_bytes": 4196450304,
+    "reserve_bytes": 1000000000,
+    "worker_image_size_sum_upper_bound": 850122718,
+    "writable_layers_bytes": 8167424,
+    "docker_log_upper_bound_bytes": 120000000,
+    "accounted_upper_bound_bytes": 22213706800,
+    "budget_bytes": 30000000000
+  },
+  "initial_failed_probe": {
+    "classification": "query_status_or_total_assertion",
+    "status_and_revision_not_recorded": true,
+    "cause": "unestablished",
+    "instrumented_retries": "six exact totals on matching revisions passed"
+  },
+  "hosted_tests": {
+    "run": 38620494384,
+    "worker_passed": 202,
+    "core_passed": 310,
+    "api_passed": 280,
+    "api_skipped": 6
+  },
+  "native_images_run": 38620494363,
+  "status": {
+    "configurable_budget": "implemented+verified",
+    "safe_canonical_http_metrics": "implemented+verified",
+    "copied_state_rate_steps": "implemented+verified",
+    "pilot_90_per_minute": "implemented+verified",
+    "upstream_ceiling": "not established: no 403/429 through the bounded 120/minute step"
+  }
+}

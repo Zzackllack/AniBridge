@@ -148,6 +148,57 @@ It does not fetch provider pages, publish or write live state. Smooth actual HTT
 starts and stop on throttling/blocking, repeated failures or rising latency;
 do not treat a short successful step as a discovered provider ceiling.
 
+The subsequent approved October 14 pilot uses shared admission **90/minute** on
+source `d85ed054d22ae8d117677670d6d0d29dd995ccca`, manifest
+`ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:9a0df2b03fd386142f36a5ba8704c17e2e1489bd2519d88959d62753d2157218`.
+The [rate evidence](../../../internal/specs/020-catalog-query-api-evaluation/evidence/canonical-rate-tuning-2026-10-14.json)
+keeps copied-state, live metadata and existing client/media proof separate.
+
+### Rate-only v5 rollback
+
+This rollback returns to `2240b91` / the prior pinned worker manifest
+`ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:250313035479c17e0df65cbc5347261536f2c8bba34b8e11ed3ba05ed399278f`
+and its original config bytes/default 30 budget. **Do not run `rollback_matching`**:
+both versions use the same v5 schema. Keep every ledger, new accepted map, lease,
+failure, first-seen time, quarantine and pre-v4/pre-v5 backup.
+
+1. In the existing authenticated Zen service, Stop with Docker Cleanup unchecked.
+   Confirm collector/metadata containers are absent with `docker ps`; never clear
+   or replace volumes. Use the approved XPipe-to-SSH connection.
+2. Restore both reviewed configuration locations using the retained private plan:
+
+```sh
+rate_plan_root=/tmp/anibridge-mapping-followup-offline/rate-followup/upgrade
+docker run --rm --user 0 --network none --cpus 2 --memory 2g --memory-swap 2g \
+  --pids-limit 96 --entrypoint python \
+  -v "$rate_plan_root:/plan:ro" \
+  -v /root/anibridge-private-config:/operator \
+  -v ev7cds2lpqyvqfxpcm4wp4tc_config:/config \
+  ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:9a0df2b03fd386142f36a5ba8704c17e2e1489bd2519d88959d62753d2157218 \
+  /plan/install_reviewed_worker_config.py \
+  --plan /plan --operator /operator --config /config --rollback
+```
+
+3. In Zen, replace saved Compose with the exact retained
+   `/tmp/anibridge-mapping-followup-offline/rate-followup/upgrade/rollback.yaml`.
+   It restores all three worker image references and preserves other fields.
+   Save and Deploy. No writable Coolify API token is used.
+4. Verify worker source `2240b91`, 2 CPU/2 GiB collector and 2 CPU/512 MiB metadata,
+   original volumes/networks and authenticated same-revision SQL/query totals.
+   The lower cap honors the retained larger request window; admission can wait
+   about a minute without erasing history. The client remains at its existing
+   `6818115` version; this upgrade/rollback changes only the worker/config.
+
+`worker-candidate.json`, `operator-rollback.json`, `volume-rollback.json` and
+`rollback.yaml` remain private. Restoring config/image requires stopped writers;
+the installer vetoes independent config edits. Upgrade preparation uses
+`stage_registry_upgrade.py --expected-old-image <verified-current-manifest>`
+and `--canonical-requests-per-minute 90`, followed by the same guarded installer
+without `--rollback`. The default old-image argument describes the historical
+October 11 rollout and must not be used blindly for another upgrade.
+
+### Normal collection commands
+
 ```sh
 # Server only: this is the real bootstrap and continuing scheduler.
 docker compose -p anibridge-private-catalog up -d collector metadata
