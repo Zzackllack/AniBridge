@@ -783,3 +783,24 @@ all 18 tables exactly. Current API/core metadata fixtures passed at 1 CPU/512 Mi
 this does not verify the stopped client against live metadata, or any live
 extraction/import/playback. Retain its existing Compose allocations during a
 later cutover; the smaller verification profile is not permission to resize it.
+
+### October 14 matching published manifests
+
+The subsequent user authorization permits this pilot/client cutover. Hosted
+tests and native preview builds passed on `2240b91`. The following immutable
+manifests are the tested pair for the procedure above; do not substitute a moving
+PR alias. The actual registry ARM64 worker also passed offline full-copy
+publication/query/last-good/isolation checks without a source overlay.
+
+```sh
+WORKER_MANIFEST=ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:250313035479c17e0df65cbc5347261536f2c8bba34b8e11ed3ba05ed399278f
+API_MANIFEST=ghcr.io/zzackllack/anibridge-api-preview@sha256:eef48b9211d2a5e01d34568d464e3cbf7d647a4ba1f4b6d4544496772f857e58
+```
+
+Cutover has not occurred: native Zen is blocked by the Mac lock. Once manually
+unlocked, discard the unsaved form the user identified as an old unused draft;
+read the saved raw Compose and current config again before staging. Stop both
+live processes through Zen before the offline upgrade. Compare releases/first-seen
+and valid maps with the retained pre-v5 backup before resuming. Follow the full
+procedure and exact code rollback above; never bypass Zen with the read-only API
+token, start a competing collector or restore older observations over newer ones.

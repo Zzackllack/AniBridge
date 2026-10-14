@@ -234,3 +234,35 @@ backup releases survive. Worker/client upgrade preparation is tested; live cutov
 remains blocked on fresh raw service/config review, approved matching pinned
 manifests and new deployment/client approval. No allocations, routes or live
 volumes changed. Megakino is optional and outside these results.
+
+## October 14 subsequent authorized production follow-up
+
+See [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) and its separate profiling
+evidence for current status. Earlier no-push/publication statements above describe
+the initial local handoff. The user later authorized pushing and Coolify work.
+
+- Hosted CI/package verification: **implemented + verified** on pushed `2240b91`.
+  API/core/worker, final gate, lint and both native image architectures passed.
+  Ruff now checks instead of rewriting reviewed branches. Published registry
+  worker passes full-copy offline publication, exact totals, last-good retention
+  and isolation without a source overlay.
+- Pilot/client cutover: **implemented + environment-blocked** preparation and
+  copied rollback. Matching pinned images exist; the Mac lock blocks required
+  authenticated Zen interaction. Old unused form is authorized to discard, but
+  untouched. Live service/client upgrades have not occurred.
+- Publication optimization: **not implemented**. Cold copied-state preflight
+  costs 19.6629s/74.7822s; the run uses 18.111 CPU seconds over 98.824 wall seconds.
+  Warm quick/FK checks take 4.374s combined. Phase profiling, trustworthy snapshot
+  reuse and retention of integrity rejection are required before changing this.
+  Existing work-title/FK indexes do not justify adding duplicate indexes.
+- Larger correspondence repair: **not implemented beyond the measured repair**.
+  The fixed cohort still has 4,460 absent candidates and 1,176 generic names,
+  plus unresolved/unverified parents and conflicts. New verified metadata and a
+  prospective pre-labelled evaluation are required, not a DB/cache/cap increase.
+- v3 required-check enforcement: **not implemented**. Read-only rules inspection
+  still finds only the title status required. Final tests and safe unconditional
+  image smoke gates must actually prevent failing merges; path-filtered privileged
+  preview build jobs cannot simply become universally required statuses.
+- Live freshness/full-bootstrap capacity, new client subtitles and live media
+  acceptance: **not verified**. Finite copied-state tests do not close these gates.
+  No new crawl, competing writer, ledger reset, allocation or policy change was made.

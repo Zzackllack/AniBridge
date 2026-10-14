@@ -1,7 +1,9 @@
 # October 14 mapping implementation and verification
 
-Local implementation on `zzackllack-aux/catalog-query-api-implementation`; draft
+Initial local handoff on `zzackllack-aux/catalog-query-api-implementation`; draft
 PR #170, protected `v3`, default `main`, registry and live services are unchanged.
+For the subsequent authorized push, hosted tests, pinned preview images and
+current deployment blocker, see [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md).
 The machine interruptions removed temporary Mac files. Frozen remote copies and
 private metadata survived; the final full replay recreated candidates with
 SQLite backup from the original frozen baseline, rather than using a partially

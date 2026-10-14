@@ -1163,3 +1163,29 @@ manifests remain unverified. The disposable client is stopped on `71988fc` and n
 new live extraction/import/playback occurred. SERVER.md contains state-preserving
 worker/client preparation and exact code rollback. No Coolify write, restart,
 allocation/network/default/protection/PR change or preview publication was made.
+
+## October 14 authorized push and production profiling
+
+The later user authorization supersedes the earlier no-push/publication boundary.
+[PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) records the current outcome;
+[aggregate evidence](evidence/production-readiness-2026-10-14.json) keeps it separate
+from the earlier frozen before/after replay. Code through `2240b91` is pushed.
+Hosted frozen API/core/worker tests, final gate, lint and native AMD64/ARM64
+API/worker builds passed. Matching pinned manifests are published; the actual
+registry ARM64 worker republished the full copied ledger offline and passed all
+eight SQL-total/target checks, last-good retention and provider isolation without
+a source overlay. This is packaged copied-state proof, not a live deployment.
+
+Read-only full-copy preflight at 2 CPU/2 GiB took 98.824s total versus 18.1110
+cgroup CPU seconds, reading 984 MB with no CPU throttling/OOM. Immediate warm
+quick/FK checks totalled 4.374s. Existing child-key prefixes and parent-work
+lookups are indexed; a rolled-back alternative work index showed no material
+Serienstream CPU benefit. These observations prioritize repeated validation/I/O
+measurement over an engine migration or CPU increase, without claiming an
+engine comparison or storage-upgrade speedup. Current live counts are sequential
+reads of the old worker, not the frozen replay's after state.
+
+The upgrade is authorized and prepared but environment-blocked by the locked
+Mac's authenticated Zen UI. Its old unused Coolify draft remains untouched.
+No live restart/config/allocation/network/protection/default change was made.
+The stopped client remains old; live extraction/import/playback are unverified.

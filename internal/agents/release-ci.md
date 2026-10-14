@@ -52,8 +52,10 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
 
 ## CI/CD Workflows
 
-- `tests.yml`: runs `cd apps/api && uv sync --frozen`, executes pytest, and uploads captured
-  failure output for pull request feedback. It ignores `v*` release-tag pushes.
+- `tests.yml`: runs independent frozen API/core/worker projects and installed
+  core/worker wheel smoke checks, with an unconditional `Tests / Required Gate`
+  for PRs into main/v3. It uploads API failure output for pull request feedback
+  and ignores `v*` release-tag pushes.
 - `pr-test-feedback.yml`: posts or updates tool-specific pull request comments
   when `tests.yml` or `pylint-quality.yml` fails, includes captured output in a
   collapsed Markdown details block, and removes each comment once its check
@@ -65,9 +67,8 @@ For Pull Request preview links in Cloudflare's native PR status comment, use
 - `pylint-quality.yml`: enforces the pylint score gate on branch pushes and pull
   requests, captures failure output for PR feedback, and ignores `v*`
   release-tag pushes.
-- `format-and-run.yml`: runs `cd apps/api && ruff format app tests` and auto-commits formatting
-  changes on branch pushes and pull requests, but ignores `v*` release-tag
-  pushes.
+- `format-and-run.yml`: runs check-only API Ruff lint/format validation with
+  read-only permissions. It never commits, rebases or pushes a reviewed branch.
 - `pr-title-conventional.yml`: validates pull request titles against the
   Conventional Commits schema, posts a short remediation comment on failing
   pull requests, and removes that comment automatically once the title is fixed
@@ -101,10 +102,12 @@ transition checklist item.
 `tests.yml` now runs independent frozen API/core/worker projects on branch pushes
 and PRs into `main` and `v3`, without path filters. Core/worker jobs build and
 import actual installed wheels. `Tests / Required Gate` always runs and requires
-all projects to succeed. YAML/actionlint and local Linux checks do not establish
-GitHub-hosted execution or protection enforcement. Native preview image builds,
-registry publication and any required-check policy change need their own evidence
-and authorization. The draft PR is unchanged.
+all projects to succeed. Hosted tests and native AMD64/ARM64 preview builds passed
+on `2240b91` on October 14. The final gate is not yet required by v3 protection:
+only the title check is a required status there. Image smoke builds remain in the
+separate path-filtered preview workflow, so do not require those individual job
+names for every PR without first providing an unconditional safe build gate.
+The draft PR still targets v3; main remains default.
 
 October 14 production-readiness follow-up replaces Ruff auto-fix/rebase/force-push
 with check-only lint and format jobs. Workflow permissions are contents:read,

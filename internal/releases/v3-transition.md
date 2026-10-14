@@ -113,8 +113,8 @@ complete because the draft exists or one image build succeeds.
 
 ### 2. CI coverage and reproducibility
 
-- [ ] Add independent API, `packages/catalog-core` and `apps/catalog-worker` jobs
-  with their own frozen uv projects. Local October 14 YAML implements these jobs; hosted execution remains unverified.
+- [x] Add independent API, `packages/catalog-core` and `apps/catalog-worker` jobs
+  with their own frozen uv projects. Hosted run `38598340921` passed on `2240b91`.
 - [ ] Verify the October 14 unconditional worker/core/workflow coverage and an
   always-running final gate so skipped path-filter workflows do not leave a
   required check pending forever. Verify PRs into both supported base branches.
@@ -217,3 +217,19 @@ changes are local and unpushed; hosted checks, native AMD64/ARM64 image gates an
 protection enforcement remain open. No default-branch, protection, release or
 publication policy was changed. See spec 020's mapping implementation evidence
 for the separately tested parser, correspondence and scheduling changes.
+
+## October 14 subsequent hosted verification
+
+After new user authorization, code through `2240b91` was pushed. Hosted tests
+`38598340921`, check-only Ruff and native preview builds `38598341152` passed;
+matching SHA-labelled API/worker manifests support AMD64 and ARM64. This supersedes
+the local/unpushed status above, without closing protection enforcement or release
+policy gates. Read-only v3 rules inspection still finds only the conventional
+title status required. Preview builds remain path-filtered and exclude fork/
+Dependabot publication: add a safe unconditional build gate before requiring
+images on every supported PR. No merge/default/protection change was made.
+
+The registry worker also passes offline full-copied-ledger publication/query
+checks on ARM64. Actual Coolify cutover is authorized but blocked by the locked
+Mac's required authenticated Zen UI; production/full-bootstrap/live-media gates
+remain distinct. See spec 020's [production follow-up](../specs/020-catalog-query-api-evaluation/PRODUCTION_READINESS.md).

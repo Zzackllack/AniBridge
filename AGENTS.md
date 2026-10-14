@@ -134,5 +134,8 @@ October 14 implemented follow-up
 - State v5 code rollback removes only private matching tables after the canonical
   admission window expires. Keep all v4 observations/maps/history and both backup
   generations. Follow SERVER.md; new registry publication and rollout need approval.
-- Frozen API/core/worker CI jobs and the always-running gate are local additions.
-  No protection policy, PR, default branch or deployed image changed.
+- Frozen API/core/worker CI jobs and the always-running gate passed hosted CI on
+  `2240b91`; matching native AMD64/ARM64 previews are published. Ruff checks must
+  never rewrite reviewed branches. Protection enforcement remains separate from
+  a successful check; `main` stays default. See the dated evidence for deployment
+  status, and use the pinned upgrade/rollback rather than a moving preview tag.

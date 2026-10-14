@@ -1,0 +1,306 @@
+{
+  "scope": "bounded copied-state profiling and packaged verification; live read-only inspection",
+  "source_revision": "2240b9119797bf3346444e719eef3e78fd0c83e4",
+  "resources": {
+    "cpu": 2,
+    "memory_bytes": 2147483648,
+    "extra_swap_bytes": 0,
+    "network": "none"
+  },
+  "worker_manifest": "sha256:250313035479c17e0df65cbc5347261536f2c8bba34b8e11ed3ba05ed399278f",
+  "api_manifest": "sha256:eef48b9211d2a5e01d34568d464e3cbf7d647a4ba1f4b6d4544496772f857e58",
+  "actual_worker": {
+    "architecture": "arm64",
+    "image_revision": "2240b9119797bf3346444e719eef3e78fd0c83e4",
+    "source_overlay": false,
+    "full_copy_offline_publication_exit_code": 0
+  },
+  "hosted": {
+    "tests_run": 38598340921,
+    "native_preview_run": 38598341152,
+    "ruff_run": 38598340651,
+    "all_succeeded": true,
+    "v3_required_statuses": [
+      "Conventional Commit Title"
+    ],
+    "protection_changed": false
+  },
+  "preflight_method": {
+    "state": "same frozen candidate v5 ledgers",
+    "readonly": true,
+    "pager_kib": 32768,
+    "mmap_bytes": 0,
+    "sequence": "preflight per provider followed immediately by warm quick_check and foreign_key_check; no cache eviction",
+    "index_check": "individual child-key first-column prefixes only",
+    "limitations": [
+      "warm/cold order is uncontrolled",
+      "not an engine or hardware comparison",
+      "no throughput or SLA claim"
+    ]
+  },
+  "work_lookup_method": {
+    "parents_per_provider": 20,
+    "query": "SELECT 1 FROM work w LEFT JOIN observation_gap g USING(path) WHERE title_id=? AND (checked_at IS NULL OR failures>0 OR coalesce(g.unknown_languages,0)>0) LIMIT 1",
+    "selection": "checked nonfailed titles ordered by work count DESC then title ID; LIMIT 20",
+    "temporary_index": "work(title_id,due,path)",
+    "rollback": true,
+    "limitations": [
+      "warm/cold order is uncontrolled",
+      "no new index justified"
+    ]
+  },
+  "methods_private_script_sha256": {
+    "profile_preflight.py": "ef45bf48ca17a92f599e8eb95463e922d797d79ed67d5b22036d66b1ff003346",
+    "profile_work_lookup.py": "f8388c114cf99befd68babbbccc626be97e5672a5f5007eba9b73961494779ea"
+  },
+  "live_upgrade": {
+    "authorized": true,
+    "completed": false,
+    "blocker": "locked Mac prevents required authenticated native Zen Coolify interaction",
+    "unused_draft_reset": false,
+    "live_allocations_changed": false,
+    "live_networks_changed": false
+  },
+  "proof_limits": [
+    "prospective pre-labelled evaluation not achieved",
+    "client remains stopped on old source",
+    "no new live extraction/import/playback",
+    "no full bootstrap or endurance campaign",
+    "no DB migration or shared cache added"
+  ],
+  "preflight": {
+    "aniworld.to": {
+      "version": 5,
+      "preflight_s": 19.6629,
+      "cpu_s": 3.0652,
+      "phases": {
+        "quick_check": {
+          "duration_s": 0.3595,
+          "cpu_s": 0.2883,
+          "rows": 1
+        },
+        "foreign_key_check": {
+          "duration_s": 0.4126,
+          "cpu_s": 0.3711,
+          "rows": 0
+        }
+      },
+      "unindexed_child_key_prefixes": []
+    },
+    "s.to": {
+      "version": 5,
+      "preflight_s": 74.7822,
+      "cpu_s": 10.5282,
+      "phases": {
+        "quick_check": {
+          "duration_s": 1.2169,
+          "cpu_s": 1.1631,
+          "rows": 1
+        },
+        "foreign_key_check": {
+          "duration_s": 2.385,
+          "cpu_s": 2.2168,
+          "rows": 0
+        }
+      },
+      "unindexed_child_key_prefixes": []
+    },
+    "duration_s": 98.824,
+    "rss_kib": 103184,
+    "memory.peak": "1073176576\n",
+    "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+    "io.stat": "8:0 rbytes=984178688 wbytes=65536 rios=161934 wios=2 dbytes=0 dios=0\n",
+    "cpu.stat": "usage_usec 18111006\nuser_usec 8591728\nsystem_usec 9519277\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 994\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n"
+  },
+  "work_lookup": {
+    "aniworld.to": {
+      "titles": 20,
+      "work_rows": 70215,
+      "plan_before": [
+        "SEARCH w USING INDEX work_title (title_id=?)",
+        "SEARCH g USING INDEX sqlite_autoindex_observation_gap_1 (path=?) LEFT-JOIN"
+      ],
+      "before": {
+        "duration_s": 0.102042,
+        "cpu_s": 0.015815
+      },
+      "index_build_s": 0.111,
+      "plan_after": [
+        "SEARCH w USING INDEX disposable_work_title (title_id=?)",
+        "SEARCH g USING INDEX sqlite_autoindex_observation_gap_1 (path=?) LEFT-JOIN"
+      ],
+      "after": {
+        "duration_s": 0.012526,
+        "cpu_s": 0.009249
+      },
+      "schema_retained": true
+    },
+    "s.to": {
+      "titles": 20,
+      "work_rows": 341104,
+      "plan_before": [
+        "SEARCH w USING INDEX work_title (title_id=?)",
+        "SEARCH g USING INDEX sqlite_autoindex_observation_gap_1 (path=?) LEFT-JOIN"
+      ],
+      "before": {
+        "duration_s": 0.030797,
+        "cpu_s": 0.016544
+      },
+      "index_build_s": 0.819,
+      "plan_after": [
+        "SEARCH w USING INDEX disposable_work_title (title_id=?)",
+        "SEARCH g USING INDEX sqlite_autoindex_observation_gap_1 (path=?) LEFT-JOIN"
+      ],
+      "after": {
+        "duration_s": 0.024772,
+        "cpu_s": 0.01671
+      },
+      "schema_retained": true
+    },
+    "rss_kib": 121424,
+    "memory.peak": "233971712\n",
+    "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+    "io.stat": "8:0 rbytes=58454016 wbytes=4096 rios=10701 wios=1 dbytes=0 dios=0\n"
+  },
+  "published_query_checks": {
+    "queries": [
+      {
+        "case": "recent_search",
+        "provider": "aniworld.to",
+        "status": 200,
+        "duration_s": 0.174124,
+        "total": 116409,
+        "rows": 100,
+        "headers": {},
+        "sql_total": 116409
+      },
+      {
+        "case": "recent_tvsearch",
+        "provider": "aniworld.to",
+        "status": 200,
+        "duration_s": 0.061207,
+        "total": 116409,
+        "rows": 100,
+        "headers": {},
+        "sql_total": 116409
+      },
+      {
+        "case": "target_1_1",
+        "provider": "aniworld.to",
+        "status": 200,
+        "duration_s": 0.004846,
+        "total": 3,
+        "rows": 3,
+        "headers": {},
+        "sql_total": 3
+      },
+      {
+        "case": "target_1_6",
+        "provider": "aniworld.to",
+        "status": 200,
+        "duration_s": 0.005006,
+        "total": 3,
+        "rows": 3,
+        "headers": {},
+        "sql_total": 3
+      },
+      {
+        "case": "target_21_14",
+        "provider": "aniworld.to",
+        "status": 200,
+        "duration_s": 0.01448,
+        "total": 3,
+        "rows": 3,
+        "headers": {},
+        "sql_total": 3
+      },
+      {
+        "case": "recent_search",
+        "provider": "s.to",
+        "status": 200,
+        "duration_s": 0.045241,
+        "total": 357637,
+        "rows": 100,
+        "headers": {},
+        "sql_total": 357637
+      },
+      {
+        "case": "recent_tvsearch",
+        "provider": "s.to",
+        "status": 200,
+        "duration_s": 0.054182,
+        "total": 357637,
+        "rows": 100,
+        "headers": {},
+        "sql_total": 357637
+      },
+      {
+        "case": "target_1_1",
+        "provider": "s.to",
+        "status": 200,
+        "duration_s": 0.004486,
+        "total": 2,
+        "rows": 2,
+        "headers": {},
+        "sql_total": 2
+      }
+    ],
+    "last_good": {
+      "aniworld.to": true,
+      "s.to": true
+    },
+    "provider_isolation": {
+      "unavailable_status": 503,
+      "other_provider_status": 200
+    }
+  },
+  "live_old_worker_read": {
+    "at": 1791995769,
+    "providers": {
+      "aniworld.to": {
+        "episodes": 63609,
+        "releases": 116428,
+        "usable": 63593,
+        "usable_mapped": 41530,
+        "canonical_due": 1024,
+        "canonical_never_checked": 0,
+        "parse_or_transport_failed_work": 0,
+        "unknown_language_observations": 0,
+        "quarantines": 0,
+        "lifetime_stats": {
+          "singleton": 1,
+          "started_at": 1791466263,
+          "requests": 29260,
+          "pages": 29230,
+          "batch_rows": 443405,
+          "network_ms": 6295516,
+          "parser_ms": 13029378,
+          "failures": 30,
+          "admission_deferrals": 0
+        }
+      },
+      "s.to": {
+        "episodes": 306912,
+        "releases": 364645,
+        "usable": 289615,
+        "usable_mapped": 187465,
+        "canonical_due": 8457,
+        "canonical_never_checked": 0,
+        "parse_or_transport_failed_work": 140,
+        "unknown_language_observations": 16242,
+        "quarantines": 4,
+        "lifetime_stats": {
+          "singleton": 1,
+          "started_at": 1791466263,
+          "requests": 122217,
+          "pages": 106063,
+          "batch_rows": 598763,
+          "network_ms": 35313420,
+          "parser_ms": 55291648,
+          "failures": 16154,
+          "admission_deferrals": 0
+        }
+      }
+    }
+  }
+}
