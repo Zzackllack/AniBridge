@@ -230,6 +230,9 @@ Dependabot publication: add a safe unconditional build gate before requiring
 images on every supported PR. No merge/default/protection change was made.
 
 The registry worker also passes offline full-copied-ledger publication/query
-checks on ARM64. Actual Coolify cutover is authorized but blocked by the locked
-Mac's required authenticated Zen UI; production/full-bootstrap/live-media gates
-remain distinct. See spec 020's [production follow-up](../specs/020-catalog-query-api-evaluation/PRODUCTION_READINESS.md).
+checks on ARM64. The Mac was then unlocked and approved Coolify/client cutovers
+completed, preserving releases/maps/history and the original allocations/network
+ranges. Worker stays pinned to `2240b91`; the client received the subsequent
+hosted-tested `6818115` API logging privacy fix. Live metadata/health and installed
+fixtures pass; production/full-bootstrap/live-media/protection gates remain
+distinct. See spec 020's [production follow-up](../specs/020-catalog-query-api-evaluation/PRODUCTION_READINESS.md).
