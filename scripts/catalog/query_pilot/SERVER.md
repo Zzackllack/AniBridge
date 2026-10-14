@@ -132,6 +132,22 @@ unsupported, so only bounded historical reconciliation applies.
 
 ## Start, inspect, restart
 
+Canonical admission defaults to 30 requests/minute across all providers. That
+number is our worker budget, not an established upstream Skyhook quota. Workers
+with configurable admission accept `limits.canonical_requests_per_minute` from
+4 to 120. The October 14 `2240b91` deployed image predates this option and rejects
+the new key; upgrade to a tested pinned image before installing it. Keep the
+initializer's operator config and config volume in sync. A rate change is outside
+matching fingerprints and must not force cached descriptors to be downloaded.
+
+`canonical_http` events contain allowlisted outcomes, HTTP status, request count,
+duration, decoded byte count and Retry-After only. For bounded rate comparisons,
+`canonical_rate_probe.py` uses consistent, marked disposable database copies at
+2 CPU/2 GiB while the ordinary collector is paused. Metadata serving can continue.
+It does not fetch provider pages, publish or write live state. Smooth actual HTTP
+starts and stop on throttling/blocking, repeated failures or rising latency;
+do not treat a short successful step as a discovered provider ceiling.
+
 ```sh
 # Server only: this is the real bootstrap and continuing scheduler.
 docker compose -p anibridge-private-catalog up -d collector metadata

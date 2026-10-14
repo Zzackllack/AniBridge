@@ -56,6 +56,33 @@ def test_registry_stage_refuses_new_config_on_old_worker():
         STAGE.prepare(fixture(), {"canonical_sources": {}}, STAGE.OLD_WORKER)
 
 
+def test_registry_stage_can_upgrade_a_verified_current_manifest_with_new_budget():
+    service = fixture()
+    old = "ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:" + "b" * 64
+    new = "ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:" + "c" * 64
+    service["docker_compose_raw"] = service["docker_compose_raw"].replace(
+        STAGE.OLD_WORKER, old
+    )
+    worker = {
+        "canonical_sources": {"episode_languages": ["deu"]},
+        "limits": {"publish_interval_s": 300},
+    }
+    candidate, rollback, config, original = STAGE.prepare(
+        service, worker, new, expected_old_image=old, canonical_requests_per_minute=60
+    )
+    assert rollback == service["docker_compose_raw"] and original == worker
+    assert config["limits"] == {
+        "publish_interval_s": 300,
+        "canonical_requests_per_minute": 60,
+    }
+    assert worker["limits"] == {"publish_interval_s": 300}
+    assert all(
+        row["image"] == new for row in yaml.safe_load(candidate)["services"].values()
+    )
+    with pytest.raises(ValueError, match="live image"):
+        STAGE.prepare(service, worker, new)
+
+
 @pytest.mark.parametrize("change", ["image", "memory", "policy", "service"])
 def test_registry_stage_refuses_drift_or_mutable_refs(change):
     service = fixture()
