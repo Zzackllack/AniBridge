@@ -15,6 +15,16 @@ from .state import State
 SEED = "mapping-2026-10-14-v1"
 
 
+def readonly_uri(filename: Path, immutable_copy: bool) -> str:
+    if immutable_copy and filename.with_name(filename.name + "-wal").exists():
+        raise ValueError("immutable diagnostics require a WAL-free consistent backup")
+    return (
+        filename.resolve().as_uri()
+        + "?mode=ro"
+        + ("&immutable=1" if immutable_copy else "")
+    )
+
+
 def select(db: sqlite3.Connection) -> list[dict]:
     """Freeze ten large gaps and twenty ordinary titles across size/outcome strata."""
     rows = db.execute(
@@ -64,13 +74,14 @@ def inspect(
     immutable_copy: bool = False,
 ) -> dict:
     """Use the same decision path as apply; do not open a worker writer."""
-    if immutable_copy and filename.with_name(filename.name + "-wal").exists():
-        raise ValueError("immutable diagnostics require a WAL-free consistent backup")
-    uri = (
-        filename.resolve().as_uri()
-        + "?mode=ro"
-        + ("&immutable=1" if immutable_copy else "")
-    )
+    if not 1 <= len(tids) <= 100 or not all(
+        isinstance(tid, str)
+        and len(tid) == 64
+        and all(c in "0123456789abcdef" for c in tid)
+        for tid in tids
+    ):
+        raise ValueError("one to 100 bounded title IDs required")
+    uri = readonly_uri(filename, immutable_copy)
     with closing(sqlite3.connect(uri, uri=True)) as db:
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA query_only=ON")
@@ -82,10 +93,39 @@ def inspect(
         view = State.__new__(State)
         view.db, view.provider = db, provider
         counts, rows = Counter(), []
+        freshness = Counter()
+        has_descriptors = bool(
+            db.execute(
+                "SELECT 1 FROM sqlite_schema WHERE name='canonical_descriptor'"
+            ).fetchone()
+        )
+        max_cache_age = None
         for tid in tids:
             item = summary(view, tid, contextual=True)
             counts.update(item)
             rows.append({"title_id": tid, "rejections": item})
+            cache = db.execute(
+                "SELECT checked_at FROM canonical_cache WHERE title_id=?", (tid,)
+            ).fetchone()
+            if cache:
+                max_cache_age = max(max_cache_age or 0, max(0, now - cache[0]))
+            descriptor = (
+                db.execute(
+                    "SELECT d.next_due FROM canonical_descriptor d JOIN canonical_title t ON t.external_id=d.external_id WHERE t.title_id=? AND t.namespace='tvdb'",
+                    (tid,),
+                ).fetchone()
+                if has_descriptors
+                else None
+            )
+            freshness[
+                "expired"
+                if descriptor and descriptor[0] <= now
+                else "current"
+                if descriptor
+                else "unverified_legacy"
+                if cache
+                else "absent"
+            ] += 1
         schedule = db.execute(
             "SELECT count(*),min(next_due),sum(checked_at IS NULL),sum(outcome='source_failure') FROM mapping_input WHERE next_due<=?",
             (now,),
@@ -100,6 +140,8 @@ def inspect(
             else None,
             "waiting_first_attempt": schedule[2],
             "source_failures": schedule[3],
+            "descriptor_freshness": dict(freshness),
+            "max_cache_acquisition_age_s": max_cache_age,
             "titles": rows,
         }
 
@@ -119,7 +161,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.freeze:
         with closing(
-            sqlite3.connect(args.state.resolve().as_uri() + "?mode=ro", uri=True)
+            sqlite3.connect(readonly_uri(args.state, args.immutable_copy), uri=True)
         ) as db:
             rows = select(db)
         with args.cohort.open("x") as stream:

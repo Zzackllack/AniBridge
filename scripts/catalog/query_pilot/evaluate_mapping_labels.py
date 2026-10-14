@@ -17,6 +17,7 @@ def evaluate(root: Path, labels: dict) -> dict:
             for split in ("development", "held_out")
         }
         uncertain = []
+        ambiguity = {}
         for phase, folder in [("before", "baseline"), ("after", "candidate")]:
             with closing(
                 sqlite3.connect(
@@ -57,9 +58,29 @@ def evaluate(root: Path, labels: dict) -> dict:
                                     "split": case["split"],
                                 }
                             )
+                supplemental = [
+                    entity
+                    for group in labels.get("supplementary_ambiguity", {}).get(
+                        provider, []
+                    )
+                    for entity in group["entities"]
+                ]
+                ambiguity[phase] = {
+                    "cases": len(supplemental),
+                    "mapped": sum(
+                        bool(
+                            db.execute(
+                                "SELECT 1 FROM canonical_episode WHERE entity_id=? LIMIT 1",
+                                (entity["entity_id"],),
+                            ).fetchone()
+                        )
+                        for entity in supplemental
+                    ),
+                }
         result[provider] = {
             "splits": counts,
             "mapped_outside_positive_labels": uncertain,
+            "supplementary_ambiguity": ambiguity,
         }
     return result
 

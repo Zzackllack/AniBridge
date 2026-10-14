@@ -700,3 +700,25 @@ def test_code_rollback_cannot_forget_an_active_admission_window(tmp_path, monkey
     monkeypatch.setattr(state_migrations.time, "time", lambda: NOW + 60)
     rollback_matching(filename, "aniworld.to")
     assert preflight(filename, "aniworld.to") == 4
+
+
+def test_readonly_diagnostics_separate_legacy_stale_and_missing_evidence(tmp_path):
+    from catalog_worker.mapping_diagnostics import inspect
+
+    state, tid = seed(tmp_path)
+    with state.db:
+        canonical_cache.store(state, tid, "p", "m", NOW, [])
+    state.close()
+    filename = tmp_path / "aniworld.to.sqlite"
+    before = filename.read_bytes()
+    legacy = inspect(filename, "aniworld.to", [tid], NOW + 1)
+    assert legacy["descriptor_freshness"] == {"unverified_legacy": 1}
+    assert legacy["max_cache_acquisition_age_s"] == 1
+    assert filename.read_bytes() == before
+    state = State(filename, "aniworld.to")
+    with state.db:
+        descriptors.save(state, "123", {"title": "Example", "year": 2020}, [], NOW, 60)
+    state.close()
+    assert inspect(filename, "aniworld.to", [tid], NOW + 61)[
+        "descriptor_freshness"
+    ] == {"expired": 1}
