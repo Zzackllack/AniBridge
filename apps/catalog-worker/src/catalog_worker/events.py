@@ -2,11 +2,14 @@
 
 import json
 import logging
+import re
 from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from catalog_core.providers.transport import Fetch
+
+from .canonical_failures import PHASES, REASONS, Failure
 
 
 class Events:
@@ -103,6 +106,44 @@ class Events:
         )
         self.handler.handle(
             logging.LogRecord("catalog_worker", logging.INFO, "", 0, message, (), None)
+        )
+
+    def canonical_failure(self, provider: str, title_id: str, failure: Failure) -> None:
+        """One bounded report per failed lookup, including HTTP-200 rejections."""
+        # Validate again at the output boundary, even for callers outside Enricher.
+        if provider not in {"aniworld.to", "s.to", "megakino"}:
+            return
+        self.handler.handle(
+            logging.LogRecord(
+                "catalog_worker",
+                logging.INFO,
+                "",
+                0,
+                json.dumps(
+                    {
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "provider": provider,
+                        "stage": "canonical_failure",
+                        "title_id": title_id
+                        if isinstance(title_id, str)
+                        and re.fullmatch("[0-9a-f]{64}", title_id)
+                        else None,
+                        "phase": failure.phase
+                        if failure.phase in PHASES
+                        else "unknown",
+                        "reason": failure.reason
+                        if failure.reason in REASONS
+                        else "invalid_payload",
+                        "http_status": failure.http_status
+                        if type(failure.http_status) is int
+                        and 100 <= failure.http_status <= 599
+                        else None,
+                    },
+                    separators=(",", ":"),
+                ),
+                (),
+                None,
+            )
         )
 
     def signal(self, provider: str, status: dict, now: int) -> None:

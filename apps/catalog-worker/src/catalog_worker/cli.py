@@ -48,6 +48,7 @@ async def collect(path: Path, once: bool) -> None:
             states=states,
             requests_per_minute=config.limits["canonical_requests_per_minute"],
             on_fetch=events.canonical,
+            on_failure=events.canonical_failure,
         )
         loop = asyncio.get_running_loop()
         loop.add_signal_handler(signal.SIGTERM, asyncio.current_task().cancel)

@@ -19,6 +19,7 @@ from catalog_core.json_codec import dumps, integer, require
 from catalog_core.providers.transport import AdmissionDeferred, Fetch, Session
 
 from . import canonical_cache, descriptors, parent_evidence
+from .canonical_failures import CanonicalUnavailable, Failure, request_phase, verify
 from .canonical_ids import identifiers
 from .mapping import CanonicalTitle, match_title
 from .movie_canonical import lookup as movie_lookup
@@ -27,14 +28,6 @@ from .transport import fetch
 
 MATCHER = "exact-title-year-3"
 ORIGIN = "https://skyhook.sonarr.tv"
-
-
-class CanonicalUnavailable(ValueError):
-    """Only bounded transport outcomes/deadlines, never response text."""
-
-    def __init__(self, retry_after: int | None) -> None:
-        super().__init__("canonical unavailable")
-        self.retry_after = retry_after
 
 
 def search_terms(names: tuple[str, ...]) -> tuple[str, ...]:
@@ -99,6 +92,7 @@ class Enricher:
         states: list[State] | None = None,
         requests_per_minute: int = 30,
         on_fetch: Callable[[str, Fetch], None] | None = None,
+        on_failure: Callable[[str, str, Failure], None] | None = None,
     ) -> None:
         self.sources, self.fetcher, self.clock = sources, fetcher, clock
         self.sessions = {}
@@ -116,6 +110,9 @@ class Enricher:
         self.requests_per_minute = integer(requests_per_minute, 4, 120)
         self.starts = deque(maxlen=self.requests_per_minute)
         self.on_fetch = on_fetch
+        self.on_failure = on_failure
+        self.failure_phase = "search"
+        self.last_failure: Failure | None = None
         self.lock = asyncio.Lock()
         self.parent_sources = {
             key: value for key, value in sources.items() if key != "episode_languages"
@@ -157,6 +154,7 @@ class Enricher:
     async def request(
         self, path: str, query: dict | None = None, *, origin=ORIGIN, bearer=None
     ) -> object:
+        self.failure_phase = request_phase(path)
         self.admit_request()
         first_hop = True
 
@@ -184,8 +182,15 @@ class Enricher:
         if self.on_fetch is not None and self.current_state is not None:
             self.on_fetch(self.current_state.provider, response)
         if response.outcome != "ok":
-            raise CanonicalUnavailable(response.retry_after)
-        return json.loads(response.body)
+            raise CanonicalUnavailable(
+                response.retry_after, reason=response.outcome, status=response.status
+            )
+        try:
+            return json.loads(response.body)
+        except (ValueError, UnicodeError) as exc:
+            raise CanonicalUnavailable(
+                None, reason="invalid_json", status=response.status
+            ) from exc
 
     async def close(self) -> None:
         for session in self.sessions.values():
@@ -232,6 +237,8 @@ class Enricher:
                 self.states.append(state)
             self.current_state = state
             self.last_work = "idle"
+            self.last_failure = None
+            self.failure_phase = "cache"
             slot = (
                 state.db.execute("SELECT slot FROM canonical_scheduler").fetchone()[0]
                 % 5
@@ -310,6 +317,7 @@ class Enricher:
             failures = row["failures"]
             retry_after = None
             try:
+                self.failure_phase = "search"
                 if row["media_type"] == "movie":
                     mapped, details = await movie_lookup(
                         self.request, row, names, self.token
@@ -366,23 +374,27 @@ class Enricher:
                                 if self.sources.get("episode_languages")
                                 else "/v1/tvdb/shows/en/" + candidate.external_id
                             )
-                        require(
+                        self.failure_phase = "descriptor"
+                        verify(
                             isinstance(details, dict)
                             and str(details.get("tvdbId")) == candidate.external_id,
+                            "descriptor_identity_conflict",
                             "canonical ID mismatch",
                         )
                         if (
                             self.sources.get("episode_languages")
                             and not reused_descriptor
                         ):
-                            require(
+                            verify(
                                 details.get("metadataSource") == "tvdb"
                                 and details.get("language") == "eng",
+                                "descriptor_identity_conflict",
                                 "canonical descriptor namespace mismatch",
                             )
                         if row["explicit_imdb"]:
-                            require(
+                            verify(
                                 details.get("imdbId") == row["explicit_imdb"],
+                                "descriptor_identity_conflict",
                                 "canonical IMDb mismatch",
                             )
                         if not reused_descriptor:
@@ -398,12 +410,13 @@ class Enricher:
                                     + candidate.external_id
                                     + "/official"
                                 )
-                                require(
+                                verify(
                                     isinstance(translated, dict)
                                     and translated.get("metadataSource") == "tvdb"
                                     and str(translated.get("tvdbId"))
                                     == candidate.external_id
                                     and translated.get("language") == language,
+                                    "translation_identity_conflict",
                                     "canonical translation identity mismatch",
                                 )
                                 canonical_episodes = descriptors.merge(
@@ -413,6 +426,7 @@ class Enricher:
                                 "episode_languages", []
                             )
                         outcome = "matched"
+                        self.failure_phase = "parent"
                         parent = details.get("parent") or parent_evidence.compact(
                             details
                         )
@@ -441,6 +455,7 @@ class Enricher:
                                 )
                             mapped, outcome = None, "conflict"
                 if mapped:
+                    self.failure_phase = "identifiers"
                     compact_ids = identifiers(
                         mapped[0], details, row["media_type"] == "movie"
                     )
@@ -451,6 +466,7 @@ class Enricher:
             except (ValueError, OSError, TimeoutError) as exc:
                 mapped, outcome, failures = None, "source_failure", failures + 1
                 retry_after = getattr(exc, "retry_after", None)
+                self.last_failure = Failure.from_error(self.failure_phase, exc)
             delay = (
                 (300, 1800, 7200, 21600)[min(failures - 1, 3)]
                 if failures
@@ -543,6 +559,8 @@ class Enricher:
                         row["title_id"],
                     ),
                 )
+            if self.last_failure is not None and self.on_failure is not None:
+                self.on_failure(state.provider, row["title_id"], self.last_failure)
             self.last_work = (
                 "descriptor_reuse"
                 if reused_descriptor

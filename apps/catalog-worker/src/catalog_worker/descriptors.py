@@ -6,6 +6,7 @@ from dataclasses import asdict
 
 from catalog_core.json_codec import dumps, require
 
+from .canonical_failures import verify
 from .mapping import CanonicalEpisode
 from .parent_evidence import compact
 from .state import State
@@ -27,8 +28,9 @@ def episodes(payload: dict) -> list[CanonicalEpisode]:
         )
         if payload.get("metadataSource") == "tvdb":
             eid = row.get("metadataId")
-            require(
+            verify(
                 row.get("metadataShowId") == payload["tvdbId"],
+                "episode_parent_conflict",
                 "canonical parent mismatch",
             )
         if name is None and type(eid) is int and eid > 0:
@@ -44,18 +46,21 @@ def episodes(payload: dict) -> list[CanonicalEpisode]:
             or len(name.encode()) > 512
         ):
             continue
-        require(
+        verify(
             row.get("tvdbShowId", payload["tvdbId"]) == payload["tvdbId"],
+            "episode_parent_conflict",
             "canonical parent mismatch",
         )
         coordinate = (season, number)
         signature = (eid, name)
-        require(
+        verify(
             coordinate not in coordinates or coordinates[coordinate] == signature,
+            "episode_coordinate_conflict",
             "conflicting canonical episode coordinate",
         )
-        require(
+        verify(
             not eid or eid not in identities or identities[eid] == coordinate,
+            "episode_identity_conflict",
             "conflicting canonical episode identity",
         )
         if coordinate in coordinates:
