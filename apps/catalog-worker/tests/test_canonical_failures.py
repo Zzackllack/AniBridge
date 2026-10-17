@@ -5,11 +5,10 @@ import json
 
 import pytest
 from catalog_core.providers.transport import Fetch
-from test_canonical import NOW, ready
-
 from catalog_worker.canonical import Enricher
 from catalog_worker.canonical_failures import Failure
 from catalog_worker.events import Events
+from test_canonical import NOW, ready
 
 
 @pytest.mark.parametrize(
@@ -79,7 +78,14 @@ def test_http_success_with_wrong_identity_has_its_own_code(tmp_path, phase):
         on_failure=lambda p, t, f: reports.append(f),
     )
     assert asyncio.run(enricher.tick(state, NOW))
-    assert reports == [Failure(phase, phase + "_identity_conflict")]
+    assert reports == [
+        Failure(
+            phase,
+            "parent_id_mismatch"
+            if phase == "descriptor"
+            else "translation_identity_conflict",
+        )
+    ]
     assert not state.db.execute("SELECT 1 FROM canonical_title").fetchone()
     state.close()
 

@@ -1,6 +1,7 @@
 """Safe canonical failure codes; exception messages and payloads stay private."""
 
 from dataclasses import dataclass
+from typing import Self
 
 from catalog_core.json_codec import ContractError
 
@@ -24,6 +25,10 @@ REASONS = frozenset(
         "episode_parent_conflict",
         "episode_coordinate_conflict",
         "episode_identity_conflict",
+        "episode_identity_missing",
+        "parent_id_mismatch",
+        "parent_imdb_mismatch",
+        "metadata_namespace_mismatch",
     }
 )
 
@@ -65,7 +70,7 @@ class Failure:
     http_status: int | None = None
 
     @classmethod
-    def from_error(cls, phase: str, error: Exception) -> Failure:
+    def from_error(cls, phase: str, error: Exception) -> Self:
         """Classify typed errors only; never inspect their messages or repr."""
         if isinstance(error, CanonicalUnavailable):
             return cls(phase, error.reason, error.status)

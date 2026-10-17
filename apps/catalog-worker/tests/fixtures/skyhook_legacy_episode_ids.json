@@ -1,0 +1,214 @@
+{
+  "selection_seed": "failure-holdout-20261018-v1",
+  "label_scope": "Explicit parent and episode ID pairs checked before compatibility implementation; not a population precision sample. Metadata only; no URLs or media.",
+  "series": [
+    {
+      "provider": "aniworld.to",
+      "title_id": "77203c7c5b69db44f1ea7fe7ce246f13db8867eb45a3409613a3b27f0a641e7c",
+      "payloads": {
+        "eng": {
+          "tvdbId": 388672,
+          "metadataSource": "tvdb",
+          "language": "eng",
+          "title": "Heaven Official's Blessing",
+          "firstAired": "2020-10-31",
+          "imdbId": "tt13375866",
+          "episodes": [
+            {
+              "tvdbId": 7946423,
+              "tvdbShowId": 388672,
+              "title": "The Bride Prince",
+              "seasonNumber": 1,
+              "episodeNumber": 1
+            },
+            {
+              "tvdbId": 7946424,
+              "tvdbShowId": 388672,
+              "title": "Mountain-Locked Ming Guang",
+              "seasonNumber": 1,
+              "episodeNumber": 2
+            }
+          ]
+        },
+        "deu": {
+          "tvdbId": 388672,
+          "metadataSource": "tvdb",
+          "title": "天官赐福",
+          "firstAired": "2020-10-31",
+          "imdbId": "tt13375866",
+          "episodes": [
+            {
+              "tvdbId": 7946423,
+              "tvdbShowId": 388672,
+              "seasonNumber": 1,
+              "episodeNumber": 1
+            },
+            {
+              "tvdbId": 7946424,
+              "tvdbShowId": 388672,
+              "seasonNumber": 1,
+              "episodeNumber": 2
+            }
+          ]
+        }
+      },
+      "expected_first_episode_id": 7946423
+    },
+    {
+      "provider": "aniworld.to",
+      "title_id": "f50ba2a60b8ff409c6cda436e678dfe2fde8a12de593413b47d29c9186b304e7",
+      "payloads": {
+        "eng": {
+          "tvdbId": 402180,
+          "metadataSource": "tvdb",
+          "language": "eng",
+          "title": "Obey Me!",
+          "firstAired": "2021-07-16",
+          "imdbId": "tt15077804",
+          "episodes": [
+            {
+              "tvdbId": 8488842,
+              "tvdbShowId": 402180,
+              "title": "Time to up Our Average",
+              "seasonNumber": 1,
+              "episodeNumber": 1
+            },
+            {
+              "tvdbId": 8558076,
+              "tvdbShowId": 402180,
+              "title": "Don’t Look!",
+              "seasonNumber": 1,
+              "episodeNumber": 2
+            }
+          ]
+        },
+        "deu": {
+          "tvdbId": 402180,
+          "metadataSource": "tvdb",
+          "title": "Obey Me!",
+          "firstAired": "2021-07-16",
+          "imdbId": "tt15077804",
+          "episodes": [
+            {
+              "tvdbId": 8488842,
+              "tvdbShowId": 402180,
+              "seasonNumber": 1,
+              "episodeNumber": 1
+            },
+            {
+              "tvdbId": 8558076,
+              "tvdbShowId": 402180,
+              "seasonNumber": 1,
+              "episodeNumber": 2
+            }
+          ]
+        }
+      },
+      "expected_first_episode_id": 8488842
+    },
+    {
+      "provider": "s.to",
+      "title_id": "099b5e3f0902aed821d93277afd6f14cf91e33da3a7e398719c63597bdb88bec",
+      "payloads": {
+        "eng": {
+          "tvdbId": 288791,
+          "metadataSource": "tvdb",
+          "language": "eng",
+          "title": "Museum Men",
+          "firstAired": "2014-11-29",
+          "imdbId": "tt4212368",
+          "episodes": [
+            {
+              "tvdbId": 5061478,
+              "tvdbShowId": 288791,
+              "title": "Unearthing King Tut",
+              "seasonNumber": 1,
+              "episodeNumber": 1
+            },
+            {
+              "tvdbId": 5061479,
+              "tvdbShowId": 288791,
+              "title": "Hunting Nazi Submarines",
+              "seasonNumber": 1,
+              "episodeNumber": 2
+            }
+          ]
+        },
+        "deu": {
+          "tvdbId": 288791,
+          "metadataSource": "tvdb",
+          "title": "Museum Men",
+          "firstAired": "2014-11-29",
+          "imdbId": "tt4212368",
+          "episodes": [
+            {
+              "tvdbId": 5061478,
+              "tvdbShowId": 288791,
+              "seasonNumber": 1,
+              "episodeNumber": 1
+            },
+            {
+              "tvdbId": 5061479,
+              "tvdbShowId": 288791,
+              "seasonNumber": 1,
+              "episodeNumber": 2
+            }
+          ]
+        }
+      },
+      "expected_first_episode_id": 5061478
+    },
+    {
+      "provider": "s.to",
+      "title_id": "fb20cfa5070537ee9c428a95312c6b431aed619e1a0c563b953728d5f4f4586d",
+      "payloads": {
+        "eng": {
+          "tvdbId": 420688,
+          "metadataSource": "tvdb",
+          "language": "eng",
+          "title": "Murdaugh Murders: Deadly Dynasty",
+          "firstAired": "2022-06-19",
+          "imdbId": "tt20202860",
+          "episodes": [
+            {
+              "tvdbId": 9189559,
+              "tvdbShowId": 420688,
+              "title": "Pandora's Box",
+              "seasonNumber": 1,
+              "episodeNumber": 1
+            },
+            {
+              "tvdbId": 9189560,
+              "tvdbShowId": 420688,
+              "title": "Something Wicked",
+              "seasonNumber": 1,
+              "episodeNumber": 2
+            }
+          ]
+        },
+        "deu": {
+          "tvdbId": 420688,
+          "metadataSource": "tvdb",
+          "title": "Murdaugh Murders: Deadly Dynasty",
+          "firstAired": "2022-06-19",
+          "imdbId": "tt20202860",
+          "episodes": [
+            {
+              "tvdbId": 9189559,
+              "tvdbShowId": 420688,
+              "seasonNumber": 1,
+              "episodeNumber": 1
+            },
+            {
+              "tvdbId": 9189560,
+              "tvdbShowId": 420688,
+              "seasonNumber": 1,
+              "episodeNumber": 2
+            }
+          ]
+        }
+      },
+      "expected_first_episode_id": 9189559
+    }
+  ]
+}

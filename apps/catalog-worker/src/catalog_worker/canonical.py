@@ -378,7 +378,7 @@ class Enricher:
                         verify(
                             isinstance(details, dict)
                             and str(details.get("tvdbId")) == candidate.external_id,
-                            "descriptor_identity_conflict",
+                            "parent_id_mismatch",
                             "canonical ID mismatch",
                         )
                         if (
@@ -388,13 +388,13 @@ class Enricher:
                             verify(
                                 details.get("metadataSource") == "tvdb"
                                 and details.get("language") == "eng",
-                                "descriptor_identity_conflict",
+                                "metadata_namespace_mismatch",
                                 "canonical descriptor namespace mismatch",
                             )
                         if row["explicit_imdb"]:
                             verify(
                                 details.get("imdbId") == row["explicit_imdb"],
-                                "descriptor_identity_conflict",
+                                "parent_imdb_mismatch",
                                 "canonical IMDb mismatch",
                             )
                         if not reused_descriptor:
@@ -410,17 +410,15 @@ class Enricher:
                                     + candidate.external_id
                                     + "/official"
                                 )
-                                verify(
-                                    isinstance(translated, dict)
-                                    and translated.get("metadataSource") == "tvdb"
-                                    and str(translated.get("tvdbId"))
-                                    == candidate.external_id
-                                    and translated.get("language") == language,
-                                    "translation_identity_conflict",
-                                    "canonical translation identity mismatch",
+                                translated_rows, unavailable = descriptors.translation(
+                                    translated, candidate.external_id, language
                                 )
+                                if unavailable:
+                                    details.setdefault(
+                                        "_missing_episode_languages", []
+                                    ).append(language)
                                 canonical_episodes = descriptors.merge(
-                                    canonical_episodes, descriptors.episodes(translated)
+                                    canonical_episodes, translated_rows
                                 )
                             details["_episode_languages"] = self.sources.get(
                                 "episode_languages", []

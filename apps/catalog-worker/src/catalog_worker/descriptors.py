@@ -14,6 +14,38 @@ from .state import State
 CODEC = 1
 
 
+def episode_identity(row: dict, parent: int) -> int:
+    """Accept either explicit TVDB pair; mixed or conflicting pairs are unsafe.
+
+    Some v2 Skyhook responses still contain v1 episode field names. The top-level
+    namespace alone cannot bind an episode: its own explicit parent must agree.
+    """
+    pairs = []
+    for id_key, parent_key in (
+        ("metadataId", "metadataShowId"),
+        ("tvdbId", "tvdbShowId"),
+    ):
+        if id_key not in row and parent_key not in row:
+            continue
+        eid, show = row.get(id_key), row.get(parent_key)
+        verify(
+            type(eid) is int and eid > 0 and type(show) is int and show > 0,
+            "episode_identity_missing",
+            "incomplete canonical episode identity",
+        )
+        verify(show == parent, "episode_parent_conflict", "canonical parent mismatch")
+        pairs.append(eid)
+    verify(
+        bool(pairs), "episode_identity_missing", "missing canonical episode identity"
+    )
+    verify(
+        len(set(pairs)) == 1,
+        "episode_identity_conflict",
+        "conflicting canonical episode identity",
+    )
+    return pairs[0]
+
+
 def episodes(payload: dict) -> list[CanonicalEpisode]:
     rows = payload.get("episodes") or []
     require(
@@ -27,12 +59,7 @@ def episodes(payload: dict) -> list[CanonicalEpisode]:
             row.get(key) for key in ("seasonNumber", "episodeNumber", "title", "tvdbId")
         )
         if payload.get("metadataSource") == "tvdb":
-            eid = row.get("metadataId")
-            verify(
-                row.get("metadataShowId") == payload["tvdbId"],
-                "episode_parent_conflict",
-                "canonical parent mismatch",
-            )
+            eid = episode_identity(row, payload["tvdbId"])
         if name is None and type(eid) is int and eid > 0:
             # An untranslated English row still carries a canonical ID/order.
             # Keep that identity so a verified German name can join it later.
@@ -82,7 +109,7 @@ def merge(
     """Only identical episode IDs AND coordinates can contribute translated names."""
     translations = {}
     for row in translated:
-        if row.external_id:
+        if row.external_id and row.title:
             key = (row.external_id, row.season, row.episode)
             translations.setdefault(key, set()).add(row.title)
     return [
@@ -102,6 +129,42 @@ def merge(
     ]
 
 
+def translation(
+    payload: object, external: str, language: str
+) -> tuple[list[CanonicalEpisode], bool]:
+    """An explicitly empty translation cannot invalidate useful primary names.
+
+    Skyhook may omit its language tag when every translated episode title is
+    null. Validate identities first; never consume a named but untagged response.
+    """
+    verify(
+        isinstance(payload, dict)
+        and payload.get("metadataSource") == "tvdb"
+        and str(payload.get("tvdbId")) == external,
+        "translation_identity_conflict",
+        "canonical translation identity mismatch",
+    )
+    rows = episodes(payload)
+    missing = payload.get("language") is None and all(not row.title for row in rows)
+    verify(
+        payload.get("language") == language or missing,
+        "translation_identity_conflict",
+        "canonical translation language mismatch",
+    )
+    # Check the original rows too: ignored malformed coordinates cannot conceal
+    # named data whose language was never established.
+    if missing:
+        verify(
+            all(
+                row.get("title") in (None, "") for row in payload.get("episodes") or []
+            ),
+            "translation_identity_conflict",
+            "untagged canonical translation names",
+        )
+        return [], True
+    return rows, False
+
+
 def save(
     state: State,
     external: str,
@@ -116,7 +179,12 @@ def save(
             "imdbId": details.get("imdbId"),
             "tmdbId": details.get("tmdbId"),
             "parent": details.get("parent") or compact(details),
+            # These are checked language requests. Empty optional translations
+            # are recorded separately and provide no positive name evidence.
             "languages": details.get("_episode_languages", []),
+            "missing_languages": details.get(
+                "_missing_episode_languages", details.get("missing_languages", [])
+            ),
             "api": details.get("api")
             or (
                 "skyhook-v2"
