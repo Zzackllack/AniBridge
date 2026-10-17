@@ -1,8 +1,37 @@
 # Private-pilot defects and production improvements
 
-Updated 2026-10-14. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
+Updated 2026-10-18. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
 and [EVIDENCE.md](EVIDENCE.md). The October 8 implementation and bounded measurements are recorded below.
 Deployment is confined to the maintainer-authorized existing private pilot.
+
+## October 18 canonical rejection follow-up
+
+Read-only recheck finds 48 AniWorld and 902 Serienstream titles with retained
+`source_failure` outcomes. These are title lookup outcomes, not counts of rate
+limits or failed episode pages. Bounded canonical-only sampling reproduces a
+parser defect: v2 descriptor envelopes can contain legacy `tvdbId`/`tvdbShowId`
+episode fields. The old parser demands generic `metadataId`/`metadataShowId`
+fields and rejects valid explicit parent associations.
+
+Safe per-lookup `canonical_failure` events now classify the phase and typed
+rejection reason. Compatibility accepts either complete positive TVDB identity
+pair and rejects disagreeing or partial pairs. Translation joins still require
+the same episode ID and coordinates; source name and parent verification remain
+unchanged. No similarity/ordinal acceptance, matcher reset, failure clearing,
+schema migration or live deployment is part of this local change.
+
+The full lookup path distinguishes two further sampled causes: old series IDs
+returning different canonical IDs/IMDb associations (still rejected), and
+valid German responses with no language tag and no translated episode names.
+The latter now preserves verified English evidence, records the missing optional
+language privately and supplies no German aliases. Named untagged translations,
+wrong namespaces/parents and conflicts remain rejected. The initial layout-only
+full-copy replay added zero maps because these earlier/later gates still fired;
+that result is retained separately rather than presented as a successful repair.
+
+The full failure population is not yet classified. Missing names, conflicting
+parents/cuts and genuine remote failures remain distinct open work. The expensive
+publication export/validation phases are unchanged by this fix.
 
 ## Subsequent canonical budget tuning
 

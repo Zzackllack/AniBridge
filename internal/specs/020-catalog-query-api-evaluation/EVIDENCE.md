@@ -5,6 +5,91 @@
 measurements: [pilot-results.json](evidence/pilot-results.json). No database,
 credential, provider media or real search transcript is included.
 
+## Canonical failure classification and partial metadata — 2026-10-18
+
+[Aggregate evidence](evidence/mapping-failures-2026-10-18.json) records the local
+implementation and bounded read-only pilot checks. The live worker remains
+`d85ed05` at the existing allocations; nothing was pushed, published or deployed.
+
+The pilot retains 48 AniWorld and 902 Serienstream `source_failure` title outcomes.
+Four highest repeated failures/provider and four additional seeded, distinct-parent
+held-out titles were selected. Sampling used 28 canonical HTTP starts including
+redirects, yielded 19 recorded payloads and stopped at its local budgets. There
+was no provider-page crawl or competing collector. A series present under both
+providers may reuse the same explicitly identified recording.
+
+Two parser defects are repaired: v2 envelopes with legacy explicit TVDB episode
+ID/parent fields, and optional translations with a verified series identity but
+no language tag or translated names. The latter supplies no aliases and retains
+verified English evidence. Private `missing_languages` distinguishes a checked
+empty translation from positive multilingual metadata. Conflicting/partial ID
+pairs and named untagged translations remain rejected. Safe `canonical_failure`
+events identify phases and typed causes without exception text or metadata names.
+
+The real Enricher replay ran offline against complete, consistent SQLite copies
+at 2 CPU/2 GiB with no extra swap. Its clock advances to existing retry deadlines;
+it never clears failures or resets the live state. Of twelve selected titles:
+
+- Four held-out lookups now refresh successfully, recording German names as
+  unavailable. Their next normal eligibility is 604,800 seconds; the second
+  unchanged tick makes zero HTTP calls and zero row mutations. This is a copied
+  scheduling observation, not a freshness SLA or live rate reduction measurement.
+- Six development cases return a different series ID and one returns a
+  conflicting IMDb ID. These remain rejected, with all existing maps retained.
+- One development case has incomplete recordings within the finite probe budget.
+
+**No new episode maps were gained.** AniWorld remains 46,545/63,628 usable maps
+(73.1518%); Serienstream remains 237,313/298,745 (79.4366%). The full copied ledger
+retains all 497,678 releases/first-seen times and 288,876 complete existing episode
+map rows. Parent identities, work retries/leases, quarantines, omissions, season
+checkpoints, signal queues, title schedules and observation gaps compare unchanged.
+Fifteen logical recorded requests produce zero new maps, so requests/new-map is
+undefined. This restores valid maintenance, not demonstrated coverage growth.
+
+The measured replay/preflight/comparison takes 28.2975s wall and 16.8674s process
+CPU, with 113,504,256 bytes read and 794,624 written during that phase. Process
+peak RSS is 167,720 KiB; cgroup peak 1,346,416,640 bytes includes preceding copy
+restoration/page cache. No OOM, memory-limit event or CPU throttling occurs in
+this run. The earlier layout-only replay added zero maps and still failed at
+parent/translation gates; its result is retained privately. Initial harness
+attempts exposed wrong entrypoint/permissions and absent SQL scratch; final
+comparisons use bounded writable `/tmp` and in-memory SQL scratch. No production
+mount or allocation was changed to repair the experiment. The final accounted
+upper bound is 25,842,006,528 bytes including retained consistent copies, images/
+logs allowance, SQL scratch allowance and the 1 GB reserve, below the 30 GB budget.
+Only our failed duplicate scratch copies were discarded; all retained state and
+backup generations remain.
+
+Worker tests pass locally: 223 passed, 13 platform skips; core: 310 passed. Changed
+files pass Ruff lint/format. Three pre-existing worker-wide Ruff discrepancies
+outside this change remain recorded in JSON. The Linux replay uses a current
+source overlay, not a newly published/installed worker image. Four held-out
+series' explicit ID facts were reviewed before compatibility implementation;
+source-name spot reviews occurred during implementation. These are metadata-format
+regressions, not a prospective population precision estimate.
+
+Separately, six live old-runtime queries match exact same-revision SQL totals and
+provider isolation, taking 5.5–59.6ms; the public proxy returns 200 in 61.1ms.
+These do not verify the new code in deployment or extraction/import/playback.
+Publication itself is unchanged: the October 16 sample measured Serienstream
+median export/validation of 35.06s/28.58s. Readers retain the previous good catalog
+while the next catalog is prepared. Publication optimization remains open.
+
+Reproduce with `recorded_failure_replay.py --baseline ... --candidate ...
+--metadata ... --output ...` in a network-disabled 2/2 helper. Both state folders
+must have `COPY_ONLY`; baseline must be a WAL-free consistent SQLite backup and
+mounted read-only. Keep the private original recordings outside Git. The public
+fixture contains only selected names, IDs and coordinates. No matcher fingerprint,
+public protocol or state-schema bump is needed. A future rollout can use the
+existing state-preserving SERVER.md flow; code rollback retains v5 volumes and
+the pinned `9a0df2b...` worker, with no database restore or private-table removal.
+
+**Status:** diagnostics, compatibility/empty-translation fixes and bounded local
+verification are implemented+verified. Classifying the entire failure population,
+reviewing the seven conflicting identities and optimizing publication are not
+implemented here. The current pilot's old coarse events cannot retrospectively
+classify all 950 failures; the finite sample does not close that gap.
+
 ## Subsequent canonical budget tuning — 2026-10-14
 
 [Rate evidence](evidence/canonical-rate-tuning-2026-10-14.json) records implementation,

@@ -114,3 +114,18 @@ canonical-only network experiment on explicitly marked disposable copies. Pause
 the ordinary collector to avoid two unmeasured budgets. It smooths HTTP starts,
 includes redirects and stops escalation on blocking, repeated errors or increased
 latency; no provider pages, publication, crawl reset or live ledger writes.
+
+October 18 canonical failure regressions are `test_canonical_failures.py` and
+`test_canonical_episode_identity.py`. They distinguish successful HTTP responses
+rejected by validation from transport/admission failures, retain retry deadlines
+and old maps/releases, and accept either complete TVDB episode identity pair.
+Contradictory, mixed or partial pairs cannot fall back to numbering. The small
+metadata-only fixture freezes four independently selected series' explicit IDs;
+it does not establish whole-catalog mapping precision.
+
+`recorded_failure_replay.py` runs the real Enricher on marked consistent copies
+with recorded metadata and no network. Mount baseline read-only, use 2 CPU/2 GiB
+and bounded writable `/tmp`; full-ledger comparison uses in-memory SQL scratch.
+It advances the experiment clock to existing retry deadlines instead of clearing
+failures. Raw recordings and ledger copies stay in private scratch; commit only
+sanitized metadata fixtures and aggregate preservation/coverage evidence.

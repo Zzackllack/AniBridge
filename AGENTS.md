@@ -136,6 +136,15 @@ October 14 implemented follow-up
 - Runtime rejection/freshness diagnostics are bounded counts/IDs only. Required
   source names live solely in sanitized metadata test fixtures. Never accept from
   similarity, native numbering, generic names or a conflicting parent year/ID.
+- Canonical lookup failures now emit `canonical_failure` with a hashed title ID,
+  allowlisted phase/reason and optional HTTP status. Do not classify exceptions
+  by their text. V2 TVDB descriptors may use either explicit episode ID/parent
+  pair (`metadataId`/`metadataShowId` or `tvdbId`/`tvdbShowId`); incomplete or
+  contradictory pairs stay rejected. This compatibility fix needs no state or
+  matcher-version reset. See the October 18 evidence before inferring deployment.
+  An optional translation with a verified series identity, no language tag and
+  no episode names is unavailable evidence; retain the English descriptor and
+  record `missing_languages` privately. Named untagged translations still reject.
 - State v5 code rollback removes only private matching tables after the canonical
   admission window expires. Keep all v4 observations/maps/history and both backup
   generations. Follow SERVER.md; new registry publication and rollout need approval.
