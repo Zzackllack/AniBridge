@@ -1,0 +1,712 @@
+{
+  "date": "2026-10-18",
+  "work_items": {
+    "1": {
+      "status": "implemented+verified",
+      "blocker": null,
+      "proof_scope": "offline fixtures, installed Linux ARM64 wheel regressions and marked full copied ledgers"
+    },
+    "2": {
+      "status": "implemented+verified",
+      "blocker": null,
+      "proof_scope": "offline fixtures, installed Linux ARM64 wheel regressions and marked full copied ledgers"
+    },
+    "3": {
+      "status": "implemented+verified",
+      "blocker": null,
+      "proof_scope": "offline fixtures, installed Linux ARM64 wheel regressions and marked full copied ledgers"
+    },
+    "4": {
+      "status": "implemented+verified",
+      "blocker": null,
+      "proof_scope": "offline fixtures, installed Linux ARM64 wheel regressions and marked full copied ledgers"
+    }
+  },
+  "implementation_commits": [
+    "6a0648592245899079bbe2d85f8cec1866e8c897",
+    "931cf39a53438394b5e4c36a3b7db3affd5a73ea",
+    "e6b0be614cadb9ace235d621ac9b8588e6b2fe6a"
+  ],
+  "profile": {
+    "architecture": "aarch64",
+    "cpu_limit": 2,
+    "memory_bytes": 2147483648,
+    "swap_extra_bytes": 0,
+    "network": "none"
+  },
+  "methodology": {
+    "trial": "sequential warm-cache old full export versus new incremental title partitions",
+    "controlled_clock": true,
+    "retained_clock_note": "prior copied retry replay advanced public timestamps; no timestamp validation bypass",
+    "old_worker": "d85ed054d22ae8d117677670d6d0d29dd995ccca",
+    "old_publisher_on_v6": "old State startup bypassed only for fixed unchanged public projection; no old collector/migration; old v5 startup tested separately after downgrade",
+    "new_source_preflight": "enabled and timed separately",
+    "old_query_load": false,
+    "new_query_load": "60 bounded overlapping recent queries, then ordinary/large native retrieval",
+    "not_proven": [
+      "cold storage performance",
+      "sustained publication or collection capacity",
+      "whole-provider freshness SLA",
+      "new mapping accuracy or coverage",
+      "native AMD64 image or hosted CI for these commits",
+      "live rollout, client cutover, extraction, import or playback"
+    ],
+    "measurement_note": "The timed publication algorithm is the source-overlay implementation; subsequent isolated scratch recovery has fixture, installed-wheel and full-copy verification, without a second claimed speedup comparison.",
+    "query_resource_scope": "Publisher and ASGI metadata queries share the same 2 CPU / 2 GiB benchmark container; not a separate 512 MiB service capacity test.",
+    "ledger_basis": "Existing consistent candidate from prior bounded metadata replay; its pre-v6 backup is this experiment preservation baseline. Original copied baseline and live ledgers are untouched by publication experiments."
+  },
+  "providers": {
+    "aniworld.to": {
+      "before_full": {
+        "publication_s": 11.7888,
+        "preflight_s": 0.0002,
+        "cpu_s": 11.336,
+        "process_high_water_rss_kib": 141828,
+        "cgroup_cumulative_memory_peak_bytes": 195088384,
+        "cgroup_io_delta": {
+          "8:0": {
+            "rbytes": 8192,
+            "wbytes": 68251648,
+            "rios": 2,
+            "wios": 278,
+            "dbytes": 0,
+            "dios": 0
+          }
+        },
+        "memory_events_after": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "phase_result": "all_complete_ok",
+        "phase_seconds": {
+          "export": 5.5985,
+          "validation": 5.9712,
+          "publication_lock": 0.0079,
+          "publication": 0.0077
+        }
+      },
+      "after_incremental": {
+        "publication_s": 3.6671,
+        "preflight_s": 0.7543,
+        "cpu_s": 4.0152,
+        "process_high_water_rss_kib": 163148,
+        "cgroup_cumulative_memory_peak_bytes": 217944064,
+        "cgroup_io_delta": {
+          "8:0": {
+            "rbytes": 0,
+            "wbytes": 68038656,
+            "rios": 0,
+            "wios": 23,
+            "dbytes": 0,
+            "dios": 0
+          }
+        },
+        "memory_events_after": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "phase_result": "all_complete_ok",
+        "phase_seconds": {
+          "clone": 0.1408,
+          "export": 0.6858,
+          "export_rows": 0.0941,
+          "export_summary": 0.3169,
+          "validation": 2.7646,
+          "validation_schema": 0.4089,
+          "validation_integrity": 1.3492,
+          "validation_relationships": 0.1973,
+          "validation_rows": 0.1645,
+          "validation_semantics": 0.3575,
+          "validation_summary": 0.2823,
+          "publication_lock": 0.0074,
+          "publication": 0.0073
+        }
+      },
+      "speedup": 3.2147,
+      "publication_wall_reduction_percent": 68.8934,
+      "initial_new_full": {
+        "publication_s": 9.2626,
+        "preflight_s": 3.443,
+        "cpu_s": 8.6963,
+        "process_high_water_rss_kib": 180556,
+        "cgroup_cumulative_memory_peak_bytes": 287338496,
+        "cgroup_io_delta": {
+          "8:0": {
+            "rbytes": 0,
+            "wbytes": 68263936,
+            "rios": 0,
+            "wios": 299,
+            "dbytes": 0,
+            "dios": 0
+          }
+        },
+        "memory_events_after": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "phase_result": "all_complete_ok",
+        "phase_seconds": {
+          "export": 2.7363,
+          "export_rows": 2.0134,
+          "export_indexes": 0.1705,
+          "export_summary": 0.2269,
+          "validation": 6.3196,
+          "validation_schema": 0.1948,
+          "validation_integrity": 0.8322,
+          "validation_relationships": 0.0954,
+          "validation_rows": 4.7445,
+          "validation_semantics": 0.2187,
+          "validation_summary": 0.2263,
+          "publication_lock": 0.0098,
+          "publication": 0.0096
+        }
+      },
+      "generated_metadata_changes": [
+        {
+          "title_id": "003339dbd150baba6f38ada00c794801e68aaebb9950a92fda3e75589a33f4f4",
+          "entity_id": "028621b5e38f0454d156953295fb47a2526b644c8a740e215ee5b6d85876b217",
+          "partition_episodes": 26
+        },
+        {
+          "title_id": "813c6ac254280594da3fb968b50b5b0011ef896c98bc6ca7a070ca7582dd7285",
+          "entity_id": "00278d6c1804b7f03fc8bc24fb1fd0372ca57f1ac39bbf2515729e7d29dc8fa8",
+          "partition_episodes": 1288
+        }
+      ],
+      "public_counts": {
+        "title": 2516,
+        "alias": 9645,
+        "entity": 63644,
+        "release": 116533,
+        "canonical_title": 6645,
+        "canonical_episode": 46548,
+        "identity_alias": 0
+      },
+      "comparison": {
+        "public_row_differences": {
+          "alias": 0,
+          "canonical_episode": 0,
+          "canonical_title": 0,
+          "entity": 0,
+          "identity_alias": 0,
+          "release": 0,
+          "title": 0
+        },
+        "full_independent_validation": "passed"
+      },
+      "usable_mapping_percent_unchanged": 73.151757
+    },
+    "s.to": {
+      "before_full": {
+        "publication_s": 56.2486,
+        "preflight_s": 0.0002,
+        "cpu_s": 55.0908,
+        "process_high_water_rss_kib": 166164,
+        "cgroup_cumulative_memory_peak_bytes": 468434944,
+        "cgroup_io_delta": {
+          "8:0": {
+            "rbytes": 16384,
+            "wbytes": 273920000,
+            "rios": 4,
+            "wios": 5854,
+            "dbytes": 0,
+            "dios": 0
+          }
+        },
+        "memory_events_after": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "phase_result": "all_complete_ok",
+        "phase_seconds": {
+          "export": 27.0725,
+          "validation": 28.8148,
+          "publication_lock": 0.0144,
+          "publication": 0.0143
+        }
+      },
+      "after_incremental": {
+        "publication_s": 12.8327,
+        "preflight_s": 4.1756,
+        "cpu_s": 11.589,
+        "process_high_water_rss_kib": 195020,
+        "cgroup_cumulative_memory_peak_bytes": 509968384,
+        "cgroup_io_delta": {
+          "8:0": {
+            "rbytes": 8192,
+            "wbytes": 257961984,
+            "rios": 2,
+            "wios": 70,
+            "dbytes": 0,
+            "dios": 0
+          }
+        },
+        "memory_events_after": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "phase_result": "all_complete_ok",
+        "phase_seconds": {
+          "clone": 0.3607,
+          "export": 3.6345,
+          "export_rows": 0.1364,
+          "export_summary": 1.1808,
+          "validation": 8.6409,
+          "validation_schema": 0.7579,
+          "validation_integrity": 4.6843,
+          "validation_relationships": 0.4525,
+          "validation_rows": 0.1342,
+          "validation_semantics": 1.6147,
+          "validation_summary": 0.993,
+          "publication_lock": 0.0054,
+          "publication": 0.0053
+        }
+      },
+      "speedup": 4.3832,
+      "publication_wall_reduction_percent": 77.1857,
+      "initial_new_full": {
+        "publication_s": 47.4313,
+        "preflight_s": 4.1948,
+        "cpu_s": 44.4895,
+        "process_high_water_rss_kib": 189548,
+        "cgroup_cumulative_memory_peak_bytes": 563220480,
+        "cgroup_io_delta": {
+          "8:0": {
+            "rbytes": 0,
+            "wbytes": 256057344,
+            "rios": 0,
+            "wios": 611,
+            "dbytes": 0,
+            "dios": 0
+          }
+        },
+        "memory_events_after": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "phase_result": "all_complete_ok",
+        "phase_seconds": {
+          "export": 17.5803,
+          "export_rows": 13.1621,
+          "export_indexes": 1.0915,
+          "export_summary": 1.0995,
+          "validation": 29.4769,
+          "validation_schema": 0.7599,
+          "validation_integrity": 4.8207,
+          "validation_relationships": 0.4863,
+          "validation_rows": 20.7222,
+          "validation_semantics": 1.66,
+          "validation_summary": 1.0218,
+          "publication_lock": 0.0202,
+          "publication": 0.0201
+        }
+      },
+      "generated_metadata_changes": [
+        {
+          "title_id": "00054e9dba63ed0960184055ff5eebbc1f0a925a4c0308ef92d30d16f47805f4",
+          "entity_id": "07af45f29b4e538d36a374606a8cf78544faf8436183520c5787543c9fa70073",
+          "partition_episodes": 14
+        },
+        {
+          "title_id": "7e84d5987664ae116a6968909287ec3cb5619d62c9332813cfb296d2948aaafd",
+          "entity_id": "0014289f75bcffe1c08ff68d93deb795a6290890294623b5dcb1c7ba339662d5",
+          "partition_episodes": 1384
+        }
+      ],
+      "public_counts": {
+        "title": 10975,
+        "alias": 0,
+        "entity": 307251,
+        "release": 381145,
+        "canonical_title": 30666,
+        "canonical_episode": 242328,
+        "identity_alias": 0
+      },
+      "comparison": {
+        "public_row_differences": {
+          "alias": 0,
+          "canonical_episode": 0,
+          "canonical_title": 0,
+          "entity": 0,
+          "identity_alias": 0,
+          "release": 0,
+          "title": 0
+        },
+        "full_independent_validation": "passed"
+      },
+      "usable_mapping_percent_unchanged": 79.436643
+    }
+  },
+  "queries": {
+    "overlap_count": 60,
+    "overlap_inflight_count": 60,
+    "all_status_200": true,
+    "exact_sql_totals": true,
+    "median_s": 0.05788,
+    "maximum_s": 0.140088,
+    "targeted_pages": 31,
+    "targeted_exact_id_sets": true,
+    "targeted_median_s": 0.072946,
+    "targeted_maximum_s": 0.081689,
+    "provider_isolation": [
+      503,
+      200
+    ],
+    "last_good": {
+      "aniworld.to": true,
+      "s.to": true
+    }
+  },
+  "rollback": {
+    "v6_to_v5": "passed",
+    "old_installed_image": {
+      "aniworld.to": {
+        "v5_open": "passed",
+        "query_status": 200,
+        "exact_total": 116533
+      },
+      "s.to": {
+        "v5_open": "passed",
+        "query_status": 200,
+        "exact_total": 381145
+      }
+    },
+    "v5_to_v6_and_second_open": {
+      "aniworld.to": "passed",
+      "s.to": "passed"
+    },
+    "backup_hashes_unchanged": true,
+    "post_reopen_full_required": true,
+    "bounded_full_resume": {
+      "aniworld.to": {
+        "address_space_limit_bytes": 536870912,
+        "source_preflight_and_full_resume_s": 9.8509,
+        "byte_identical_to_legacy": true,
+        "revision": 5,
+        "phase_result": "all_complete_ok",
+        "phase_seconds": {
+          "state_preflight": 0.7762,
+          "export": 2.6503,
+          "export_rows": 1.9257,
+          "export_indexes": 0.1725,
+          "export_summary": 0.2241,
+          "validation": 6.1792,
+          "validation_schema": 0.1939,
+          "validation_integrity": 0.8374,
+          "validation_relationships": 0.0959,
+          "validation_rows": 4.6102,
+          "validation_semantics": 0.2218,
+          "validation_summary": 0.2142,
+          "publication_lock": 0.0137,
+          "publication": 0.0135
+        }
+      },
+      "s.to": {
+        "address_space_limit_bytes": 536870912,
+        "source_preflight_and_full_resume_s": 50.5757,
+        "byte_identical_to_legacy": true,
+        "revision": 5,
+        "phase_result": "all_complete_ok",
+        "phase_seconds": {
+          "state_preflight": 3.998,
+          "export": 16.1372,
+          "export_rows": 13.0489,
+          "export_indexes": 1.0614,
+          "export_summary": 1.0595,
+          "validation": 30.0267,
+          "validation_schema": 0.7538,
+          "validation_integrity": 4.3187,
+          "validation_relationships": 0.4652,
+          "validation_rows": 21.9192,
+          "validation_semantics": 1.5817,
+          "validation_summary": 0.982,
+          "publication_lock": 0.0204,
+          "publication": 0.0203
+        }
+      }
+    }
+  },
+  "preservation": {
+    "aniworld.to": {
+      "tables_compared": 38,
+      "unchanged_table_differences": {
+        "catalog": 0,
+        "title": 0,
+        "alias": 0,
+        "release": 0,
+        "canonical_title": 0,
+        "canonical_episode": 0,
+        "identity_alias": 0,
+        "work": 0,
+        "omissions": 0,
+        "quarantine": 0,
+        "publication": 0,
+        "request_start": 0,
+        "transport_failure": 0,
+        "title_schedule": 0,
+        "observation_gap": 0,
+        "scheduler": 0,
+        "season_correspondence": 0,
+        "mapping_input": 0,
+        "listing_page": 0,
+        "listing_record": 0,
+        "signal_meta": 0,
+        "signal_window": 0,
+        "signal_pending": 0,
+        "reconciliation_start": 0,
+        "canonical_cache": 0,
+        "canonical_hint": 0,
+        "entity_alias": 0,
+        "batch_observation": 0,
+        "season_batch_checkpoint": 0,
+        "collection_stats": 0,
+        "matching_replay": 0,
+        "canonical_descriptor": 0,
+        "canonical_request_start": 0,
+        "canonical_scheduler": 0,
+        "canonical_hint_identity": 0
+      },
+      "generated_entity_edits": 2,
+      "other_entity_or_worker_fields_changed": 0,
+      "before": {
+        "episodes": 63644,
+        "usable_episodes": 63628,
+        "usable_mapped": 46545,
+        "maps": 46548,
+        "releases": 116533
+      },
+      "after": {
+        "episodes": 63644,
+        "usable_episodes": 63628,
+        "usable_mapped": 46545,
+        "maps": 46548,
+        "releases": 116533
+      },
+      "raw_due_work_oldest_age_s": 70083,
+      "raw_due_age_preserved": true,
+      "timestamp_only_pending_at_300_s": false,
+      "timestamp_only_pending_at_3600_s": true,
+      "initial_full_required": false,
+      "write_cost": {
+        "without_journal": {
+          "updates": 500,
+          "wall_s": 0.002051,
+          "cpu_s": 0.002059,
+          "durable_commit": false
+        },
+        "v6_journal": {
+          "updates": 500,
+          "wall_s": 0.007288,
+          "cpu_s": 0.007135,
+          "durable_commit": false
+        }
+      },
+      "pre_v6_backup_sha256": "076a2057593934a8f1ec7d87f9503c1ca5775b966045d5ee55811b1895bd74b4"
+    },
+    "s.to": {
+      "tables_compared": 38,
+      "unchanged_table_differences": {
+        "catalog": 0,
+        "title": 0,
+        "alias": 0,
+        "release": 0,
+        "canonical_title": 0,
+        "canonical_episode": 0,
+        "identity_alias": 0,
+        "work": 0,
+        "omissions": 0,
+        "quarantine": 0,
+        "publication": 0,
+        "request_start": 0,
+        "transport_failure": 0,
+        "title_schedule": 0,
+        "observation_gap": 0,
+        "scheduler": 0,
+        "season_correspondence": 0,
+        "mapping_input": 0,
+        "listing_page": 0,
+        "listing_record": 0,
+        "signal_meta": 0,
+        "signal_window": 0,
+        "signal_pending": 0,
+        "reconciliation_start": 0,
+        "canonical_cache": 0,
+        "canonical_hint": 0,
+        "entity_alias": 0,
+        "batch_observation": 0,
+        "season_batch_checkpoint": 0,
+        "collection_stats": 0,
+        "matching_replay": 0,
+        "canonical_descriptor": 0,
+        "canonical_request_start": 0,
+        "canonical_scheduler": 0,
+        "canonical_hint_identity": 0
+      },
+      "generated_entity_edits": 2,
+      "other_entity_or_worker_fields_changed": 0,
+      "before": {
+        "episodes": 307251,
+        "usable_episodes": 298745,
+        "usable_mapped": 237313,
+        "maps": 242328,
+        "releases": 381145
+      },
+      "after": {
+        "episodes": 307251,
+        "usable_episodes": 298745,
+        "usable_mapped": 237313,
+        "maps": 242328,
+        "releases": 381145
+      },
+      "raw_due_work_oldest_age_s": 365255,
+      "raw_due_age_preserved": true,
+      "timestamp_only_pending_at_300_s": false,
+      "timestamp_only_pending_at_3600_s": true,
+      "initial_full_required": false,
+      "write_cost": {
+        "without_journal": {
+          "updates": 500,
+          "wall_s": 0.002079,
+          "cpu_s": 0.002084,
+          "durable_commit": false
+        },
+        "v6_journal": {
+          "updates": 500,
+          "wall_s": 0.007185,
+          "cpu_s": 0.007194,
+          "durable_commit": false
+        }
+      },
+      "pre_v6_backup_sha256": "bb39bb3c37cca5848a8ef229c6e0c7b6a8014c8bdd0faaf4a3547d67bc121462"
+    }
+  },
+  "requests": {
+    "provider": 0,
+    "canonical": 0,
+    "requests_per_useful_new_map": null,
+    "reason": "publication-only workload, no rematching or evidence acquisition"
+  },
+  "delivery": {
+    "pushed": false,
+    "published": false,
+    "deployed": false,
+    "live_worker_source": "d85ed054d22ae8d117677670d6d0d29dd995ccca",
+    "live_collector": "2 CPU / 2 GiB, zero restart count or OOM observations",
+    "live_metadata": "2 CPU / 512 MiB, zero restart count or OOM observations",
+    "local_image_id": "sha256:f073b8c1590b3659c21cc0748945564dfbfcf5c3e00c739c510fa337e3d3067c",
+    "local_image_source": "e6b0be614cadb9ace235d621ac9b8588e6b2fe6a",
+    "client_upgrade_required": false
+  },
+  "storage": {
+    "prior_research": 16041480192,
+    "experiment": 4856455168,
+    "live_state": 4073918464,
+    "live_read": 322203648,
+    "runtime_reserve": 1000000000,
+    "image_log_allowance": 1100000000,
+    "scratch_allowance": 500000000,
+    "accounted_bytes_including_allowances": 27894057472,
+    "with_one_gib_publication_staging_reserve": 28967799296,
+    "row_proof_reuse": {
+      "aniworld.to": {
+        "full_public_rows": 245531,
+        "selected_partition_rows": 3534,
+        "selected_partition_rows_by_table": {
+          "alias": 9,
+          "canonical_episode": 681,
+          "canonical_title": 3,
+          "entity": 1314,
+          "identity_alias": 0,
+          "release": 1525,
+          "title": 2
+        },
+        "method": "derived from the two changed title partitions; catalog singleton/global checks remain additional work"
+      },
+      "s.to": {
+        "full_public_rows": 972365,
+        "selected_partition_rows": 4125,
+        "selected_partition_rows_by_table": {
+          "alias": 0,
+          "canonical_episode": 1327,
+          "canonical_title": 6,
+          "entity": 1398,
+          "identity_alias": 0,
+          "release": 1392,
+          "title": 2
+        },
+        "method": "derived from the two changed title partitions; catalog singleton/global checks remain additional work"
+      }
+    }
+  },
+  "scratch_recovery": {
+    "source_commit": "e6b0be614cadb9ace235d621ac9b8588e6b2fe6a",
+    "provider": "aniworld.to",
+    "owned_staging_recovered": true,
+    "address_space_limit_bytes": 536870912,
+    "independent_full_validation": "passed",
+    "public_row_differences": {
+      "alias": 0,
+      "canonical_episode": 0,
+      "canonical_title": 0,
+      "entity": 0,
+      "identity_alias": 0,
+      "release": 0,
+      "title": 0
+    },
+    "elapsed_s": 13.6588
+  },
+  "tests": {
+    "linux_installed_worker": {
+      "passed": 267,
+      "skipped": 0,
+      "source_commit": "e6b0be614cadb9ace235d621ac9b8588e6b2fe6a",
+      "seconds": 34.69
+    },
+    "linux_installed_core": {
+      "passed": 320,
+      "skipped": 0,
+      "core_commit": "6a0648592245899079bbe2d85f8cec1866e8c897",
+      "seconds": 6.23
+    },
+    "macos_api": {
+      "passed": 268,
+      "skipped": 18,
+      "warnings": 1,
+      "seconds": 19.16
+    },
+    "ruff": "changed Python files pass",
+    "git_diff_check": "passed",
+    "hosted_ci_for_new_commits": "not_run"
+  },
+  "private_evidence": {
+    "host": "fra-node-01",
+    "publication_directory": "/tmp/anibridge-mapping-failures-20261018/publication",
+    "studied_state": "/tmp/anibridge-mapping-failures-20261018/copies/candidate",
+    "original_consistent_baseline": "/tmp/anibridge-mapping-failures-20261018/copies/baseline",
+    "recordings_or_html_in_git": false
+  }
+}

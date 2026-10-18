@@ -346,3 +346,44 @@ S01E01 stays explicitly unresolved live until fresh verified evidence arrives;
 do not misattribute the client's Serienstream results to AniWorld. Four removal
 quarantines remain unapproved. Live media acceptance, full capacity, prospective
 labels, publication optimization and required-check enforcement remain open.
+
+## October 18 publication implementation
+
+This supersedes the earlier **publication optimization: not implemented** item
+for local code. [PUBLICATION_FOLLOWUP.md](PUBLICATION_FOLLOWUP.md) records the
+four work items, measurements, exact proof boundaries and recovery commands.
+
+- Precise change tracking: **implemented + verified**. V6 transactional title
+  generations distinguish content from timestamp-only observations. Controlled
+  copied-state checks defer timestamps at 300 seconds and admit them at 3600;
+  real content keeps its normal cadence. No provider freshness SLA is implied.
+- Validation cost: **implemented + verified**. Bounded subphase timings, physical
+  counts and digest/metadata/policy/validator receipts allow unchanged row-proof
+  reuse. Full schema/integrity/relationship/semantic/summary checks remain;
+  default untrusted admission is complete. Independent full validation passes.
+- Incremental publication: **implemented + verified**. Verified cloning and
+  affected-title updates reuse indexes. Additions, late maps, removals, conflicts,
+  tombstones, tampering, stale policy and broad-change fallback are tested.
+  Existing global conflict checks remain. The controlled comparison improves 11.79→3.67 s / 56.25→12.83 s,
+  retaining all releases, first-seen times, old maps and private work history.
+- Collection pause: **implemented + verified**. The provider fence is removed;
+  a WAL snapshot and captured-generation acknowledgement retain concurrent writes.
+  Crash/restart, old-image rollback/open and full copied resume pass. Abandoned
+  staging and SQLite sidecars are recovered under the owner lock before quota
+  admission; a second publisher cannot clear an active owner's scratch.
+
+Remaining costs: whole-file cloning/global scans, cold source preflight and the
+full rebuild path for invalid bases or broad changes. Real eligible-work age
+under sustained concurrent collection and long-run fragmentation/capacity remain
+unmeasured. Raw due ages in this experiment use its retained controlled clock;
+unchanged table contents establish preservation, not a live scheduling SLA.
+No new mapping coverage/accuracy gain is claimed. Missing names, ambiguous or
+unverified identities and canonical/provider gaps require their existing evidence
+rules; publishing existing data faster cannot supply that missing evidence.
+
+The new local changes have no matching published native manifests or hosted CI
+run yet; live rollout was not attempted in this pass. The existing pilot remains
+on `d85ed05` with its resources, volumes, routes and backup generations intact.
+Required-check protection policy and live extraction/import/playback stay separate.
+The historical CQ-22 cause is still unknown; successful new publications do not
+recover discarded stderr. No local implementation item above is left blocked.

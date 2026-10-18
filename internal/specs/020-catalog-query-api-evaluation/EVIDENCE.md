@@ -1362,3 +1362,41 @@ a joint retained canonical-window sample has max 28 starts, within the shared 30
 cap. The snapshots are sequential and do not prove sustained fairness/freshness.
 Exact AniWorld One Piece S01E01 remains unresolved live; its copied-state result
 cannot be substituted. Four quarantines and every historical limit remain explicit.
+
+## October 18 publication follow-up
+
+All four publication work items are implemented and verified locally. See
+[PUBLICATION_FOLLOWUP.md](PUBLICATION_FOLLOWUP.md) and the separate
+[aggregate evidence](evidence/publication-followup-2026-10-18.json).
+Private state v6 records changed titles transactionally, separates content from
+observation-only publication eligibility, reuses verified unchanged row proofs
+and updates a cloned read catalog. Collection continues against a WAL snapshot;
+only its captured generation is acknowledged. Global admission checks remain.
+
+On the same full copied ledgers at 2 CPU/2 GiB, old/new publication takes
+11.7888/3.6671 seconds for AniWorld and 56.2486/12.8327 seconds for Serienstream.
+New source preflight is separate: 0.7543/4.1756 seconds in this warm comparison.
+All seven public tables equal independent old full exports; both incremental
+files also pass complete untrusted validation. All 60 overlapping queries return
+200 with exact SQL totals (57.88-ms median, 140.088-ms maximum); 31 ordinary/large
+retrieval pages match the exact release ID sets. Last-good retention and provider
+isolation pass. This is a bounded warm-cache experiment, not cold performance,
+a freshness SLA, sustained collection capacity or an engine comparison.
+
+All 497,678 copied release IDs/first-seen times and 288,876 map rows survive.
+All 38 v5 tables/provider compare, allowing only two generated entity name/time
+edits/provider, expected publication clocks and the schema version. Work,
+failures, leases, quarantine and matching histories remain unchanged. Copied
+v6→v5 rollback, old installed-image open and exact-total queries, v6 re-upgrade
+and a second open pass; the original pre-v6 backup SHA256 values remain identical.
+Full publication after re-upgrade also passes with the normal 512-MiB address-space
+limit and yields files byte-identical to the old full exports. This uses the
+copied replay clock; no timestamp validation or source preflight is bypassed.
+
+Installed ARM64 Linux regressions, core/API checks and the source-overlay copied
+experiment are distinct evidence. These commits are local; no new registry
+manifest, hosted CI result, live deployment, client cutover or media acceptance
+is claimed. Read-only inspection still finds live `d85ed05`, unchanged resources,
+zero restart count/OOM observations. Historical discarded CQ-22 stderr stays
+unrecoverable. No provider/canonical requests, live-ledger experimental writes,
+queue resets, backup restores, network or allocation changes were made.

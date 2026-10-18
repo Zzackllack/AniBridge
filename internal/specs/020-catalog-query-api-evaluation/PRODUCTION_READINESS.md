@@ -204,3 +204,14 @@ fixed 83.0.0), esbuild GHSA-g7r4-m6w7-qqqr (low, fixed 0.28.1). This branch also
 locks Werkzeug 3.1.6 and setuptools 82.0.1. Dependency upgrades/advisory exposure
 review are not implemented in this mapping repair and remain an explicit release
 gate; the alert inventory alone does not prove exploitation of the pilot.
+
+## October 18 local publication follow-up
+
+The earlier publication optimization gap now has a local implementation and
+bounded copied-ledger verification. [PUBLICATION_FOLLOWUP.md](PUBLICATION_FOLLOWUP.md)
+records v6 change tracking, unchanged row-proof reuse, incremental export and
+collection during publication, with 3.21×/4.38× measured warm publication speedups.
+All release/first-seen, map and private-history preservation/rollback checks pass.
+This is not a new hosted CI, registry publication, live rollout or capacity SLA;
+the read-only checked live service remains `d85ed05`. See SERVER.md's newer v6
+rollback instructions before using an older worker on upgraded state.
