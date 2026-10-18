@@ -68,9 +68,13 @@ def _publish(config: Config, state: State, now: int, *, full: bool = False) -> d
     # SQLite unlinks sort files while they remain open. Keep them under the
     # charged worker root so storage.used can account for their /proc descriptors.
     os.environ["SQLITE_TMPDIR"] = str(config.state_dir)
-    check(config, startup=True, public_reserve=1024**3)
     destination = root / "staging.sqlite"
-    destination.unlink(missing_ok=True)  # Owned scratch, under the worker owner lock.
+    # The staging owner lock proves no publisher still uses these names. Remove
+    # abandoned SQLite sidecars too, before quota admission or opening a new DB:
+    # a killed child can leave a hot rollback journal beside the old staging file.
+    for suffix in ("", "-journal", "-wal", "-shm"):
+        destination.with_name(destination.name + suffix).unlink(missing_ok=True)
+    check(config, startup=True, public_reserve=1024**3)
     incremental = not full and clone(config, state, root, destination, now)
     db = (
         sqlite3.connect(destination)

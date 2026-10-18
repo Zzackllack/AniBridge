@@ -404,3 +404,44 @@ def test_unclassified_or_broad_journal_falls_back_to_full(
         state.db.execute("SELECT count(*) FROM publication_change").fetchone()[0] == 0
     )
     state.close()
+
+
+def test_abandoned_staging_is_cleaned_before_quota_admission(tmp_path, monkeypatch):
+    state, config = seed(tmp_path)
+    before = rows(config, read_catalog.verify(config.output_dir))
+    scratch = [
+        config.output_dir / ("staging.sqlite" + suffix)
+        for suffix in ("", "-journal", "-wal", "-shm")
+    ]
+    for path in scratch:
+        path.write_bytes(b"owned interrupted publication scratch")
+    original = read_catalog.check
+    admitted = False
+
+    def check_after_recovery(*args, **kwargs):
+        nonlocal admitted
+        if not admitted:
+            assert not any(path.exists() for path in scratch)
+            admitted = True
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(read_catalog, "check", check_after_recovery)
+    result = read_catalog.publish(config, state, NOW + 1)
+    assert admitted and rows(config, result) == before
+    state.close()
+
+
+def test_active_staging_owner_prevents_scratch_cleanup(tmp_path):
+    from catalog_core.files import ProcessLock
+
+    state, config = seed(tmp_path)
+    scratch = config.output_dir / "staging.sqlite-journal"
+    scratch.write_bytes(b"belongs to active publisher")
+    owner = ProcessLock(config.output_dir / "publish.lock")
+    try:
+        with pytest.raises(RuntimeError, match="already owned"):
+            read_catalog.publish(config, state, NOW + 1)
+        assert scratch.read_bytes() == b"belongs to active publisher"
+    finally:
+        owner.close()
+        state.close()
