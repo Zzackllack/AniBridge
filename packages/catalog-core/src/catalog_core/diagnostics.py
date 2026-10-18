@@ -15,6 +15,16 @@ PHASES = frozenset(
         "validation",
         "publication_lock",
         "publication",
+        "clone",
+        "export_rows",
+        "export_indexes",
+        "export_summary",
+        "validation_schema",
+        "validation_integrity",
+        "validation_relationships",
+        "validation_rows",
+        "validation_semantics",
+        "validation_summary",
     }
 )
 REASONS = frozenset(
@@ -36,6 +46,7 @@ REASONS = frozenset(
         "video_section_missing",
         "metadata_incomplete",
         "parent_children_missing",
+        "full_rebuild_required",
     }
 )
 
@@ -64,6 +75,7 @@ def reason(exc: BaseException) -> str:
         "metadata_incomplete": "metadata_incomplete",
         "structure_changed": "structure_changed",
         "parent_children_missing": "parent_children_missing",
+        "full export required": "full_rebuild_required",
     }.get(str(exc), "contract_rejected")
 
 
