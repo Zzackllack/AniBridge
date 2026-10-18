@@ -77,3 +77,12 @@ Stable canonical evidence is eligible weekly; meaningful newly observed gaps
 daily, under the shared 30/minute cap. This does not add demand refresh or search
 scraping. See spec 020 MAPPING_IMPLEMENTATION.md for proof limits and remaining
 missing/ambiguous evidence.
+
+Publication uses private v6 generations and a bounded changed-title journal.
+Content changes retain their configured cadence; timestamp-only observations
+have a separate eligibility interval. A verified previous schema2 artifact can
+supply unchanged row-validation proofs; global admission checks still run. The
+publisher refreshes changed partitions in private staging and switches the pointer
+under the existing read lease. WAL snapshots let collection continue; acknowledgement
+removes only captured generations. First publication and invalid bases use full
+export/validation. No database engine, API wire schema or client migration changes.

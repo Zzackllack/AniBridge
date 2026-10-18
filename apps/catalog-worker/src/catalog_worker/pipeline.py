@@ -2,13 +2,12 @@
 
 SQLite stays on the owning event loop. A producer cannot reserve another page
 until its prior checkpoint settles, so queue pressure never grows a task list.
-Publication fences only its provider while other providers continue collecting.
+Publication uses a separate WAL snapshot; neither provider is fenced.
 """
 
 import asyncio
 import sqlite3
 import time
-from contextlib import asynccontextmanager
 from dataclasses import replace
 
 from .collector import Collector, Ready
@@ -25,26 +24,12 @@ class Pipeline:
         # Page objects beyond the configured queue/future bound.
         self.ready_slots = asyncio.Semaphore(limits["ready_queue_size"])
         self.condition = asyncio.Condition()
-        self.paused: set[str] = set()
         self.busy = {c.state.provider: 0 for c in collectors}
         self.max_fetching = self.fetching = self.max_ready = 0
 
     def fetching_changed(self, delta: int) -> None:
         self.fetching += delta
         self.max_fetching = max(self.max_fetching, self.fetching)
-
-    @asynccontextmanager
-    async def publication(self, provider: str):
-        """Avoid clearing dirty state for observations absent from the export."""
-        try:
-            async with self.condition:
-                self.paused.add(provider)
-                await self.condition.wait_for(lambda: self.busy[provider] == 0)
-            yield
-        finally:
-            async with self.condition:
-                self.paused.discard(provider)
-                self.condition.notify_all()
 
     async def writer(self) -> None:
         while True:
@@ -83,8 +68,6 @@ class Pipeline:
         # for a small ready queue can hold the slot a paused redirect must regain.
         async with self.ready_slots, slot:
             async with self.condition:
-                if provider in self.paused:
-                    return False
                 # One listing traversal has one in-flight page. The other slot
                 # can service durable detail work while that request is slow.
                 listing_allowed = not getattr(collector, "listing_busy", False)

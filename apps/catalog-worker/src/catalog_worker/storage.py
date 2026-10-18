@@ -141,13 +141,19 @@ def migration_reserve(config: Config) -> int:
             sqlite3.connect(filename.resolve().as_uri() + "?mode=ro", uri=True)
         ) as db:
             version = db.execute("SELECT version FROM worker_schema").fetchone()[0]
+            # The backup includes committed WAL pages too; the main file alone
+            # can understate the migration reserve on an active WAL database.
+            backup_bytes = (
+                db.execute("PRAGMA page_count").fetchone()[0]
+                * db.execute("PRAGMA page_size").fetchone()[0]
+            )
         if (
-            version in (1, 2, 3, 4)
+            version in (1, 2, 3, 4, 5)
             and not filename.with_name(
                 filename.name + f".pre-v{version + 1}.backup"
             ).exists()
         ):
-            reserve += filename.stat().st_size
+            reserve += backup_bytes
     return reserve
 
 

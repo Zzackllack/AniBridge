@@ -26,6 +26,8 @@ from .incremental_schema import VERSION_DDL as INCREMENTAL_VERSION_DDL
 from .listing import DDL as LISTING_DDL
 from .matching_schema import DDL as MATCHING_DDL
 from .matching_schema import VERSION_DDL as MATCHING_VERSION_DDL
+from .publication_schema import DDL as PUBLICATION_DDL
+from .publication_schema import VERSION_DDL as PUBLICATION_VERSION_DDL
 from .state_schema import PRIVATE_DDL
 
 VERSION_DDL = "CREATE TABLE worker_schema(version INTEGER PRIMARY KEY CHECK(version=2))"
@@ -52,7 +54,7 @@ def preflight(filename: Path, provider: str) -> int:
         require("worker_schema" in tables, "unrecognized worker database")
         rows = db.execute("SELECT version FROM worker_schema").fetchall()
         require(
-            rows in ([(1,)], [(2,)], [(3,)], [(4,)], [(5,)]),
+            rows in ([(1,)], [(2,)], [(3,)], [(4,)], [(5,)], [(6,)]),
             "unsupported worker state version",
         )
         version = rows[0][0]
@@ -74,6 +76,10 @@ def preflight(filename: Path, provider: str) -> int:
                 expected.executescript(MATCHING_DDL)
                 expected.execute("DROP TABLE worker_schema")
                 expected.execute(MATCHING_VERSION_DDL)
+            if version >= 6:
+                expected.executescript(PUBLICATION_DDL)
+                expected.execute("DROP TABLE worker_schema")
+                expected.execute(PUBLICATION_VERSION_DDL)
             contract = definitions(expected)
         # Early version-1 state created traversal tables on its first listing.
         if version == 1 and not {"listing_page", "listing_record"} & tables.keys():
@@ -212,7 +218,8 @@ def rollback_matching(filename: Path, provider: str) -> None:
     This never restores a ledger backup over newer observations. Accepted maps,
     leases, first-seen, retry history and old recovery copies remain untouched.
     """
-    require(preflight(filename, provider) == 5, "rollback requires v5 state")
+    version = preflight(filename, provider)
+    require(version in (5, 6), "rollback requires matching state")
     with closing(sqlite3.connect(filename)) as db:
         last = db.execute("SELECT max(at) FROM canonical_request_start").fetchone()[0]
         # The old worker cannot read this durable limiter. Don't erase an active
@@ -223,6 +230,8 @@ def rollback_matching(filename: Path, provider: str) -> None:
         )
         db.execute("BEGIN IMMEDIATE")
         try:
+            if version == 6:
+                drop_publication(db)
             for table in (
                 "matching_replay",
                 "canonical_hint_identity",
@@ -241,10 +250,61 @@ def rollback_matching(filename: Path, provider: str) -> None:
     require(preflight(filename, provider) == 4, "rollback contract rejected")
 
 
+def drop_publication(db: sqlite3.Connection) -> None:
+    """Remove only owned v6 bookkeeping, inside the caller's transaction."""
+    names = db.execute(
+        "SELECT name FROM sqlite_schema WHERE type='trigger' AND name LIKE 'pub_%'"
+    ).fetchall()
+    for (name,) in names:
+        db.execute(f'DROP TRIGGER "{name}"')
+    db.execute("DROP TABLE publication_change")
+    db.execute("DROP TABLE publication_meta")
+
+
+def rollback_publication(filename: Path, provider: str) -> None:
+    """Stopped-writer v6 -> v5 code rollback, without restoring old observations."""
+    require(preflight(filename, provider) == 6, "rollback requires v6 state")
+    with closing(sqlite3.connect(filename)) as db:
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            drop_publication(db)
+            db.execute("DROP TABLE worker_schema")
+            db.execute(MATCHING_VERSION_DDL)
+            db.execute("INSERT INTO worker_schema VALUES(5)")
+            db.commit()
+        except BaseException:
+            db.rollback()
+            raise
+    require(preflight(filename, provider) == 5, "rollback contract rejected")
+
+
+def upgrade_publication(db: sqlite3.Connection, checkpoint) -> None:
+    """Install transactional change tracking without touching retained data."""
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        statement = ""
+        for line in PUBLICATION_DDL.splitlines(keepends=True):
+            statement += line
+            if sqlite3.complete_statement(statement):
+                db.execute(statement)
+                statement = ""
+        require(not statement.strip(), "incomplete publication DDL")
+        checkpoint("publication-tables")
+        db.execute("DROP TABLE worker_schema")
+        db.execute(PUBLICATION_VERSION_DDL)
+        db.execute("INSERT INTO worker_schema VALUES(6)")
+        checkpoint("publication-version")
+        db.commit()
+        checkpoint("publication-commit")
+    except BaseException:
+        db.rollback()
+        raise
+
+
 def initialize(filename: Path, provider: str, checkpoint=lambda stage: None) -> None:
     if filename.exists():
         version = preflight(filename, provider)
-        if version == 5:
+        if version == 6:
             return
         backup(filename, provider, checkpoint, version)
         with closing(sqlite3.connect(filename)) as db:
@@ -255,7 +315,9 @@ def initialize(filename: Path, provider: str, checkpoint=lambda stage: None) -> 
                 upgrade_incremental(db, checkpoint)
             if version < 4:
                 upgrade_collection(db, checkpoint)
-            upgrade_matching(db, checkpoint)
+            if version < 5:
+                upgrade_matching(db, checkpoint)
+            upgrade_publication(db, checkpoint)
         return
     descriptor, temporary = tempfile.mkstemp(
         prefix=".worker-create-", dir=filename.parent
@@ -271,6 +333,7 @@ def initialize(filename: Path, provider: str, checkpoint=lambda stage: None) -> 
             upgrade_incremental(db, checkpoint)
             upgrade_collection(db, checkpoint)
             upgrade_matching(db, checkpoint)
+            upgrade_publication(db, checkpoint)
         with path.open("rb") as stream:
             os.fsync(stream.fileno())
         os.rename(path, filename)

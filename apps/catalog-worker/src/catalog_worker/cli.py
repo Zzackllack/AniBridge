@@ -17,6 +17,7 @@ from .collector import Collector
 from .config import load
 from .events import Events
 from .pipeline import Pipeline
+from .publication_state import pending
 from .read_catalog import provider_root
 from .state import State
 from .storage import check, migration_reserve, recover_scratch
@@ -78,7 +79,7 @@ async def collect(path: Path, once: bool) -> None:
                     if (
                         state.db.execute("SELECT 1 FROM release LIMIT 1").fetchone()
                         and (
-                            meta["dirty"]
+                            pending(config, state, int(time.time()))
                             or not (
                                 provider_root(config.output_dir, state.provider)
                                 / "current.json"
@@ -87,10 +88,10 @@ async def collect(path: Path, once: bool) -> None:
                         and time.time() - meta["published_at"]
                         >= config.limits["publish_interval_s"]
                     ):
-                        async with (
-                            publication_slot,
-                            pipeline.publication(state.provider),
-                        ):
+                        # The child pins a WAL read snapshot and acknowledges
+                        # only its generation. Collection stays active throughout
+                        # export/validation; newer generations remain pending.
+                        async with publication_slot:
                             records = await run_child_async(
                                 "catalog_worker.query_publish",
                                 [str(path), state.provider],

@@ -153,3 +153,22 @@ October 14 implemented follow-up
   never rewrite reviewed branches. Protection enforcement remains separate from
   a successful check; `main` stays default. See the dated evidence for deployment
   status, and use the pinned upgrade/rollback rather than a moving preview tag.
+
+October 18 publication follow-up
+
+- Private state v6 journals public changes transactionally, one pending row per
+  title. Content uses `publish_interval_s`; observation/check timestamps alone
+  use `publish_freshness_interval_s` (default 3600, range 300–86400 seconds,
+  never faster than the content interval). This is eligibility, not a freshness SLA.
+- Publication clones a digest-verified, previously admitted schema2 catalog and
+  refreshes affected title partitions. Stale validator/policy receipts, tampering,
+  unclassified changes or more than 1000 affected partitions require full rebuild.
+  Full structural/integrity/relationship/semantic checks remain mandatory; only
+  unchanged row-level proofs can be reused. Search and wire schemas are unchanged.
+- Collection continues while the publication child pins a WAL snapshot. Only the
+  captured generation is acknowledged; newer changes survive. Per-provider staging
+  ownership and short read/publication leases remain separate from collection.
+- Upgrade retains no-overwrite `.pre-v6.backup` as well as all older backups and
+  `/state/backup`. A stopped-writer v6→v5 rollback uses `rollback_publication` from
+  the new code, never a ledger restore. See SERVER.md before using an older image.
+  These local changes do not imply a published image or live deployment.

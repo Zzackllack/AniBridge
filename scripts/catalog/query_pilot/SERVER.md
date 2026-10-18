@@ -910,3 +910,71 @@ same review copies on the Mac. Client overrides are retained at
 `mapping-version.yaml` retains `2240b91`. Follow the full state-preserving rollback
 above; never broaden the API token, start a competing collector or restore older
 observations over newer ones.
+
+## October 18 publication upgrade and v6 rollback
+
+The publication follow-up is local code and copied-state evidence; it has no new
+registry digest or live cutover yet. It changes private worker state to **v6**;
+the read artifact stays schema2 and the client contract stays unchanged. Existing
+`d85ed05` workers cannot open v6. Retain `.pre-v6.backup`, all earlier backup
+generations and `/state/backup`. Budget migration copies, old/new read artifacts,
+SQL scratch and the 1-GB reserve under the same 30-GB total before upgrading.
+
+`publish_interval_s` retains the content cadence. Optional worker JSON
+`publish_freshness_interval_s` defaults to 3600 (300–86400): timestamp-only updates
+wait for both intervals. The published timestamps remain the actual observations.
+Names, releases, mappings and effective tombstones use the content cadence.
+Do not install the new key on an older worker. No client upgrade is required.
+
+After testing/publishing a matching immutable image, set `WORKER_MANIFEST` to its
+reviewed digest and retain the exact existing raw Coolify Compose and both config
+locations as rollback material. Change all three worker image references together.
+Keep collector 2 CPU/2 GiB, metadata 2 CPU/512 MiB, swap, volumes and network ranges.
+Use the existing authenticated Zen session for approved Coolify writes. Stop the
+service with Docker Cleanup unchecked and verify both containers are stopped:
+
+```sh
+SERVICE_UUID=ev7cds2lpqyvqfxpcm4wp4tc
+: "${WORKER_MANIFEST:?Reviewed new immutable worker image}"
+test -z "$(docker ps --filter name=collector-$SERVICE_UUID --filter name=metadata-$SERVICE_UUID -q)"
+# Only after total-budget admission and preserving existing backups:
+docker run --rm --network none --cpus 2 --memory 2g --memory-swap 2g --pids-limit 96 \
+  -v "${SERVICE_UUID}_config:/config:ro" \
+  -v "${SERVICE_UUID}_worker-state:/state" \
+  -v "${SERVICE_UUID}_read-catalog:/read" \
+  "$WORKER_MANIFEST" --config /config/worker.json --publish
+```
+
+This performs the no-overwrite v6 migration and first fully validated rebuild.
+Retain last-good pointers on any failure. Start the reviewed new service only
+after successful publication and release/map/history comparison. Verify exact
+query totals, source SHA, resources, later generations and retained old backups.
+A short copied replay does not establish sustained maintenance capacity.
+
+For code rollback, stop the service again and repeat the stopped-container check.
+Run this helper with the **new** image, before switching back to the retained
+`d85ed05` digest. It drops only v6 triggers/journal/receipt, preserving all v5 data:
+
+```sh
+test -z "$(docker ps --filter name=collector-$SERVICE_UUID --filter name=metadata-$SERVICE_UUID -q)"
+docker run --rm -i --network none --cpus 2 --memory 2g --memory-swap 2g --pids-limit 96 \
+  --entrypoint python -v "${SERVICE_UUID}_worker-state:/state" \
+  "$WORKER_MANIFEST" - <<'PY'
+from pathlib import Path
+from catalog_worker.state_migrations import preflight, rollback_publication
+for provider in ('aniworld.to', 's.to'):
+    path = Path('/state') / (provider + '.sqlite')
+    if preflight(path, provider) == 6:
+        rollback_publication(path, provider)
+    assert preflight(path, provider) == 5
+PY
+```
+
+Restore exact original worker JSON bytes in both the initializer source and config
+volume, removing the optional new freshness key if added. In Zen restore the saved
+Compose whose three references pin
+`ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:9a0df2b03fd386142f36a5ba8704c17e2e1489bd2519d88959d62753d2157218`,
+then use **Restart current version**. Do not run `rollback_matching` for this v5
+rollback and never restore an old ledger over observations made since upgrading.
+The existing schema2 read file remains compatible; the old worker's next normal
+publication performs a full rebuild. Local client state/corrections stay in place.

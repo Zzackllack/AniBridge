@@ -1,4 +1,4 @@
-"""Pipeline independence, bounded admission, publication fencing and recovery."""
+"""Pipeline independence, bounded admission, publication independence and recovery."""
 
 import asyncio
 import sqlite3
@@ -172,23 +172,21 @@ def test_acknowledgement_and_queue_bound_stop_reservation(tmp_path, queue_size):
             c.state.close()
 
 
-def test_publication_fences_only_its_provider(tmp_path):
+def test_providers_can_keep_collecting_with_an_independent_publisher(tmp_path):
     group = collectors(tmp_path)
 
     async def scenario():
         pipeline = Pipeline(group, lambda *args: None)
-        async with pipeline.publication("aniworld.to"):
-            assert not await pipeline.page(group[0])
-            group[1].collect = lambda plan: asyncio.sleep(
+        for collector in group:
+            collector.collect = lambda plan: asyncio.sleep(
                 0, result=Ready(plan, Page((), (), 0, "Observed"))
             )
-            writer = asyncio.create_task(pipeline.writer())
-            try:
-                assert await pipeline.page(group[1])
-            finally:
-                writer.cancel()
-                await asyncio.gather(writer, return_exceptions=True)
-        assert not pipeline.paused
+        writer = asyncio.create_task(pipeline.writer())
+        try:
+            assert all(await asyncio.gather(*(pipeline.page(c) for c in group)))
+        finally:
+            writer.cancel()
+            await asyncio.gather(writer, return_exceptions=True)
 
     try:
         asyncio.run(scenario())

@@ -149,3 +149,11 @@ evidence setting, not an API environment variable or guessed audio language.
 Existing configurations without it retain the legacy English endpoint. New
 prepared pilot configuration enables it only with the matching tested worker;
 rollout still requires approval.
+
+Worker JSON `limits.publish_freshness_interval_s` defaults to 3600 and accepts
+300–86400. Timestamp-only observations publish after at least this interval and
+`publish_interval_s`; names, releases, removals and maps keep the normal content
+cadence. This can delay the published observation age, never invents a newer
+observation timestamp, and is not a provider freshness SLA. Older worker images
+reject the new key: remove it from both initializer and volume configs before
+rolling back. No API environment variable changes.

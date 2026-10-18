@@ -129,3 +129,17 @@ and bounded writable `/tmp`; full-ledger comparison uses in-memory SQL scratch.
 It advances the experiment clock to existing retry deadlines instead of clearing
 failures. Raw recordings and ledger copies stay in private scratch; commit only
 sanitized metadata fixtures and aggregate preservation/coverage evidence.
+
+Publication follow-up regressions live in `test_publication_followup.py`,
+`test_publication_migrations.py` and `test_publication_harness.py`: durable
+semantic/freshness admission, independent full/incremental equality, new and
+removed rows, reparenting, tombstones, policy/digest invalidation, writes outside
+planned partitions, external staging writers, clock rollback, concurrent WAL
+commits, interrupted v6 upgrades and acknowledgement crash recovery. Full validator
+admission remains the default for untrusted artifacts. `publication_benchmark.py`
+compares generated edits on marked, consistent private ledger copies at 2 CPU/2 GiB
+with networking disabled; seed → legacy → incremental are sequential phases.
+Source startup checks are timed separately and never bypassed on the new worker.
+Keep its private source rows/errors outside Git; sanitized aggregate results can
+be committed. A short publication experiment does not establish collection
+throughput or a freshness SLA.

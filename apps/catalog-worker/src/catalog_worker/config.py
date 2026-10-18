@@ -26,6 +26,7 @@ LIMITS = {
     "active_interval_s": (14400, 3600, 86400),
     "historical_interval_s": (604800, 86400, 2592000),
     "publish_interval_s": (1800, 300, 3600),
+    "publish_freshness_interval_s": (3600, 300, 86400),
     "state_disk_bytes": (20_000_000_000, GIB, 30_000_000_000),
     "public_disk_bytes": (9_000_000_000, 2 * GIB, 30_000_000_000),
     "total_disk_bytes": (30_000_000_000, 4 * GIB, 30_000_000_000),

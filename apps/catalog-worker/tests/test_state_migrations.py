@@ -26,7 +26,7 @@ def test_private_upgrade_preserves_state_and_original_backup(tmp_path):
     legacy(filename)
     state = State(filename, "aniworld.to")
     assert state.meta()["revision"] == 17
-    assert state.db.execute("SELECT version FROM worker_schema").fetchone()[0] == 5
+    assert state.db.execute("SELECT version FROM worker_schema").fetchone()[0] == 6
     state.close()
     backup = filename.with_name(filename.name + ".pre-v2.backup")
     before = backup.read_bytes()
@@ -245,7 +245,7 @@ def test_version_two_signal_upgrade_sigkill_preserves_ledger_and_backup(
     State(filename, "aniworld.to").close()
     assert saved.read_bytes() == original
     with closing(sqlite3.connect(filename)) as db:
-        assert db.execute("SELECT version FROM worker_schema").fetchone()[0] == 5
+        assert db.execute("SELECT version FROM worker_schema").fetchone()[0] == 6
         assert db.execute("SELECT count(*) FROM signal_pending").fetchone()[0] == 0
 
 
@@ -268,7 +268,7 @@ def test_version_three_upgrade_retains_failures_budgets_and_backup(tmp_path):
             and state.meta()["block_count"] == 2
         )
         assert state.db.execute("SELECT count(*) FROM request_start").fetchone()[0] == 1
-        assert preflight(filename, "aniworld.to") == 5
+        assert preflight(filename, "aniworld.to") == 6
         saved = filename.with_name(filename.name + ".pre-v4.backup")
         assert preflight(saved, "aniworld.to") == 3
         original = saved.read_bytes()
@@ -302,5 +302,5 @@ def test_v4_matching_upgrade_interruption_retains_original_backup(tmp_path, poin
         assert list(db.iterdump()) == original
     retained = backup.read_bytes()
     State(filename, "aniworld.to").close()
-    assert preflight(filename, "aniworld.to") == 5
+    assert preflight(filename, "aniworld.to") == 6
     assert backup.read_bytes() == retained

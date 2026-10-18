@@ -333,7 +333,7 @@ def test_v5_code_rollback_preserves_v4_observations_and_new_maps(tmp_path):
             table: db.execute(f"SELECT * FROM {table}").fetchall() for table in tables
         } == before
     state = State(filename, "aniworld.to")
-    assert preflight(filename, "aniworld.to") == 5
+    assert preflight(filename, "aniworld.to") == 6
     assert {
         table: [tuple(r) for r in state.db.execute(f"SELECT * FROM {table}")]
         for table in tables
@@ -696,7 +696,7 @@ def test_code_rollback_cannot_forget_an_active_admission_window(tmp_path, monkey
     monkeypatch.setattr(state_migrations.time, "time", lambda: NOW + 59)
     with pytest.raises(ValueError, match="admission window active"):
         rollback_matching(filename, "aniworld.to")
-    assert preflight(filename, "aniworld.to") == 5
+    assert preflight(filename, "aniworld.to") == 6
     monkeypatch.setattr(state_migrations.time, "time", lambda: NOW + 60)
     rollback_matching(filename, "aniworld.to")
     assert preflight(filename, "aniworld.to") == 4
