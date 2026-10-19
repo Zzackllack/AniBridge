@@ -83,3 +83,11 @@ canonical admission window expires; retain every v4 table and both pre-v4/pre-v5
 backups. Coolify writes require the existing authenticated Zen UI after explicit
 approval; its read-only token must not be broadened. Do not start a competing
 collector or restore an old ledger over newer observations.
+
+For repeat updates use [WORKER_UPDATES.md](../../scripts/catalog/query_pilot/WORKER_UPDATES.md).
+`prepare_worker_update.py` checks the selected commit's CI and native manifests,
+pins its digest, preserves worker configuration and stages exact rollback bytes.
+Its stopped-state commands snapshot committed WAL data and verify release/map/
+retry preservation. They do not automate Coolify writes or host-wide disk
+admission. Current supported private migration formats are v5/v6; do not use a
+moving `latest`/PR tag or an unattended updater for this pilot.

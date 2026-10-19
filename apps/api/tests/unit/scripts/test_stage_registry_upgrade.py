@@ -56,6 +56,20 @@ def test_registry_stage_refuses_new_config_on_old_worker():
         STAGE.prepare(fixture(), {"canonical_sources": {}}, STAGE.OLD_WORKER)
 
 
+def test_repeatable_image_only_update_preserves_configuration():
+    worker = {
+        "canonical_sources": {"tv": "skyhook"},
+        "limits": {"publish_interval_s": 300},
+    }
+    _, _, candidate, original = STAGE.prepare(
+        fixture(),
+        worker,
+        "ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:" + "a" * 64,
+        preserve_worker_config=True,
+    )
+    assert candidate == original == worker
+
+
 def test_registry_stage_can_upgrade_a_verified_current_manifest_with_new_budget():
     service = fixture()
     old = "ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:" + "b" * 64

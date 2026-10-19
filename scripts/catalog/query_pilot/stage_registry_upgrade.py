@@ -19,6 +19,7 @@ def prepare(
     *,
     expected_old_image: str = OLD_WORKER,
     canonical_requests_per_minute: int | None = None,
+    preserve_worker_config: bool = False,
 ) -> tuple[str, str, dict, dict]:
     pattern = (
         r"ghcr\.io/zzackllack/anibridge-catalog-worker-preview@sha256:[0-9a-f]{64}"
@@ -64,7 +65,8 @@ def prepare(
     languages = candidate["canonical_sources"].get("episode_languages", [])
     if languages not in ([], ["deu"]):
         raise ValueError("unexpected language configuration")
-    candidate["canonical_sources"]["episode_languages"] = ["deu"]
+    if not preserve_worker_config:
+        candidate["canonical_sources"]["episode_languages"] = ["deu"]
     if canonical_requests_per_minute is not None:
         if (
             type(canonical_requests_per_minute) is not int
@@ -94,6 +96,7 @@ def main() -> None:
     parser.add_argument("--worker-config", type=Path, required=True)
     parser.add_argument("--worker-image", required=True)
     parser.add_argument("--expected-old-image", default=OLD_WORKER)
+    parser.add_argument("--preserve-worker-config", action="store_true")
     parser.add_argument(
         "--canonical-requests-per-minute", type=int, choices=range(4, 121)
     )
@@ -105,6 +108,7 @@ def main() -> None:
         args.worker_image,
         expected_old_image=args.expected_old_image,
         canonical_requests_per_minute=args.canonical_requests_per_minute,
+        preserve_worker_config=args.preserve_worker_config,
     )
     args.directory.mkdir(mode=0o700, parents=True, exist_ok=False)
     for name, body in [
