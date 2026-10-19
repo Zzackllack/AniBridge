@@ -72,7 +72,7 @@ COMMON=(--rm --network none --cpus 2 --memory 2g --memory-swap 2g --pids-limit 9
   -v "$PWD:/plan")
 case "${{1:-}}" in
   snapshot|verify)
-    docker run "${{COMMON[@]}}" --user 0 --entrypoint python "$IMAGE" /plan/verify_worker_update.py "$1"
+    docker run "${{COMMON[@]}}" --user 0 --entrypoint python "$IMAGE" /plan/verify_worker_update.py "$1" "${{@:2}}"
     ;;
   publish)
     test -f baseline.json

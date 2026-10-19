@@ -98,6 +98,12 @@ versions need a reviewed migration/rollback path before using this procedure.
 No client upgrade is needed for the current schema2 read contract. Local matcher
 version changes normally rematch cached evidence in the background; publication
 alone does not perform that rematch. It never restarts bootstrap or clears errors.
+If a separately reviewed offline operation explicitly ran one cached
+`Enricher.tick` for AniWorld, use `bash stopped-state.sh verify --local-rematch
+aniworld.to`. This checks exactly one fairness-slot advancement and at most one
+changed matching receipt, retaining its source/descriptor fingerprints. It does
+not exempt retry history or collection checkpoints. Omit this option for an
+ordinary update with no targeted rematch; never add it just to bypass a failure.
 
 ## Roll back code while retaining collected data
 
