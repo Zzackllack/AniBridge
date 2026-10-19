@@ -7,7 +7,11 @@ from catalog_core.query import LANGUAGES, TORZNAB, NEWZNAB
 from catalog_core.query import parse as parse
 
 
-def rss(rows: list[dict], total: int, offset: int) -> bytes:
+def rss(
+    rows: list[dict], total: int, offset: int, *, seeders: int, leechers: int
+) -> bytes:
+    # Match the legacy formatter: compatibility counts cannot be negative.
+    seeders, leechers = max(0, seeders), max(0, leechers)
     # Prefix declarations belong to this document. register_namespace changes
     # process-global serializer state and breaks the legacy feed's declarations.
     root = ET.Element(
@@ -71,8 +75,9 @@ def rss(rows: list[dict], total: int, offset: int) -> bytes:
             "infohash": identity.infohash(row["release_id"], row["mode"]),
             "size": "0",
             "category": str(row["category"]),
-            "seeders": "1",
-            "peers": "1",
+            "seeders": str(seeders),
+            "leechers": str(leechers),
+            "peers": str(seeders + leechers),
         }
         if canonical:
             attributes[

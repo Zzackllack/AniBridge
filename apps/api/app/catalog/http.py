@@ -65,6 +65,8 @@ async def torznab(request: Request):
         STRM_FILES_MODE,
         TORZNAB_CAT_ANIME,
         TORZNAB_CAT_MOVIE,
+        TORZNAB_FAKE_SEEDERS,
+        TORZNAB_FAKE_LEECHERS,
     )
 
     params = dict(request.query_params)
@@ -121,7 +123,13 @@ async def torznab(request: Request):
             "1" if str(exc) == "search_busy" else "60",
         )
     return Response(
-        search.rss(rows, total, query.offset),
+        search.rss(
+            rows,
+            total,
+            query.offset,
+            seeders=TORZNAB_FAKE_SEEDERS,
+            leechers=TORZNAB_FAKE_LEECHERS,
+        ),
         media_type="application/xml",
         headers=headers,
     )

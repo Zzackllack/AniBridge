@@ -1428,3 +1428,15 @@ Proof scope: actual Sonarr connection-test compatibility with retained history,
 plus offline legacy/durable regressions. No new media acquisition, import,
 playback, hosted deployment or population mapping accuracy is established.
 The running dev API remains on its original image until the operator rebuilds.
+
+## October 19 — configured Torznab seed/leecher counts
+
+Query-mode HTTP regression results, for both normal and STRM results:
+configured `(seeders, leechers)` of `(17,4)`, `(0,0)`, `(-2,6)`, `(6,-2)`
+produce `(seeders, leechers, peers)` of `(17,4,21)`, `(0,0,0)`, `(0,6,6)`,
+`(6,0,6)` respectively. All four cases exposed the previous `(1,missing,1)`
+output before implementation. Values are passed from existing app configuration
+to the local formatter; no new environment variables or fallback counts.
+Full API suite: 276 passed / 18 skipped / one existing TestClient warning.
+Targeted Ruff lint/format and diff checks passed. Offline fixture/HTTP evidence
+only; the running dev API and hosted pilot were not changed.

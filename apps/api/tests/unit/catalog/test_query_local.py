@@ -5,11 +5,13 @@ import json
 import sqlite3
 import sys
 import time
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from uuid import uuid4
 
 from contextlib import closing
 import httpx
+import pytest
 from catalog_core import fixtures, magnet, schema
 from catalog_core.query_client import Cache, Client
 
@@ -131,7 +133,7 @@ def test_rss_language_and_frozen_grab_after_outage(tmp_path):
             languages={"aniworld.to": {"de-dub", "en-sub"}},
         )
         assert total == 2 and {r["language"] for r in rows} == {"de-dub", "en-sub"}
-        feed = rss(rows, total, 0)
+        feed = rss(rows, total, 0, seeders=17, leechers=4)
         assert b"720p" not in feed and b"H264" not in feed
         payload = {key: rows[0][key] for key in magnet.PAYLOAD_FIELDS - {"canonical"}}
         payload["canonical"] = {
@@ -213,6 +215,61 @@ def test_production_torznab_route_and_explicit_outage(tmp_path):
                 await http.get("/torznab/api", params={"t": "caps"})
             ).status_code == 200
         await client.close()
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    "seeders,leechers,expected",
+    [(17, 4, (17, 4, 21)), (0, 0, (0, 0, 0)), (-2, 6, (0, 6, 6)), (6, -2, (6, 0, 6))],
+)
+def test_query_torznab_honors_configured_swarm_counts(
+    tmp_path, monkeypatch, seeders, leechers, expected
+):
+    from types import SimpleNamespace
+
+    from fastapi import FastAPI
+    from app import config
+    from app.catalog.http import router
+
+    monkeypatch.setattr(config, "TORZNAB_FAKE_SEEDERS", seeders)
+    monkeypatch.setattr(config, "TORZNAB_FAKE_LEECHERS", leechers)
+    monkeypatch.setattr(config, "STRM_FILES_MODE", "both")
+    client, search, _, _ = setup(tmp_path)
+    app = FastAPI()
+    app.state.catalog = SimpleNamespace(search=search)
+    app.include_router(router)
+
+    async def run():
+        try:
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://local"
+            ) as http:
+                response = await http.get(
+                    "/torznab/api",
+                    params={"t": "tvsearch", "tvdbid": "123", "season": "0"},
+                )
+                assert response.status_code == 200
+                items = ET.fromstring(response.content).findall("./channel/item")
+                assert items and {
+                    item.findtext("title").endswith(".STRM") for item in items
+                } == {True, False}
+                for item in items:
+                    attributes = {
+                        row.attrib["name"]: row.attrib["value"]
+                        for row in item.findall(
+                            "{http://torznab.com/schemas/2015/feed}attr"
+                        )
+                    }
+                    assert (
+                        tuple(
+                            int(attributes.get(name, -1))
+                            for name in ("seeders", "leechers", "peers")
+                        )
+                        == expected
+                    )
+        finally:
+            await client.close()
 
     asyncio.run(run())
 

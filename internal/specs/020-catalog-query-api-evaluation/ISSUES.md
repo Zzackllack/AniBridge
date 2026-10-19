@@ -411,3 +411,14 @@ saved Sonarr settings and copied database bytes were unchanged. Full API suite:
 This verifies the client connection test, not a new live grab/import/playback.
 The operator's existing dev container still needs a rebuild to load the fix;
 no hosted collector/service was changed.
+
+## October 19: query search ignored configured torrent counts
+
+Implemented + verified locally. Catalog RSS hardcoded seeders/peers to one and
+omitted leechers. It now uses the existing `TORZNAB_FAKE_SEEDERS` and
+`TORZNAB_FAKE_LEECHERS` configuration for both download and STRM variants, with
+negative counts clamped to zero and peers equal to their sum, matching legacy
+behavior. Defaults remain 999/787. No size/quality or STRM naming change.
+Four route-level regressions failed before the fix and pass afterward. Full
+API suite: 276 passed, 18 existing skips, one existing deprecation warning.
+The running local API needs a rebuild; no service was restarted for this fix.

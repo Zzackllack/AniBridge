@@ -117,6 +117,11 @@ unsupported and ignored if still present in runtime env:
 
 ## Query pilot configuration
 
+`TORZNAB_FAKE_SEEDERS` and `TORZNAB_FAKE_LEECHERS` apply to both legacy and
+query-mode Torznab results, including STRM variants. Negative values report zero;
+`peers` is the sum of the reported seeders and leechers. These are synthetic
+compatibility counts, not measured torrent availability.
+
 `CATALOG_CONFIG_FILE` absent means mainline behavior. Explicit JSON `mode=query`
 requires `origin`, `source_id`, `token_file`; HTTPS except loopback or explicitly
 opted-in disposable private HTTP. `CATALOG_SITES=aniworld.to,s.to` selects
