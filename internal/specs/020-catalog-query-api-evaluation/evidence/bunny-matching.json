@@ -1,0 +1,356 @@
+{
+  "baseline_evidence_commit": "4f34780",
+  "canonical_language_counts": [
+    [
+      1,
+      39
+    ],
+    [
+      2,
+      23
+    ]
+  ],
+  "collector_regression": {
+    "linux_worker_passed": 117,
+    "seconds": 27.75,
+    "test": "test_two_targeted_passes_preserve_fetched_title"
+  },
+  "date": "2026-10-05",
+  "heading_repair": {
+    "heading": "Rascal Does Not Dream of Bunny Girl Senpai",
+    "provider_work_pages": 1,
+    "repair": "passed",
+    "video_extraction": false
+  },
+  "imdb_id": "tt8993398",
+  "limitations": [
+    "Four native entries/eight language variants remain without canonical episode coordinates",
+    "No video-host resolution, grab, media download, import or playback",
+    "Sonarr series and every episode unmonitored; Unknown-only test profile",
+    "No suffix stripping or numbering fallback",
+    "Docker unavailable for final queue/status check"
+  ],
+  "mapped": [
+    {
+      "episode": 1,
+      "evidence": "exact_title",
+      "native_episode": 1,
+      "native_season": 1,
+      "season": 1
+    },
+    {
+      "episode": 2,
+      "evidence": "exact_title",
+      "native_episode": 2,
+      "native_season": 1,
+      "season": 1
+    },
+    {
+      "episode": 3,
+      "evidence": "exact_title",
+      "native_episode": 3,
+      "native_season": 1,
+      "season": 1
+    },
+    {
+      "episode": 4,
+      "evidence": "exact_title",
+      "native_episode": 4,
+      "native_season": 1,
+      "season": 1
+    },
+    {
+      "episode": 5,
+      "evidence": "exact_title",
+      "native_episode": 5,
+      "native_season": 1,
+      "season": 1
+    },
+    {
+      "episode": 6,
+      "evidence": "exact_title",
+      "native_episode": 6,
+      "native_season": 1,
+      "season": 1
+    },
+    {
+      "episode": 7,
+      "evidence": "exact_title",
+      "native_episode": 7,
+      "native_season": 1,
+      "season": 1
+    },
+    {
+      "episode": 8,
+      "evidence": "exact_title",
+      "native_episode": 8,
+      "native_season": 1,
+      "season": 1
+    },
+    {
+      "episode": 9,
+      "evidence": "exact_title",
+      "native_episode": 9,
+      "native_season": 1,
+      "season": 1
+    },
+    {
+      "episode": 10,
+      "evidence": "exact_title",
+      "native_episode": 10,
+      "native_season": 1,
+      "season": 1
+    },
+    {
+      "episode": 11,
+      "evidence": "exact_title",
+      "native_episode": 11,
+      "native_season": 1,
+      "season": 1
+    },
+    {
+      "episode": 12,
+      "evidence": "exact_title",
+      "native_episode": 12,
+      "native_season": 1,
+      "season": 1
+    },
+    {
+      "episode": 13,
+      "evidence": "exact_title",
+      "native_episode": 13,
+      "native_season": 1,
+      "season": 1
+    },
+    {
+      "episode": 1,
+      "evidence": "exact_title",
+      "native_episode": 1,
+      "native_season": 2,
+      "season": 2
+    },
+    {
+      "episode": 2,
+      "evidence": "exact_title",
+      "native_episode": 2,
+      "native_season": 2,
+      "season": 2
+    },
+    {
+      "episode": 3,
+      "evidence": "exact_title",
+      "native_episode": 3,
+      "native_season": 2,
+      "season": 2
+    },
+    {
+      "episode": 4,
+      "evidence": "exact_title",
+      "native_episode": 4,
+      "native_season": 2,
+      "season": 2
+    },
+    {
+      "episode": 5,
+      "evidence": "exact_title",
+      "native_episode": 5,
+      "native_season": 2,
+      "season": 2
+    },
+    {
+      "episode": 6,
+      "evidence": "exact_title",
+      "native_episode": 6,
+      "native_season": 2,
+      "season": 2
+    },
+    {
+      "episode": 7,
+      "evidence": "exact_title",
+      "native_episode": 7,
+      "native_season": 2,
+      "season": 2
+    },
+    {
+      "episode": 8,
+      "evidence": "exact_title",
+      "native_episode": 8,
+      "native_season": 2,
+      "season": 2
+    },
+    {
+      "episode": 9,
+      "evidence": "exact_title",
+      "native_episode": 9,
+      "native_season": 2,
+      "season": 2
+    },
+    {
+      "episode": 10,
+      "evidence": "exact_title",
+      "native_episode": 10,
+      "native_season": 2,
+      "season": 2
+    },
+    {
+      "episode": 11,
+      "evidence": "exact_title",
+      "native_episode": 11,
+      "native_season": 2,
+      "season": 2
+    },
+    {
+      "episode": 12,
+      "evidence": "exact_title",
+      "native_episode": 12,
+      "native_season": 2,
+      "season": 2
+    }
+  ],
+  "operator_script_sha256": "78b556fd9bba4adda4f30c24124f6f6a9293efa432703a1a74c05d6e302b9021",
+  "post_discovery_queue_check": {
+    "reason": "Docker daemon became unavailable after the successful client check",
+    "verified": false
+  },
+  "preservation": {
+    "backup_bytes": 380928,
+    "backup_path": "/state/aniworld.to.sqlite.before-sonarr-matching.backup",
+    "entity_count_before": 29,
+    "existing_volumes_deleted": false,
+    "release_count_before": 70,
+    "same_release_identity_first_seen_digest": true
+  },
+  "real_clients": [
+    {
+      "forwarded_season_releases": 39,
+      "proof": "real-client indexer tests and season forwarding; no grab, import or playback",
+      "prowlarr": {
+        "implementation": "Torznab",
+        "indexer_test_status": 200,
+        "registered_indexer_id": 1,
+        "version": "2.6.5.5623"
+      },
+      "season": 1,
+      "sonarr": {
+        "implementation": "Torznab",
+        "indexer_test_status": 200,
+        "registered_indexer_id": 1,
+        "version": "4.0.20.3014"
+      },
+      "tvdb_id": 345596
+    },
+    {
+      "episode": 1,
+      "grab": false,
+      "monitored": false,
+      "public_descriptor_lookup": "TVDB 345596 via Sonarr lookup only",
+      "quality": "Unknown",
+      "releases": 3,
+      "season": 1,
+      "sonarr_episode_search": "passed"
+    },
+    {
+      "grab": false,
+      "matched_episode_numbers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "monitored": false,
+      "quality": "Unknown",
+      "releases": 39,
+      "season": 1,
+      "sonarr_season_search": "passed",
+      "tvdb_id": 345596
+    }
+  ],
+  "release_count": 70,
+  "release_identity_first_seen_sha256": "f2cd3594332c62856a673b5f95433b8856678f83a68b1795f3a6a0f408a71248",
+  "reviews": [
+    {
+      "basis": "unique episode title matches in the same canonical season, not ordinal equality",
+      "review": {
+        "canonical_season": 1,
+        "expected_old": 1,
+        "external_id": "345596",
+        "namespace": "tvdb",
+        "native_season": 1,
+        "title_id": "0c580bc17cadb4bd807c6977e6aaf2e7e3a5ccd7123979ab2ebe876cf44bc2b2"
+      },
+      "unique_exact_episode_title_matches": 13
+    },
+    {
+      "basis": "unique episode title matches in the same canonical season, not ordinal equality",
+      "review": {
+        "canonical_season": 2,
+        "expected_old": 2,
+        "external_id": "345596",
+        "namespace": "tvdb",
+        "native_season": 2,
+        "title_id": "0c580bc17cadb4bd807c6977e6aaf2e7e3a5ccd7123979ab2ebe876cf44bc2b2"
+      },
+      "unique_exact_episode_title_matches": 12
+    }
+  ],
+  "runtime_commit": "0ce826fd30eba0cf8c0772a53e0695331028feb0",
+  "storage": {
+    "managed_used_bytes": 1032192,
+    "public_free_bytes": 960568512512,
+    "public_quota_bytes": 9000000000,
+    "public_used_bytes": 167936,
+    "runtime_reserved_bytes": 1000000000,
+    "state_free_bytes": 960568512512,
+    "state_quota_bytes": 20000000000,
+    "state_used_bytes": 864256,
+    "total_quota_bytes": 30000000000,
+    "total_used_bytes": 1001032192,
+    "warning": false
+  },
+  "title": "Rascal Does Not Dream of Bunny Girl Senpai",
+  "title_id": "0c580bc17cadb4bd807c6977e6aaf2e7e3a5ccd7123979ab2ebe876cf44bc2b2",
+  "tvdb_id": 345596,
+  "unresolved": [
+    {
+      "matching_title_candidates": 0,
+      "native_episode": 1,
+      "native_season": 0,
+      "path": "/anime/stream/rascal-does-not-dream-of-bunny-girl-senpai/filme/film-1",
+      "reason": "no unique exact normalized canonical title; annotations not stripped",
+      "title": "Rascal Does Not Dream of a Dreaming Girl[Movie]"
+    },
+    {
+      "matching_title_candidates": 0,
+      "native_episode": 2,
+      "native_season": 0,
+      "path": "/anime/stream/rascal-does-not-dream-of-bunny-girl-senpai/filme/film-2",
+      "reason": "no unique exact normalized canonical title; annotations not stripped",
+      "title": "Rascal Does Not Dream of a Sister Venturing Out [Movie]"
+    },
+    {
+      "matching_title_candidates": 0,
+      "native_episode": 3,
+      "native_season": 0,
+      "path": "/anime/stream/rascal-does-not-dream-of-bunny-girl-senpai/filme/film-3",
+      "reason": "no unique exact normalized canonical title; annotations not stripped",
+      "title": "Rascal Does Not Dream of a Knapsack Kid [Movie]"
+    },
+    {
+      "matching_title_candidates": 0,
+      "native_episode": 13,
+      "native_season": 2,
+      "path": "/anime/stream/rascal-does-not-dream-of-bunny-girl-senpai/staffel-2/episode-13",
+      "reason": "no unique exact normalized canonical title; annotations not stripped",
+      "title": "No Dreams of Santa Claus [Final Episode]"
+    }
+  ]
+}

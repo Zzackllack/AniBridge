@@ -198,10 +198,23 @@ def _get_alembic_config() -> "Config":
     migrations_path = Path(__file__).resolve().parent / "migrations"
     config.set_main_option("script_location", str(migrations_path))
     config.set_main_option("sqlalchemy.url", DATABASE_URL)
+    # Keep startup migrations on the same database we inspected and backed up.
+    # DATABASE_URL remains an Alembic CLI override, not a second startup target.
+    config.attributes["database_url"] = DATABASE_URL
     return config
 
 
 def apply_migrations() -> None:
+    from contextlib import closing
+    from catalog_core.files import ProcessLock
+
+    # Hold ownership across preflight, backup and migration. A second startup
+    # must not inspect one revision and back up another process's partial work.
+    with closing(ProcessLock(DATA_DIR / "anibridge_jobs.db.migration.lock")):
+        _apply_migrations()
+
+
+def _apply_migrations() -> None:
     """
     Apply Alembic migrations, including a bootstrap step for legacy databases
     that predate Alembic versioning.
@@ -211,6 +224,9 @@ def apply_migrations() -> None:
 
     logger.debug("Applying DB migrations.")
     try:
+        from app.db.preflight import backup_before_upgrade
+
+        backup_before_upgrade(DATA_DIR / "anibridge_jobs.db")
         config = _get_alembic_config()
         inspector = inspect(engine)
         tables = set(inspector.get_table_names())
@@ -224,7 +240,9 @@ def apply_migrations() -> None:
                 return
 
             logger.info("Legacy database detected; stamping base revision.")
-            command.stamp(config, MIGRATION_BASE_REVISION)
+            # Preflight recognizes the exact unversioned mainline model schema,
+            # which already includes site keys and STRM mappings (0003).
+            command.stamp(config, "20260204_0003")
         else:
             with engine.begin() as conn:
                 rows = conn.exec_driver_sql(
@@ -237,7 +255,7 @@ def apply_migrations() -> None:
                         "Alembic version table is empty; stamping base revision "
                         "for legacy database."
                     )
-                    command.stamp(config, MIGRATION_BASE_REVISION)
+                    command.stamp(config, "20260204_0003")
                 else:
                     logger.info(
                         "Alembic version table is empty with no data tables; "
@@ -348,9 +366,16 @@ def update_job(session: Session, job_id: str, **fields: Any) -> Optional[Job]:
 
 def cleanup_dangling_jobs(session: Session) -> int:
     logger.debug("Cleaning up dangling jobs (queued/downloading) on startup.")
-    rows = session.exec(
-        select(Job).where(Job.status.in_(["queued", "downloading"]))
-    ).all()  # type: ignore
+    from sqlalchemy import inspect, text
+
+    statement = select(Job).where(Job.status.in_(["queued", "downloading"]))
+    if inspect(session.connection()).has_table("durable_request"):
+        # Durable jobs recover through their lease/generation state, never the
+        # historical blanket "restart means failed" cleanup.
+        statement = statement.where(
+            text("NOT EXISTS (SELECT 1 FROM durable_request d WHERE d.job_id=job.id)")
+        )
+    rows = session.exec(statement).all()
     if not rows:
         logger.info("No dangling jobs found to clean up.")
     for j in rows:

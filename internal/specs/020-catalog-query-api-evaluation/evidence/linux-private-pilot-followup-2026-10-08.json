@@ -1,0 +1,117 @@
+{
+  "sample_window_utc": [
+    "2026-10-08T09:04:02Z",
+    "2026-10-08T09:11:03Z"
+  ],
+  "scope": "Read-only Linux pilot inspection, two live metadata pages and a local no-network defect reproduction; no deployment changes",
+  "worker_commit": "3bf551e280d00f462d3d493611ef162e1aa93527",
+  "runtime": {
+    "started_at_utc": "2026-10-06T20:27:55Z",
+    "collector_restarts": 0,
+    "metadata_restarts": 0,
+    "oom": false,
+    "collector_sample_ram_mib": 125.8,
+    "metadata_sample_ram_mib": 53.66,
+    "collector_sample_cpu_percent": 109.46,
+    "host_free_gib": 104
+  },
+  "storage": {
+    "managed_bytes": 367706112,
+    "runtime_reserve_bytes": 1000000000,
+    "total_accounted_bytes": 1367706112,
+    "total_budget_bytes": 30000000000
+  },
+  "availability": {
+    "authenticated_aniworld": 200,
+    "authenticated_serienstream": 200,
+    "unauthenticated": 401,
+    "local_health": 200,
+    "local_torznab_aniworld": 200,
+    "local_torznab_serienstream": 200,
+    "netbird_route": "dev wt0 table netbird",
+    "docker_pools": [
+      {
+        "base": "10.254.0.0/16",
+        "size": 24
+      }
+    ]
+  },
+  "providers": {
+    "aniworld.to": {
+      "titles": 2516,
+      "title_mapped": 2179,
+      "episodes": 20638,
+      "releases": 36875,
+      "canonical_episodes": 14103,
+      "checked_pages": 25226,
+      "pending_pages": 31601,
+      "failed_pages": 231,
+      "ambiguous_ids": 12,
+      "ambiguous_episode_hints": 47,
+      "recent_polls": 80,
+      "recent_pending": 0,
+      "starts_retained": 1200,
+      "cooldown_until_utc": "2026-10-08T09:38:31Z",
+      "coverage_sample": {
+        "episodes_with_releases": 20548,
+        "mapped_with_releases": 14028,
+        "pages_checked_last_hour": 1118
+      }
+    },
+    "s.to": {
+      "titles": 10944,
+      "title_mapped": 10203,
+      "episodes": 10458,
+      "releases": 10109,
+      "canonical_episodes": 4070,
+      "checked_pages": 23274,
+      "pending_pages": 157790,
+      "failed_pages": 657,
+      "ambiguous_ids": 48,
+      "ambiguous_episode_hints": 350,
+      "recent_polls": 80,
+      "recent_pending": 8,
+      "starts_retained": 1200,
+      "cooldown_until_utc": "2026-10-08T09:37:03Z",
+      "coverage_sample": {
+        "episodes_with_releases": 8435,
+        "mapped_with_releases": 4045,
+        "pages_checked_last_hour": 1098,
+        "unmapped_with_releases": 4394,
+        "unmapped_missing_episode_title": 2577,
+        "unknown_language_observations": 2994
+      }
+    }
+  },
+  "defects": [
+    {
+      "area": "request budget",
+      "reproduction": {
+        "cause": "local before_request wait exceeds HTTP deadline",
+        "outcome": "transport_failure",
+        "outbound_http_calls": 0
+      },
+      "inference": "Both providers exhausted the hourly cap when latest cooldowns occurred; this does not retrospectively classify every transport failure"
+    },
+    {
+      "area": "Serienstream episode headings",
+      "live_samples": [
+        {
+          "title": "Alisa - Folge deinem Herzen",
+          "heading": "S01E01: Folge 1",
+          "parsed_episode_title": null
+        },
+        {
+          "title": "Arthur und die Freunde der Tafelrunde",
+          "heading": "S01E01: Leichtfertige Versprechen",
+          "parsed_episode_title": null
+        }
+      ],
+      "cause": "Parser only captures the parenthesized English suffix",
+      "limits": "Generic labels remain unresolved; a retained German heading still needs unique canonical matching evidence"
+    }
+  ],
+  "complete_bootstrap": false,
+  "megakino_enabled": false,
+  "acquisition_import_playback_checked": false
+}

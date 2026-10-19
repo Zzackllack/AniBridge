@@ -1,0 +1,129 @@
+{
+  "aniworld.to/collector/1": {
+    "samples": [
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.24989450024440885
+      },
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.13837903831154108
+      }
+    ],
+    "wall_s": 1.3892991109751165
+  },
+  "aniworld.to/collector/2": {
+    "samples": [
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.16042684810236096
+      },
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.16135601699352264
+      }
+    ],
+    "wall_s": 0.16216386388987303
+  },
+  "aniworld.to/browser/1": {
+    "samples": [
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.15988368215039372
+      },
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.13913588505238295
+      }
+    ],
+    "wall_s": 1.3006336661055684
+  },
+  "aniworld.to/browser/2": {
+    "samples": [
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.16125937597826123
+      },
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.1673115943558514
+      }
+    ],
+    "wall_s": 0.16811356134712696
+  },
+  "s.to/collector/1": {
+    "samples": [
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.17622671835124493
+      },
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.16087429178878665
+      }
+    ],
+    "wall_s": 1.3386206282302737
+  },
+  "s.to/collector/2": {
+    "samples": [
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.1778471739962697
+      },
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.2055913582444191
+      }
+    ],
+    "wall_s": 0.20627012383192778
+  },
+  "s.to/browser/1": {
+    "samples": [
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.1904443739913404
+      },
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.16704407101497054
+      }
+    ],
+    "wall_s": 1.3582671349868178
+  },
+  "s.to/browser/2": {
+    "samples": [
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.6868122206069529
+      },
+      {
+        "status": 200,
+        "outcome": "ok",
+        "seconds": 0.8124627768993378
+      }
+    ],
+    "wall_s": 0.8131365426816046
+  },
+  "mode": "profiles",
+  "elapsed_s": 22.952919381670654,
+  "cpu_s": 1.490812,
+  "max_rss_kib": 52556,
+  "child_max_rss_kib": 0,
+  "cgroup_peak_bytes": 42401792,
+  "scratch_bytes": 3563891
+}

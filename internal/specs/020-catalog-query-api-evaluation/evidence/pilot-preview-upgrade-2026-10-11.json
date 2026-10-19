@@ -1,0 +1,372 @@
+{
+  "date": "2026-10-11",
+  "scope": "authorized existing private pilot upgrade; live metadata only",
+  "service_uuid": "ev7cds2lpqyvqfxpcm4wp4tc",
+  "source_revision": "36fbd511890b0c08a80385b0a2542d3c6b51c1d3",
+  "worker_image": "ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:1277d1fd6ec7130a53c5ed4a694dd8efada7e95db6c86bd897e3e446f2149e0a",
+  "collector": {
+    "cpus": 2,
+    "memory_bytes": 2147483648,
+    "memory_swap_total_bytes": 2147483648,
+    "oom_killed": false,
+    "restart_count": 0
+  },
+  "metadata": {
+    "cpus": 2,
+    "memory_bytes": 536870912,
+    "oom_killed": false,
+    "restart_count": 0
+  },
+  "backup": {
+    "directory": "/state/backup",
+    "sqlite_bytes": 1117626368,
+    "integrity_checked": true,
+    "incomplete": false,
+    "pre_v4_backups_retained": true
+  },
+  "preservation": {
+    "aniworld.to": {
+      "backup_releases": 116386,
+      "missing_or_changed_first_seen": 0,
+      "pre_v4_backup_retained": true
+    },
+    "s.to": {
+      "backup_releases": 322649,
+      "missing_or_changed_first_seen": 0,
+      "pre_v4_backup_retained": true
+    }
+  },
+  "network_volume_identity_comparison": "All three network IDs, subnets, volume names and mount modes unchanged; NetBird route retained",
+  "queries": [
+    {
+      "provider": "aniworld.to",
+      "operation": "recent",
+      "status": 200,
+      "duration_s": 0.301,
+      "rows": 100,
+      "total": 116386
+    },
+    {
+      "provider": "aniworld.to",
+      "operation": "recent",
+      "status": 200,
+      "duration_s": 0.057,
+      "rows": 100,
+      "total": 116386
+    },
+    {
+      "provider": "aniworld.to",
+      "operation": "recent",
+      "status": 200,
+      "duration_s": 0.071,
+      "rows": 100,
+      "total": 116386
+    },
+    {
+      "provider": "aniworld.to",
+      "operation": "recent",
+      "status": 200,
+      "duration_s": 0.062,
+      "rows": 100,
+      "total": 116386
+    },
+    {
+      "provider": "s.to",
+      "operation": "recent",
+      "status": 200,
+      "duration_s": 0.043,
+      "rows": 100,
+      "total": 322649
+    },
+    {
+      "provider": "s.to",
+      "operation": "recent",
+      "status": 200,
+      "duration_s": 0.05,
+      "rows": 100,
+      "total": 322649
+    },
+    {
+      "provider": "s.to",
+      "operation": "recent",
+      "status": 200,
+      "duration_s": 0.04,
+      "rows": 100,
+      "total": 322649
+    },
+    {
+      "provider": "s.to",
+      "operation": "recent",
+      "status": 200,
+      "duration_s": 0.043,
+      "rows": 100,
+      "total": 322649
+    },
+    {
+      "provider": "s.to",
+      "operation": "titles",
+      "status": 200,
+      "duration_s": 0.006,
+      "rows": 1,
+      "total": 1
+    },
+    {
+      "provider": "s.to",
+      "operation": "native",
+      "status": 200,
+      "duration_s": 0.007,
+      "rows": 2,
+      "total": 2,
+      "target_rows_present": true
+    },
+    {
+      "provider": "aniworld.to",
+      "operation": "titles",
+      "status": 200,
+      "duration_s": 0.006,
+      "rows": 3,
+      "total": 3
+    },
+    {
+      "provider": "aniworld.to",
+      "operation": "native",
+      "status": 200,
+      "duration_s": 0.006,
+      "rows": 0,
+      "total": 0,
+      "target_rows_present": false
+    }
+  ],
+  "additional_large_target": {
+    "canonical_coordinates": [
+      21,
+      14
+    ],
+    "history_releases": 3573,
+    "status": 200,
+    "rows": 3,
+    "total": 3,
+    "duration_s": 0.067
+  },
+  "storage": {
+    "state_used_bytes": 2606841856,
+    "public_used_bytes": 299167744,
+    "managed_used_bytes": 2906009600,
+    "runtime_reserved_bytes": 1000000000,
+    "total_used_bytes": 3906009600,
+    "state_quota_bytes": 20000000000,
+    "public_quota_bytes": 9000000000,
+    "total_quota_bytes": 30000000000,
+    "state_free_bytes": 103151779840,
+    "public_free_bytes": 103151779840,
+    "warning": false
+  },
+  "post_start_counts": {
+    "aniworld.to": {
+      "title": 2516,
+      "entity": 63589,
+      "release": 116386,
+      "canonical_title": 6535,
+      "canonical_episode": 37475
+    },
+    "s.to": {
+      "title": 10965,
+      "entity": 302365,
+      "release": 322677,
+      "canonical_title": 30456,
+      "canonical_episode": 184515
+    }
+  },
+  "limitations": [
+    "Target S01E06 remained empty in live state; copied cohort matching gains are not instantaneous provider-wide gains.",
+    "Historical maintenance error cause remains unestablished; classified diagnostics are now deployed.",
+    "No local client update, live extraction, acquisition, import or playback performed."
+  ],
+  "procedure": "Saved exact candidate via authenticated Zen; paused old writer, retained fresh SQLite backups, successful offline publish, deployed same volumes through Coolify.",
+  "normal_publication_events": [
+    {
+      "timestamp": "2026-10-11T22:00:11.769362+00:00",
+      "provider": "aniworld.to",
+      "stage": "state_preflight",
+      "outcome": "ok",
+      "duration_s": 0.74
+    },
+    {
+      "timestamp": "2026-10-11T22:00:11.769485+00:00",
+      "provider": "aniworld.to",
+      "stage": "export",
+      "outcome": "ok",
+      "duration_s": 6.439
+    },
+    {
+      "timestamp": "2026-10-11T22:00:11.769518+00:00",
+      "provider": "aniworld.to",
+      "stage": "validation",
+      "outcome": "ok",
+      "duration_s": 5.936
+    },
+    {
+      "timestamp": "2026-10-11T22:00:11.769544+00:00",
+      "provider": "aniworld.to",
+      "stage": "publication_lock",
+      "outcome": "ok",
+      "duration_s": 0.043
+    },
+    {
+      "timestamp": "2026-10-11T22:00:11.769567+00:00",
+      "provider": "aniworld.to",
+      "stage": "publication",
+      "outcome": "ok",
+      "duration_s": 0.042
+    },
+    {
+      "timestamp": "2026-10-11T22:00:11.769594+00:00",
+      "provider": "aniworld.to",
+      "stage": "child",
+      "exit_code": 0,
+      "reason": "ok"
+    },
+    {
+      "timestamp": "2026-10-11T22:01:35.710287+00:00",
+      "provider": "s.to",
+      "stage": "state_preflight",
+      "outcome": "ok",
+      "duration_s": 3.42
+    },
+    {
+      "timestamp": "2026-10-11T22:01:35.710409+00:00",
+      "provider": "s.to",
+      "stage": "export",
+      "outcome": "ok",
+      "duration_s": 29.93
+    },
+    {
+      "timestamp": "2026-10-11T22:01:35.710439+00:00",
+      "provider": "s.to",
+      "stage": "validation",
+      "outcome": "ok",
+      "duration_s": 25.594
+    },
+    {
+      "timestamp": "2026-10-11T22:01:35.710464+00:00",
+      "provider": "s.to",
+      "stage": "publication_lock",
+      "outcome": "ok",
+      "duration_s": 0.059
+    },
+    {
+      "timestamp": "2026-10-11T22:01:35.710487+00:00",
+      "provider": "s.to",
+      "stage": "publication",
+      "outcome": "ok",
+      "duration_s": 0.057
+    },
+    {
+      "timestamp": "2026-10-11T22:01:35.710515+00:00",
+      "provider": "s.to",
+      "stage": "child",
+      "exit_code": 0,
+      "reason": "ok"
+    }
+  ],
+  "queries_after_normal_publication": [
+    {
+      "timestamp": "2026-10-11T22:01:37.893251+00:00",
+      "provider": "aniworld.to",
+      "status": 200,
+      "duration_s": 0.117,
+      "rows": 100,
+      "total": 116386
+    },
+    {
+      "timestamp": "2026-10-11T22:01:38.946479+00:00",
+      "provider": "s.to",
+      "status": 200,
+      "duration_s": 0.053,
+      "rows": 100,
+      "total": 322732
+    },
+    {
+      "timestamp": "2026-10-11T22:01:39.997350+00:00",
+      "provider": "aniworld.to",
+      "status": 200,
+      "duration_s": 0.051,
+      "rows": 100,
+      "total": 116386
+    },
+    {
+      "timestamp": "2026-10-11T22:01:41.047885+00:00",
+      "provider": "s.to",
+      "status": 200,
+      "duration_s": 0.05,
+      "rows": 100,
+      "total": 322732
+    },
+    {
+      "timestamp": "2026-10-11T22:01:42.104925+00:00",
+      "provider": "aniworld.to",
+      "status": 200,
+      "duration_s": 0.057,
+      "rows": 100,
+      "total": 116386
+    },
+    {
+      "timestamp": "2026-10-11T22:01:43.166414+00:00",
+      "provider": "s.to",
+      "status": 200,
+      "duration_s": 0.061,
+      "rows": 100,
+      "total": 322732
+    },
+    {
+      "timestamp": "2026-10-11T22:01:44.217272+00:00",
+      "provider": "aniworld.to",
+      "status": 200,
+      "duration_s": 0.051,
+      "rows": 100,
+      "total": 116386
+    },
+    {
+      "timestamp": "2026-10-11T22:01:45.263133+00:00",
+      "provider": "s.to",
+      "status": 200,
+      "duration_s": 0.046,
+      "rows": 100,
+      "total": 322732
+    },
+    {
+      "timestamp": "2026-10-11T22:01:46.317338+00:00",
+      "provider": "aniworld.to",
+      "status": 200,
+      "duration_s": 0.054,
+      "rows": 100,
+      "total": 116386
+    },
+    {
+      "timestamp": "2026-10-11T22:01:47.363435+00:00",
+      "provider": "s.to",
+      "status": 200,
+      "duration_s": 0.046,
+      "rows": 100,
+      "total": 322732
+    },
+    {
+      "timestamp": "2026-10-11T22:01:48.413419+00:00",
+      "provider": "aniworld.to",
+      "status": 200,
+      "duration_s": 0.05,
+      "rows": 100,
+      "total": 116386
+    },
+    {
+      "timestamp": "2026-10-11T22:01:49.477173+00:00",
+      "provider": "s.to",
+      "status": 200,
+      "duration_s": 0.064,
+      "rows": 100,
+      "total": 322732
+    }
+  ],
+  "live_overlap_claim": false,
+  "live_overlap_note": "Bounded follow-up queries started two seconds after normal publication completed. Copied-state overlap proofs remain separate."
+}

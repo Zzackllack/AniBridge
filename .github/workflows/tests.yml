@@ -4,23 +4,8 @@ on:
   push:
     tags-ignore:
       - 'v*'
-    paths:
-      - 'apps/api/app/**'
-      - 'apps/api/tests/**'
-      - 'apps/api/pyproject.toml'
-      - 'apps/api/uv.lock'
-      - 'apps/api/pytest.ini'
-      - 'apps/api/alembic.ini'
-      - 'apps/api/Dockerfile'
   pull_request:
-    paths:
-      - 'apps/api/app/**'
-      - 'apps/api/tests/**'
-      - 'apps/api/pyproject.toml'
-      - 'apps/api/uv.lock'
-      - 'apps/api/pytest.ini'
-      - 'apps/api/alembic.ini'
-      - 'apps/api/Dockerfile'
+    branches: [main, v3]
 
 permissions:
   contents: read
@@ -48,7 +33,7 @@ jobs:
         run: |
           set -o pipefail
           cd apps/api
-          uv run pytest 2>&1 | tee pytest-output.txt
+          uv run --frozen pytest 2>&1 | tee pytest-output.txt
       - name: Upload pytest failure output
         if: github.event_name == 'pull_request' && steps.pytest.outcome == 'failure'
         uses: actions/upload-artifact@v7
@@ -66,3 +51,64 @@ jobs:
       - name: Enforce test success
         if: steps.pytest.outcome == 'failure'
         run: exit 1
+
+  catalog:
+    name: Pytest (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [packages/catalog-core, apps/catalog-worker]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - uses: astral-sh/setup-uv@v7
+      - name: Install frozen project
+        working-directory: ${{ matrix.project }}
+        run: uv sync --frozen
+      - name: Offline regressions
+        working-directory: ${{ matrix.project }}
+        run: uv run --frozen pytest -q
+      - name: Build wheel
+        working-directory: ${{ matrix.project }}
+        run: uv build --wheel --out-dir /tmp/catalog-wheels
+      - name: Verify installed wheels
+        working-directory: ${{ matrix.project }}
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          if [ "$PROJECT" = apps/catalog-worker ]; then
+            uv build --wheel ../../packages/catalog-core --out-dir /tmp/catalog-wheels
+          fi
+          uv pip install --python .venv/bin/python --no-deps --reinstall /tmp/catalog-wheels/*.whl
+          .venv/bin/python - <<'PY'
+          import os
+          from importlib.resources import files
+          from pathlib import Path
+          import catalog_core
+          assert Path(catalog_core.__file__).is_relative_to(Path('.venv').resolve())
+          assert files('catalog_core').joinpath('schema-v2.sql').is_file()
+          if os.environ['PROJECT'] == 'apps/catalog-worker':
+              import catalog_worker.canonical
+              import catalog_worker.query_publish
+              assert Path(catalog_worker.canonical.__file__).is_relative_to(Path('.venv').resolve())
+          PY
+
+  gate:
+    name: Tests / Required Gate
+    if: always()
+    needs: [test, catalog]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every project
+        env:
+          API_RESULT: ${{ needs.test.result }}
+          CATALOG_RESULT: ${{ needs.catalog.result }}
+        run: |
+          test "$API_RESULT" = success
+          test "$CATALOG_RESULT" = success

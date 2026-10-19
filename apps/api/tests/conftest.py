@@ -107,6 +107,7 @@ def client(tmp_path, monkeypatch):
         "app.api.qbittorrent.categories",
         "app.api.qbittorrent.sync",
         "app.api.qbittorrent.torrents",
+        "app.api.qbittorrent.projection",
         "app.api.qbittorrent.transfer",
         "app.api.strm",
         "app.main",

@@ -5,6 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
 
+from app.catalog.config import load as load_catalog_config
 from app.utils.logger import config as configure_logger
 
 # Load .env as early as possible so all downstream imports see the intended env
@@ -637,3 +638,8 @@ ANIBRIDGE_CORS_ALLOW_CREDENTIALS = _as_bool(
     os.getenv("ANIBRIDGE_CORS_ALLOW_CREDENTIALS", "true"), True
 )
 logger.debug(f"ANIBRIDGE_CORS_ALLOW_CREDENTIALS={ANIBRIDGE_CORS_ALLOW_CREDENTIALS}")
+
+# No file means released mainline behavior. Source disclosure requires explicit opt-in.
+CATALOG_CONFIG = load_catalog_config(os.getenv("CATALOG_CONFIG_FILE"))
+
+MANAGEMENT_API_TOKEN = os.getenv("MANAGEMENT_API_TOKEN") or None

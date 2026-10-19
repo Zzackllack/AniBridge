@@ -1,0 +1,55 @@
+{
+  "mode": "baseline",
+  "cohorts": [
+    {
+      "provider": "aniworld.to",
+      "requests": 7,
+      "rows": 6,
+      "releases": 18,
+      "rows_per_request": 0.8571428571428571,
+      "parser_s": 4.208573205862194,
+      "writer_s": 0.038296444807201624,
+      "publication_s": 0.19933493481948972,
+      "query_total": 18,
+      "restart_first_seen_preserved": true,
+      "checked_pages": 8,
+      "disk_bytes": 430605
+    },
+    {
+      "provider": "s.to",
+      "requests": 7,
+      "rows": 6,
+      "releases": 12,
+      "rows_per_request": 0.8571428571428571,
+      "parser_s": 4.371341152116656,
+      "writer_s": 0.03400708315894008,
+      "publication_s": 0.19948401581496,
+      "query_total": 12,
+      "restart_first_seen_preserved": true,
+      "checked_pages": 8,
+      "disk_bytes": 430598
+    },
+    {
+      "provider": "s.to",
+      "requests": 7,
+      "rows": 6,
+      "releases": 6,
+      "rows_per_request": 0.8571428571428571,
+      "parser_s": 4.378003058489412,
+      "writer_s": 0.037066069431602955,
+      "publication_s": 0.21811723290011287,
+      "query_total": 6,
+      "restart_first_seen_preserved": true,
+      "checked_pages": 8,
+      "disk_bytes": 459269
+    }
+  ],
+  "elapsed_s": 14.768196866847575,
+  "cpu_s": 1.698666,
+  "peak_bytes": 67895296,
+  "limits": {
+    "memory_bytes": 536870912,
+    "cpus": 2,
+    "pids": 64
+  }
+}

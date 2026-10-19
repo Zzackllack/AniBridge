@@ -114,3 +114,51 @@ unsupported and ignored if still present in runtime env:
 - `PROXY_HOST`, `PROXY_PORT`, `PROXY_SCHEME`, `PROXY_USERNAME`, `PROXY_PASSWORD`
 - `NO_PROXY`, `PROXY_FORCE_REMOTE_DNS`, `PROXY_DISABLE_CERT_VERIFY`, `PROXY_APPLY_ENV`
 - `PROXY_IP_CHECK_INTERVAL_MIN`, `PROXY_SCOPE`
+
+## Query pilot configuration
+
+`TORZNAB_FAKE_SEEDERS` and `TORZNAB_FAKE_LEECHERS` apply to both legacy and
+query-mode Torznab results, including STRM variants. Negative values report zero;
+`peers` is the sum of the reported seeders and leechers. These are synthetic
+compatibility counts, not measured torrent availability.
+
+`CATALOG_CONFIG_FILE` absent means mainline behavior. Explicit JSON `mode=query`
+requires `origin`, `source_id`, `token_file`; HTTPS except loopback or explicitly
+opted-in disposable private HTTP. `CATALOG_SITES=aniworld.to,s.to` selects
+AniWorld + Serienstream; `s.to` is a stable provider key, not the current origin. Use `STO_BASE_URL=https://serienstream.to`.
+Megakino is optional; unlabelled languages remain gaps. Normal collection and
+server/client setup are in [SERVER.md](../../scripts/catalog/query_pilot/SERVER.md).
+`MANAGEMENT_API_TOKEN` optionally enables authenticated local job retry/cancel; it must encode 32 random bytes as base64url. Query requests
+disclose terms/IDs and service-visible IPs. No proxy/log privacy guarantees.
+See the [pilot guide](../../scripts/catalog/query_pilot/README.md).
+
+
+Collector tuning belongs in `apps/catalog-worker/config.example.json`.
+`provider_settings[provider]` can override concurrency, start spacing, hourly
+budget and User-Agent/Accept/Accept-Language/Referer. Referer is restricted to
+that configured origin's root; encoding remains identity. Defaults retain four
+total slots, two/provider and 2-second spacing; 1,800/hour matches that spacing
+without the old 1,200/hour idle period. This is a bounded measured setting, not
+a full-bootstrap or sustained provider-capacity guarantee. API env is unchanged.
+
+Collector/index worker sizing: minimum 2 vCPU/2 GiB; recommended 4 vCPU/4 GiB,
+with 6 GiB optional after measured benefit. Metadata serving has its own budget.
+The deployed 512-MiB worker is a constrained test profile. Local client target
+is 1 vCPU/512 MiB for metadata/search; extraction/job peaks need separate proof.
+These profiles are independent of provider request-rate limits and the retained
+30,000,000,000-byte aggregate storage budget. See the selected 020 contract.
+
+Worker JSON optionally supports `canonical_sources.episode_languages: ["deu"]`
+for ID-joined Skyhook v2 German episode metadata. This is a canonical background
+evidence setting, not an API environment variable or guessed audio language.
+Existing configurations without it retain the legacy English endpoint. New
+prepared pilot configuration enables it only with the matching tested worker;
+rollout still requires approval.
+
+Worker JSON `limits.publish_freshness_interval_s` defaults to 3600 and accepts
+300–86400. Timestamp-only observations publish after at least this interval and
+`publish_interval_s`; names, releases, removals and maps keep the normal content
+cadence. This can delay the published observation age, never invents a newer
+observation timestamp, and is not a provider freshness SLA. Older worker images
+reject the new key: remove it from both initializer and volume configs before
+rolling back. No API environment variable changes.
