@@ -184,3 +184,18 @@ October 19 episode annotation repair
   tick repaired Classroom S04E16 without network requests; unchanged follow-up
   work is skipped. See `evidence/finale-announcement-repair-2026-10-19.json` under
   spec 020. This local proof does not establish a live worker rollout.
+
+October 19 worker upgrade
+
+- The approved Zen cutover now runs `52065c7` at the immutable worker digest
+  recorded in SERVER.md, with private v6 state and schema2 reads. All three
+  worker references change together; original limits, configuration and volumes
+  remain. Classroom S04E16 is verified through real Sonarr metadata search;
+  this does not prove live media acquisition/import/playback.
+- Repeat updates use `scripts/catalog/query_pilot/WORKER_UPDATES.md` and
+  `prepare_worker_update.py`. CI/image selection and stopped-state snapshots/
+  preservation checks are scripted; Coolify writes remain explicit through Zen.
+  Do not follow moving `latest`/PR tags or broaden the read-only API token.
+- Keep binary-export containers on `--log-driver none`; count all experiment
+  copies and logs in disk admission. The archive preparation's transient log
+  peak was not captured, so do not claim a measured under-cap peak for that phase.

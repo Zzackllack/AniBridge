@@ -978,3 +978,76 @@ then use **Restart current version**. Do not run `rollback_matching` for this v5
 rollback and never restore an old ledger over observations made since upgrading.
 The existing schema2 read file remains compatible; the old worker's next normal
 publication performs a full rebuild. Local client state/corrections stay in place.
+
+## October 19: verified v6 worker cutover and repeatable updates
+
+The explicitly approved upgrade is now deployed through authenticated Zen.
+Initializer, collector and metadata all pin source
+`52065c76aa8bb75d3df4fa43e4ebcd2cded5779e`:
+
+```text
+ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:1cc57eae123d842af0cc9fc9003356da7e4da3af3dada3b95764f58db4513106
+```
+
+The worker is private v6; the public read contract remains schema2. Configuration
+is unchanged, including German canonical evidence and the shared 90/min budget.
+Collector remains 2 CPU/2 GiB and metadata 2 CPU/512 MiB, with no extra swap.
+Volumes, backend 172.16.27.0/24 and Docker's 10.254.0.0/16 pool split into /24s
+are preserved. The older Coolify project network 172.28.0.0/16 also remains;
+both networks predate this upgrade. No network/routing setting was changed.
+
+The stopped comparison retained all **497,850 release rows/first-seen values**
+and **288,916 prior episode maps**, with one new Classroom S04E16 map. Collection
+history, retries, leases, checkpoints, raw names, descriptors and quarantines
+compare equal. Only publication bookkeeping, one local matching receipt and its
+exact one-step fairness advancement differ. Pre-v4/pre-v5/pre-v6 backups and
+`/state/backup` remain. Native episode 16 returns three releases; the real local
+Sonarr → Prowlarr → AniBridge path now returns six normal/STRM results, versus
+zero before. No client was upgraded and no media was grabbed/imported/played.
+Both providers subsequently published successfully with all validation phases.
+
+Use [WORKER_UPDATES.md](WORKER_UPDATES.md) for the repeatable workflow. The helper
+checks the selected commit's CI, resolves its native manifest digest and prepares
+all three references plus exact rollback bytes. It preserves worker JSON; it does
+not follow `latest`, deploy unattended or change Coolify credentials. The current
+read-only token still requires Zen for writes. A source-SHA tag is convenient for
+selection; the final deployment uses its immutable digest.
+
+The private durable plan on fra-node-01 is:
+`/home/zacklack/anibridge-worker-updates/2026-10-19-52065c7`.
+A small Mac copy (excluding the stopped SQLite snapshots) is
+`/Users/zacklack/anibridge-worker-updates/2026-10-19/worker-update-plan.tar.gz`.
+The snapshots themselves remain in the server plan. Never restore them over
+new observations. The sanitized committed receipt is
+[worker-upgrade-2026-10-19.json](../../../internal/specs/020-catalog-query-api-evaluation/evidence/worker-upgrade-2026-10-19.json).
+
+For this **specific code rollback**, stop the service in Zen with Docker Cleanup
+unchecked, then use the XPipe-derived SSH connection and run on fra-node-01:
+
+```sh
+cd /home/zacklack/anibridge-worker-updates/2026-10-19-52065c7
+bash stopped-state.sh rollback-v5
+```
+
+That guarded command uses the new pinned image, requires the original v5 baseline
+and refuses an active Compose project. It removes only v6 publication bookkeeping.
+Then restore `rollback.yaml` through Zen and start the retained original image:
+
+```text
+ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:9a0df2b03fd386142f36a5ba8704c17e2e1489bd2519d88959d62753d2157218
+```
+
+The retained image label still verifies `d85ed05`. Both worker JSON locations
+remain unchanged; no configuration restoration is needed for this cutover.
+The previously tested copied-state v6→v5 procedure applies; a live downgrade was
+not exercised merely to demonstrate it. Recheck real metadata queries after any
+rollback. Future v6→v6 code updates must not invoke the v5 downgrade command.
+
+Current conservative file/image accounting plus a 1-GB reserve is 21.83 GB;
+adding a 4-GB publication scratch allowance remains below 30 GB. The preparatory
+archive's transient Docker-log peak was not captured, so it is **not certified**
+under that cap. The old disposable export containers/logs are gone. Subsequent
+binary exports and generated one-off update commands disable Docker logging.
+The 131 archived research files were SHA-256 verified on this Mac before their
+disposable server copies were removed. Live ledgers and their retained backups
+stayed on the server.

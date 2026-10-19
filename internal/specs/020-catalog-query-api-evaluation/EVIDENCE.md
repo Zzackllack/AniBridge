@@ -1486,3 +1486,59 @@ first replay asserted a compact-only conflict subcode on fuller history; the
 corrected harness checks abstention and records the stronger duplicate evidence.
 No application storage/admission or correspondence safety rule was weakened.
 The hosted worker remains on its previously verified image pending deployment.
+
+## October 19 — approved worker upgrade and real Sonarr verification
+
+This later cutover supersedes the pending-deployment statements above.
+[Sanitized upgrade evidence](evidence/worker-upgrade-2026-10-19.json) records the
+approved Zen deployment of source `52065c7`, worker manifest `sha256:1cc57eae…`,
+private v5→v6 migration and unchanged schema2 read contract. All three references,
+source labels, volumes, limits, unchanged worker JSON, backend subnet and Docker
+pool were checked. No read-only token was broadened and no client was upgraded.
+
+Stopped comparisons retain **497,850 complete release rows/first-seen values**
+and **288,916 old map rows** across both providers. Thirty-five tables/provider
+were compared, with additional checks of nonpublication worker metadata, matching
+input fingerprints and all backup generations. Collection history, leases,
+retry deadlines, checkpoints, descriptors and quarantines remain unchanged.
+The target cached scheduler tick adds one map in 20.887 ms with **zero canonical
+requests**. Its normal fairness cursor advances 2→3; the initial overly strict
+operator check caught that expected change. The repaired verifier checks exactly
+the declared advancement and retains strict history/identity comparisons. Eighteen
+focused operator tests pass; the deployed image's full hosted worker suite passed
+280 tests. The new operator commits are local and have no hosted-CI claim.
+
+Real Sonarr 4.0.16.2944 → Prowlarr → the existing AniBridge client changes S04E16
+from **0→6 results** (three normal/three STRM). S04E15 remains six. Direct metadata
+returns the expected three episode-16 release IDs, exact provider totals and
+isolated provider rows. Large targeted pagination returns 500+10 distinct rows,
+total 510, without duplicates. Post-maintenance episode-16 latency was 12.783 ms;
+the actual Sonarr request took 5.9071 s including the local integration chain.
+These are sequential samples, not latency percentiles or a load/capacity test.
+
+The publication command, including the remaining Serienstream migration, took
+81 s; AniWorld migration occurred earlier outside that timer. Subsequent provider
+publications completed all validation phases, including global integrity and
+relationships: AniWorld export/validation 0.624/1.535 s; Serienstream 4.249/9.492 s,
+excluding preflight and final locks. Collector cgroup peak at the observation was
+561,827,840 bytes. An incomplete offline-publication sample observed 1,414,864,896
+bytes, 22.423562 CPU seconds and 1,210,281,984 written bytes; these are lower bounds,
+not final full-process totals. No restart or OOM was observed. Raw due-work ages
+still reached 64,769/442,139 s; the update does not eliminate old maintenance gaps.
+
+Current conservative files/images plus a 1-GB reserve total **21,827,678,972
+bytes**, or **25,827,678,972** with a further 4-GB publication scratch allowance.
+All 131 old disposable research files were SHA-256 verified in a private Mac
+archive before removing their server copies. The initial binary exports' transient
+Docker-log peak was not measured, so that preparatory phase has **no certified
+under-30-GB peak**. Disposable export containers/logs are gone; later exports and
+generated one-off commands disable Docker logging. Live backups never moved.
+
+One Piece native S01E01 already has a canonical map in the stopped v5 baseline;
+its three current results supersede the October 14 snapshot but are preservation,
+not a new repair or independently established mapping accuracy. Remaining cohort
+abstentions and population accuracy limits remain explicit. No live media was
+grabbed, imported or played. Upgrade preparation/verification is scripted; fully
+unattended Coolify deployment remains unimplemented because writes use approved
+Zen, while the API token stays read-only. Exact retained rollback commands and
+durable plan locations are in SERVER.md and WORKER_UPDATES.md.

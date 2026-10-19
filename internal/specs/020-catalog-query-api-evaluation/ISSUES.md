@@ -453,3 +453,34 @@ unchanged. Linux worker: 280 tests passed. These results do not change the hoste
 worker or prove a new live grab/import/playback. New rollout must use SERVER.md's
 v6 upgrade/rollback procedure because the branch also contains the earlier
 publication migration, rather than hot-patching the live v5 matcher.
+
+## October 19: worker rollout closes the Classroom search gap
+
+**Implemented + verified on the hosted metadata service and real Sonarr search.**
+The subsequent approved Zen upgrade runs `52065c7` at the pinned manifest in
+SERVER.md. S04E16 now yields three metadata releases and six normal/STRM Sonarr
+results through Prowlarr; episode 15 is unchanged. The private v6 upgrade retains
+all 497,850 prior release rows/first-seen values and 288,916 maps. Both providers
+have completed later validated publications at their original limits/configuration.
+This supersedes the earlier pending-rollout status, not the remaining accuracy,
+freshness, live acquisition/import/playback or v3 release gates.
+
+**Implemented + verified:** repeatable CI/image selection, immutable pinning,
+private rollback files, stopped SQLite snapshots and preservation checks.
+The normal targeted cached tick advances its fairness slot; the operator checker
+now verifies that exact declared step without exempting retries or input hashes.
+Eighteen focused operator tests pass. New tooling commits remain local; hosted
+image CI evidence is specifically for the deployed application commit `52065c7`.
+
+**Not implemented:** unattended Coolify writes, because the token remains
+read-only and this deployment workflow requires authenticated Zen. Image builds
+are already automated. `latest`/moving PR tags are not a stateful upgrade plan.
+The initial archive transfer's transient log peak is also **unverified**; that
+deleted transient output cannot retroactively establish disk-cap compliance.
+Current conservative accounting including reserve is 21.83 GB. Later binary
+exports and scripted one-off commands disable Docker logging.
+
+The local client remains `428b5d8`; the separately implemented fake-swarm-count
+fix `16bc0e1` still needs its own client rebuild. This worker upgrade installs no
+client changes. See the dated evidence and repeatable operator guide for exact
+receipts, resource/query samples, remaining limitations and state-preserving rollback.

@@ -91,3 +91,11 @@ Its stopped-state commands snapshot committed WAL data and verify release/map/
 retry preservation. They do not automate Coolify writes or host-wide disk
 admission. Current supported private migration formats are v5/v6; do not use a
 moving `latest`/PR tag or an unattended updater for this pilot.
+
+October 19's approved Zen cutover runs `52065c7`, private state v6/schema2 read
+artifacts, at the digest in SERVER.md. Full stopped release/map/history comparisons
+and real Sonarr metadata search passed. Keep the durable operator plan and all
+backup generations. Its `rollback-v5` command uses the new image before restoring
+the retained d85ed05 Compose; it never restores an old ledger. One-off update/
+binary-export containers disable Docker logging; the initial archive's transient
+log peak was not measured, while final disk accounting remains under the cap.

@@ -38,6 +38,10 @@ SSH_AUTH_SOCK=/Users/zacklack/.bitwarden-ssh-agent.sock \
 chmod 600 "$UPDATE_DIR/"*
 ```
 
+If the NetBird name cannot resolve, use an alternate address from the current
+XPipe JSON and keep `-o HostKeyAlias=fra-node-01.nb.internal` so SSH still verifies
+the saved server key. Do not disable host-key checks or change routing for an update.
+
 Read the current image digest from those saved Compose bytes. Pass it explicitly;
 the helper refuses drift, moving tags, unsuccessful checks or missing native
 architectures. Substitute the **reviewed full commit** and **current old digest**:
