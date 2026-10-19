@@ -143,3 +143,8 @@ Source startup checks are timed separately and never bypassed on the new worker.
 Keep its private source rows/errors outside Git; sanitized aggregate results can
 be committed. A short publication experiment does not establish collection
 throughput or a freshness SLA.
+
+`apps/api/tests/unit/catalog/test_legacy_qbit_history.py` exercises query-mode
+qBittorrent torrent-list and sync streams with mixed pre-existing legacy aliases
+and durable jobs. Keep populated legacy history in compatibility coverage: an
+empty generated acceptance database cannot exercise the legacy projection.

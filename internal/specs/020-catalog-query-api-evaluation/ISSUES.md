@@ -387,3 +387,27 @@ on `d85ed05` with its resources, volumes, routes and backup generations intact.
 Required-check protection policy and live extraction/import/playback stay separate.
 The historical CQ-22 cause is still unknown; successful new publications do not
 recover discarded stderr. No local implementation item above is left blocked.
+
+## October 19: Sonarr connection test fails on retained legacy history
+
+Implemented + verified locally. On client source `d318637`, query-mode
+`GET /api/v2/torrents/info` and `/sync/maindata` sent HTTP 200 then terminated
+the chunked body: `ClientJobs.views(durable=False)` imported the nonexistent
+`torrent_info_record` helper. Sonarr 4.0.16.2944 reported a download-client
+connection failure although version/preferences/category requests succeeded.
+This is an application compatibility defect, not evidence of DNS/auth failure.
+
+Extract the released legacy record projection into a shared module and use it
+in both modes. Preserve aliases, jobs, states, output paths, timestamps and
+category filtering; no migration or history clearing. Mixed-history regressions
+include completed/active/failed/cancelled, missing-job aliases, paused durable
+jobs and public-path translation. New tests fail before the repair.
+
+A read-only, scheduler-free Linux HTTP harness using a consistent copy of the
+current dev ledger returned all three aliases in both complete JSON responses.
+The real Sonarr download-client test returned HTTP 200 against that harness;
+saved Sonarr settings and copied database bytes were unchanged. Full API suite:
+272 passed, 18 existing skips, one existing TestClient deprecation warning.
+This verifies the client connection test, not a new live grab/import/playback.
+The operator's existing dev container still needs a rebuild to load the fix;
+no hosted collector/service was changed.

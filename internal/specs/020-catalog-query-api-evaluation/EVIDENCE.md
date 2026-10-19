@@ -1400,3 +1400,31 @@ is claimed. Read-only inspection still finds live `d85ed05`, unchanged resources
 zero restart count/OOM observations. Historical discarded CQ-22 stderr stays
 unrecoverable. No provider/canonical requests, live-ledger experimental writes,
 queue resets, backup restores, network or allocation changes were made.
+
+## October 19 — retained-history qBittorrent compatibility repair
+
+Reproduced on the actual local dev API at source `d318637`: version and
+categories returned complete HTTP 200 responses; torrent-list and sync returned
+HTTP 200 with truncated chunked bodies. A read-only direct projection probe
+identified `ImportError` for the missing `torrent_info_record` helper. No raw
+response bodies, credentials or private history are included here.
+
+The repair shares the released legacy projection between normal and query
+modes. Four new mixed-history endpoint/path cases reproduced the failure
+before implementation and pass afterward. The focused qBittorrent/batch/history
+run passed all 14 cases. Full API regression: 272 passed / 18 skipped, plus
+one existing TestClient deprecation warning; targeted Ruff and diff checks pass.
+
+An isolated 1-CPU/512-MiB Linux harness mounted the corrected source and a
+consistent SQLite backup read-only, without a scheduler or provider work. Both
+HTTP streams completed with three aliases (the copied ledger contained one
+completed and three failed jobs). Sonarr 4.0.16.2944's actual
+`POST /api/v3/downloadclient/test` returned 200 when submitted with the same
+saved settings and only the temporary harness host/port substituted. The test
+did not save those substitutions. Saved settings compared equal afterward;
+the copied database SHA-256 was unchanged. The temporary harness was stopped.
+
+Proof scope: actual Sonarr connection-test compatibility with retained history,
+plus offline legacy/durable regressions. No new media acquisition, import,
+playback, hosted deployment or population mapping accuracy is established.
+The running dev API remains on its original image until the operator rebuilds.

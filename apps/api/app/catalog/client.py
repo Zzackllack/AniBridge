@@ -82,7 +82,7 @@ class ClientJobs:
                     if durable:
                         projected.append(self.view(alias, dict(record)))
                     else:
-                        from app.api.qbittorrent.torrents import torrent_info_record
+                        from app.api.qbittorrent.projection import torrent_info_record
 
                         legacy = dict(alias)
                         for name in ("added_on", "completion_on"):

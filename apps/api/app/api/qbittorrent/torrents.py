@@ -24,6 +24,7 @@ from app.core.scheduler import schedule_download, cancel_job
 
 from . import router
 from .common import public_save_path
+from .projection import torrent_info_record
 
 
 @router.post("/torrents/add")
@@ -140,7 +141,6 @@ def torrents_info(
     logger.trace("Fetching torrents info.")
     from sqlmodel import select
     from app.db import ClientTask
-    import os
 
     rows = session.exec(select(ClientTask)).all()
     logger.trace(f"Found {len(rows)} client tasks in database.")
@@ -149,70 +149,7 @@ def torrents_info(
         if category and (r.category or "") != category:
             continue
         job = get_job(session, r.job_id) if r.job_id else None
-        state = r.state
-        progress = 0.0
-        dlspeed = 0
-        eta = 0
-        size = job.total_bytes if job and job.total_bytes else 0
-        if job:
-            progress = (job.progress or 0.0) / 100.0
-            dlspeed = int(job.speed or 0)
-            eta = int(job.eta or 0)
-            logger.trace(
-                f"Job {job.id}: status={job.status}, progress={progress}, speed={dlspeed}, eta={eta}"
-            )
-            if job.status == "completed":
-                state = "uploading"
-                dlspeed = 0
-                if job.result_path and os.path.exists(job.result_path):
-                    try:
-                        size = int(os.path.getsize(job.result_path))
-                    except Exception:
-                        pass
-            elif job.status == "failed":
-                state = "error"
-            elif job.status == "cancelled":
-                state = "pausedDL"
-            else:
-                state = "downloading"
-
-        content_path = None
-        save_path_val = r.save_path or (QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR))
-        if job and job.result_path:
-            try:
-                import os
-
-                content_abs = os.path.abspath(job.result_path)
-                if QBIT_PUBLIC_SAVE_PATH:
-                    content_path = os.path.join(
-                        QBIT_PUBLIC_SAVE_PATH, os.path.basename(content_abs)
-                    )
-                    save_path_val = QBIT_PUBLIC_SAVE_PATH
-                else:
-                    content_path = content_abs
-                    save_path_val = os.path.abspath(os.path.dirname(content_abs))
-            except Exception:
-                content_path = job.result_path
-
-        out.append(
-            {
-                "hash": r.hash,
-                "name": r.name,
-                "state": state,
-                "progress": progress,
-                "dlspeed": dlspeed,
-                "upspeed": 0,
-                "eta": eta,
-                "category": r.category or "",
-                "save_path": save_path_val,
-                "content_path": content_path or "",
-                "added_on": int(r.added_on.timestamp()),
-                "completion_on": int((r.completion_on or r.added_on).timestamp()),
-                "size": int(size or 0),
-                "num_seeds": 0,
-                "num_leechs": 0,
-            }
-        )
+        out.append(torrent_info_record(r, job))
     logger.trace("Torrent info response generated.")
     return JSONResponse(out)
 
