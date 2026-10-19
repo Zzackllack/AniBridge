@@ -172,3 +172,15 @@ October 18 publication follow-up
   `/state/backup`. A stopped-writer v6→v5 rollback uses `rollback_publication` from
   the new code, never a ledger restore. See SERVER.md before using an older image.
   These local changes do not imply a published image or live deployment.
+
+October 19 episode annotation repair
+
+- AniWorld finale announcements may append a confirmed next-season/start notice
+  in English or German. The source-only fallback recognizes a closed annotation
+  grammar; raw names, source coordinates and identities stay unchanged. Unknown
+  brackets, duplicate names and conflicting aliases remain unresolved.
+- Episode matcher v7 invalidates only local rematch receipts. Parent/descriptor
+  fingerprints and canonical admission stay unchanged. A copied normal scheduler
+  tick repaired Classroom S04E16 without network requests; unchanged follow-up
+  work is skipped. See `evidence/finale-announcement-repair-2026-10-19.json` under
+  spec 020. This local proof does not establish a live worker rollout.

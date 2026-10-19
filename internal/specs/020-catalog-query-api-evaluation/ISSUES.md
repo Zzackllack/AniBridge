@@ -422,3 +422,34 @@ behavior. Defaults remain 999/787. No size/quality or STRM naming change.
 Four route-level regressions failed before the fix and pass afterward. Full
 API suite: 276 passed, 18 existing skips, one existing deprecation warning.
 The running local API needs a rebuild; no service was restarted for this fix.
+
+## October 19: Classroom of the Elite S04E16 finale announcement
+
+Implemented + verified on consistent copied state; live rollout remains pending.
+Read-only XPipe/SSH inspection confirmed source `d85ed05`, v5 ledgers, zero
+restarts/OOMs. AniWorld returned HTTP 200 and three observed languages for the
+maintainer's exact episode URL. The private ledger and published revision 3327
+already contain the episode and three releases; only its canonical map is absent.
+`correspondence` reports `no_name_candidate`. Cached English and German canonical
+names already identify TVDB 329822 S04E16, but both provider names append a finale
+announcement. The old rule strips only the bare English `[Final Episode]`.
+This is a correspondence defect, not a collection, pagination or publication lag.
+
+The source-only fallback now recognizes the bounded English/German finale plus
+confirmed-next-season/start grammar. It retains exact original keys and raw
+metadata, requires the existing unique name/verified parent checks, and never
+uses announcement/native numbers to choose canonical coordinates. Unrecognized
+editorial suffixes and conflicting/duplicate aliases remain unresolved. Episode
+matcher v7 makes old local receipts eligible once without invalidating canonical
+descriptors or parent fingerprints.
+
+A normal copied scheduler tick repaired this episode in 0.0137 s without network
+requests, despite the old future eligibility deadline. After validated copied
+publication: native request 0→3 releases, local Torznab 0→6 normal/STRM results.
+Episode 15 retains its exact release set. Across six frozen cases, four new maps
+were accepted; two remain unresolved. All 116,583 old release rows and 46,558 old
+map rows survive; work/deadlines/failures, descriptors, names and quarantines are
+unchanged. Linux worker: 280 tests passed. These results do not change the hosted
+worker or prove a new live grab/import/playback. New rollout must use SERVER.md's
+v6 upgrade/rollback procedure because the branch also contains the earlier
+publication migration, rather than hot-patching the live v5 matcher.

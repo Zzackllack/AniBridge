@@ -1440,3 +1440,49 @@ to the local formatter; no new environment variables or fallback counts.
 Full API suite: 276 passed / 18 skipped / one existing TestClient warning.
 Targeted Ruff lint/format and diff checks passed. Offline fixture/HTTP evidence
 only; the running dev API and hosted pilot were not changed.
+
+## October 19 — finale announcement correspondence repair
+
+[Sanitized evidence](evidence/finale-announcement-repair-2026-10-19.json) records
+read-only live inspection, consistent-copy replay, query results and preservation.
+The exact provider episode page returned available metadata and de-dub/de-sub/
+en-sub. The hosted catalog already exposes three native releases but no canonical
+episode association. Its canonical cache contains the needed English/German names.
+The name mismatch is the provider's appended finale/next-season announcement;
+there is no demonstrated request-rate or collection failure for this episode.
+
+The six metadata cases froze before implementation (three development, three
+held-out). Four name-backed positives pass after normalization; one compact
+alias-conflict case and one unsupported announcement abstain. The corresponding
+full-history conflict additionally has duplicate source names and correctly
+reports `duplicate_source`. This is fixed regression evidence, not a blind
+precision estimate or a justification for dropping arbitrary bracketed text.
+Tests use different native/canonical coordinates to rule out ordinal matching.
+
+On a full consistent AniWorld ledger copy at 2 CPU/2 GiB, networking disabled:
+63,668 entities and 116,583 releases remain unchanged; maps 46,558→46,562. All
+old map/release rows, including first-seen dates, compare equal. Eighteen tables'
+retained rows were checked, including work/retries, cached evidence, raw names
+and quarantines. The real scheduler selected Classroom despite future old
+eligibility, performed a 13.681-ms local rematch and made zero canonical requests.
+A follow-up tick skipped unchanged work. Full then incremental copied publication
+took 4.5542/1.1693 s; independent full validation passed. This is a short warm
+copy measurement, not a new publication-capacity benchmark or freshness SLA.
+Process CPU 11.9199 s / peak RSS 182,004 KiB; cgroup peak 612,212,736 bytes.
+The conservative storage account including full test tmpfs capacity is below
+30 GB; no old backups, failures or live observations were removed.
+
+The metadata query changes episode 16 from 0→3 releases; episode 15 stays at
+three identical release IDs. The actual local search/formatting path over this
+copied catalog yields six Torznab results for each (three languages × download/
+STRM), with both native and canonical coordinates checked. No live source video
+was fetched and no Sonarr grab/import/playback is implied.
+
+Focused matching: 39 passed. Full Linux worker: 280 passed, one read-only pytest
+cache warning. The first Linux harness used a 512-MiB tmpfs below existing free
+space reserves; its 66 storage-related failures are recorded separately in the
+JSON, then passed with adequate scratch capacity under the same memory cap. The
+first replay asserted a compact-only conflict subcode on fuller history; the
+corrected harness checks abstention and records the stronger duplicate evidence.
+No application storage/admission or correspondence safety rule was weakened.
+The hosted worker remains on its previously verified image pending deployment.

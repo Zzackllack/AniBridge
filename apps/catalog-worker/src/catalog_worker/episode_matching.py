@@ -7,8 +7,23 @@ from catalog_core.identity import search_key
 
 from .state import State
 
-# AniWorld's demonstrated suffix. Keep other brackets and meaningful text.
-FINALE = re.compile(r"\s*\[Final Episode\]\s*$", re.IGNORECASE)
+# Strip only observed editorial announcements, never arbitrary bracketed text.
+# The announced season/date are not episode correspondence evidence.
+START_DATE = (
+    r"(?:tba|(?:(?:January|February|March|April|May|June|July|August|September|"
+    r"October|November|December|Januar|Februar|März|Mai|Juni|Juli|Oktober|Dezember)"
+    r"\s+)?20[0-9]{2})"
+)
+NEXT_SEASON = r"Season\s+[0-9]{1,3}\s+confirmed\s*[-|]\s*Start:\s*" + START_DATE
+NEXT_STAFFEL = (
+    r"(?:[0-9]{1,3}\.\s*Staffel|Staffel\s+[0-9]{1,3})"
+    r"\s+bestätigt\s*[-|]\s*Start:\s*" + START_DATE
+)
+FINALE = re.compile(
+    rf"\s*\[(?:Final Episode(?:\s*\|\s*{NEXT_SEASON})?|"
+    rf"Letzte Folge(?:\s*\|\s*{NEXT_STAFFEL})?)\]\s*$",
+    re.IGNORECASE,
+)
 EPISODE_ANNOTATION = re.compile(
     r"\s*\[(?:(?:JP|DE)\s+)?Episode [0-9]{1,6}\]\s*$", re.IGNORECASE
 )

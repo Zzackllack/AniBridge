@@ -148,3 +148,10 @@ throughput or a freshness SLA.
 qBittorrent torrent-list and sync streams with mixed pre-existing legacy aliases
 and durable jobs. Keep populated legacy history in compatibility coverage: an
 empty generated acceptance database cannot exercise the legacy projection.
+
+Worker `test_finale_announcements.py` uses six frozen metadata cases plus
+negative grammar/ambiguity checks. The labels predate the code change; its
+held-out split is fixed regression evidence, not a blind precision trial. Full
+source history can reveal additional duplicate names absent from a compact
+alias-conflict case; both must abstain. Linux suite scratch needs enough free
+space for the existing storage reserves even with a bounded memory cgroup.
