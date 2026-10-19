@@ -69,6 +69,10 @@ on fra-node-01 with the same XPipe-derived SSH connection. Keep a Mac copy too.
    migration backups, publication scratch, images/logs and a **1 GB reserve**.
    Check filesystem free space as well. The script is not a host-wide quota
    manager. Move disposable research copies into a verified archive if needed.
+   Use `--log-driver none` for disposable containers streaming binary archives;
+   Docker's default JSON logging can retain another expanded copy of that output.
+   The generated one-off update commands disable Docker logging; capture their
+   small structured receipts in the private plan folder. Live logging is unchanged.
 3. In Zen, stop this existing service with **Docker Cleanup unchecked**. Wait
    until both collector and metadata have stopped. Do not start a second stack.
 4. In the server's reviewed folder, run these commands in order:

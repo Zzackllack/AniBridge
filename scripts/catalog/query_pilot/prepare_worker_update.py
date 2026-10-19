@@ -65,7 +65,7 @@ test -z "$(docker ps --filter label=com.docker.compose.project={SERVICE} -q)" ||
 }}
 IMAGE={image}
 test "$(docker image inspect "$IMAGE" --format '{{{{index .Config.Labels "org.opencontainers.image.revision"}}}}')" = {revision}
-COMMON=(--rm --network none --cpus 2 --memory 2g --memory-swap 2g --pids-limit 96
+COMMON=(--rm --log-driver none --network none --cpus 2 --memory 2g --memory-swap 2g --pids-limit 96
   -v {SERVICE}_config:/config:ro
   -v {SERVICE}_worker-state:/state
   -v {SERVICE}_read-catalog:/read
