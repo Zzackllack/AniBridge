@@ -199,3 +199,17 @@ October 19 worker upgrade
 - Keep binary-export containers on `--log-driver none`; count all experiment
   copies and logs in disk admission. The archive preparation's transient log
   peak was not captured, so do not claim a measured under-cap peak for that phase.
+
+October 20 canonical retry repair
+
+- A cached local correspondence result cannot consume an expired canonical
+  failure retry. Retry recovery may reuse a verified descriptor acquired after
+  the failed attempt; older evidence cannot establish recovery. Backoff and
+  existing maps remain intact. No matcher reset or state migration is needed.
+- `--status` exposes `progress.canonical_queue` separately from provider page
+  failures, including overdue cached retries and oldest scheduled retry age.
+  These deadline counts are not an execution or freshness guarantee.
+- `cached_retry_replay.py` compares bounded scheduler runs on marked, consistent
+  disposable backups with simulated HTTP 500 responses. Keep before/after code,
+  copies and resource profiles separate; no network or live ledger writer.
+  See the October 20 evidence before inferring deployment or coverage gains.

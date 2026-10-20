@@ -1,5 +1,13 @@
 # October 14 mapping implementation and verification
 
+October 20 follow-up: [recheck evidence](EVIDENCE.md#october-20-cached-canonical-retries-could-stall-the-queue)
+and CQ-24/CQ-25 in ISSUES.md reproduce an expired-failure/cache scheduling loop.
+Due canonical retries now bypass local correspondence completion; shared evidence
+must be newer than the failed attempt to establish recovery. This changes neither
+parent/episode acceptance nor matcher fingerprints, and does not require a state
+migration. Existing backoff, maps, release identities and collection queues remain.
+The hosted worker remains `52065c7` until a separately approved rollout.
+
 Initial local handoff on `zzackllack-aux/catalog-query-api-implementation`; draft
 PR #170, protected `v3`, default `main`, registry and live services are unchanged.
 For the subsequent authorized push, hosted tests, pinned preview images and

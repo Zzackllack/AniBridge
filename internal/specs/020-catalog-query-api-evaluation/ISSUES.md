@@ -1,6 +1,6 @@
 # Private-pilot defects and production improvements
 
-Updated 2026-10-18. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
+Updated 2026-10-20. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
 and [EVIDENCE.md](EVIDENCE.md). The October 8 implementation and bounded measurements are recorded below.
 Deployment is confined to the maintainer-authorized existing private pilot.
 
@@ -106,6 +106,8 @@ and concurrency from bounded measurements of real responses and resource usage.
 | CQ-21 | Implemented + verified | Bounded child phase/reason/exit reports and safe parser classifications replace discarded failure context. Status distinguishes sticky last fault from operational block state. No HTML, player URLs, credentials, query terms or IPs enter diagnostics. Unknown language counts and unapproved quarantines remain visible. |
 | CQ-22 | Implemented + environment-blocked | Safe enrichment/export/validation/lock/publication diagnostics and signal/deadline exit reasons implemented and deployed in the authorized preview upgrade. Current-sized copied-state publications succeeded at 2 CPU/2 GiB, 4 CPU/4 GiB and 2 CPU/512 MiB; historical 48 ContractErrors/three timeouts were not reproduced. Original stderr was discarded, so historical cause cannot be established from retained logs; an actual classified live failure is still needed. Collector now uses the documented 2 CPU/2 GiB minimum; this is not evidence of the historical cause. |
 | CQ-23 | Implemented + verified | Reproduced read-deadline failures from repeated public-ID view joins and a recent-index hint on targeted retrieval. Physical joins, validated exact recent summaries and target-specific access fix the demonstrated defects. 96/96 queries during current-sized publication pass at each of three profiles, including 100-row pages and native retrieval; large-series target returns three rows from 3,573-release history. Failed providers cannot produce empty success; corrections, explicit partial providers, outage cache and last-good retention regressions pass. |
+| CQ-24 | Implemented + verified locally; rollout pending | A usable local cache could consume a due canonical failure retry while retaining its expired deadline, repeatedly selecting the same title. Due failures now reach the retry path; only verified descriptors acquired after the failed attempt may establish recovery without HTTP. Today's full-copy replay advances 30 distinct retries instead of zero, preserves all 497,949 releases and 289,152 maps, and retains backoff/admission across restart. No state or matcher reset. Hosted worker remains `52065c7`. |
+| CQ-25 | Implemented + verified locally; rollout pending | Status previously exposed page retry age but hid overdue canonical retries behind aggregate outcomes. `progress.canonical_queue` adds bounded counts and oldest scheduled retry age, separately identifying cached failed work. Zero deadlines remain new-evidence eligibility, not epoch-old age. Counts do not promise admission or an SLA. |
 
 Backoff must follow evidence: honor explicit 429 instructions; briefly retry
 isolated network/5xx failures per page with bounded exponential delay and jitter;

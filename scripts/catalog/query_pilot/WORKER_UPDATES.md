@@ -128,3 +128,34 @@ both original configuration locations and `/state/backup`.
 
 The exact October 19 digest and observed outcome are recorded in SERVER.md and
 the catalog evidence ledger. This remains a private pilot, not a v3 release gate.
+
+## October 20 retry fix: verification after a future rollout
+
+The local retry repair is v6→v6; no matcher reset, state downgrade or client
+upgrade is needed. It has not been deployed. Follow the same immutable-image
+preparation and stopped snapshot/publish/verify sequence above. Do not clear the
+overdue failure population to make verification pass.
+
+After starting the reviewed candidate, run the existing status command:
+
+```sh
+docker exec collector-ev7cds2lpqyvqfxpcm4wp4tc \
+  anibridge-catalog-worker --config /config/worker.json --status
+```
+
+Compare `progress.canonical_queue.failed_due_now`, `cached_failed_due_now` and
+`oldest_failed_due_age_s` over a bounded window. Look for different titles getting
+real attempts and future deadlines, not an immediate zero failure count. Genuine
+HTTP/identity failures remain failures; newer verified shared descriptors may
+recover without HTTP. Confirm both providers still publish and serve exact totals.
+The stopped preservation checker applies before collection resumes; do not run it
+against a moving ledger or exempt arbitrary mapping-input/retry changes.
+
+Rollback uses the **newly prepared plan's** `rollback.yaml` across all three
+references, preserving current source `52065c7` at
+`ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:1cc57eae123d842af0cc9fc9003356da7e4da3af3dada3b95764f58db4513106`.
+Do not reuse the October 19 plan's rollback file, which targets an older image.
+Stop in Zen with cleanup off, restore the new plan's rollback YAML, then start
+with the same volumes/configuration. For this v6→v6 update, do not invoke
+`rollback-v5` or restore an old SQLite snapshot. No moving tag or unattended
+updater is involved.

@@ -1542,3 +1542,86 @@ grabbed, imported or played. Upgrade preparation/verification is scripted; fully
 unattended Coolify deployment remains unimplemented because writes use approved
 Zen, while the API token stays read-only. Exact retained rollback commands and
 durable plan locations are in SERVER.md and WORKER_UPDATES.md.
+
+## October 20: cached canonical retries could stall the queue
+
+[Bounded recheck and replay](evidence/cached-retry-recheck-2026-10-20.json).
+Read-only XPipe-derived SSH inspection confirms hosted `52065c7`, private v6/public
+schema2, original allocations and zero restarts/OOM kills. The retained 24 hours
+contain 86/68 successful AniWorld/Serienstream publications, no maintenance failure
+and no observed HTTP 403/429. Serienstream has 289 page HTTP 500s and eight
+`parent_children_missing` parse outcomes. Usable mapping is **73.43% / 79.42%**.
+Sequential snapshots contain 116,618/381,331 releases and 46,750/242,402 maps.
+
+There are **1,865 overdue Serienstream canonical retries**, 1,857 with cached names;
+the oldest deadline is approximately 47 hours overdue. A cached local match could
+return success while retaining an expired failure deadline, repeatedly selecting
+the same title. Retained events contain 49,770/70,217 unchanged checks; in the final
+sampled hour AniWorld is mostly idle while Serienstream still records 3,078 such
+checks. Historical aggregates must not imply continuing AniWorld churn.
+
+**Implemented + verified locally:** due failures bypass local cache completion.
+Recovery may reuse a verified descriptor acquired after the failed attempt;
+older metadata cannot establish recovery. Real success clears the failure, real
+failure increments history/advances backoff, and local admission remains deferral.
+No matcher reset, migration or deletion. `progress.canonical_queue` adds separate
+deadline counts and retry ages, without an execution/freshness guarantee.
+
+At **2 CPU/2 GiB**, network-disabled full-copy runs use the same clock and 30 ticks
+per provider, reopening the Enricher halfway through. Baseline code repeats
+unchanged work 30 times, advancing **zero** retries. Candidate code advances
+**30 distinct** retries: 28 simulated HTTP 500s receive proper backoff, two recover
+from newer shared descriptors without requests. Due retries become 1,835; oldest
+remaining age changes from 169,189 to 168,931 seconds, including the 29-second
+experiment-clock advance. These are rescheduled attempts, not 30 mapped series.
+Scheduler wall/CPU: **1.560/1.064 s → 0.847/0.672 s**. This single sequential run
+does not control cold caches or establish sustained capacity.
+
+All **497,949 releases and 289,152 existing episode maps** survive unchanged, as
+do compared source observations, queues/retries/leases, quarantines, omissions,
+collection checkpoints and parent identities. Both providers' coverage stays
+unchanged in this simulated outage. The frozen 215-case development/held-out
+cohort still resolves all **118 labelled positives** with no new acceptances.
+The seven known pre-existing maps outside positive labels remain retained (three
+parent conflicts, four generic names); all six supplementary ambiguous entities
+remain unmapped. This is not population precision. **Requests per useful new map
+is not established:** no maps were added and the 28 requests simulate failures.
+
+Whole replay wrappers, including copies/preflight/comparison, use 33.14/24.05 CPU
+seconds and about 216 MiB process RSS. Their cgroups reach the **2-GiB page-cache
+ceiling**, reclaim without OOM, and do not isolate scheduler memory peaks.
+**Backing I/O measurement is environment blocked:** Docker Desktop virtiofs exposes
+empty `io.stat`, not zero I/O. Live collector cumulative Docker counters change
+from 671 MB/35.6 GB to 702 MB/35.9 GB read/write during inspection; this is not
+patch-attributed I/O. See JSON for the separate live CPU/memory samples.
+
+Copied full publications take **4.286/21.008 s**. Independent query totals match
+SQL, failed publication retains both last-good pointers, and a missing AniWorld
+pointer returns 503 while Serienstream returns 200. Hosted Classroom S04E16 still
+returns three rows in **17.7 ms**. One Piece S21 returns **510 distinct releases**
+across 500/10-row pages in **209/28 ms**, without overlap/provider leakage. The
+untargeted whole-title request retains its expected `400 query_too_broad` guard.
+No live media extraction, grabbing, import or playback was performed.
+
+Two fixed canonical samples explain remaining rejections: TVDB 361439 returns
+episode IDs 9820674 and 9820675 at the same S00E01 coordinate; requesting TVDB
+458309 returns parent 483423. **Not implemented:** accepting those contradictions
+or silently changing identities. They require verified correction/reassociation
+evidence. Other rejection families remain incompletely sampled; no diagnostic
+provider-wide crawl was run.
+
+Linux worker **288 passed**; core **320 passed**; changed-file Ruff checks pass.
+The first Linux invocation correctly rejected a 1-GiB tmpfs below the existing
+free-space reserve; adequate disk scratch with the same memory cap passes.
+Snapshots use a pinned read transaction. An initial unpinned backup was stopped
+when live writes repeatedly restarted progress. All exports disable Docker logs.
+Measured server files/images/reserve total **21,843,209,307 bytes**, or
+**25,843,209,307** with 4 GB additional publication scratch. New replay copies are
+on this Mac, outside live volumes; this is not a continuous peak-storage audit.
+
+**Not pushed/deployed:** hosted `52065c7` is unchanged. This is a v6→v6 application
+update without public schema, matcher version or client changes. Use
+WORKER_UPDATES.md after hosted tests/native image publication and an approved
+pinned rollout. Rollback stops the service, restores the retained `52065c7` image
+across all three Compose references and starts with existing volumes/configuration.
+No v5 downgrade, snapshot restore or failure clearing.

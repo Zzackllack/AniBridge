@@ -155,3 +155,12 @@ held-out split is fixed regression evidence, not a blind precision trial. Full
 source history can reveal additional duplicate names absent from a compact
 alias-conflict case; both must abstain. Linux suite scratch needs enough free
 space for the existing storage reserves even with a bounded memory cgroup.
+
+`test_cached_retry.py` covers due failures with usable cached names, real retry
+success/failure, restart and newer cross-provider descriptor recovery.
+`test_canonical_progress.py` separates canonical retry age from page failures;
+zero/new-evidence deadlines do not imply epoch-old work. The finite
+`cached_retry_replay.py` harness refuses unmarked backups and existing candidate
+directories. Its simulated HTTP failures prove queue progress and full-ledger
+preservation, not successful live enrichment. `test_cached_retry_harness.py`
+exercises those guards and retained retry state.
