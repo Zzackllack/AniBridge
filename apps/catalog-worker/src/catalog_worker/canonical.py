@@ -362,6 +362,7 @@ class Enricher:
                             now,
                             row["explicit_imdb"],
                             tuple(self.sources.get("episode_languages", [])),
+                            newer_than=row["checked_at"] if failures else None,
                         )
                         if shared:
                             details, canonical_episodes, acquired_at, _ = shared

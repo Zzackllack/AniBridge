@@ -198,6 +198,13 @@ def reuse(
     ).fetchone()
     if row is None or row["input_hash"] != digest:
         return False
+    if state.db.execute(
+        "SELECT 1 FROM mapping_input WHERE title_id=? AND failures>0 AND next_due<=?",
+        (tid, now),
+    ).fetchone():
+        # Cached names keep old maps useful, but cannot satisfy a remote retry.
+        # Otherwise its expired deadline keeps selecting this title forever.
+        return False
     with atomic(state.db):
         outcome = apply(state, tid, row["checked_at"], examined_at=now)
         parent = state.db.execute(

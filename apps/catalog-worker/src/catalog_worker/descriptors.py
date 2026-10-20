@@ -214,6 +214,8 @@ def cached(
     now: int,
     imdb: str | None,
     languages: tuple[str, ...] = (),
+    *,
+    newer_than: int | None = None,
 ) -> tuple[dict, list[CanonicalEpisode], int, int] | None:
     """Bounded single-ID lookups; source/provider identities are never shared."""
     for state in states:
@@ -222,6 +224,10 @@ def cached(
             (external, now),
         ).fetchone()
         if row:
+            # A retry can reuse verified evidence acquired after its failure,
+            # including another provider's. Older evidence cannot prove recovery.
+            if newer_than is not None and row[1] <= newer_than:
+                continue
             data = json.loads(row[0])
             if data.get("codec") != CODEC:
                 continue
