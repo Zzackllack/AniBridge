@@ -1,6 +1,35 @@
 """Coverage phases and qualified rates; growing discovery queues have no finish ETA."""
 
 
+def canonical_queue(db, now: int) -> dict:
+    """Expose retry starvation separately from provider page failures.
+
+    These are persisted deadlines; admission and matcher invalidation can affect
+    execution. A zero deadline means new evidence, not an epoch-old backlog.
+    """
+    first, due, failed, cached, oldest, oldest_failed = db.execute(
+        "SELECT count(CASE WHEN checked_at IS NULL THEN 1 END),"
+        "count(CASE WHEN next_due<=? THEN 1 END),"
+        "count(CASE WHEN failures>0 AND next_due<=? THEN 1 END),"
+        "count(CASE WHEN failures>0 AND next_due<=? AND EXISTS("
+        "SELECT 1 FROM canonical_cache c WHERE c.title_id=m.title_id) THEN 1 END),"
+        "min(CASE WHEN next_due>0 AND next_due<=? THEN next_due END),"
+        "min(CASE WHEN failures>0 AND next_due>0 AND next_due<=? THEN next_due END) "
+        "FROM mapping_input m",
+        (now, now, now, now, now),
+    ).fetchone()
+    return {
+        "never_checked": first,
+        "due_now": due,
+        "failed_due_now": failed,
+        "cached_failed_due_now": cached,
+        "oldest_due_age_s": now - oldest if oldest is not None else None,
+        "oldest_failed_due_age_s": now - oldest_failed
+        if oldest_failed is not None
+        else None,
+    }
+
+
 def measure(db, meta: dict, now: int) -> dict:
     by_kind = {
         row[0]: {"discovered": row[1], "checked": row[2], "failed": row[3]}
@@ -64,6 +93,7 @@ def measure(db, meta: dict, now: int) -> dict:
             "next_pending_due": next_due,
             "failed_due_now": retry_due,
         },
+        "canonical_queue": canonical_queue(db, now),
         "first_pass_complete": first_pass,
         "detail_evidence_complete": first_pass and unknown == 0 and unavailable == 0,
         "unavailable_episode_observations": unavailable,
