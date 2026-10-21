@@ -5,6 +5,21 @@
 measurements: [pilot-results.json](evidence/pilot-results.json). No database,
 credential, provider media or real search transcript is included.
 
+## Anime-Lists correspondence research — 2026-10-21
+
+[Research](ANIME_LISTS_RESEARCH.md) and [aggregate evidence](evidence/anime-lists-research-2026-10-21.json)
+inspect a pinned upstream XML revision, a bounded public AniWorld metadata sample
+and the existing October 20 frozen ledgers. Anime-Lists supplies AniDB→TVDB/TMDB
+correspondence; AniWorld→AniDB season/cut/order remains a separate proof. AniWorld
+exposes IMDb IDs in the sample, with no inspected AniDB/TVDB order declaration.
+Official support confirms generic names may remain without manual backfilling.
+
+9,970 unresolved usable AniWorld episodes already have TVDB parents represented
+in the dataset; another 4,457 have one exact-name TVDB candidate. These are
+opportunity counts, not recovered maps or a precision estimate. Ikki Tousen's
+two native season-6 episodes are concrete specials-correspondence candidates.
+No matcher integration, live writes, rollout or media acquisition occurred.
+
 ## Canonical failure classification and partial metadata — 2026-10-18
 
 [Aggregate evidence](evidence/mapping-failures-2026-10-18.json) records the local
