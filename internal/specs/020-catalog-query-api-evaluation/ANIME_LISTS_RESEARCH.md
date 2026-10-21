@@ -180,3 +180,58 @@ can help identify series; explicit order tables can help differing season layout
 truly absent or contradictory source evidence still requires review or must stay
 unresolved. Neither more CPU nor a higher canonical request rate supplies that
 missing evidence.
+
+## TheXEM follow-up — 2026-10-21
+
+[TheXEM](https://thexem.info/) is relevant to both AniWorld and Serienstream. Its
+entities include scene, TVDB and AniDB; scene means release-group numbering, not
+Serienstream. Its [API documentation](https://thexem.info/doc) describes season/
+episode and absolute-coordinate conversion, including multiple destinations.
+Neither provider is a declared source namespace. The same provider-order binding
+requirement therefore remains.
+
+Five bounded `map/all?origin=tvdb&id=...` reads returned HTTP 200:
+
+| TVDB series | API result | Mapping rows | Scene vs TVDB season/episode differences |
+| --- | --- | ---: | ---: |
+| Attack on Titan, 267440 | success | 89 | 0 |
+| Classroom of the Elite, 329822 | success | 54 | 0 |
+| American Dad, 73141 | success | 404 | 397 |
+| Ikki Tousen, 80158 | no show with this TVDB ID | 0 | — |
+| One Piece, 81797 | no show with this TVDB ID | 0 | — |
+
+These are response snapshots, not complete/freshness guarantees. Both successful
+anime responses include AniDB coordinates. Attack on Titan has 40 AniDB↔TVDB
+season/episode differences. Classroom's returned S04E16 has scene absolute 16
+and TVDB absolute 54, illustrating that the numbering systems can differ even
+when season/episode pairs agree. These scoped coordinates must not be confused
+with AniDB entry IDs or blindly substituted for Anime-Lists coordinates.
+
+American Dad's scene S01E08→TVDB S02E01 agrees with the October 20 copied
+Serienstream observation `Bullocks to Stan` and its existing accepted map. This
+is corroboration of a correct map, not a newly recovered episode. TheXEM can
+support recovery when source ordering is independently established; it does not
+automatically identify an unassociated series, a different cut or a generic name.
+
+[Sonarr's FAQ](https://github.com/Servarr/Wiki/blob/master/sonarr/faq.md#how-sonarr-handles-scene-numbering-issues)
+documents its existing TheXEM integration for numbering and anime aliases.
+Inspected Sonarr `main` revision `bc54afbdd0e38bdb0fca4785fcf7d7a6af77bf9a`
+confirms fetching scene↔TVDB maps and names. This does not establish the installed
+client's current mapping state. Context7's retrieved Sonarr API documentation was
+for v5-develop; v4/main behavior here was checked directly in upstream source.
+
+There is a concrete integration risk to test before adding conversions:
+AniBridge's catalog formatter emits canonical coordinates, while Sonarr's
+[ParsingService](https://github.com/Sonarr/Sonarr/blob/bc54afbdd0e38bdb0fca4785fcf7d7a6af77bf9a/src/NzbDrone.Core/Parser/ParsingService.cs)
+defaults remote releases to scene-origin interpretation unless an applicable
+scene mapping declares TVDB origin. A TVDB ID identifies the series; it does not
+by itself bypass this episode conversion. Test a genuinely differing map across
+the full Sonarr→Prowlarr→AniBridge search and result-interpretation path before
+choosing an output convention. Do not globally disable TheXEM for other indexers,
+or change canonical search semantics to accept ambiguous numbering silently.
+
+Recommendation: share the candidate/binding/target-validation boundary with
+Anime-Lists, while keeping both data-source adapters separate. Cache acquired
+evidence in the worker and retain last-good data on outages; no query-time XEM
+HTTP dependency is needed. Runtime integration, held-out recovery and reproduction
+of the suspected double-conversion problem remain unimplemented by this research.

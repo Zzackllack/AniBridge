@@ -273,5 +273,143 @@
     "coverage_gain_estimate": null,
     "current_live_coverage_claim": false,
     "dataset_vendored": false
+  },
+  "xem_followup": {
+    "date": "2026-10-21",
+    "logical_mapping_fetches": 5,
+    "origin": "tvdb",
+    "endpoint": "https://thexem.info/map/all",
+    "samples": [
+      {
+        "tvdb_id": 267440,
+        "series": "attack-on-titan",
+        "http_status": 200,
+        "api_result": "success",
+        "mapping_rows": 89,
+        "namespaces": [
+          "anidb",
+          "scene",
+          "tvdb"
+        ],
+        "scene_tvdb_season_episode_differences": 0,
+        "anidb_tvdb_season_episode_differences": 40,
+        "serialized_record_sha256": "f6ab7116accaaa8d392efc49e862a960ee8e7d616c34a74ffd7be6ea86c96e97",
+        "example": {
+          "scene": {
+            "season": 3,
+            "episode": 13,
+            "absolute": 50
+          },
+          "anidb": {
+            "season": 4,
+            "episode": 1,
+            "absolute": 1
+          },
+          "tvdb": {
+            "season": 3,
+            "episode": 13,
+            "absolute": 50
+          }
+        }
+      },
+      {
+        "tvdb_id": 329822,
+        "series": "classroom-of-the-elite",
+        "http_status": 200,
+        "api_result": "success",
+        "mapping_rows": 54,
+        "namespaces": [
+          "anidb",
+          "scene",
+          "tvdb"
+        ],
+        "scene_tvdb_season_episode_differences": 0,
+        "anidb_tvdb_season_episode_differences": 0,
+        "serialized_record_sha256": "31ce8bca78030841dc4c06e42d99c244445fe8292fb8d923a3a1b588218b4122",
+        "example": {
+          "scene": {
+            "season": 4,
+            "episode": 16,
+            "absolute": 16
+          },
+          "anidb": {
+            "season": 4,
+            "episode": 16,
+            "absolute": 16
+          },
+          "tvdb": {
+            "season": 4,
+            "episode": 16,
+            "absolute": 54
+          }
+        }
+      },
+      {
+        "tvdb_id": 73141,
+        "series": "american-dad",
+        "http_status": 200,
+        "api_result": "success",
+        "mapping_rows": 404,
+        "namespaces": [
+          "scene",
+          "tvdb"
+        ],
+        "scene_tvdb_season_episode_differences": 397,
+        "anidb_tvdb_season_episode_differences": 404,
+        "serialized_record_sha256": "321d745e807560046cdb2d9effeffe315ebc2007f237054af8a6aa5c46c3488f",
+        "example": {
+          "scene": {
+            "season": 1,
+            "episode": 8,
+            "absolute": 8
+          },
+          "tvdb": {
+            "season": 2,
+            "episode": 1,
+            "absolute": 8
+          }
+        }
+      },
+      {
+        "tvdb_id": 80158,
+        "series": "ikki-tousen",
+        "http_status": 200,
+        "api_result": "failure",
+        "mapping_rows": 0,
+        "namespaces": [],
+        "scene_tvdb_season_episode_differences": 0,
+        "anidb_tvdb_season_episode_differences": 0,
+        "serialized_record_sha256": "573d26c9a2a09f1105406577a67ea4a053e2444bd5ca0741ccb19c14ffeb6e9c",
+        "reason": "no_show_with_tvdb_id"
+      },
+      {
+        "tvdb_id": 81797,
+        "series": "one-piece",
+        "http_status": 200,
+        "api_result": "failure",
+        "mapping_rows": 0,
+        "namespaces": [],
+        "scene_tvdb_season_episode_differences": 0,
+        "anidb_tvdb_season_episode_differences": 0,
+        "serialized_record_sha256": "6fd1640d03bc1b633a82bf417c8bcb790e0dcad8b2057bf31d1bd0ec45353c8f",
+        "reason": "no_show_with_tvdb_id"
+      }
+    ],
+    "sonarr_inspected_source": "bc54afbdd0e38bdb0fca4785fcf7d7a6af77bf9a",
+    "sonarr_branch": "main",
+    "installed_client_state_inspected": false,
+    "provider_fetches": 0,
+    "accepted_new_maps": 0,
+    "runtime_integration": false,
+    "double_conversion_reproduced": false,
+    "american_dad_copy_corroboration": {
+      "provider": "s.to",
+      "native_season": 1,
+      "native_episode": 8,
+      "source_title": "Bullocks to Stan",
+      "existing_canonical_season": 2,
+      "existing_canonical_episode": 1,
+      "snapshot_date": "2026-10-20"
+    }
   }
 }

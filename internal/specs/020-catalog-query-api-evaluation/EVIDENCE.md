@@ -20,6 +20,12 @@ opportunity counts, not recovered maps or a precision estimate. Ikki Tousen's
 two native season-6 episodes are concrete specials-correspondence candidates.
 No matcher integration, live writes, rollout or media acquisition occurred.
 
+The subsequent TheXEM section records five bounded mapping API reads: anime and
+general-TV mappings are available, while two sampled IDs return explicit absence.
+American Dad corroborates an existing copied map. Upstream Sonarr inspection
+identifies a scene/canonical interpretation risk for a future integration test;
+no client failure or additional mapping recovery is claimed from source inspection.
+
 ## Canonical failure classification and partial metadata — 2026-10-18
 
 [Aggregate evidence](evidence/mapping-failures-2026-10-18.json) records the local
