@@ -167,6 +167,16 @@ def torrents_files(session: Session = Depends(get_session), hash: str = ""):
         raise HTTPException(status_code=404, detail="not found")
 
     job = get_job(session, rec.job_id) if rec.job_id else None
+    if job:
+        from app.catalog.output_state import missing_output
+
+        if missing_output(
+            {
+                key: getattr(job, key, None)
+                for key in ("status", "progress", "message", "result_path")
+            }
+        ):
+            return JSONResponse([])
     file_name = rec.name
     size = 0
     prog = 0.0

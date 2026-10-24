@@ -253,8 +253,9 @@ def test_restart_consumes_attempt_and_missing_output_never_redownloads(tmp_path)
     assert jobs.finish(job, second["generation"], "ok", NOW + 62, output)
     output.unlink()
     jobs.recover(NOW + 63, startup=True)
-    assert jobs.get(job)["status"] == "failed"
-    assert jobs.get(job)["error_code"] == "missing_output"
+    assert jobs.get(job)["status"] == "completed"
+    assert jobs.get(job)["error_code"] is None
+    assert jobs.projection(job)["state"] == "missingFiles"
     assert jobs.claim(NOW + 1000) is None
 
 

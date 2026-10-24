@@ -360,7 +360,7 @@ class Jobs:
         with closing(self.db()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
-                "SELECT j.status,d.* FROM job j JOIN durable_request d ON j.id=d.job_id WHERE j.id=?",
+                "SELECT j.status,j.result_path,j.progress,j.message,d.* FROM job j JOIN durable_request d ON j.id=d.job_id WHERE j.id=?",
                 (job_id,),
             ).fetchone()
             if row is None:
@@ -386,10 +386,11 @@ class Jobs:
             elif action == "resume" and state == "paused":
                 target = prior if prior in ("blocked", "failed") else "queued"
             elif action == "retry":
+                from .output_state import missing_output
+
                 if (
-                    state not in ("blocked", "failed")
-                    or row["error_code"] == "legacy_request_incomplete"
-                ):
+                    state not in ("blocked", "failed") and not missing_output(dict(row))
+                ) or row["error_code"] == "legacy_request_incomplete":
                     raise JobError("invalid_state", 409)
                 if row["last_retry_at"] is not None and now - row["last_retry_at"] < 60:
                     raise JobError("rate_limited", 429)
@@ -398,6 +399,11 @@ class Jobs:
                     "UPDATE durable_request SET attempts=0,error_code=NULL,next_retry_at=NULL,last_retry_at=? WHERE job_id=?",
                     (now, job_id),
                 )
+                if state == "completed":
+                    db.execute(
+                        "UPDATE job SET progress=0,downloaded_bytes=0,total_bytes=NULL,result_path=NULL,message=NULL WHERE id=?",
+                        (job_id,),
+                    )
             elif action not in ("pause", "resume"):
                 raise JobError("invalid_request", 400)
             if target != state:
@@ -624,30 +630,9 @@ class Jobs:
                 db.execute(
                     "UPDATE job SET status='cancelled',speed=0 WHERE status='cancelling' AND id IN (SELECT job_id FROM durable_request)"
                 )
-        after = ""
-        while True:
-            with closing(self.db()) as db:
-                rows = db.execute(
-                    "SELECT id,result_path FROM job WHERE id>? AND status='completed' ORDER BY id LIMIT 100",
-                    (after,),
-                ).fetchall()
-            if not rows:
-                break
-            after = rows[-1]["id"]
-            for row in rows:
-                if row["result_path"] and Path(row["result_path"]).is_file():
-                    continue
-                with closing(self.db()) as db, db:
-                    # Do not overwrite a cancellation that raced the file check.
-                    changed = db.execute(
-                        "UPDATE job SET status='failed',message='missing_output',speed=0 WHERE id=? AND status='completed' AND result_path IS ?",
-                        (row["id"], row["result_path"]),
-                    ).rowcount
-                    if changed:
-                        db.execute(
-                            "UPDATE durable_request SET error_code='missing_output',version=version+1 WHERE job_id=?",
-                            (row["id"],),
-                        )
+        # Completion records publication, not perpetual ownership of the file.
+        # Sonarr may move it after import. Availability belongs in the client
+        # projection; recovery must not turn that handoff into a failed transfer.
 
     def projection(self, job_id: str) -> dict:
         return self.project(self.get(job_id))
@@ -678,17 +663,21 @@ class Jobs:
 
     @staticmethod
     def project(row: dict) -> dict:
+        from .output_state import missing_output
+
         complete = row["status"] == "completed"
+        missing = missing_output(row)
         progress = 1.0 if complete else min(0.999, max(0, (row["progress"] or 0) / 100))
         return {
-            "state": QBIT.get(row["status"], "error"),
-            "progress": progress,
+            "state": "missingFiles" if missing else QBIT.get(row["status"], "error"),
+            "progress": 1.0 if missing else progress,
             "size": row["total_bytes"] or 0,
             "dlspeed": int(row["speed"] or 0) if row["status"] == "downloading" else 0,
             "eta": int(row["eta"])
             if row["eta"] is not None and row["status"] == "downloading"
             else 8640000,
-            "content_path": row["result_path"] if complete else "",
+            "content_path": row["result_path"] if complete and not missing else "",
             "completion_on": row["updated_at"] if complete else None,
             "anibridge_size_estimated": row.get("message") == "estimated_size",
+            "anibridge_output_missing": missing,
         }
