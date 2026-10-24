@@ -5,7 +5,60 @@
 measurements: [pilot-results.json](evidence/pilot-results.json). No database,
 credential, provider media or real search transcript is included.
 
+## Local client progress and completed-output repair — 2026-10-24
+
+[Repair evidence](evidence/download-progress-repair-2026-10-24.json) follows the
+read-only diagnosis below. Runtime commits `e1128bd` and `672a40e` fix CQ-26/CQ-27
+locally; the existing stopped API image is unchanged. No worker update or database
+migration is needed. Rebuild the local API to load the repair; rolling back its
+code requires no ledger restore. An older API still has the old recovery behavior.
+
+Exact and explicitly labelled estimated totals now cross the child/job/qBittorrent
+boundary. The same controlled 25-of-100 byte input changes from size zero/0% to
+size 100/25%, for exact and estimated cases. Native yt-dlp over synthetic HTTP and
+four HLS segments verifies intermediate progress without provider/media requests.
+Selected-track aggregation includes known future sizes; an unknown future track
+withholds the whole-transfer size/ETA until sufficient evidence exists. Final
+published container bytes replace transfer estimates; download completion alone
+cannot expose 100% before publication. Active estimates carry the safe extension
+`anibridge_size_estimated`; failed estimated attempts don't retain an unlabelled
+exact-looking total.
+
+Completed history survives an import move and restart. Missing outputs expose
+`missingFiles`, `anibridge_output_missing=true`, an empty content path and no
+files; they are not automatically claimed again. Historical failed records with
+the old completion/missing-output signature remain unchanged in the ledger and
+project the same availability warning. Other failure classifications remain
+errors. Explicit retry can repeat a completed transfer whose source is missing.
+Legacy sync now reuses the torrent-list projection instead of duplicating state
+rules and inventing completion timestamps during a read.
+
+The full Python 3.14 API suite passes: 302 passed, 18 skipped, one existing
+TestClient deprecation warning. Changed code passes Ruff lint/format and diff
+checks. A network-disabled, read-only Linux helper at 1 CPU/512 MiB uses the old
+local API image's dependency environment with the new source explicitly mounted.
+All four aliases in a consistent copied ledger project correctly: three missing
+outputs have warnings/no path and the available 163-byte STRM remains completed.
+The copy hash is unchanged. All three retained AniBridge/Sonarr/Prowlarr database
+file hashes also match the pre-verification baseline.
+
+Initial test failures exposed a missing legacy-session test override and a
+completed-job fixture with no actual output; those fixtures now exercise the
+intended cases. The first full run's default-path test also rejected the harness's
+explicit temporary DATA_DIR; the final full run uses its normal environment and
+passes. An initial Linux helper imported the installed old source because script
+execution omitted `/app` from PYTHONPATH; the corrected source-overlay run passes.
+These harness mistakes do not establish runtime defects or live-client behavior.
+
+**Proof limits:** synthetic transfer tests, HTTP contract tests and copied-state
+Linux projections are separate from the retained real October 19 import evidence.
+No new live extraction, Sonarr UI download/import or playback run occurred. Truly
+unknown whole-transfer sizes still cannot yield a truthful percentage. Existing
+services remain stopped; nothing was pushed, published or deployed.
+
 ## Local Sonarr download progress diagnosis — 2026-10-24
+
+Historical read-only snapshot, superseded by the subsequent repair above.
 
 [Sanitized evidence](evidence/download-progress-diagnosis-2026-10-24.json) records
 read-only inspection of the stopped local October 19 API/Sonarr containers,

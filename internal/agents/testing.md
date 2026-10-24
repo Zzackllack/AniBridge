@@ -149,6 +149,15 @@ qBittorrent torrent-list and sync streams with mixed pre-existing legacy aliases
 and durable jobs. Keep populated legacy history in compatibility coverage: an
 empty generated acceptance database cannot exercise the legacy projection.
 
+Client progress/handoff regressions are `test_download_progress.py` and
+`test_completion_handoff.py`, with real yt-dlp over synthetic HTTP/HLS in
+`test_media_download.py`. Assert intermediate exact/estimated percentages through
+both qBittorrent responses, track aggregation/unknown totals, publication gating,
+and read-only missing-file projections after a simulated import move. Keep lost
+files visible without rewriting successful history or automatically downloading
+again. Fixtures with completed jobs need actual output files; otherwise the
+correct projection is `missingFiles`. No live media is needed for these checks.
+
 Worker `test_finale_announcements.py` uses six frozen metadata cases plus
 negative grammar/ambiguity checks. The labels predate the code change; its
 held-out split is fixed regression evidence, not a blind precision trial. Full

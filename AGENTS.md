@@ -213,3 +213,17 @@ October 20 canonical retry repair
   disposable backups with simulated HTTP 500 responses. Keep before/after code,
   copies and resource profiles separate; no network or live ledger writer.
   See the October 20 evidence before inferring deployment or coverage gains.
+
+October 24 local client progress/handoff repair
+
+- Local transfers retain exact or explicitly estimated yt-dlp totals across
+  selected tracks. Unknown future-track sizes remain unknown; no invented byte
+  totals. The qBittorrent extension `anibridge_size_estimated` labels active
+  estimates; 100% still requires verified output publication.
+- Completion records a successful transfer, not permanent file ownership.
+  Imported/missing outputs project `missingFiles` with no stale content path;
+  startup does not rewrite completed jobs to failed or redownload them. Retain
+  historical `missing_output` records; only explicit retry repeats a transfer.
+- Both qBittorrent modes share missing-file semantics. Sync reads never invent
+  completion timestamps or commit history changes. These changes need a local
+  API rebuild; no collector/metadata worker upgrade or state migration is needed.
