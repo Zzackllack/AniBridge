@@ -4,7 +4,6 @@ Remux/probe run as separate supervised phases after this process exits, so
 nested ffmpeg processes cannot multiply the shared child memory allowance.
 """
 
-import math
 from pathlib import Path
 
 from yt_dlp import YoutubeDL
@@ -16,6 +15,7 @@ from yt_dlp.utils import DownloadError
 
 from .media_transport import TransferState, VerifiedRH
 from .resolution_transport import ResolutionError
+from .transfer_progress import TransferProgress, progress_counters  # noqa: F401 -- compatibility import
 
 
 class ControlledYDL(YoutubeDL):
@@ -54,24 +54,6 @@ class SilentLog:
         pass
 
     info = warning = error = debug
-
-
-def progress_counters(values: dict, prior: int = 0) -> dict:
-    """Use integral bytes/seconds across the strict child-message boundary."""
-
-    def counter(value):
-        if not isinstance(value, (int, float)) or not math.isfinite(value):
-            return None
-        return min(2**63 - 1, max(0, int(value)))
-
-    return {
-        "downloaded_bytes": min(
-            2**63 - 1, prior + (counter(values.get("downloaded_bytes")) or 0)
-        ),
-        "total_bytes": None,
-        "speed": counter(values.get("speed")),
-        "eta": counter(values.get("eta")),
-    }
 
 
 def transfer(
@@ -122,7 +104,7 @@ def transfer(
                     selected.append(max(audio, key=lambda item: item.get("tbr") or 0))
             else:
                 selected = [{"url": url, "protocol": "https", "ext": "bin"}]
-            completed_bytes = 0
+            tracker = TransferProgress(selected)
             for number, item in enumerate(selected):
                 if item.get("protocol") not in ("https", "m3u8_native"):
                     raise ResolutionError("extraction_error")
@@ -131,8 +113,9 @@ def transfer(
                     NativeVod if item["protocol"] == "m3u8_native" else HttpFD
                 )(ydl, params)
 
-                def update(values, prior=completed_bytes):
-                    progress(progress_counters(values, prior))
+                def update(values, index=number):
+                    if values.get("status") in ("downloading", "finished"):
+                        progress(tracker.update(index, values))
 
                 downloader.add_progress_hook(update)
                 success, _ = downloader.download(
@@ -140,7 +123,7 @@ def transfer(
                 )
                 if not success or not output.is_file():
                     raise ResolutionError(state.error or "extraction_error")
-                completed_bytes += output.stat().st_size
+                progress(tracker.finish(number, output.stat().st_size))
                 outputs.append(output)
         return outputs
     except DownloadError:

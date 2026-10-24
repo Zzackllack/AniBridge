@@ -54,7 +54,9 @@ def test_progressive_transfer_streams_through_only_verified_handler(
         for call in calls
     )
     assert updates[-1]["downloaded_bytes"] == len(body)
-    assert updates[-1]["total_bytes"] is None
+    assert updates[-1]["total_bytes"] == len(body)
+    assert any(0 < row["downloaded_bytes"] < row["total_bytes"] for row in updates)
+    assert updates[-1]["total_bytes_estimated"] is False
 
 
 def test_native_vod_segments_use_verified_transport_without_ffmpeg(
@@ -91,6 +93,29 @@ def test_non_vod_manifest_fails_without_external_fallback(tmp_path, monkeypatch)
     assert all(call.url.path == "/video.m3u8" for call in calls)
 
 
+def test_hls_supplies_estimated_intermediate_progress(tmp_path, monkeypatch):
+    segment = b"\x47" + b"\0" * 131071
+    manifest = (
+        b"#EXTM3U\n#EXT-X-TARGETDURATION:2\n"
+        + b"".join(f"#EXTINF:2,\npart-{i}.ts\n".encode() for i in range(4))
+        + b"#EXT-X-ENDLIST\n"
+    )
+    fixture_transport(
+        monkeypatch,
+        {"/video.m3u8": manifest, **{f"/part-{i}.ts": segment for i in range(4)}},
+    )
+    updates = []
+    outputs = transfer("https://media.example/video.m3u8", tmp_path, updates.append)
+    assert outputs[0].stat().st_size == 4 * len(segment)
+    assert any(
+        row["total_bytes_estimated"]
+        and 0 < row["downloaded_bytes"] < row["total_bytes"]
+        for row in updates
+    )
+    assert updates[-1]["total_bytes"] == 4 * len(segment)
+    assert updates[-1]["total_bytes_estimated"] is False
+
+
 def test_fractional_progress_crosses_strict_child_message_boundary():
     from app.catalog.media_download import progress_counters
     from catalog_core.json_codec import dumps, loads
@@ -101,6 +126,7 @@ def test_fractional_progress_crosses_strict_child_message_boundary():
     assert loads(dumps(record)) == {
         "downloaded_bytes": 612,
         "total_bytes": None,
+        "total_bytes_estimated": False,
         "speed": 1234,
         "eta": 2,
     }

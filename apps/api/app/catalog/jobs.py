@@ -453,7 +453,7 @@ class Jobs:
         with closing(self.db()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
-                "SELECT j.status,d.* FROM job j JOIN durable_request d ON d.job_id=j.id WHERE j.id=?",
+                "SELECT j.status,j.message,d.* FROM job j JOIN durable_request d ON d.job_id=j.id WHERE j.id=?",
                 (job_id,),
             ).fetchone()
             if (
@@ -501,6 +501,12 @@ class Jobs:
                 (code, retry, job_id),
             )
             if state == "completed":
+                # Final container bytes can differ from network track bytes.
+                size = output.stat().st_size
+                db.execute(
+                    "UPDATE job SET total_bytes=?,downloaded_bytes=?,eta=0 WHERE id=?",
+                    (size, size, job_id),
+                )
                 frozen = json.loads(row["payload"])
                 if (
                     frozen.get("mode") == "strm"
@@ -535,6 +541,10 @@ class Jobs:
                     retain_quality(
                         db, job_id, json.loads(row["payload"]), evidence, now
                     )
+            elif row["message"] == "estimated_size":
+                # A failure message replaces the transient estimate marker.
+                # Don't leave an unlabelled estimate looking like an exact size.
+                db.execute("UPDATE job SET total_bytes=NULL WHERE id=?", (job_id,))
             return True
 
     def heartbeat(
@@ -564,13 +574,16 @@ class Jobs:
                 total = int(total) if total is not None and int(total) > 0 else None
                 percentage = min(99.9, downloaded * 100 / total) if total else 0
                 db.execute(
-                    "UPDATE job SET status='downloading',downloaded_bytes=?,total_bytes=?,progress=?,speed=?,eta=?,updated_at=? WHERE id=?",
+                    "UPDATE job SET status='downloading',downloaded_bytes=?,total_bytes=?,progress=?,speed=?,eta=?,message=?,updated_at=? WHERE id=?",
                     (
                         downloaded,
                         total,
                         percentage,
                         max(0, float(progress.get("speed") or 0)),
                         progress.get("eta"),
+                        "estimated_size"
+                        if total and progress.get("total_bytes_estimated")
+                        else None,
                         timestamp(now),
                         job_id,
                     ),
@@ -677,4 +690,5 @@ class Jobs:
             else 8640000,
             "content_path": row["result_path"] if complete else "",
             "completion_on": row["updated_at"] if complete else None,
+            "anibridge_size_estimated": row.get("message") == "estimated_size",
         }
