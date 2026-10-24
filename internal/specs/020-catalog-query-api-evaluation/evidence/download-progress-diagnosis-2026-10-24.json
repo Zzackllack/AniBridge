@@ -1,0 +1,224 @@
+{
+  "diagnosis_date": "2026-10-24",
+  "issue": "CQ-26",
+  "status": "diagnosed_not_implemented",
+  "scope": "Read-only retained local API and Sonarr state, source inspection and offline synthetic reproduction",
+  "containers": [
+    {
+      "name": "anibridge-dev",
+      "image": "anibridge-query-api:428b5d84ab8c602f38ffea87b4125985177b9bd6",
+      "image_id": "sha256:bbca158df638c3dceb23a2d08f818400246817593f86a5793ebb5e35e2ebb0b4",
+      "status": "exited",
+      "started_at": "2026-10-19T17:18:26.619510465Z",
+      "finished_at": "2026-10-19T22:32:20.97110796Z",
+      "timezone": null
+    },
+    {
+      "name": "sonarr-dev",
+      "image": "linuxserver/sonarr:latest",
+      "image_id": "sha256:02b4d538d351d6e35882a021c08e8600fe95d28860fb1dd724b597166e7221ca",
+      "status": "exited",
+      "started_at": "2026-10-19T17:02:32.377391843Z",
+      "finished_at": "2026-10-19T22:32:18.035259Z",
+      "timezone": "Europe/Berlin"
+    }
+  ],
+  "deployed_modules": [
+    {
+      "file": "catalog/media_download.py",
+      "deployed_sha256": "7b9e46d52086c9e233e3cb56d8161653b9cdee42a33d80797d383042dcb86b7b",
+      "matches_checkout": true
+    },
+    {
+      "file": "catalog/jobs.py",
+      "deployed_sha256": "84447904a9a074924b910ea4427f903bdbe30a3829a70a2ca36d452ea721249f",
+      "matches_checkout": true
+    },
+    {
+      "file": "catalog/client.py",
+      "deployed_sha256": "f5bf3a20713fa1f0b6e63bcd031e7168138a300ae7f0ddba72d60cf2a196ed73",
+      "matches_checkout": true
+    },
+    {
+      "file": "api/qbittorrent/projection.py",
+      "deployed_sha256": "c18965041cc0f55a00b4f411dd2d2f5152de712ae6e0017a791e2eb7b0764a19",
+      "matches_checkout": true
+    }
+  ],
+  "sonarr_version": "4.0.16.2944",
+  "sonarr_log_timezone": "Europe/Berlin",
+  "active_download": {
+    "torrent_ref": "cad77d7165a7",
+    "active_responses": 16,
+    "all_active_size_and_progress_zero": true,
+    "downloaded_bytes_first": 1024,
+    "downloaded_bytes_last": 348969256,
+    "selected_responses": [
+      {
+        "file": "sonarr.trace.1.txt",
+        "line": 8752,
+        "time": "2026-10-19 23:20:49.4",
+        "torrent_ref": "cad77d7165a7",
+        "state": "downloading",
+        "progress": 0,
+        "size": 0,
+        "downloaded": 14055648,
+        "eta": 224,
+        "dlspeed": 2224467,
+        "completion_on": 0
+      },
+      {
+        "file": "sonarr.trace.0.txt",
+        "line": 55,
+        "time": "2026-10-19 23:21:42.3",
+        "torrent_ref": "cad77d7165a7",
+        "state": "downloading",
+        "progress": 0,
+        "size": 0,
+        "downloaded": 139464720,
+        "eta": 129,
+        "dlspeed": 2336127,
+        "completion_on": 0
+      },
+      {
+        "file": "sonarr.trace.0.txt",
+        "line": 741,
+        "time": "2026-10-19 23:23:11.4",
+        "torrent_ref": "cad77d7165a7",
+        "state": "downloading",
+        "progress": 0,
+        "size": 0,
+        "downloaded": 348969256,
+        "eta": 68,
+        "dlspeed": 2403839,
+        "completion_on": 0
+      },
+      {
+        "file": "sonarr.trace.0.txt",
+        "line": 893,
+        "time": "2026-10-19 23:24:41.4",
+        "torrent_ref": "cad77d7165a7",
+        "state": "pausedUP",
+        "progress": 1.0,
+        "size": 452738664,
+        "downloaded": 452738664,
+        "eta": 8640000,
+        "dlspeed": 0,
+        "completion_on": 1792445046
+      }
+    ]
+  },
+  "legacy_trace": {
+    "entries": 462,
+    "distinct_jobs": 2,
+    "creation_months": [
+      "2026-06",
+      "2026-09"
+    ],
+    "wire_state": "error",
+    "reported_progress": 1.0,
+    "retained_message": "missing_output",
+    "describes_active_october_download": false
+  },
+  "sonarr_history": [
+    {
+      "time_utc": "2026-10-19 17:03:50.5180175Z",
+      "event_type": 1,
+      "torrent_ref": "53f5dd0b1dae",
+      "size": "0"
+    },
+    {
+      "time_utc": "2026-10-19 17:20:05.1704628Z",
+      "event_type": 3,
+      "torrent_ref": "53f5dd0b1dae",
+      "size": "163"
+    },
+    {
+      "time_utc": "2026-10-19 21:20:37.8452353Z",
+      "event_type": 1,
+      "torrent_ref": "cad77d7165a7",
+      "size": "0"
+    },
+    {
+      "time_utc": "2026-10-19 21:24:42.5972658Z",
+      "event_type": 3,
+      "torrent_ref": "cad77d7165a7",
+      "size": "452738664"
+    }
+  ],
+  "imported_files": [
+    {
+      "time_utc": "2026-10-19 17:20:05.1704628Z",
+      "torrent_ref": "53f5dd0b1dae",
+      "imported_file_exists": true,
+      "imported_file_bytes": 163
+    },
+    {
+      "time_utc": "2026-10-19 21:24:42.5972658Z",
+      "torrent_ref": "cad77d7165a7",
+      "imported_file_exists": true,
+      "imported_file_bytes": 452738664
+    }
+  ],
+  "offline_known_total_reproduction": {
+    "input": {
+      "downloaded_bytes": 25000000,
+      "total_bytes": 100000000,
+      "speed": 2500000,
+      "eta": 30
+    },
+    "counter_output": {
+      "downloaded_bytes": 25000000,
+      "total_bytes": null,
+      "speed": 2500000,
+      "eta": 30
+    },
+    "qbit_projection": {
+      "state": "downloading",
+      "progress": 0,
+      "size": 0,
+      "dlspeed": 2500000,
+      "eta": 30,
+      "content_path": "",
+      "completion_on": null
+    },
+    "sonarr_total_size": 0,
+    "sonarr_remaining_size": 0,
+    "sonarr_progress_is_undefined": true
+  },
+  "sonarr_ui_expression": {
+    "expression": "100 - (sizeleft / size) * 100",
+    "zero_total_and_remaining_yield_nan": true,
+    "boolean_render_condition": false
+  },
+  "verification": {
+    "python": "3.14.9",
+    "pytest_passed": 2,
+    "pytest_files": [
+      "tests/unit/catalog/test_media_download.py",
+      "tests/unit/catalog/test_jobs.py"
+    ],
+    "pytest_filter": "progress or progressive",
+    "existing_tests_assert_total_unknown": true,
+    "all_five_job_records_unchanged": true,
+    "new_live_media_requests": 0,
+    "containers_started": 0,
+    "remote_changes": 0
+  },
+  "proof_limits": [
+    "No new grab, extraction or playback test",
+    "The active download hook payload was not retained; exact versus estimated source total cannot be established",
+    "No current browser rendering was inspected; omission follows matching-version source plus historical wire data",
+    "The imported normal job now has missing_output in the ledger; its old download path is absent and the library file exists, but the later transition cause/time is not established",
+    "Fix not implemented; no application source edits"
+  ],
+  "sources": {
+    "qbit_client": "https://github.com/Sonarr/Sonarr/blob/v4.0.16.2944/src/NzbDrone.Core/Download/Clients/QBittorrent/QBittorrent.cs",
+    "queue_ui": "https://github.com/Sonarr/Sonarr/blob/v4.0.16.2944/frontend/src/Activity/Queue/QueueRow.tsx",
+    "history_types": "https://github.com/Sonarr/Sonarr/blob/v4.0.16.2944/src/NzbDrone.Core/History/EpisodeHistory.cs"
+  },
+  "source_sha256": {
+    "Sonarr-QBittorrent.cs": "0595630facc19a6555f5db066e5ae231e138cd9a8bad750dd5dcee73f5230183",
+    "Sonarr-QueueRow.tsx": "25a76d6b9a2dd31c192f96cd4499126d5a432957b6f12c1d70ab2665692b8172"
+  }
+}

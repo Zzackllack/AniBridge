@@ -5,6 +5,47 @@
 measurements: [pilot-results.json](evidence/pilot-results.json). No database,
 credential, provider media or real search transcript is included.
 
+## Local Sonarr download progress diagnosis — 2026-10-24
+
+[Sanitized evidence](evidence/download-progress-diagnosis-2026-10-24.json) records
+read-only inspection of the stopped local October 19 API/Sonarr containers,
+retained wire logs and both local ledgers. API image `428b5d8` contains the same
+four relevant progress/projection modules as this checkout. Sonarr logs identify
+4.0.16.2944. No hosted worker inspection is needed for this local transfer path.
+
+The normal download has sixteen captured active responses: downloaded bytes
+advance 1,024→348,969,256 and ETA changes, while every size/progress pair stays
+zero/zero. The first captured completed response reports 452,738,664 bytes and
+progress 1.0. Sonarr's correlated history records import at 21:24:42 UTC on
+October 19; that exact-sized file remains in the local Sonarr library. This is
+retained real-client/import evidence, not a new extraction or playback test.
+
+`media_download.progress_counters()` unconditionally emits `total_bytes=None`,
+including when the downloader supplies a total. `Jobs.heartbeat()` then records
+zero percent and the qBittorrent projection emits size zero. The matching Sonarr
+version computes remaining size from `size * (1-progress)` and its UI computes
+percent from remaining/total. With zero/zero, the result is NaN and the progress
+bar is omitted. ETA is independent, explaining the observed countdown. The logs
+do not retain whether the actual source provided an exact total or an estimate.
+
+The 462 retained API trace entries at progress 1.0/status failed belong to two
+older legacy jobs created in June/September, carrying `missing_output`; their
+wire state is error. They do not describe the October active download. Separately,
+the current ledger marks the imported normal job `missing_output`, with its old
+download path absent and the library file present. That later bookkeeping state
+does not prove a failed transfer; its transition time/cause is not established
+by these retained logs.
+
+An offline 25-MB-of-100-MB input reproduces discarded total and zero size/progress,
+while retaining ETA. Two existing synthetic transfer/counter tests pass; they
+currently assert an unknown total and do not establish intermediate Sonarr
+progress. All five retained job records compare unchanged after the reproduction.
+The API environment was restored to frozen Python 3.14 after uv initially selected
+3.15; no application, container, configuration or job-state change was made.
+CQ-26 is diagnosed, not repaired. No service was started, no media fetched and no
+remote service changed. A fix must handle whole-transfer accounting across tracks,
+explicit estimates/unknown totals, and keep 100% gated on validated publication.
+
 ## Anime-Lists correspondence research — 2026-10-21
 
 [Research](ANIME_LISTS_RESEARCH.md) and [aggregate evidence](evidence/anime-lists-research-2026-10-21.json)
