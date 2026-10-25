@@ -8,8 +8,9 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
   `ANIWORLD_INSTALL_FOLDER`
 - qBittorrent authentication: configure `QBIT_USERNAME`, `QBIT_PASSWORD` (16+
   bytes) and an independent random `QBIT_SESSION_SECRET` (32+ bytes) together.
-  Partial configuration refuses startup. `QBIT_COOKIE_SECURE=true` is required
-  for HTTPS exposure. Empty values retain trusted-private-network compatibility.
+  Partial configuration refuses startup. `QBIT_COOKIE_SECURE` defaults true for
+  HTTPS ingress; explicit false opts into trusted private HTTP. A TLS proxy must
+  preserve Host. Empty credentials retain trusted-private-network compatibility.
   Signed `SID` sessions last one hour and survive application restarts; rotating
   credentials or the secret invalidates them. These settings cover `/api/v2`,
   not the other application routers.

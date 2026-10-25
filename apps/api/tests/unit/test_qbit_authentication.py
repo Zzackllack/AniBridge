@@ -129,3 +129,80 @@ def test_cross_origin_and_bounded_failed_login_admission():
 def test_partial_or_weak_configuration_is_refused(values):
     with pytest.raises(ValueError, match="together"):
         QbitAuth(*values)
+
+
+def test_mounted_application_cannot_bypass_auth_and_scopes_its_cookie():
+    parent = FastAPI()
+    parent.mount("/bridge", application())
+    with TestClient(parent) as client:
+        assert client.get("/bridge/api/v2/app/version").status_code == 403
+        response = client.post(
+            "/bridge/api/v2/auth/login",
+            data={"username": "operator", "password": PASSWORD},
+        )
+        assert response.status_code == 200 and response.text == "Ok."
+        assert "path=/bridge/api/v2" in response.headers["set-cookie"].lower()
+        assert client.get("/bridge/api/v2/app/version").status_code == 200
+        assert client.post("/bridge/api/v2/auth/logout").status_code == 200
+        assert client.get("/bridge/api/v2/app/version").status_code == 403
+
+
+def test_secure_ingress_origin_with_an_internal_http_proxy_hop():
+    app = application(secure=True)
+
+    async def proxy(scope, receive, send):
+        if scope["type"] == "http":
+            scope = {**scope, "scheme": "http"}
+        await app(scope, receive, send)
+
+    with TestClient(proxy, base_url="https://private.example") as client:
+        response = client.post(
+            "/api/v2/auth/login",
+            data={"username": "operator", "password": PASSWORD},
+            headers={"Origin": "https://private.example"},
+        )
+        assert (
+            response.status_code == 200
+            and "secure" in response.headers["set-cookie"].lower()
+        )
+        assert client.get("/api/v2/app/version").status_code == 200
+        for origin in (
+            "null",
+            "https://other.example",
+            "http://private.example",
+            "https://private.example:444",
+            "https://private.example/path",
+        ):
+            assert (
+                client.post(
+                    "/api/v2/auth/logout", headers={"Origin": origin}
+                ).status_code
+                == 403
+            )
+        assert (
+            client.post(
+                "/api/v2/auth/logout", headers={"Origin": "https://private.example:443"}
+            ).status_code
+            == 200
+        )
+
+
+def test_production_wiring_uses_secure_cookies_by_default(request, monkeypatch):
+    for key, value in {
+        "QBIT_USERNAME": "operator",
+        "QBIT_PASSWORD": PASSWORD,
+        "QBIT_SESSION_SECRET": SECRET,
+    }.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.delenv("QBIT_COOKIE_SECURE", raising=False)
+    client = request.getfixturevalue("client")
+    client.base_url = "https://testserver"
+    assert client.get("/api/v2/app/version").status_code == 403
+    response = client.post(
+        "/api/v2/auth/login", data={"username": "operator", "password": PASSWORD}
+    )
+    assert (
+        response.status_code == 200
+        and "secure" in response.headers["set-cookie"].lower()
+    )
+    assert client.get("/api/v2/app/version").status_code == 200

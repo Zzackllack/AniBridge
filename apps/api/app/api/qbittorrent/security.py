@@ -6,13 +6,15 @@ import hashlib
 import hmac
 import time
 from collections import deque
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI
+from starlette._utils import get_route_path
 from starlette.datastructures import MutableHeaders
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import HTTPConnection
 from starlette.responses import PlainTextResponse
-from starlette.types import ASGIApp, Receive, Scope, Send, Message
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 class QbitAuth:
@@ -21,7 +23,7 @@ class QbitAuth:
         username: str = "",
         password: str = "",
         secret: str = "",
-        secure: bool = False,
+        secure: bool = True,
     ) -> None:
         configured = bool(username or password or secret)
         if configured and not (
@@ -68,35 +70,37 @@ class QbitAuth:
 class QbitAuthMiddleware:
     def __init__(self, app: ASGIApp, auth: QbitAuth) -> None:
         self.app, self.auth = app, auth
-        self.sessions = SessionMiddleware(
-            self.guard,
-            auth.signing_key,
-            session_cookie="SID",
-            max_age=3600,
-            path="/api/v2",
-            same_site="strict",
-            https_only=auth.secure,
-        )
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        path = scope.get("path", "")
+        path = get_route_path(scope) if scope["type"] == "http" else ""
         if (
             scope["type"] == "http"
             and self.auth.enabled
             and (path == "/api/v2" or path.startswith("/api/v2/"))
         ):
-            await self.sessions(scope, receive, send)
+            # Mounted apps retain the complete path. Scope cookies per request
+            # so concurrent mounts cannot alter a shared middleware's path.
+            sessions = SessionMiddleware(
+                self.guard,
+                self.auth.signing_key,
+                session_cookie="SID",
+                max_age=3600,
+                path=scope.get("root_path", "").rstrip("/") + "/api/v2",
+                same_site="strict",
+                https_only=self.auth.secure,
+            )
+            await sessions(scope, receive, send)
         else:
             await self.app(scope, receive, send)
 
     async def guard(self, scope: Scope, receive: Receive, send: Send) -> None:
         connection = HTTPConnection(scope)
-        login = scope["path"] == "/api/v2/auth/login"
+        login = get_route_path(scope) == "/api/v2/auth/login"
         origin = connection.headers.get("origin")
         if (
             scope["method"] not in ("GET", "HEAD")
             and origin is not None
-            and origin != str(connection.url.replace(path="", query=""))
+            and not same_origin(connection, origin, self.auth.secure)
         ):
             response = PlainTextResponse(
                 "Forbidden", status_code=403, headers={"Cache-Control": "no-store"}
@@ -126,3 +130,31 @@ class QbitAuthMiddleware:
 def install(app: FastAPI, auth: QbitAuth) -> None:
     app.state.qbit_auth = auth
     app.add_middleware(QbitAuthMiddleware, auth=auth)
+
+
+def same_origin(connection: HTTPConnection, origin: str, secure: bool) -> bool:
+    """Secure cookies declare HTTPS ingress even with an internal HTTP hop.
+
+    The proxy must preserve Host. Never trust arbitrary forwarded headers here.
+    """
+    try:
+        supplied = urlsplit(origin)
+        expected = urlsplit(str(connection.url))
+        scheme = "https" if secure else expected.scheme
+        return (
+            supplied.scheme == scheme
+            and supplied.hostname == expected.hostname
+            and (supplied.port or (443 if supplied.scheme == "https" else 80))
+            == (expected.port or (443 if scheme == "https" else 80))
+            and not any(
+                (
+                    supplied.path,
+                    supplied.query,
+                    supplied.fragment,
+                    supplied.username,
+                    supplied.password,
+                )
+            )
+        )
+    except ValueError:
+        return False
