@@ -156,6 +156,8 @@ jobs:
       - name: Run API behavior with native image dependencies and generated media
         if: matrix.component.name == 'api'
         run: |
+          # Mountpoint only; all default-path test data lives in the tmpfs.
+          mkdir -p "$GITHUB_WORKSPACE/data"
           docker run --rm --log-driver none --network none --cpus 2 --memory 2g --memory-swap 2g \
             --pids-limit 128 --user 1000:1000 --entrypoint python \
             -e DATA_DIR=/tmp/anibridge-ci-tests -e DOWNLOAD_DIR=/tmp/anibridge-ci-downloads \
