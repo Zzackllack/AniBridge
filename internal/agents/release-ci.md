@@ -102,11 +102,18 @@ transition checklist item.
 `tests.yml` now runs independent frozen API/core/worker projects on branch pushes
 and PRs into `main` and `v3`, without path filters. Core/worker jobs build and
 import actual installed wheels. `Tests / Required Gate` always runs and requires
-all projects to succeed. Hosted tests and native AMD64/ARM64 preview builds passed
+all projects and native AMD64/ARM64 API/worker image smoke builds to succeed.
+Smoke builds use read-only permissions, no registry login, no publication, no
+path/actor exclusions and no saved checkout credentials, including fork and
+Dependabot PRs. They check the tested checkout's source label and installed
+imports offline. PR smoke builds test GitHub's merge revision; published preview
+images separately identify the PR head. The new gate has not run hosted until
+the local candidate is pushed with authorization.
+Hosted tests and native AMD64/ARM64 preview builds passed
 on `2240b91` on October 14. The final gate is not yet required by v3 protection:
-only the title check is a required status there. Image smoke builds remain in the
-separate path-filtered preview workflow, so do not require those individual job
-names for every PR without first providing an unconditional safe build gate.
+only the title check is a required status there. Require the aggregate
+`Tests / Required Gate` after hosted verification and an approved rule change;
+path-filtered publishing checks cannot replace that gate.
 The draft PR still targets v3; main remains default.
 
 October 14 production-readiness follow-up replaces Ruff auto-fix/rebase/force-push

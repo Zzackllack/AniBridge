@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v7
         with:
             python-version: '3.14'
@@ -99,16 +101,67 @@ jobs:
               assert Path(catalog_worker.canonical.__file__).is_relative_to(Path('.venv').resolve())
           PY
 
+  images:
+    # Unprivileged smoke builds also run for forks, Dependabot and docs-only PRs.
+    # Publishing remains in preview-images.yml with its separate trust boundary.
+    name: Image smoke (${{ matrix.component.name }}, ${{ matrix.platform.arch }})
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - name: api
+            file: apps/api/Dockerfile
+            module: app.main
+          - name: catalog-worker
+            file: apps/catalog-worker/Dockerfile
+            module: catalog_worker.cli
+        platform:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - name: Build without registry credentials or publication
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.component.file }}
+          platforms: linux/${{ matrix.platform.arch }}
+          build-args: PILOT_COMMIT=${{ github.sha }}
+          tags: anibridge-ci:smoke
+          load: true
+          push: false
+          provenance: false
+      - name: Verify source identity and installed modules offline
+        env:
+          MODULE: ${{ matrix.component.module }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(docker image inspect anibridge-ci:smoke --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$GITHUB_SHA"
+          docker run --rm --log-driver none --network none --cpus 2 --memory 2g --memory-swap 2g \
+            --pids-limit 96 --entrypoint python \
+            -e DATA_DIR=/tmp/anibridge-ci -e ANIBRIDGE_UPDATE_CHECK=false \
+            anibridge-ci:smoke -c \
+            'import importlib, importlib.util, sys; import catalog_core; importlib.import_module(sys.argv[1]); assert importlib.util.find_spec("sitecustomize") is None' "$MODULE"
+
   gate:
     name: Tests / Required Gate
     if: always()
-    needs: [test, catalog]
+    needs: [test, catalog, images]
     runs-on: ubuntu-latest
     steps:
       - name: Require every project
         env:
           API_RESULT: ${{ needs.test.result }}
           CATALOG_RESULT: ${{ needs.catalog.result }}
+          IMAGE_RESULT: ${{ needs.images.result }}
         run: |
           test "$API_RESULT" = success
           test "$CATALOG_RESULT" = success
+          test "$IMAGE_RESULT" = success
