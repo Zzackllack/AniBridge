@@ -1,5 +1,9 @@
 # Implementation follow-up — 2026-10-25
 
+**Superseded for push/hosted/native-image status by the
+[turn-2 report](TURN2_READINESS_2026-10-25.md).** This earlier phase remains a
+dated record; its unpushed/image-unavailable statements are historical.
+
 **Review: NOT READY. Merge into v3: NOT READY. Public production: NOT READY.**
 
 Eleven focused implementation commits follow the preserved eight audit commits.

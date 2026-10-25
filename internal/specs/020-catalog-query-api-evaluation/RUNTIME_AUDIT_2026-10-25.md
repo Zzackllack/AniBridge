@@ -1,5 +1,9 @@
 # Runtime audit and v3 readiness — October 25, 2026
 
+**Later implementation, pushed/native-tested source and current blockers are
+recorded in the [turn-2 report](TURN2_READINESS_2026-10-25.md).** Measurements
+below retain their original revision and environment.
+
 **Review: NOT READY. Merge into v3: NOT READY. Public production: NOT READY.**
 
 The [implementation follow-up](IMPLEMENTATION_FOLLOWUP_2026-10-25.md) supersedes

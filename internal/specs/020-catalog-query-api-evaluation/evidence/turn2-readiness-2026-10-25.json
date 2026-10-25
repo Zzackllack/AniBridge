@@ -1,0 +1,1183 @@
+{
+  "schema": 1,
+  "recorded_at_utc": "2026-10-25T17:05:03.606841+00:00",
+  "scope": "Authorized turn-2 push, local fixes and read-only live metadata; no service deployment/restart/configuration/protection/PR edits",
+  "start_revision": "431df29910c1f27880ac200921dba5968cb7ba11",
+  "tested_code_revision": "3064faf34c2ac29a0a246e5c6703c6d50ae94c18",
+  "historical_remote_base": "ff126cc2375275e9a829e6c69107ebf13008d759",
+  "runtime": {
+    "inspected_at_utc": "2026-10-25T15:15:58+00:00",
+    "containers": [
+      {
+        "image": "sha256:1cc57eae123d842af0cc9fc9003356da7e4da3af3dada3b95764f58db4513106",
+        "revision": "52065c76aa8bb75d3df4fa43e4ebcd2cded5779e",
+        "started": "2026-10-19T20:19:07.197975513Z",
+        "oom": false,
+        "restarts": 0,
+        "memory": 536870912,
+        "nano_cpus": 2000000000,
+        "role": "metadata"
+      },
+      {
+        "image": "sha256:1cc57eae123d842af0cc9fc9003356da7e4da3af3dada3b95764f58db4513106",
+        "revision": "52065c76aa8bb75d3df4fa43e4ebcd2cded5779e",
+        "started": "2026-10-19T20:19:07.548803889Z",
+        "oom": false,
+        "restarts": 0,
+        "memory": 2147483648,
+        "nano_cpus": 2000000000,
+        "role": "collector"
+      },
+      {
+        "image": "sha256:1cc57eae123d842af0cc9fc9003356da7e4da3af3dada3b95764f58db4513106",
+        "revision": "52065c76aa8bb75d3df4fa43e4ebcd2cded5779e",
+        "started": "2026-10-19T20:19:06.503683352Z",
+        "oom": false,
+        "restarts": 0,
+        "memory": 536870912,
+        "nano_cpus": 2000000000,
+        "role": "initialize"
+      }
+    ],
+    "server_free_bytes": 86981152768,
+    "private_schema": 6,
+    "public_schema": 2,
+    "schema_evidence": "Prior direct schema baseline; no new full-ledger SQL scan in turn 2",
+    "canonical_admission_per_minute": 90,
+    "admission_evidence": "Prior inspected configuration; not freshly read in turn 2"
+  },
+  "candidate": {
+    "private_schema": 7,
+    "public_schema": 2,
+    "api_db_migration": false,
+    "deployed": false
+  },
+  "defects": [
+    {
+      "id": "CQ-41",
+      "priority": "P1",
+      "trigger": "Repeated recent-feed failure postponed independent inventory indefinitely",
+      "root_cause": "state.failure changed next_listing even when processing a recent signal",
+      "regression": "test_feed_failure_isolation (HTTP 500 and HTTP-200 parse cases)",
+      "commit": "f607a19",
+      "deployed": false
+    },
+    {
+      "id": "CQ-42",
+      "priority": "P1",
+      "trigger": "Interrupted failed checkpoints could split observation retry state from signal acknowledgement",
+      "root_cause": "State.failure and Signals.failed/settle committed separately",
+      "regression": "test_feed_failure_isolation (two transaction rollback cases)",
+      "commit": "f607a19",
+      "deployed": false
+    },
+    {
+      "id": "CQ-43",
+      "priority": "P1",
+      "trigger": "Fatal writer exception left the process alive with producers awaiting impossible acknowledgements",
+      "root_cause": "Pipeline.run only awaited producers",
+      "regression": "test_pipeline_fatal_writer (continuous and one-shot)",
+      "commit": "201bb3a",
+      "deployed": false
+    },
+    {
+      "id": "CQ-44",
+      "priority": "P2",
+      "trigger": "Configured login accepted unbounded form input before credential checks",
+      "root_cause": "Framework form parsing preceded application body bounds",
+      "regression": "test_qbit_login_body (five cases, two before-fix failures)",
+      "commit": "e87716f",
+      "deployed": false
+    },
+    {
+      "id": "CQ-45",
+      "priority": "P1",
+      "trigger": "Unreadable state/backups could be counted as empty for quota admission",
+      "root_cause": "os.walk ignored directory errors by default",
+      "regression": "test_storage_inventory_errors (one before-fix failure, two passing cases)",
+      "commit": "946f6de",
+      "deployed": false
+    },
+    {
+      "id": "CQ-46",
+      "priority": "P1",
+      "trigger": "Generated 1080p AMD64 remux/probe failed under 256 MiB virtual address limit",
+      "root_cause": "Native FFmpeg/library mappings exceeded the shared parser/transfer address-space budget",
+      "regression": "Existing real Linux generated-media tests and 256/320/512 MiB native probe",
+      "commit": "78b5ee5",
+      "deployed": false
+    },
+    {
+      "id": "CQ-47",
+      "priority": "test gap",
+      "trigger": "Native image imports did not exercise full API/media/platform behavior",
+      "root_cause": "Native behavioral suites absent; FFmpeg absent from ordinary runner, plus introduced fixture/probe errors",
+      "regression": "Native API/core/worker image suites, probe failure regressions, isolated config/script tests",
+      "commit": "d484f05..048f16f",
+      "deployed": false
+    },
+    {
+      "id": "CQ-48",
+      "priority": "security hardening",
+      "trigger": "CodeQL flagged a password-bearing fast HMAC in session-key derivation",
+      "root_cause": "Key derivation used HMAC-SHA256 directly; not a stored password verifier",
+      "regression": "PBKDF2 startup derivation; real cookie username/secret rotation and existing restart/password/expiry tests",
+      "commit": "3064faf",
+      "deployed": false
+    }
+  ],
+  "matrix": [
+    {
+      "id": "A1",
+      "area": "Inventory → title/season/episode → durable work",
+      "status": "VERIFIED",
+      "evidence": "`listing`, `Collector`, `State.detail`, `batch`, signals; collection/private-operation suites; exact snapshot totals",
+      "remaining": "Observed inventories can grow; no complete-provider claim",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "A2",
+      "area": "Capped feeds, pagination and new-child reconciliation",
+      "status": "VERIFIED",
+      "evidence": "Full native core/worker suites plus test_feed_failure_isolation: HTTP 500 and HTTP-200 parse failures no longer postpone independent inventory.",
+      "remaining": "Historical feed gaps remain; capped feeds cannot establish lossless provider discovery.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "A3",
+      "area": "Unknown language, subtitles, unavailable/missing/empty markup",
+      "status": "VERIFIED",
+      "evidence": "core episode-row/recent tests; sto/collection/finale cases; live 1 unknown and 8,478 unavailable observations",
+      "remaining": "No inferred audio; stable upstream gaps remain",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "A4",
+      "area": "Retry/admission/circuit/cached retry/lease fairness",
+      "status": "VERIFIED",
+      "evidence": "Final-source Linux AMD64/ARM64 installed worker suites rerun retries, leases, admission, cached recovery and fairness fixtures.",
+      "remaining": "Deployed 52065c7 lacks these fixes. Live eligible-work throughput and freshness SLA remain unmeasured.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "A5",
+      "area": "Retained failure reason + HTTP status + first-failure age",
+      "status": "UNCHECKED",
+      "evidence": "Private v7 transactional detail receipts, migration and interrupted failure checkpoints pass in both native worker images.",
+      "remaining": "Live v6 has no detail receipts; historical first-failure clocks, listing/signal attribution and complete per-title canonical attribution remain unavailable.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "A6",
+      "area": "Hours-scale full bootstrap and sustainable maintenance",
+      "status": "UNCHECKED",
+      "evidence": "Status separates first-pass from mapping and feed gaps",
+      "remaining": "No fresh full bootstrap/endurance campaign authorized or measured",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "B1",
+      "area": "Exact denominators/disjoint unresolved partition",
+      "status": "VERIFIED",
+      "evidence": "`audit_snapshot.py`, actual `correspondence.decisions`; tables above",
+      "remaining": "Retained observations, not provider population completeness",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "B2",
+      "area": "Parent/episode IDs, provenance, no numbering/similarity acceptance",
+      "status": "VERIFIED",
+      "evidence": "Original finite identity/matching regressions plus eight damaged-cache recovery cases; current worker suite",
+      "remaining": "No numbering/similarity acceptance added. Existing uncertain maps are retained; no population precision claim.",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "B3",
+      "area": "Descriptor acquisition vs local rematching, reuse and freshness",
+      "status": "VERIFIED",
+      "evidence": "Digest/parent/language/episode codec validation in acquisition and local rematching; cross-provider and due-retry regressions",
+      "remaining": "Eight corruption cases reacquire normally and retain maps. Current live requests per useful map and eligible age by class remain unmeasured.",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "B4",
+      "area": "Prospective independently labelled trial",
+      "status": "FAILED",
+      "evidence": "215 fixed cases, 118 positives, development/held-out chronology in MAPPING_IMPLEMENTATION",
+      "remaining": "Labels followed original tuning; a new prospective independent trial or explicit contract decision is required",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "B5",
+      "area": "Multilingual/annotations/specials/split seasons/cuts",
+      "status": "VERIFIED",
+      "evidence": "finite matching/identity/finale fixtures and retained label evaluation",
+      "remaining": "Population precision and newly labelled broad unresolved cohorts UNCHECKED; no matcher tuning in this audit",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "B6",
+      "area": "Required current named targets",
+      "status": "VERIFIED",
+      "evidence": "live SQL/revision-paired native checks, including large pagination",
+      "remaining": "Published-map existence is not independent provider-order ground truth",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "B7",
+      "area": "Anime-Lists/TheXEM/provider-order and Sonarr conversion",
+      "status": "UNCHECKED",
+      "evidence": "research reviewed; no adapter integrated",
+      "remaining": "Source order binding and a real differing scene→canonical Sonarr case remain untested; do not adopt research as a map",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "C1",
+      "area": "Observation → journal → export/proof → pointer → reader",
+      "status": "VERIFIED",
+      "evidence": "v6 triggers, export/snapshot/clone/ack code; publication tests and full-size retention",
+      "remaining": "Generation acknowledgement retains later fixture WAL writes; no distribution system added",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "C2",
+      "area": "Corruption/tampering/receipts/partitions/cancel/crash",
+      "status": "VERIFIED",
+      "evidence": "publication follow-up/migration/validation-scope tests installed on Linux",
+      "remaining": "Finite injected failures, not long crash/endurance proof",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "C3",
+      "area": "Fresh full-size concurrent publication/query workload",
+      "status": "UNCHECKED",
+      "evidence": "Historical overlap evidence retained; current fixture overlap passes",
+      "remaining": "Today's full-size runs are sequential; no new final-candidate full-size overlap/stress claim",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "C4",
+      "area": "Migration/backup/idempotence/rollback/reopen",
+      "status": "UNCHECKED",
+      "evidence": "Populated v6-to-v7-to-v6 fixtures now pass in both native installed worker images, including interruption/reopen and WAL-inclusive backup admission.",
+      "remaining": "Final full-ledger v7 upgrade/rollback remains blocked by aggregate disk admission. Native fixture execution closes the former Linux-only gap.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "C5",
+      "area": "Entire release/map/history/correction preservation",
+      "status": "UNCHECKED",
+      "evidence": "All 39 non-version retained v6 tables and post-upgrade observations survive the populated migration fixtures on both Linux architectures.",
+      "remaining": "Two fixture releases and one map do not replace full-ledger preservation. Historical 498403-release/289489-map v6 proof remains historical.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "C6",
+      "area": "Query totals/isolation/pagination/corrections before policy",
+      "status": "VERIFIED",
+      "evidence": "Prior nine revision-paired live requests; new SQL/full-HTTP comparison for sixty-day-old releases",
+      "remaining": "Targeted native requests retain old content while recent feeds exclude it. No new live queries or freshness SLA in this phase.",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "C7",
+      "area": "Cache invalidation/coalescing/revision/outage/timeout",
+      "status": "VERIFIED",
+      "evidence": "query/client/provider tests, including cancellation and partial provider failures",
+      "remaining": "Positive stale cache is bounded prior-page coverage, not general outage availability",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "C8",
+      "area": "Strict aggregate disk peak and next-copy admission",
+      "status": "FAILED",
+      "evidence": "Read-only stat inventory completes both previously unreadable server experiment roots. Sanitized byte accounting is in this report and JSON.",
+      "remaining": "33,021,950,464-byte accounting projection exceeds 30,000,000,000; physical image/cache attribution and continuous peak remain uncertified. No next full-copy/acceptance stack admitted.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "D1",
+      "area": "Torznab grab → frozen identity → durable job/output",
+      "status": "UNCHECKED",
+      "evidence": "Prior two real Sonarr/Prowlarr generated-media flows and current durable-job unit suite",
+      "remaining": "Final candidate has no fresh real-client run; the new credentialed mode has only real-router tests.",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "D2",
+      "area": "Mixed history, missing jobs, states/categories/paths/full streams",
+      "status": "VERIFIED",
+      "evidence": "legacy-history/filter/completion/batch tests; actual copied four aliases",
+      "remaining": "No corruption-tolerant proof for every arbitrary private DB mutation",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "D3",
+      "area": "Exact/estimated/unknown size, tracks, retries, STRM/counts",
+      "status": "VERIFIED",
+      "evidence": "synthetic HTTP/HLS and progress/receipt/STRM tests; configured fake peers retained",
+      "remaining": "Size/quality/counts are not invented measurements; unknown totals remain unknown",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "D4",
+      "area": "Real Sonarr intermediate progress/import/restart",
+      "status": "UNCHECKED",
+      "evidence": "Prior two generated flows showed intermediate queue progress/import and six-second restart checks",
+      "remaining": "Those runs predate this implementation. Final-candidate/credentialed Sonarr acceptance is blocked by disk admission.",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "D5",
+      "area": "Real Sonarr move plus longer duplicate-prevention recovery",
+      "status": "UNCHECKED",
+      "evidence": "unit move/explicit retry and historical copied history pass",
+      "remaining": "Actual runs kept source; no new real move or long restart campaign",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "D6",
+      "area": "Visible browser progress, provider import/playback",
+      "status": "UNCHECKED",
+      "evidence": "No UI/media proof claimed",
+      "remaining": "Browser omitted; real provider acquisition outside authorization",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "D7",
+      "area": "Metadata service/Sonarr external outage independence",
+      "status": "VERIFIED",
+      "evidence": "local cache/provider isolation and frozen-source job tests; selected descriptors fetched",
+      "remaining": "Complete Sonarr metadata outage E2E is UNCHECKED; no substitute emulator",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "D8",
+      "area": "Public qBittorrent authentication",
+      "status": "UNCHECKED",
+      "evidence": "Both native API suites exercise credentialed routers, bounded login bodies, rotation and PBKDF2-derived session keys.",
+      "remaining": "Real credentialed Sonarr/proxy ingress acceptance remains blocked by disk admission. Auth is optional and covers /api/v2 only.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "D9",
+      "area": "Mounted/proxied authentication boundary",
+      "status": "VERIFIED",
+      "evidence": "Mounted real-router request returns 200 before repair and 403 after; complete mounted login/logout and simulated TLS proxy hop pass",
+      "remaining": "ASGI protocol fixture, not deployed HTTPS ingress or real Sonarr proof.",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "E1",
+      "area": "Outbound URL/redirect/DNS/TLS/session/decoding bounds",
+      "status": "VERIFIED",
+      "evidence": "Existing outbound transport fixtures; new populated CLI serve test with unusable writer-state path; server template removes private mount",
+      "remaining": "Existing service retains its historical writable state mount; update tooling preserves it. A separate reviewed operational change is needed.",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "E2",
+      "area": "Malformed canonical inputs and private proof recovery",
+      "status": "VERIFIED",
+      "evidence": "Original canonical input tests plus full stored-descriptor validation and eight cache recovery/rematching regressions",
+      "remaining": "Stored hashes detect accidental mutation, not authenticity against a writer controlling both hash and payload. No exhaustive fuzzing.",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "E3",
+      "area": "Secret/query logging boundaries",
+      "status": "VERIFIED",
+      "evidence": "worker allowlists, query access logs disabled, captured-log Torznab/grab tests",
+      "remaining": "Complete legacy downloader/OS/proxy logging privacy UNCHECKED",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "E4",
+      "area": "Child limits/cancellation/shutdown and async boundaries",
+      "status": "VERIFIED",
+      "evidence": "Both native API and installed worker suites execute the formerly skipped Linux resource, parser, cancellation, remux and probe checks at 2 CPU/2 GiB.",
+      "remaining": "Finite generated workloads only; sustained FD/pool behavior and resource capacity remain unmeasured. Native FFmpeg address-space limit is now separately 320 MiB.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "E5",
+      "area": "Dependency exposure across supported platforms",
+      "status": "UNCHECKED",
+      "evidence": "Patched locked dependencies execute inside native AMD64/ARM64 API and worker images; macOS frozen suites and prior docs audit retained.",
+      "remaining": "This closes native execution, not a complete Python/OS SBOM audit or Windows behavior. Default-branch advisory count is not candidate exposure.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "E6",
+      "area": "Full-path profiling and short 2/2 resource samples",
+      "status": "VERIFIED",
+      "evidence": "phase medians, copied publication, Linux cgroup CPU/memory/I/O, query latency",
+      "remaining": "Sustained capacity, lock/writer occupancy, exact physical Mac backing I/O and eligible-class age UNCHECKED",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "E7",
+      "area": "Filesystem/platform support",
+      "status": "FAILED",
+      "evidence": "actual Mac-bind exclusion failure; fail-closed fix; native Linux/macOS tests",
+      "remaining": "Developer state must move safely before candidate startup; Windows resource enforcement remains outside this Linux pilot",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "F1",
+      "area": "Frozen project and installed-wheel checks",
+      "status": "VERIFIED",
+      "evidence": "Frozen native Linux API/core/worker suites and installed worker wheel suites pass on AMD64 and ARM64; macOS API retains explicit Linux-only skips.",
+      "remaining": "Counts, revision, run and conditions below; no full real-client E2E or code-coverage inference.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "F2",
+      "area": "Lint/workflow/static gate behavior",
+      "status": "VERIFIED",
+      "evidence": "Full API Ruff/format, Pylint 8.44 >7.5, actionlint; actual final gate shell tested over 125 combinations",
+      "remaining": "Only all-success passes. Current worker-wide pre-existing lint remains outside hosted lint scope; no mass cleanup.",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "F3",
+      "area": "Hosted results for new final local source",
+      "status": "VERIFIED",
+      "evidence": "Final code 3064faf: Tests / Required Gate, both native API/core/worker suites, lint/CodeQL and preview publication pass; immutable manifests source labels agree on both architectures.",
+      "remaining": "Documentation-only descendants require their own hosted verification; hosted checks do not imply deployment.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "F4",
+      "area": "Enforced unconditional test/build merge gate",
+      "status": "FAILED",
+      "evidence": "Unconditional native behavioral jobs feed the hosted Tests / Required Gate, which rejects skipped/cancelled/failed dependencies.",
+      "remaining": "Effective v3 rules still require only Conventional Commit Title as a status check. Protection was not changed.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "F5",
+      "area": "Review approval and current PR description",
+      "status": "FAILED",
+      "evidence": "Fresh connector thread query: prior CodeQL thread resolved/outdated after source hardening; all 23 reported contexts succeed on 3064faf. Prepared body follows repository template.",
+      "remaining": "No human/CODEOWNER approval and PR body remains historical. No PR body or draft edits made.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "F6",
+      "area": "Stable/default/prerelease release policy",
+      "status": "UNCHECKED",
+      "evidence": "all workflows and v3 transition checklist reviewed",
+      "remaining": "main stays stable/default; prerelease/default/retention/external integrations remain separate release decisions",
+      "evidence_origin": "IMPLEMENTATION_FOLLOWUP_2026-10-25.md (inherited finite evidence; see dated boundaries)"
+    },
+    {
+      "id": "A7",
+      "area": "Fatal writer failure and producer cleanup",
+      "status": "VERIFIED",
+      "evidence": "test_pipeline_fatal_writer: both continuous and one-shot modes timed out before the fix; now propagate RuntimeError and leave no pending tasks.",
+      "remaining": "Injected fatal exception, not a long crash campaign.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "A8",
+      "area": "Failed observation and signal retry atomicity",
+      "status": "VERIFIED",
+      "evidence": "test_feed_failure_isolation compares worker_meta/work/work_failure/signal_meta/signal_pending around interrupted recent and targeted checkpoints.",
+      "remaining": "Finite transaction rollback injection; no live failure was induced.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "C9",
+      "area": "Unreadable quota inventory",
+      "status": "VERIFIED",
+      "evidence": "test_storage_inventory_errors rejects unreadable subdirectories and tolerates concurrent FileNotFoundError.",
+      "remaining": "Local fail-closed traversal cannot certify whole-host/shared-image physical storage.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "E8",
+      "area": "Credentialed login body admission",
+      "status": "VERIFIED",
+      "evidence": "Declared/chunked excess, fragmented normal forms, slow body and empty-ASGI-frame cases pass on both native API images.",
+      "remaining": "16 KiB/5 seconds/1024 frames; upstream proxy connection limits and auth-off compatibility remain separate.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "E9",
+      "area": "Native FFmpeg virtual memory admission",
+      "status": "VERIFIED",
+      "evidence": "Paired 256/320/512 MiB trials on generated two-second 1080p bytes; actual remux/probe and full native API regressions.",
+      "remaining": "One fixture and cold/warm uncontrolled samples do not establish general format/capacity safety.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "F7",
+      "area": "Diagnostic control failures and test isolation",
+      "status": "VERIFIED",
+      "evidence": "Probe 320/512 failures now exit nonzero; three helper tests. Diagnostics follow tests. Local config contract runs in an isolated subprocess; image fixture mountpoint exists.",
+      "remaining": "The introduced duplicate-keyword/false-green probe results were invalidated, not counted as success.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    },
+    {
+      "id": "E10",
+      "area": "Session key derivation and rotation",
+      "status": "VERIFIED",
+      "evidence": "PBKDF2-HMAC-SHA256 with 600000 rounds runs once at startup, random configured secret and length-framed username; real cookie username/secret rotation tests.",
+      "remaining": "CodeQL prompted hardening, not evidence of leaked credentials. Existing authenticated cookies expire on this key-format change; real-client reconnect remains unchecked.",
+      "evidence_origin": "TURN2_READINESS_2026-10-25.md"
+    }
+  ],
+  "macos": {
+    "architecture": "arm64",
+    "python": "3.14",
+    "api_passed": 334,
+    "api_skipped": 18,
+    "core_passed": 322,
+    "worker_passed": 311,
+    "worker_skipped": 13,
+    "ruff": "pass",
+    "format": "pass",
+    "pylint_score_prior_full": 8.44,
+    "actionlint": "pass"
+  },
+  "native_media": {
+    "probe_revision": "6e598134f293669e8a9d86745eaed43759715f1c",
+    "reference_before": {
+      "host": {
+        "scope": "generated two-second 1080p fixture; not provider media or capacity",
+        "architecture": "x86_64",
+        "phases": [
+          {
+            "operation": "remux",
+            "address_limit_mib": 256,
+            "exit_code": 245,
+            "reason": "resource_admission",
+            "wall_s": 0.2163,
+            "cpu_s": 0.1402,
+            "peak_virtual_kib": 261996,
+            "sampled_rss_kib": 61676,
+            "sampled_threads": 1
+          },
+          {
+            "operation": "probe",
+            "address_limit_mib": 256,
+            "exit_code": 1,
+            "reason": "allocation_error",
+            "wall_s": 0.1317,
+            "cpu_s": 0.1292,
+            "peak_virtual_kib": 261884,
+            "sampled_rss_kib": 61536,
+            "sampled_threads": 1
+          },
+          {
+            "operation": "remux",
+            "address_limit_mib": 512,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.1374,
+            "cpu_s": 0.1369,
+            "peak_virtual_kib": 262736,
+            "sampled_rss_kib": 61880,
+            "sampled_threads": 3
+          },
+          {
+            "operation": "probe",
+            "address_limit_mib": 512,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.132,
+            "cpu_s": 0.1306,
+            "peak_virtual_kib": 262784,
+            "sampled_rss_kib": 61484,
+            "sampled_threads": 1
+          }
+        ]
+      },
+      "amd64": {
+        "scope": "generated two-second 1080p fixture; not provider media or capacity",
+        "architecture": "x86_64",
+        "phases": [
+          {
+            "operation": "remux",
+            "address_limit_mib": 256,
+            "exit_code": 245,
+            "reason": "resource_admission",
+            "wall_s": 0.3122,
+            "cpu_s": 0.3111,
+            "peak_virtual_kib": 262088,
+            "sampled_rss_kib": 69208,
+            "sampled_threads": 1
+          },
+          {
+            "operation": "probe",
+            "address_limit_mib": 256,
+            "exit_code": 1,
+            "reason": "allocation_error",
+            "wall_s": 0.3131,
+            "cpu_s": 0.3109,
+            "peak_virtual_kib": 262044,
+            "sampled_rss_kib": 67476,
+            "sampled_threads": 1
+          },
+          {
+            "operation": "remux",
+            "address_limit_mib": 512,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.3153,
+            "cpu_s": 0.3138,
+            "peak_virtual_kib": 262828,
+            "sampled_rss_kib": 65468,
+            "sampled_threads": 3
+          },
+          {
+            "operation": "probe",
+            "address_limit_mib": 512,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.3273,
+            "cpu_s": 0.325,
+            "peak_virtual_kib": 262944,
+            "sampled_rss_kib": 67700,
+            "sampled_threads": 1
+          }
+        ]
+      },
+      "arm64": {
+        "scope": "generated two-second 1080p fixture; not provider media or capacity",
+        "architecture": "aarch64",
+        "phases": [
+          {
+            "operation": "remux",
+            "address_limit_mib": 256,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.4763,
+            "cpu_s": 0.4746,
+            "peak_virtual_kib": 250244,
+            "sampled_rss_kib": 58852,
+            "sampled_threads": 3
+          },
+          {
+            "operation": "probe",
+            "address_limit_mib": 256,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.4705,
+            "cpu_s": 0.4696,
+            "peak_virtual_kib": 250364,
+            "sampled_rss_kib": 57964,
+            "sampled_threads": 1
+          },
+          {
+            "operation": "remux",
+            "address_limit_mib": 512,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.467,
+            "cpu_s": 0.4668,
+            "peak_virtual_kib": 250244,
+            "sampled_rss_kib": 58084,
+            "sampled_threads": 3
+          },
+          {
+            "operation": "probe",
+            "address_limit_mib": 512,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.4701,
+            "cpu_s": 0.4679,
+            "peak_virtual_kib": 250364,
+            "sampled_rss_kib": 59176,
+            "sampled_threads": 1
+          }
+        ]
+      }
+    },
+    "paired_controls": {
+      "amd64": {
+        "scope": "generated two-second 1080p fixture; not provider media or capacity",
+        "architecture": "x86_64",
+        "phases": [
+          {
+            "operation": "remux",
+            "address_limit_mib": 256,
+            "exit_code": 245,
+            "reason": "resource_admission",
+            "wall_s": 0.5063,
+            "cpu_s": 0.505,
+            "peak_virtual_kib": 262088,
+            "sampled_rss_kib": 67224,
+            "sampled_threads": 1
+          },
+          {
+            "operation": "probe",
+            "address_limit_mib": 256,
+            "exit_code": 1,
+            "reason": "allocation_error",
+            "wall_s": 0.5005,
+            "cpu_s": 0.4979,
+            "peak_virtual_kib": 262044,
+            "sampled_rss_kib": 65192,
+            "sampled_threads": 1
+          },
+          {
+            "operation": "remux",
+            "address_limit_mib": 320,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.4997,
+            "cpu_s": 0.4976,
+            "peak_virtual_kib": 262828,
+            "sampled_rss_kib": 67392,
+            "sampled_threads": 3
+          },
+          {
+            "operation": "probe",
+            "address_limit_mib": 320,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.4994,
+            "cpu_s": 0.4973,
+            "peak_virtual_kib": 262944,
+            "sampled_rss_kib": 65800,
+            "sampled_threads": 1
+          },
+          {
+            "operation": "remux",
+            "address_limit_mib": 512,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.4968,
+            "cpu_s": 0.496,
+            "peak_virtual_kib": 262828,
+            "sampled_rss_kib": 67820,
+            "sampled_threads": 3
+          },
+          {
+            "operation": "probe",
+            "address_limit_mib": 512,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.4943,
+            "cpu_s": 0.493,
+            "peak_virtual_kib": 262944,
+            "sampled_rss_kib": 65488,
+            "sampled_threads": 1
+          }
+        ]
+      },
+      "arm64": {
+        "scope": "generated two-second 1080p fixture; not provider media or capacity",
+        "architecture": "aarch64",
+        "phases": [
+          {
+            "operation": "remux",
+            "address_limit_mib": 256,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.4279,
+            "cpu_s": 0.426,
+            "peak_virtual_kib": 250244,
+            "sampled_rss_kib": 58200,
+            "sampled_threads": 3
+          },
+          {
+            "operation": "probe",
+            "address_limit_mib": 256,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.4196,
+            "cpu_s": 0.4184,
+            "peak_virtual_kib": 250364,
+            "sampled_rss_kib": 57976,
+            "sampled_threads": 1
+          },
+          {
+            "operation": "remux",
+            "address_limit_mib": 320,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.4256,
+            "cpu_s": 0.424,
+            "peak_virtual_kib": 250244,
+            "sampled_rss_kib": 58604,
+            "sampled_threads": 3
+          },
+          {
+            "operation": "probe",
+            "address_limit_mib": 320,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.4196,
+            "cpu_s": 0.4174,
+            "peak_virtual_kib": 250364,
+            "sampled_rss_kib": 57956,
+            "sampled_threads": 1
+          },
+          {
+            "operation": "remux",
+            "address_limit_mib": 512,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.4181,
+            "cpu_s": 0.416,
+            "peak_virtual_kib": 250244,
+            "sampled_rss_kib": 60316,
+            "sampled_threads": 3
+          },
+          {
+            "operation": "probe",
+            "address_limit_mib": 512,
+            "exit_code": 0,
+            "reason": "ok",
+            "wall_s": 0.4219,
+            "cpu_s": 0.4214,
+            "peak_virtual_kib": 249468,
+            "sampled_rss_kib": 57952,
+            "sampled_threads": 1
+          }
+        ]
+      }
+    },
+    "conditions": "Native hosted API images, UID1000,2 CPU/2 GiB,network none; same generated input within each run; no cold/warm control",
+    "production_address_limit_mib": 320,
+    "parser_transfer_address_limit_mib": 256
+  },
+  "session_key_startup": {
+    "environment": "macOS ARM64 Python 3.14, startup only, three warm sequential samples",
+    "pbkdf2_iterations": 600000,
+    "samples": [
+      {
+        "wall_s": 0.0454,
+        "cpu_s": 0.0453
+      },
+      {
+        "wall_s": 0.046,
+        "cpu_s": 0.046
+      },
+      {
+        "wall_s": 0.0465,
+        "cpu_s": 0.0463
+      }
+    ]
+  },
+  "storage": {
+    "cap_bytes": 30000000000,
+    "reserve_bytes": 1000000000,
+    "server_roots": {
+      "offline": {
+        "logical": 7642102510,
+        "unique_logical": 7642102510,
+        "allocated": 7643955200,
+        "files": 650,
+        "errors": []
+      },
+      "failures": {
+        "logical": 4855108520,
+        "unique_logical": 4855108520,
+        "allocated": 4856303616,
+        "files": 442,
+        "errors": []
+      },
+      "state": {
+        "logical": 5477728466,
+        "unique_logical": 5477728466,
+        "allocated": 5477781504,
+        "files": 38,
+        "errors": []
+      },
+      "read": {
+        "logical": 325293623,
+        "unique_logical": 325293623,
+        "allocated": 325304320,
+        "files": 8,
+        "errors": []
+      }
+    },
+    "server_other_allocated_bytes": 1434619904,
+    "mac_retained_audit_and_update_allocated_bytes": 4429750272,
+    "mac_known_image_unique_layer_accounting_bytes": 7854235648,
+    "mac_image_accounting_note": "RootFS chain union with positive history sizes; virtual layer accounting, not certified physical disk. 19 known images,144 layer chains,zero count-mapping errors.",
+    "all_mac_build_cache_raw_upper_bound_bytes": 14916515457,
+    "cache_note": "Includes unrelated/shared cache; not added to projection because attribution/overlap unknown.",
+    "accounting_projection_excluding_cache_and_server_images_bytes": 33021950464,
+    "next_copy_admission": "FAILED",
+    "continuous_physical_peak_certified": false,
+    "mac_free_bytes_sample": 13706997760,
+    "server_inventory_helper": "One existing-image, read-only stat helper: no network, no writable volumes,log-driver none,1 CPU/128 MiB,pids16,auto-removed. No competing collector.",
+    "deletions": false,
+    "new_full_copies_or_local_image_pulls": false
+  },
+  "code_review": {
+    "turn2_first": {
+      "base": "431df29",
+      "result": "0 issues"
+    },
+    "turn2_second": {
+      "base": "d484f05",
+      "result": "3 issues",
+      "dispositions": [
+        "duplicate memory_bytes and false-green controls fixed",
+        "probe moved after tests/artifacts",
+        "config defaults test isolated from shared modules"
+      ]
+    },
+    "auth_followup": {
+      "base": "048f16f",
+      "reviewed_revision": "3064faf",
+      "issues": 0,
+      "files": 3
+    }
+  },
+  "github": {
+    "pr": 170,
+    "base": "v3",
+    "default_branch": "main",
+    "draft": true,
+    "human_approvals": 0,
+    "required_statuses": [
+      "Conventional Commit Title"
+    ],
+    "required_approvals": 1,
+    "code_owner_required": true,
+    "codeql_threshold": "high_or_higher/errors",
+    "protection_changed": false,
+    "prepared_pr_body": "PR_170_DESCRIPTION_TURN2.md",
+    "pr_edited": false,
+    "codeql_alert9": {
+      "reported_instance_state": "fixed",
+      "final_source_analysis": "Analyze (python) and CodeQL success on 3064faf",
+      "dismissed_manually": false
+    },
+    "unresolved_review_threads": 0,
+    "thread_boundary": "Connector re-query: prior CodeQL thread is resolved/outdated automatically; no manual thread operation"
+  },
+  "ci": {
+    "last_full_success_before_key_hardening": {
+      "revision": "048f16f9d23ccd87bdbf6011dfca3d97a35e6c59",
+      "run": 40213832650,
+      "conclusion": "success",
+      "api_native_each_passed": 350,
+      "core_native_each_passed": 322,
+      "worker_native_each_passed": 324
+    },
+    "final_code": {
+      "revision": "3064faf34c2ac29a0a246e5c6703c6d50ae94c18",
+      "tests_run": 40214183582,
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "Image smoke (catalog-worker, amd64)",
+          "id": 121231651405,
+          "conclusion": "success"
+        },
+        {
+          "name": "Pytest",
+          "id": 121231651561,
+          "conclusion": "success"
+        },
+        {
+          "name": "Image smoke (api, amd64)",
+          "id": 121231651573,
+          "conclusion": "success"
+        },
+        {
+          "name": "Pytest (packages/catalog-core)",
+          "id": 121231651606,
+          "conclusion": "success"
+        },
+        {
+          "name": "Image smoke (catalog-worker, arm64)",
+          "id": 121231651615,
+          "conclusion": "success"
+        },
+        {
+          "name": "Pytest (apps/catalog-worker)",
+          "id": 121231651632,
+          "conclusion": "success"
+        },
+        {
+          "name": "Image smoke (api, arm64)",
+          "id": 121231651645,
+          "conclusion": "success"
+        },
+        {
+          "name": "Tests / Required Gate",
+          "id": 121232420550,
+          "conclusion": "success"
+        }
+      ],
+      "native": {
+        "amd64": {
+          "api": [
+            "352 passed, 1 warning in 83.28s (0:01:23)"
+          ],
+          "worker": [
+            "322 passed in 6.37s",
+            "324 passed in 60.75s (0:01:00)"
+          ]
+        },
+        "arm64": {
+          "api": [
+            "352 passed, 1 warning in 75.32s (0:01:15)"
+          ],
+          "worker": [
+            "322 passed in 5.76s",
+            "324 passed in 61.04s (0:01:01)"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "CODEOWNERS Coverage",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Conventional Commit Title",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Ruff Lint",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Analyze (actions)",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Build api (amd64)",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Pylint (> 7.5)",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Pytest",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Analyze (python)",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Build api (arm64)",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Build catalog-worker (amd64)",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Build catalog-worker (arm64)",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Ruff Format",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Publish api manifest",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Pytest (packages/catalog-core)",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Publish catalog-worker manifest",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Pytest (apps/catalog-worker)",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Image smoke (api, amd64)",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Image smoke (api, arm64)",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Image smoke (catalog-worker, amd64)",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Image smoke (catalog-worker, arm64)",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "Tests / Required Gate",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "CodeQL",
+          "result": "SUCCESS"
+        },
+        {
+          "name": "CodeRabbit",
+          "result": "SUCCESS"
+        }
+      ],
+      "preview_run": 40214183699
+    },
+    "immutable_images": {
+      "api": {
+        "image": "ghcr.io/zzackllack/anibridge-api-preview@sha256:3a4371c29cffaaf7cd5fd99a219718469eb87cc686151bc38bd1819c809d60c0",
+        "revision_by_platform": {
+          "linux/amd64": "3064faf34c2ac29a0a246e5c6703c6d50ae94c18",
+          "linux/arm64": "3064faf34c2ac29a0a246e5c6703c6d50ae94c18"
+        },
+        "verification": "Registry metadata only; no local image pull/deployment"
+      },
+      "worker": {
+        "image": "ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:fef55ddb46a22827346112e5f5996f19e5613a44d05e70f6458d92ba85875239",
+        "revision_by_platform": {
+          "linux/amd64": "3064faf34c2ac29a0a246e5c6703c6d50ae94c18",
+          "linux/arm64": "3064faf34c2ac29a0a246e5c6703c6d50ae94c18"
+        },
+        "verification": "Registry metadata only; no local image pull/deployment"
+      }
+    }
+  },
+  "not_measured_this_turn": [
+    "new full-ledger mapping denominators",
+    "prospective independent mapping precision",
+    "final v7 full-ledger preservation/rollback",
+    "final-source concurrent full-size publication/query workload",
+    "real credentialed Sonarr/Prowlarr generated-media acceptance",
+    "actual Sonarr file move/restart duplicate prevention",
+    "visible browser progress",
+    "requests per useful map and eligible age by class",
+    "new full-path publication/query latency",
+    "sustained capacity/lock writer occupancy",
+    "physical backing I/O/continuous aggregate disk peak",
+    "full Python/OS SBOM/Windows behavior"
+  ],
+  "verdict": {
+    "ready_for_review": "NOT READY",
+    "merge_v3": "NOT READY",
+    "public_production": "NOT READY"
+  },
+  "code_coverage": {
+    "api_macos": {
+      "covered_lines": 6286,
+      "num_statements": 10087,
+      "missing_lines": 3801,
+      "excluded_lines": 35,
+      "percent_covered": 62.317834836918806
+    },
+    "api_ordinary_linux": {
+      "covered_lines": 6444,
+      "num_statements": 10087,
+      "missing_lines": 3643,
+      "percent_covered": 63.884207395657775
+    },
+    "branch_core_worker": "not measured",
+    "limit": "Separate from mapping/scenario/operational proof"
+  }
+}

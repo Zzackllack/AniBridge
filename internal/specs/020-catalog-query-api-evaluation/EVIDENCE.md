@@ -1,5 +1,50 @@
 # Private request API pilot evidence
 
+## Turn 2 implementation and native verification — 2026-10-25
+
+[Current report, 50-area matrix and versioned commands](TURN2_READINESS_2026-10-25.md)
+and [sanitized JSON](evidence/turn2-readiness-2026-10-25.json) supersede earlier
+unpushed/native-unchecked statements. The original 20 local commits and new
+focused repairs are pushed. Final code `3064faf` passes
+[tests 40214183582](https://github.com/Zzackllack/AniBridge/actions/runs/40214183582):
+each native API image 352 passed; each native worker image 322 core/324 worker
+passed, no skips, UID1000/2 CPU/2 GiB/no network. Ordinary Linux API also passes
+352. All 23 reported PR contexts succeed, including lint, aggregate gate and
+CodeQL. Both [preview manifests](https://github.com/Zzackllack/AniBridge/actions/runs/40214183699)
+publish; registry source labels agree on both architectures. Digests are pinned
+in the report. Builds/pushes did not deploy the existing service.
+
+Four feed/checkpoint cases, two fatal-writer cases, two oversized-login cases
+and one unreadable-inventory case fail against their prior implementation and
+pass after repair. Linux generated-media checks exposed AMD64 remux/probe
+failure under the shared 256-MiB address cap. Same-input native 256/320/512-MiB
+controls show 320 MiB admits both operations; parser/transfer limits stay 256.
+The report records actual VM/RSS/CPU/wall samples and their finite scope.
+Introduced diagnostic override/false-green errors were fixed and their invalid
+results excluded; supported-control failures now fail CI. CodeRabbit reviews
+raised 0, then 3 repaired issues; the focused auth follow-up raised 0.
+
+CodeQL prompted startup-only PBKDF2 session-key derivation and real cookie
+username/secret rotation checks. Its earlier alert instance reports fixed and
+the automated thread is resolved/outdated without manual dismissal/resolution.
+No credential leak or stored-password-verifier defect is claimed. Older signed
+cookies require login again. Real credentialed Sonarr remains untested.
+
+macOS API 334 passed/18 skips; worker 311/13; core 322. API statement coverage
+is 6286/10087 (62.32%) on macOS and 6444/10087 (63.88%) on ordinary Linux;
+these do not measure mapping, scenario or operational coverage. Ruff/format,
+Pylint 8.44 and actionlint pass; existing warnings remain visible.
+
+Read-only live container inspection at 15:15:58 UTC still finds `52065c7`, zero
+restarts/OOMs and original allocations. No new live full-ledger scan is claimed.
+One existing-image read-only stat helper completed previously unreadable server
+experiment inventories without creating a copy. The 33.02-GB accounting
+projection exceeds the 30-GB budget; physical image/cache attribution and a
+continuous peak remain uncertified. No old experiment, backup, image or volume
+was removed. Full-copy v7 and real-client work remain unadmitted, so review,
+merge and public production remain **NOT READY**. Earlier v6 full-copy/mapping/
+query measurements retain their original proof boundaries.
+
 ## Implementation follow-up — 2026-10-25
 
 [Current implementation/readiness matrix](IMPLEMENTATION_FOLLOWUP_2026-10-25.md)

@@ -4,6 +4,38 @@ Updated 2026-10-25. Evidence: [pilot follow-up](evidence/linux-private-pilot-fol
 and [EVIDENCE.md](EVIDENCE.md). The October 8 implementation and bounded measurements are recorded below.
 Deployment is confined to the maintainer-authorized existing private pilot.
 
+## October 25 turn 2 — pushed fixes and current decision
+
+[Readiness report and complete 50-area matrix](TURN2_READINESS_2026-10-25.md),
+[sanitized measurements](evidence/turn2-readiness-2026-10-25.json) and
+[prepared PR description](PR_170_DESCRIPTION_TURN2.md) supersede the earlier
+unpushed/hosted-unchecked status below. Tested code `3064faf` is pushed;
+full native API/core/worker tests pass on AMD64 and ARM64, as do the aggregate
+gate, lint/CodeQL and both preview manifests. Live `52065c7`/v6 is unchanged.
+Review, merge and public production remain **NOT READY** for the explicit
+real-client, full-ledger, storage, mapping and policy gates in that report.
+
+| ID | Status | Result / remaining boundary |
+| --- | --- | --- |
+| CQ-41 | Fixed and pushed / P1 | Recent-feed failure could keep inventory postponed. Listing-only scheduling now leaves independent inventory due; HTTP 500 and HTTP-200 parse regressions fail before/pass after. |
+| CQ-42 | Fixed and pushed / P1 | Failed observation and signal acknowledgement used separate commits. Both now share one checkpoint; interrupted recent/targeted cases retain every compared queue/receipt row. |
+| CQ-43 | Fixed and pushed / P1 | Fatal writer failure stranded producers while the process remained alive. Both continuous/one-shot modes now propagate the error and join cancelled tasks. |
+| CQ-44 | Fixed and pushed / P2 | Credentialed login accepted unbounded input before form parsing. Pre-parser byte/time/frame limits retain normal framework form handling; oversized declared/chunked cases reproduce before the fix. |
+| CQ-45 | Fixed and pushed / P1 | Quota traversal ignored unreadable state/backup directories. Admission now fails closed on directory errors and tolerates concurrent disappearance only. |
+| CQ-46 | Fixed and pushed / P1 | Native AMD64 generated 1080p remux/probe exceeded 256-MiB virtual address space. Paired native trials justify 320 MiB for remux/probe; parser/transfer limits stay 256 MiB. This is not a whole-job capacity claim. |
+| CQ-47 | Test gap closed / introduced harness defects fixed | Full native image suites and installed worker/core wheel suites now feed the gate. CI exposed real media failures and fixture assumptions. Broken probe override/false-green status, ordering and config isolation are repaired; invalid intermediate results excluded. |
+| CQ-48 | Hardening pushed / CodeQL fixed | Password-bearing HMAC session-key derivation replaced with startup-only PBKDF2. No stored verifier or credential disclosure was established. Real cookie username/secret rotation passes; older cookies require login again. CodeQL thread resolved/outdated automatically. |
+
+CQ-37 now has hosted native behavioral proof, but enforced protection remains
+open: only the title status is required by effective v3 rules. CQ-34/CQ-35 and
+the populated v7 rollback fixture execute on both Linux architectures. Full-ledger
+v7 preservation/rollback remains untested. CQ-36 still lacks fresh real
+credentialed Sonarr/proxy ingress acceptance. CQ-30 still requires safe retained
+client storage. The 33,021,950,464-byte accounting projection exceeds the 30-GB
+budget before unassigned shared caches; new copies/stacks are not admitted.
+No state, backup, old image or acceptance volume was deleted. No live rollout,
+PR body/draft edit, protection change or merge occurred.
+
 ## October 25 implementation follow-up — current candidate
 
 [Implementation fixes, complete matrix and version-specific rollback](IMPLEMENTATION_FOLLOWUP_2026-10-25.md)

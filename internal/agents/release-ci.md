@@ -107,8 +107,8 @@ Smoke builds use read-only permissions, no registry login, no publication, no
 path/actor exclusions and no saved checkout credentials, including fork and
 Dependabot PRs. They check the tested checkout's source label and installed
 imports offline. PR smoke builds test GitHub's merge revision; published preview
-images separately identify the PR head. The new gate has not run hosted until
-the local candidate is pushed with authorization.
+images separately identify the PR head. Native behavioral jobs and the aggregate
+gate passed on `3064faf` on October 25; see the dated turn-2 readiness report.
 Native API image jobs also run the complete behavioral suite as UID 1000 at
 2 CPU/2 GiB, without network, using the image's locked dependencies and FFmpeg.
 The reviewed checkout is mounted read-only for test sources; writable scratch

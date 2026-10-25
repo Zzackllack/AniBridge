@@ -50,6 +50,14 @@
 
 - `.github/workflows/tests.yml` runs on branch pushes and PRs into `main`/`v3`, without path filters. Independent API, core and worker projects use frozen uv locks.
 - Core/worker jobs run offline regressions and build/install wheels; the always-running `Tests / Required Gate` rejects failed, cancelled or skipped project jobs. GitHub required-check protection remains an operator decision.
+- Native API and worker images run complete behavioral suites on AMD64/ARM64
+  at 2 CPU/2 GiB with no network, installed locked dependencies and ephemeral
+  Linux scratch. The read-only source mount must have its `data/` mountpoint
+  before attaching the isolated tmpfs; never use developer persistent state.
+- The API job installs FFmpeg. `media_limit_probe.py` compares finite generated
+  remux/probe inputs at 256/320/512 MiB virtual-address limits; supported-control
+  failure exits nonzero. Run diagnostics after test/artifact capture. Remux/probe
+  use 320 MiB in production; parser/transfer children retain 256 MiB.
 - On pull requests, failed pytest runs upload the captured console output so CI
   can post or refresh a remediation comment on the PR thread.
 

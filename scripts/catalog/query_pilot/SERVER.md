@@ -1,10 +1,12 @@
 # Private Linux collector and separate local client
 
 Current point-in-time status and proposed upgrade constraints are in the
-[October 25 runtime audit](../../../internal/specs/020-catalog-query-api-evaluation/RUNTIME_AUDIT_2026-10-25.md).
+[October 25 turn-2 readiness report](../../../internal/specs/020-catalog-query-api-evaluation/TURN2_READINESS_2026-10-25.md).
 The live worker is `52065c7`, private v6/public schema2. Later local fixes have not
 been deployed. The dated sections below retain their historical scope; do not
-use an older v5 downgrade or discarded rollout status for a new v6→v6 update.
+use an older v5 downgrade or discarded rollout status for the current v6→v7
+candidate. Pushed/native-tested images exist; full-ledger v7 upgrade/rollback
+remains blocked by aggregate disk admission. No new rollout is approved.
 
 Use `server.yaml`, not the generated fixture `compose.yaml`, for normal collection.
 AniWorld and Serienstream are enabled. Megakino is optional and currently has a

@@ -6,9 +6,9 @@ a `sha-<commit>` tag can move on a rebuild. A digest identifies the exact image
 and makes rollback repeatable. Docker also pulls `latest` even with
 [`pull_policy: missing`](https://docs.docker.com/reference/compose-file/services/#pull_policy).
 
-The [October 25 runtime audit](../../../internal/specs/020-catalog-query-api-evaluation/RUNTIME_AUDIT_2026-10-25.md)
-supersedes historical deployment/readiness claims below. Its new local changes
-have no published image or hosted checks. The implementation follow-up now uses
+The [October 25 turn-2 readiness report](../../../internal/specs/020-catalog-query-api-evaluation/TURN2_READINESS_2026-10-25.md)
+supersedes historical deployment/readiness claims below. The fixes are pushed;
+native tests and preview manifests pass on `3064faf`. The candidate now uses
 private v7/public schema2; the original audit's v6 code-only rollback no longer
 applies to that candidate. Writable state
 must enforce `flock`; the new code refuses the observed unsafe Docker Desktop
@@ -33,9 +33,10 @@ keep all volumes, and run `bash stopped-state.sh rollback-v6` using the **new
 v7 image**. This removes only v7 diagnostics and retains every current v6 table,
 including observations collected after the upgrade. Then restore the generated
 `rollback.yaml` in Zen and start that pinned old image. Do not restore an old
-ledger backup over new observations. The new image digest and final full-copy
-v7 migration proof remain unavailable; this is a prepared procedure, not a
-tested live upgrade. Historical v6 procedures below are version-specific.
+ledger backup over new observations. Immutable candidate digests are recorded
+in the turn-2 report; final full-copy v7 migration proof remains unavailable.
+This is a prepared procedure, not a tested live upgrade. Historical v6
+procedures below are version-specific.
 
 Image publishing is already automatic through the preview workflow. Deployment
 is an explicit operator action: a new worker can migrate private state. The
