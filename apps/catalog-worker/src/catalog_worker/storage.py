@@ -17,6 +17,13 @@ STATE_HEADROOM = 512 * MIB
 RUNTIME_ALLOWANCE = 1_000_000_000
 
 
+def inventory_error(error: OSError) -> None:
+    if not isinstance(error, FileNotFoundError):
+        # Permission/I/O failures are unknown usage, not empty directories.
+        # Atomic retirement during traversal may legitimately remove a path.
+        raise ValueError("storage_inventory_unavailable") from None
+
+
 def used(directory: Path) -> int:
     """Count logical or allocated bytes, whichever is larger; deduplicate links.
 
@@ -24,7 +31,9 @@ def used(directory: Path) -> int:
     files, directories and backups too; do not follow operator symlinks.
     """
     total, seen = 0, set()
-    for root, directories, files in os.walk(directory, followlinks=False):
+    for root, directories, files in os.walk(
+        directory, followlinks=False, onerror=inventory_error
+    ):
         for path in [
             Path(root),
             *(Path(root) / n for n in files),
