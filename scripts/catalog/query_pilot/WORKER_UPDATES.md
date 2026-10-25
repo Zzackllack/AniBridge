@@ -31,6 +31,10 @@ remain. A mount/ingress/config change needs a separate reviewed diff. Keep the
 plan both locally and on the host; it does not deploy itself.
 Snapshot, verification and rollback containers use root to read the private
 operator directory and receipts. Normal collector/metadata users stay unchanged.
+Keep the old image referenced while rollback is required: scheduled cleanup can
+remove a cached, unused digest. A stopped retention container needs no volumes
+or network and must override the worker entrypoint, for example with
+`--entrypoint python OLD_IMAGE -c pass`, so it cannot accidentally collect.
 
 ## Apply only after operational approval
 
