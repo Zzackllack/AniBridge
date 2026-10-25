@@ -144,8 +144,16 @@ def same_origin(connection: HTTPConnection, origin: str, secure: bool) -> bool:
         return (
             supplied.scheme == scheme
             and supplied.hostname == expected.hostname
-            and (supplied.port or (443 if supplied.scheme == "https" else 80))
-            == (expected.port or (443 if scheme == "https" else 80))
+            and (
+                supplied.port
+                if supplied.port is not None
+                else (443 if supplied.scheme == "https" else 80)
+            )
+            == (
+                expected.port
+                if expected.port is not None
+                else (443 if scheme == "https" else 80)
+            )
             and not any(
                 (
                     supplied.path,

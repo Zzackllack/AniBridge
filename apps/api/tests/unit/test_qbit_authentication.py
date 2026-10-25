@@ -171,6 +171,7 @@ def test_secure_ingress_origin_with_an_internal_http_proxy_hop():
             "https://other.example",
             "http://private.example",
             "https://private.example:444",
+            "https://private.example:0",
             "https://private.example/path",
         ):
             assert (
