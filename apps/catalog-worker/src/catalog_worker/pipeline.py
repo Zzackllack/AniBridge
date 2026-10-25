@@ -89,7 +89,7 @@ class Pipeline:
                     ready = Ready(
                         plan, None, "local_deadline", error_class="TimeoutError"
                     )
-                except (ValueError, UnicodeError):
+                except ValueError, UnicodeError:
                     ready = Ready(plan, None, "unexpected_structure")
                 settled = asyncio.get_running_loop().create_future()
                 await self.ready.put((collector, ready, settled))
@@ -133,12 +133,23 @@ class Pipeline:
                 else c.config.provider_limits(c.state.provider)["provider_concurrency"]
             )
         ]
+        producers_done = asyncio.gather(*producers)
         try:
-            await asyncio.gather(*producers)
+            # The writer is long-lived. If it dies unexpectedly, producers may
+            # wait forever for acknowledgements it can no longer deliver.
+            done, _ = await asyncio.wait(
+                (writer, producers_done), return_when=asyncio.FIRST_COMPLETED
+            )
+            if writer in done:
+                await writer
+                raise RuntimeError("catalog writer stopped unexpectedly")
+            await producers_done
             await self.ready.join()
         finally:
             for task in producers:
                 task.cancel()
             await asyncio.gather(*producers, return_exceptions=True)
+            producers_done.cancel()
+            await asyncio.gather(producers_done, return_exceptions=True)
             writer.cancel()
             await asyncio.gather(writer, return_exceptions=True)
