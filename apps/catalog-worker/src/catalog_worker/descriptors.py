@@ -1,15 +1,14 @@
 """Compact multilingual episode evidence, joined by canonical IDs, never positions."""
 
 import hashlib
-import json
 from dataclasses import asdict
 
 from catalog_core.json_codec import dumps, require
 
 from .canonical_failures import verify
+from .descriptor_codec import decode
 from .mapping import CanonicalEpisode
 from .parent_evidence import compact
-from .parent_evidence import valid as valid_parent
 from .state import State
 
 CODEC = 1
@@ -237,7 +236,7 @@ def cached(
     """Bounded single-ID lookups; source/provider identities are never shared."""
     for state in states:
         row = state.db.execute(
-            "SELECT payload,acquired_at,next_due FROM canonical_descriptor WHERE external_id=? AND next_due>?",
+            "SELECT payload,acquired_at,next_due,content_hash FROM canonical_descriptor WHERE external_id=? AND next_due>?",
             (external, now),
         ).fetchone()
         if row:
@@ -245,26 +244,15 @@ def cached(
             # including another provider's. Older evidence cannot prove recovery.
             if newer_than is not None and row[1] <= newer_than:
                 continue
-            data = json.loads(row[0])
-            if (
-                not isinstance(data, dict)
-                or data.get("codec") != CODEC
-                or not valid_parent(data.get("parent"))
-            ):
+            try:
+                data, records = decode(row[0], row[3], external, CODEC)
+            except (ValueError, UnicodeError, RecursionError):
+                # Reject the whole cache entry and reacquire through the normal
+                # durable retry/admission path; retain existing accepted maps.
                 continue
             if imdb and data.get("imdbId") != imdb:
                 continue
             if not set(languages).issubset(data.get("languages", [])):
                 continue
-            records = [
-                CanonicalEpisode(
-                    e["season"],
-                    e["episode"],
-                    e["title"],
-                    e["external_id"],
-                    tuple(e["aliases"]),
-                )
-                for e in data["episodes"]
-            ]
             return data, records, row[1], row[2]
     return None
