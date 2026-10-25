@@ -1,6 +1,7 @@
 """Update preparation must fail closed before producing deployable files."""
 
 import importlib.util
+import json
 import subprocess
 from pathlib import Path
 
@@ -95,3 +96,38 @@ def test_generated_commands_refuse_an_active_project_before_any_run(update, tmp_
     )
     assert result.returncode == 1
     assert "Stop the existing Coolify service" in result.stderr
+
+
+@pytest.mark.parametrize("target", ["v5", "v6"])
+def test_rollback_can_read_the_private_operator_receipt(update, tmp_path, target):
+    revision = "b" * 40
+    invocation = tmp_path / "invocation.json"
+    docker = tmp_path / "docker"
+    docker.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json,sys\n"
+        "from pathlib import Path\n"
+        "if sys.argv[1:3] == ['image','inspect']:\n"
+        f"    print({revision!r})\n"
+        "elif sys.argv[1] == 'run':\n"
+        f"    Path({str(invocation)!r}).write_text(json.dumps(sys.argv[2:]))\n"
+    )
+    docker.chmod(0o700)
+    script = tmp_path / "stopped-state.sh"
+    script.write_text(
+        update.stopped_commands(update.PACKAGE + "@sha256:" + "a" * 64, revision)
+    )
+    (tmp_path / "baseline.json").write_text("{}")
+    result = subprocess.run(
+        ["/bin/bash", str(script), "rollback-" + target],
+        env={"PATH": str(tmp_path) + ":/usr/bin:/bin"},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    args = json.loads(invocation.read_text())
+    # Operator directories/receipts are private and may belong to another UID.
+    # Snapshot/verify already run as root; rollback needs the same read access.
+    assert "--user" in args and args[args.index("--user") + 1] == "0"
+    assert "ROLLBACK_VERSION=" + target[1:] in args

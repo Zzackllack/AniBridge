@@ -29,6 +29,8 @@ configuration and `stopped-state.sh`. All initializer/collector/metadata image
 references change together; config, resources, pull policy, networks and volumes
 remain. A mount/ingress/config change needs a separate reviewed diff. Keep the
 plan both locally and on the host; it does not deploy itself.
+Snapshot, verification and rollback containers use root to read the private
+operator directory and receipts. Normal collector/metadata users stay unchanged.
 
 ## Apply only after operational approval
 

@@ -80,7 +80,7 @@ case "${{1:-}}" in
     ;;
   rollback-v5|rollback-v6)
     test -f baseline.json
-    docker run -i "${{COMMON[@]}}" -e ROLLBACK_VERSION="${{1#rollback-v}}" --entrypoint python "$IMAGE" - <<'PY'
+    docker run -i "${{COMMON[@]}}" --user 0 -e ROLLBACK_VERSION="${{1#rollback-v}}" --entrypoint python "$IMAGE" - <<'PY'
 from catalog_worker.config import load
 from catalog_worker.state_migrations import preflight, rollback_failures, rollback_publication
 import json, os
