@@ -81,6 +81,10 @@ missing/ambiguous evidence.
 Publication uses generations and a bounded changed-title journal introduced in
 private v6. The local v7 candidate adds per-work failure receipts; public schema2
 is unchanged. Pre-v7 first-failure clocks remain unknown rather than backfilled.
+The pilot server template mounts only configuration and published catalogs into
+metadata serving. Read-catalog remains writable for reader leases; writer state
+is absent. Existing live Compose is preserved by the update tool, so removing
+its historical worker-state mount still needs an explicit reviewed live change.
 Content changes retain their configured cadence; timestamp-only observations
 have a separate eligibility interval. A verified previous schema2 artifact can
 supply unchanged row-validation proofs; global admission checks still run. The

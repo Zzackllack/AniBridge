@@ -27,6 +27,8 @@ services:
     stop_grace_period: 45s
   metadata:
     <<: *worker
+    # Readers need read-catalog leases, but no access to private writer state.
+    volumes: [config:/config:ro, read-catalog:/read]
     command: [--config, /config/worker.json, --serve, --token-file, /config/metadata-token]
     depends_on: {initialize: {condition: service_completed_successfully}}
     ports: ['127.0.0.1:18080:8080']
