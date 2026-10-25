@@ -5,6 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
 
+from app.catalog.config import load as load_catalog_config
 from app.utils.logger import config as configure_logger
 
 # Load .env as early as possible so all downstream imports see the intended env
@@ -140,6 +141,13 @@ QBIT_PUBLIC_SAVE_PATH = os.getenv("QBIT_PUBLIC_SAVE_PATH", "").strip()
 if QBIT_PUBLIC_SAVE_PATH:
     QBIT_PUBLIC_SAVE_PATH = str(Path(QBIT_PUBLIC_SAVE_PATH).expanduser())
 logger.debug(f"QBIT_PUBLIC_SAVE_PATH={QBIT_PUBLIC_SAVE_PATH or '<none>'}")
+QBIT_USERNAME = os.getenv("QBIT_USERNAME", "")
+QBIT_PASSWORD = os.getenv("QBIT_PASSWORD", "")
+QBIT_SESSION_SECRET = os.getenv("QBIT_SESSION_SECRET", "")
+_qbit_secure = os.getenv("QBIT_COOKIE_SECURE", "true").strip().lower()
+if _qbit_secure not in {"", "true", "1", "yes", "on", "false", "0", "no", "off"}:
+    raise ValueError("QBIT_COOKIE_SECURE must be a boolean")
+QBIT_COOKIE_SECURE = _as_bool(_qbit_secure or None, True)
 
 # Resolve configured paths (treat empty env as unset)
 env_download = os.getenv("DOWNLOAD_DIR")
@@ -637,3 +645,8 @@ ANIBRIDGE_CORS_ALLOW_CREDENTIALS = _as_bool(
     os.getenv("ANIBRIDGE_CORS_ALLOW_CREDENTIALS", "true"), True
 )
 logger.debug(f"ANIBRIDGE_CORS_ALLOW_CREDENTIALS={ANIBRIDGE_CORS_ALLOW_CREDENTIALS}")
+
+# No file means released mainline behavior. Source disclosure requires explicit opt-in.
+CATALOG_CONFIG = load_catalog_config(os.getenv("CATALOG_CONFIG_FILE"))
+
+MANAGEMENT_API_TOKEN = os.getenv("MANAGEMENT_API_TOKEN") or None

@@ -7,6 +7,10 @@ Essentials
 - Python runtime baseline: 3.14.
 - Package manager: uv for Python dependencies.
 - Repo-wide: do not commit artifacts under `data/`.
+- Specifications describe contracts and decisions, not a development journal.
+  Keep audit reports, PR drafts, historical reviews and generated evidence local
+  under `internal/local/`, regardless of Markdown/JSON format. Track only current
+  contracts, concise open work, operator instructions and executable test fixtures.
 - Database: SQLite with Alembic migrations in `apps/api/app/db/migrations`.
 - Use of Context7 for up-to-date external documentation.
 - On change of any environment variable, update `apps/api/.env.example`.
@@ -47,4 +51,5 @@ More guidance
 
 Maintenance notice
 
+- This guide and the specification directories are not development journals.
 - Update `AGENTS.md` and the relevant `internal/agents/*` files whenever changes would make agent guidance outdated.

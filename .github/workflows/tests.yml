@@ -4,23 +4,8 @@ on:
   push:
     tags-ignore:
       - 'v*'
-    paths:
-      - 'apps/api/app/**'
-      - 'apps/api/tests/**'
-      - 'apps/api/pyproject.toml'
-      - 'apps/api/uv.lock'
-      - 'apps/api/pytest.ini'
-      - 'apps/api/alembic.ini'
-      - 'apps/api/Dockerfile'
   pull_request:
-    paths:
-      - 'apps/api/app/**'
-      - 'apps/api/tests/**'
-      - 'apps/api/pyproject.toml'
-      - 'apps/api/uv.lock'
-      - 'apps/api/pytest.ini'
-      - 'apps/api/alembic.ini'
-      - 'apps/api/Dockerfile'
+    branches: [main, v3]
 
 permissions:
   contents: read
@@ -35,12 +20,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v7
         with:
             python-version: '3.14'
       - uses: astral-sh/setup-uv@v7
       - name: Install dependencies
         run: cd apps/api && uv sync --frozen
+      - name: Install generated-media test tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Run tests
         id: pytest
         continue-on-error: true
@@ -48,7 +37,7 @@ jobs:
         run: |
           set -o pipefail
           cd apps/api
-          uv run pytest 2>&1 | tee pytest-output.txt
+          uv run --frozen pytest 2>&1 | tee pytest-output.txt
       - name: Upload pytest failure output
         if: github.event_name == 'pull_request' && steps.pytest.outcome == 'failure'
         uses: actions/upload-artifact@v7
@@ -66,3 +55,146 @@ jobs:
       - name: Enforce test success
         if: steps.pytest.outcome == 'failure'
         run: exit 1
+      - name: Profile bounded generated-media phases
+        if: ${{ !cancelled() }}
+        run: cd apps/api && uv run --frozen python ../../scripts/catalog/query_pilot/media_limit_probe.py
+
+  catalog:
+    name: Pytest (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [packages/catalog-core, apps/catalog-worker]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - uses: astral-sh/setup-uv@v7
+      - name: Install frozen project
+        working-directory: ${{ matrix.project }}
+        run: uv sync --frozen
+      - name: Offline regressions
+        working-directory: ${{ matrix.project }}
+        run: uv run --frozen pytest -q
+      - name: Build wheel
+        working-directory: ${{ matrix.project }}
+        run: uv build --wheel --out-dir /tmp/catalog-wheels
+      - name: Verify installed wheels
+        working-directory: ${{ matrix.project }}
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          if [ "$PROJECT" = apps/catalog-worker ]; then
+            uv build --wheel ../../packages/catalog-core --out-dir /tmp/catalog-wheels
+          fi
+          uv pip install --python .venv/bin/python --no-deps --reinstall /tmp/catalog-wheels/*.whl
+          .venv/bin/python - <<'PY'
+          import os
+          from importlib.resources import files
+          from pathlib import Path
+          import catalog_core
+          assert Path(catalog_core.__file__).is_relative_to(Path('.venv').resolve())
+          assert files('catalog_core').joinpath('schema-v2.sql').is_file()
+          if os.environ['PROJECT'] == 'apps/catalog-worker':
+              import catalog_worker.canonical
+              import catalog_worker.query_publish
+              assert Path(catalog_worker.canonical.__file__).is_relative_to(Path('.venv').resolve())
+          PY
+
+  images:
+    # Unprivileged smoke builds also run for forks, Dependabot and docs-only PRs.
+    # Publishing remains in preview-images.yml with its separate trust boundary.
+    name: Image smoke (${{ matrix.component.name }}, ${{ matrix.platform.arch }})
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - name: api
+            file: apps/api/Dockerfile
+            module: app.main
+          - name: catalog-worker
+            file: apps/catalog-worker/Dockerfile
+            module: catalog_worker.cli
+        platform:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - name: Build without registry credentials or publication
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.component.file }}
+          platforms: linux/${{ matrix.platform.arch }}
+          build-args: PILOT_COMMIT=${{ github.sha }}
+          tags: anibridge-ci:smoke
+          load: true
+          push: false
+          provenance: false
+      - name: Verify source identity and installed modules offline
+        env:
+          MODULE: ${{ matrix.component.module }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(docker image inspect anibridge-ci:smoke --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$GITHUB_SHA"
+          docker run --rm --log-driver none --network none --cpus 2 --memory 2g --memory-swap 2g \
+            --pids-limit 96 --entrypoint python \
+            -e DATA_DIR=/tmp/anibridge-ci -e ANIBRIDGE_UPDATE_CHECK=false \
+            anibridge-ci:smoke -c \
+            'import importlib, importlib.util, sys; import catalog_core; importlib.import_module(sys.argv[1]); assert importlib.util.find_spec("sitecustomize") is None' "$MODULE"
+      - name: Run API behavior with native image dependencies and generated media
+        if: matrix.component.name == 'api'
+        run: |
+          # Mountpoint only; all default-path test data lives in the tmpfs.
+          mkdir -p "$GITHUB_WORKSPACE/data"
+          docker run --rm --log-driver none --network none --cpus 2 --memory 2g --memory-swap 2g \
+            --pids-limit 128 --user 1000:1000 --entrypoint python \
+            -e DATA_DIR=/tmp/anibridge-ci-tests -e DOWNLOAD_DIR=/tmp/anibridge-ci-downloads \
+            -e ANIBRIDGE_UPDATE_CHECK=false \
+            --tmpfs /source/data:rw,nosuid,nodev,noexec,size=128m,uid=1000,gid=1000 \
+            -v "$GITHUB_WORKSPACE:/source:ro" --workdir /source/apps/api \
+            anibridge-ci:smoke -m pytest tests -q -rs -o addopts='' -o cache_dir=/tmp/pytest-cache --basetemp=/tmp/pytest-data
+      - name: Profile native media limits without provider input
+        if: ${{ !cancelled() && matrix.component.name == 'api' }}
+        run: |
+          docker run --rm --log-driver none --network none --cpus 2 --memory 2g --memory-swap 2g \
+            --pids-limit 128 --user 1000:1000 --entrypoint python \
+            -v "$GITHUB_WORKSPACE:/source:ro" --workdir /source/apps/api \
+            anibridge-ci:smoke /source/scripts/catalog/query_pilot/media_limit_probe.py
+      - name: Run installed core and worker suites on the native worker image
+        if: matrix.component.name == 'catalog-worker'
+        run: |
+          for project in packages/catalog-core apps/catalog-worker; do
+            docker run --rm --log-driver none --network none --cpus 2 --memory 2g --memory-swap 2g \
+              --pids-limit 128 --user 1000:1000 --entrypoint python \
+              -v "$GITHUB_WORKSPACE:/source:ro" --workdir "/source/$project" \
+              anibridge-ci:smoke -m pytest tests -q -rs -o cache_dir=/tmp/pytest-cache --basetemp=/tmp/pytest-data
+          done
+
+  gate:
+    name: Tests / Required Gate
+    if: always()
+    needs: [test, catalog, images]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every project
+        env:
+          API_RESULT: ${{ needs.test.result }}
+          CATALOG_RESULT: ${{ needs.catalog.result }}
+          IMAGE_RESULT: ${{ needs.images.result }}
+        run: |
+          test "$API_RESULT" = success
+          test "$CATALOG_RESULT" = success
+          test "$IMAGE_RESULT" = success

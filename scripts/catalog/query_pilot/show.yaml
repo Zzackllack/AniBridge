@@ -1,0 +1,13 @@
+# Select only after explicitly choosing a real provider and fresh project.
+services:
+  init:
+    entrypoint: [python, /pilot/prepare_show.py]
+    command: []
+    environment:
+      PILOT_PROVIDER_ORIGIN: ${PILOT_PROVIDER_ORIGIN:?Select the provider HTTPS origin}
+      PILOT_SOURCE_ID: ${PILOT_SOURCE_ID:?Select your private source identity}
+      PILOT_CANONICAL_TV: ${PILOT_CANONICAL_TV:-off}
+    volumes: ['./:/pilot:ro']
+  api:
+    environment:
+      ANIWORLD_BASE_URL: ${PILOT_PROVIDER_ORIGIN:?Select the provider HTTPS origin}

@@ -32,6 +32,7 @@ dependencies = [
     "httptools>=0.6.4",
     "httpx>=0.28.1",
     "idna>=3.15",
+    "itsdangerous>=2.2.0",
     "jsbeautifier>=1.15.4",
     "loguru>=0.7.3",
     "mypy-extensions>=1.1.0",
@@ -67,6 +68,7 @@ dependencies = [
     "websockets>=15.0.1",
     "yt-dlp>=2026.7.4",
     "pylint>=4.0.5",
+    "anibridge-catalog-core",
 ]
 
 [project.urls]
@@ -76,3 +78,6 @@ Tracker = "https://github.com/Zzackllack/AniBridge/issues"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["app*"]
+
+[tool.uv.sources]
+anibridge-catalog-core = { path = "../../packages/catalog-core", editable = true }

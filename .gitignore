@@ -554,3 +554,13 @@ skills-lock.json
 /.github/chatmodes/
 /.github/instructions/
 /.github/prompts/
+
+# Catalog specs retain current contracts only; all run history stays local
+/internal/local/
+/internal/specs/019-catalog-worker/*
+!/internal/specs/019-catalog-worker/README.md
+/internal/specs/020-catalog-query-api-evaluation/*
+!/internal/specs/020-catalog-query-api-evaluation/README.md
+!/internal/specs/020-catalog-query-api-evaluation/IMPLEMENTATION.md
+!/internal/specs/020-catalog-query-api-evaluation/ISSUES.md
+!/internal/specs/020-catalog-query-api-evaluation/identity.md

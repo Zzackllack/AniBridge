@@ -31,12 +31,41 @@ def test_provider_order_normalizes_case_and_drops_invalid(monkeypatch):
 
 
 def test_repo_root_defaults_anchor_local_data_paths() -> None:
-    import app.config as cfg
+    import os
+    import subprocess
+    import sys
 
-    assert (cfg.REPO_ROOT / ".github").exists()
-    assert (cfg.REPO_ROOT / "apps" / "api" / "pyproject.toml").exists()
-    assert cfg.DATA_DIR == (cfg.REPO_ROOT / "data").resolve()
-    assert cfg.DOWNLOAD_DIR == (cfg.REPO_ROOT / "data" / "downloads").resolve()
+    # Configuration imports have side effects. Test defaults in a fresh process
+    # without replacing the environment-backed module used by later tests.
+    program = "\n".join(
+        [
+            "from loguru import logger; logger.remove()",
+            "from pathlib import Path",
+            "from unittest.mock import patch",
+            "exists = Path.exists",
+            # This contract is for local execution, including when its test
+            # runs in CI's container. Leave all other filesystem checks real.
+            "with patch.object(Path, 'exists', lambda p: False if p == Path('/.dockerenv') else exists(p)):",
+            "    import app.config as cfg",
+            "assert not cfg.IN_DOCKER",
+            "assert (cfg.REPO_ROOT / '.github').exists()",
+            "assert (cfg.REPO_ROOT / 'apps/api/pyproject.toml').exists()",
+            "assert cfg.DATA_DIR == (cfg.REPO_ROOT / 'data').resolve()",
+            "assert cfg.DOWNLOAD_DIR == (cfg.REPO_ROOT / 'data/downloads').resolve()",
+        ]
+    )
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in {"DATA_DIR", "DOWNLOAD_DIR"}
+    }
+    subprocess.run(
+        [sys.executable, "-c", program],
+        env=env,
+        check=True,
+        capture_output=True,
+        timeout=10,
+    )
 
 
 def test_max_concurrency_floor(monkeypatch):
