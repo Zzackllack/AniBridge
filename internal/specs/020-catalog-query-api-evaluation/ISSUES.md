@@ -9,7 +9,7 @@ Always verify the selected revision/environment before relying on prior results.
 
 | Area | Required work / acceptance boundary |
 | --- | --- |
-| Full-ledger upgrade and recovery | Run v6→v7→v6 on admitted consistent copies. Compare every release/first-seen, valid map, correction, history/retry/lease row and retained backup; include observations added after upgrade. Small migration fixtures are insufficient. |
+| Hosted v7 upgrade and recovery | The full-ledger v6→v7→v6 copy rehearsal passes at worker `f709263`: all 39 existing data tables, later observations, interruption recovery, retained backups and reopening with the deployed v6 worker. The live cutover still needs its stopped snapshot/publication/verification and operational approval. Repeat the rehearsal if migration behavior changes. |
 | Storage admission | Recalculate the next workload's aggregate peak, including images/shared caches, new copies, migration backups, publication scratch, logs and reserve. Cleanup alone does not certify the 30-GB cap. |
 | Mapping accuracy | Freeze independently verified expected matches before tuning and evaluate held-out ordinary/large/multilingual/special/reordered-season cases. Report incorrect acceptances, abstentions and conflicts separately. Existing post-implementation labels are regression evidence, not a blind precision estimate. |
 | Provider coverage and freshness | Recompute per-provider observed/usable/mapped/unresolved denominators and disjoint unresolved reasons on one consistent snapshot. Measure eligible age and requests per useful map. Do not infer completeness or an SLA from a short run. |
