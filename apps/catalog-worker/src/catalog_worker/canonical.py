@@ -426,8 +426,13 @@ class Enricher:
                             )
                         outcome = "matched"
                         self.failure_phase = "parent"
-                        parent = details.get("parent") or parent_evidence.compact(
-                            details
+                        # Only a locally compacted shared descriptor carries our
+                        # private proof. A remote field named "parent" cannot
+                        # override the descriptor's actual year/names/IMDb.
+                        parent = (
+                            details["parent"]
+                            if reused_descriptor
+                            else parent_evidence.compact(details)
                         )
                         if not reused_parent:
                             # These names came from a canonical search with this
@@ -436,7 +441,7 @@ class Enricher:
                             parent["names"] = list(
                                 dict.fromkeys([*parent["names"], *candidate.titles])
                             )
-                            details["parent"] = parent
+                        details["parent"] = parent
                         if (
                             parent_evidence.check(
                                 state, row["title_id"], candidate.external_id, parent

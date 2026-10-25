@@ -9,6 +9,7 @@ from catalog_core.json_codec import dumps, require
 from .canonical_failures import verify
 from .mapping import CanonicalEpisode
 from .parent_evidence import compact
+from .parent_evidence import valid as valid_parent
 from .state import State
 
 CODEC = 1
@@ -60,6 +61,22 @@ def episodes(payload: dict) -> list[CanonicalEpisode]:
         )
         if payload.get("metadataSource") == "tvdb":
             eid = episode_identity(row, payload["tvdbId"])
+        else:
+            verify(
+                eid is None or type(eid) is int and eid > 0,
+                "episode_identity_conflict",
+                "invalid legacy canonical episode identity",
+            )
+        verify(
+            not (
+                type(season) is int
+                and season > 2**31 - 1
+                or type(number) is int
+                and number > 2**31 - 1
+            ),
+            "episode_coordinate_conflict",
+            "canonical coordinate exceeds contract",
+        )
         if name is None and type(eid) is int and eid > 0:
             # An untranslated English row still carries a canonical ID/order.
             # Keep that identity so a verified German name can join it later.
@@ -229,7 +246,11 @@ def cached(
             if newer_than is not None and row[1] <= newer_than:
                 continue
             data = json.loads(row[0])
-            if data.get("codec") != CODEC:
+            if (
+                not isinstance(data, dict)
+                or data.get("codec") != CODEC
+                or not valid_parent(data.get("parent"))
+            ):
                 continue
             if imdb and data.get("imdbId") != imdb:
                 continue

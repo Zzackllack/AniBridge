@@ -5,10 +5,11 @@ import json
 
 import pytest
 from catalog_core.providers.transport import Fetch
+from test_canonical import NOW, ready
+
 from catalog_worker.canonical import Enricher
 from catalog_worker.canonical_failures import Failure
 from catalog_worker.events import Events
-from test_canonical import NOW, ready
 
 
 @pytest.mark.parametrize(
@@ -103,6 +104,118 @@ def test_admission_is_not_a_canonical_failure(tmp_path):
     assert enricher.last_failure is None
     assert dict(state.db.execute("SELECT * FROM mapping_input").fetchone()) == before
     state.close()
+
+
+@pytest.mark.parametrize("parent", [None, ["invalid"], {"year": 2020}])
+def test_invalid_cached_parent_is_reacquired_without_losing_history(tmp_path, parent):
+    state = ready(tmp_path)
+    calls = []
+
+    async def fetch(origin, path, **kwargs):
+        calls.append(path)
+        item = {"tvdbId": 123, "title": "Example", "year": 2020, "episodes": []}
+        return Fetch("ok", json.dumps([item] if "search" in path else item).encode())
+
+    worker = Enricher({}, fetcher=fetch, clock=lambda: NOW)
+    try:
+        assert asyncio.run(worker.tick(state, NOW))
+        payload = json.loads(
+            state.db.execute("SELECT payload FROM canonical_descriptor").fetchone()[0]
+        )
+        if parent is None:
+            del payload["parent"]
+        else:
+            payload["parent"] = parent
+        with state.db:
+            state.db.execute(
+                "UPDATE canonical_descriptor SET payload=?", (json.dumps(payload),)
+            )
+            state.db.execute("UPDATE mapping_input SET next_due=?", (NOW + 1,))
+        before = list(state.db.execute("SELECT * FROM work"))
+        calls.clear()
+        worker = Enricher({}, fetcher=fetch, clock=lambda: NOW + 1)
+        assert asyncio.run(worker.tick(state, NOW + 1))
+        assert len(calls) == 1
+        assert list(state.db.execute("SELECT * FROM work")) == before
+        result = state.db.execute("SELECT * FROM mapping_input").fetchone()
+        assert result["failures"] == 0 and result["next_due"] > NOW + 1
+        repaired = json.loads(
+            state.db.execute("SELECT payload FROM canonical_descriptor").fetchone()[0]
+        )
+        assert repaired["parent"] == {"names": ["Example"], "year": 2020, "imdb": None}
+    finally:
+        state.close()
+
+
+@pytest.mark.parametrize("descriptor_year", [2020, 2022])
+@pytest.mark.parametrize(
+    "remote_parent",
+    [["unexpected"], {"names": ["Example"], "year": 2020, "imdb": None}],
+)
+def test_remote_descriptor_cannot_supply_private_parent_proof(
+    tmp_path, descriptor_year, remote_parent
+):
+    state = ready(tmp_path)
+
+    async def fetch(origin, path, **kwargs):
+        item = {"tvdbId": 123, "title": "Example", "year": 2020, "episodes": []}
+        if "search" not in path:
+            item.update(year=descriptor_year, parent=remote_parent)
+        return Fetch("ok", json.dumps([item] if "search" in path else item).encode())
+
+    worker = Enricher({}, fetcher=fetch, clock=lambda: NOW)
+    try:
+        assert asyncio.run(worker.tick(state, NOW))
+        result = state.db.execute("SELECT * FROM mapping_input").fetchone()
+        assert result["outcome"] == (
+            "matched" if descriptor_year == 2020 else "conflict"
+        )
+        assert result["failures"] == 0
+        assert bool(state.db.execute("SELECT 1 FROM canonical_title").fetchone()) == (
+            descriptor_year == 2020
+        )
+        saved = json.loads(
+            state.db.execute("SELECT payload FROM canonical_descriptor").fetchone()[0]
+        )
+        assert saved["parent"]["year"] == descriptor_year
+        assert not asyncio.run(worker.tick(state, NOW + 1))
+    finally:
+        state.close()
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    [{"tvdbId": [456]}, {"seasonNumber": 2**63}, {"episodeNumber": 2**63}],
+)
+def test_malformed_episode_retains_retry_instead_of_stopping_worker(tmp_path, invalid):
+    state = ready(tmp_path)
+    before = list(state.db.execute("SELECT * FROM work"))
+
+    async def fetch(origin, path, **kwargs):
+        item = {"tvdbId": 123, "title": "Example", "year": 2020, "episodes": []}
+        if "search" not in path:
+            item["episodes"] = [
+                {
+                    "seasonNumber": 1,
+                    "episodeNumber": 1,
+                    "title": "One",
+                    "tvdbId": 456,
+                    **invalid,
+                }
+            ]
+        return Fetch("ok", json.dumps([item] if "search" in path else item).encode())
+
+    worker = Enricher({}, fetcher=fetch, clock=lambda: NOW)
+    try:
+        assert asyncio.run(worker.tick(state, NOW))
+        result = state.db.execute("SELECT * FROM mapping_input").fetchone()
+        assert result["outcome"] == "source_failure" and result["failures"] == 1
+        assert result["next_due"] == NOW + 300
+        assert list(state.db.execute("SELECT * FROM work")) == before
+        assert not state.db.execute("SELECT 1 FROM canonical_title").fetchone()
+        assert not asyncio.run(worker.tick(state, NOW + 1))
+    finally:
+        state.close()
 
 
 def test_failure_log_rejects_untrusted_fields(tmp_path):

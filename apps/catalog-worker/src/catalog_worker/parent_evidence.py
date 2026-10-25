@@ -8,6 +8,25 @@ from .mapping import CanonicalTitle, match_title
 from .state import State
 
 
+def valid(parent: object) -> bool:
+    """A missing or damaged private proof needs fresh evidence, never a guess."""
+    if not isinstance(parent, dict) or set(parent) != {"names", "year", "imdb"}:
+        return False
+    names, year, imdb = (parent[key] for key in ("names", "year", "imdb"))
+    try:
+        return (
+            isinstance(names, list)
+            and 1 <= len(names) <= 302
+            and all(
+                isinstance(name, str) and len(name.encode()) <= 512 for name in names
+            )
+            and (year is None or type(year) is int and 1800 <= year <= 2200)
+            and (imdb is None or isinstance(imdb, str) and len(imdb.encode()) <= 32)
+        )
+    except UnicodeError:
+        return False
+
+
 def compact(payload: dict) -> dict:
     names = [payload.get("title")]
     if payload.get("originalTitle"):
@@ -83,4 +102,9 @@ def status(state: State, tid: str, external: str, evidence: str) -> str:
     ).fetchone()
     if not row or not row[0]:
         return "waiting_parent_verification"
-    return check(state, tid, external, json.loads(row[0]))
+    parent = json.loads(row[0])
+    return (
+        check(state, tid, external, parent)
+        if valid(parent)
+        else "waiting_parent_verification"
+    )
