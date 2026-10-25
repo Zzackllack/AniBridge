@@ -40,7 +40,14 @@ def test_repo_root_defaults_anchor_local_data_paths() -> None:
     program = "\n".join(
         [
             "from loguru import logger; logger.remove()",
-            "import app.config as cfg",
+            "from pathlib import Path",
+            "from unittest.mock import patch",
+            "exists = Path.exists",
+            # This contract is for local execution, including when its test
+            # runs in CI's container. Leave all other filesystem checks real.
+            "with patch.object(Path, 'exists', lambda p: False if p == Path('/.dockerenv') else exists(p)):",
+            "    import app.config as cfg",
+            "assert not cfg.IN_DOCKER",
             "assert (cfg.REPO_ROOT / '.github').exists()",
             "assert (cfg.REPO_ROOT / 'apps/api/pyproject.toml').exists()",
             "assert cfg.DATA_DIR == (cfg.REPO_ROOT / 'data').resolve()",
