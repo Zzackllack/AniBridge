@@ -109,6 +109,11 @@ Dependabot PRs. They check the tested checkout's source label and installed
 imports offline. PR smoke builds test GitHub's merge revision; published preview
 images separately identify the PR head. The new gate has not run hosted until
 the local candidate is pushed with authorization.
+Native API image jobs also run the complete behavioral suite as UID 1000 at
+2 CPU/2 GiB, without network, using the image's locked dependencies and FFmpeg.
+The reviewed checkout is mounted read-only for test sources; writable scratch
+stays inside the ephemeral container. The ordinary API job installs FFmpeg so
+generated-media checks cannot silently skip merely because the runner lacks it.
 Hosted tests and native AMD64/ARM64 preview builds passed
 on `2240b91` on October 14. The final gate is not yet required by v3 protection:
 only the title check is a required status there. Require the aggregate

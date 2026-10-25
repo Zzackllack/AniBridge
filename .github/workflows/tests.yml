@@ -28,6 +28,8 @@ jobs:
       - uses: astral-sh/setup-uv@v7
       - name: Install dependencies
         run: cd apps/api && uv sync --frozen
+      - name: Install generated-media test tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Run tests
         id: pytest
         continue-on-error: true
@@ -149,6 +151,15 @@ jobs:
             -e DATA_DIR=/tmp/anibridge-ci -e ANIBRIDGE_UPDATE_CHECK=false \
             anibridge-ci:smoke -c \
             'import importlib, importlib.util, sys; import catalog_core; importlib.import_module(sys.argv[1]); assert importlib.util.find_spec("sitecustomize") is None' "$MODULE"
+      - name: Run API behavior with native image dependencies and generated media
+        if: matrix.component.name == 'api'
+        run: |
+          docker run --rm --log-driver none --network none --cpus 2 --memory 2g --memory-swap 2g \
+            --pids-limit 128 --user 1000:1000 --entrypoint python \
+            -e DATA_DIR=/tmp/anibridge-ci-tests -e DOWNLOAD_DIR=/tmp/anibridge-ci-downloads \
+            -e ANIBRIDGE_UPDATE_CHECK=false \
+            -v "$GITHUB_WORKSPACE:/source:ro" --workdir /source/apps/api \
+            anibridge-ci:smoke -m pytest tests -q -rs -o addopts='' -o cache_dir=/tmp/pytest-cache --basetemp=/tmp/pytest-data
 
   gate:
     name: Tests / Required Gate
