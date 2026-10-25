@@ -10,6 +10,15 @@ from app.catalog.output_state import missing_output
 from app.db import ClientTask, Job
 
 
+def matches_filter(row: dict, value: str | None) -> bool:
+    """Apply the supported completion filters equally to old and durable jobs."""
+    if value == "completed":
+        return row["progress"] == 1
+    if value in ("downloading", "incomplete"):
+        return row["progress"] != 1
+    return True
+
+
 def torrent_info_record(
     r: ClientTask | SimpleNamespace, job: Job | SimpleNamespace | None
 ) -> dict[str, object]:

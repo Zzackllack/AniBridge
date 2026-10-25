@@ -7,6 +7,7 @@ import json
 import sqlite3
 import time
 from collections.abc import Iterable, Iterator
+from itertools import chain
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs
@@ -96,15 +97,14 @@ def rows(
 ) -> Iterator[dict]:
     # Preserve the released projection for untouched legacy records. Durable
     # records use the lifecycle projection; neither path retains the full history.
-    yield from service.client.views(
-        durable=False, category=category if category else None
-    )
-    for row in service.client.views(category=category):
-        if filter == "completed" and row["progress"] != 1:
-            continue
-        if filter in ("downloading", "incomplete") and row["progress"] == 1:
-            continue
-        yield row
+    from app.api.qbittorrent.projection import matches_filter
+
+    for row in chain(
+        service.client.views(durable=False, category=category if category else None),
+        service.client.views(category=category),
+    ):
+        if matches_filter(row, filter):
+            yield row
 
 
 def json_chunks(pieces: Iterable[str]) -> Iterator[bytes]:

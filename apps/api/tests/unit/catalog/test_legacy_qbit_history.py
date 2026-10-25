@@ -12,6 +12,89 @@ from app.catalog.qbit_http import router
 from test_jobs import NOW, setup_jobs
 
 
+@pytest.mark.parametrize("query_mode", [False, True])
+@pytest.mark.parametrize(
+    ("filter_name", "expected"),
+    [("completed", {"1"}), ("downloading", {"2", "3"}), ("incomplete", {"2", "3"})],
+)
+def test_filters_include_only_matching_retained_history(
+    tmp_path, query_mode, filter_name, expected
+):
+    from sqlmodel import Session, create_engine
+
+    from app.api.qbittorrent.torrents import router as legacy_router
+    from app.catalog.qbit_http import get_session
+    from app.db import get_session as legacy_session
+
+    jobs = setup_jobs(tmp_path)
+    output = jobs.download_dir / "legacy.mkv"
+    output.write_bytes(b"retained output")
+    with sqlite3.connect(jobs.filename) as db:
+        for value, status, progress in (
+            ("1", "completed", 100),
+            ("2", "downloading", 50),
+        ):
+            db.execute(
+                "INSERT INTO job(id,status,progress,result_path) VALUES(?,?,?,?)",
+                (value, status, progress, str(output) if value == "1" else None),
+            )
+            db.execute(
+                "INSERT INTO clienttask(hash,name,job_id,category,added_on,state) "
+                "VALUES(?,?,?,?,?,?)",
+                (
+                    value * 40,
+                    "Legacy",
+                    value,
+                    "history",
+                    "2026-10-01T12:00:00",
+                    "queued",
+                ),
+            )
+        db.execute(
+            "INSERT INTO clienttask(hash,name,category,added_on,state) VALUES(?,?,?,?,?)",
+            ("3" * 40, "Missing job", "history", "2026-10-01T12:00:00", "queued"),
+        )
+    app = FastAPI()
+    if query_mode:
+        current_hash = "4" * 40
+        jobs.admit(
+            f"magnet:?xt=urn:btih:{current_hash}&dn=Current&aw_slug=current"
+            "&aw_s=1&aw_e=1&aw_lang=German+Dub",
+            NOW,
+            paused=True,
+            category="history",
+        )
+        if filter_name != "completed":
+            expected = expected | {"4"}
+    app.state.catalog = SimpleNamespace(jobs=jobs, client=ClientJobs(jobs))
+    engine = create_engine(f"sqlite:///{jobs.filename}")
+
+    def session():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_session] = session
+    app.dependency_overrides[legacy_session] = session
+    if query_mode:
+        app.include_router(router)
+    else:
+        app.include_router(legacy_router)
+    before = jobs.filename.read_bytes()
+    try:
+        with TestClient(app) as http:
+            response = http.get(
+                "/api/v2/torrents/info",
+                params={"filter": filter_name, "category": "history"},
+            )
+            assert response.status_code == 200
+            assert {row["hash"] for row in response.json()} == {
+                value * 40 for value in expected
+            }
+        assert jobs.filename.read_bytes() == before
+    finally:
+        engine.dispose()
+
+
 @pytest.mark.parametrize("endpoint", ["torrents/info", "sync/maindata"])
 @pytest.mark.parametrize("public_root", [None, "/client/downloads"])
 def test_legacy_and_durable_history_stream_complete_json(

@@ -24,7 +24,7 @@ from app.core.scheduler import schedule_download, cancel_job
 
 from . import router
 from .common import public_save_path
-from .projection import torrent_info_record
+from .projection import matches_filter, torrent_info_record
 
 
 @router.post("/torrents/add")
@@ -53,13 +53,13 @@ def torrents_add(
     Raises:
         HTTPException: Raised with status 400 when `urls` is empty/missing or magnet parameters are malformed.
     """
-    logger.info(f"Received request to add torrent(s): {urls}")
+    logger.info("Received torrent add request")
     if not urls:
         logger.warning("No URLs provided in torrents_add.")
         raise HTTPException(status_code=400, detail="missing urls")
 
     magnet = urls.splitlines()[0].strip()
-    logger.debug(f"Parsing magnet: {magnet}")
+    logger.debug("Parsing torrent magnet")
     try:
         payload = parse_magnet(magnet)
         prefix = "aw" if "aw_slug" in payload else "sto"
@@ -76,18 +76,14 @@ def torrents_add(
         name = payload.get("dn", f"{slug}.S{season:02d}E{episode:02d}.{language}")
         xt = payload["xt"]
     except (KeyError, ValueError) as exc:
-        logger.warning(f"Malformed magnet parameters: {exc}")
+        logger.warning("Malformed torrent magnet")
         raise HTTPException(
             status_code=400, detail="malformed magnet parameters"
         ) from exc
 
     btih = xt.split(":")[-1].lower()
 
-    logger.info(
-        "Scheduling download for {} (slug={}, season={}, episode={}, lang={}, site={})".format(
-            name, slug, season, episode, language, site
-        )
-    )
+    logger.info("Scheduling torrent download")
 
     req = {
         "slug": slug,
@@ -149,7 +145,9 @@ def torrents_info(
         if category and (r.category or "") != category:
             continue
         job = get_job(session, r.job_id) if r.job_id else None
-        out.append(torrent_info_record(r, job))
+        record = torrent_info_record(r, job)
+        if matches_filter(record, filter):
+            out.append(record)
     logger.trace("Torrent info response generated.")
     return JSONResponse(out)
 
