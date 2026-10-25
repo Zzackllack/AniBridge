@@ -30,8 +30,13 @@ def test_provider_order_normalizes_case_and_drops_invalid(monkeypatch):
     assert cfg.PROVIDER_ORDER == ["VOE", "Filemoon", "GXPlayer"]
 
 
-def test_repo_root_defaults_anchor_local_data_paths() -> None:
-    import app.config as cfg
+def test_repo_root_defaults_anchor_local_data_paths(monkeypatch) -> None:
+    import importlib
+    import app.config
+
+    monkeypatch.delenv("DATA_DIR", raising=False)
+    monkeypatch.delenv("DOWNLOAD_DIR", raising=False)
+    cfg = importlib.reload(app.config)
 
     assert (cfg.REPO_ROOT / ".github").exists()
     assert (cfg.REPO_ROOT / "apps" / "api" / "pyproject.toml").exists()

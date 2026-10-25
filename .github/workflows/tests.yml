@@ -30,6 +30,8 @@ jobs:
         run: cd apps/api && uv sync --frozen
       - name: Install generated-media test tools
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Profile bounded generated-media phases
+        run: cd apps/api && uv run --frozen python ../../scripts/catalog/query_pilot/media_limit_probe.py
       - name: Run tests
         id: pytest
         continue-on-error: true
@@ -158,8 +160,16 @@ jobs:
             --pids-limit 128 --user 1000:1000 --entrypoint python \
             -e DATA_DIR=/tmp/anibridge-ci-tests -e DOWNLOAD_DIR=/tmp/anibridge-ci-downloads \
             -e ANIBRIDGE_UPDATE_CHECK=false \
+            --tmpfs /source/data:rw,nosuid,nodev,noexec,size=128m,uid=1000,gid=1000 \
             -v "$GITHUB_WORKSPACE:/source:ro" --workdir /source/apps/api \
             anibridge-ci:smoke -m pytest tests -q -rs -o addopts='' -o cache_dir=/tmp/pytest-cache --basetemp=/tmp/pytest-data
+      - name: Profile native media limits without provider input
+        if: always() && matrix.component.name == 'api'
+        run: |
+          docker run --rm --log-driver none --network none --cpus 2 --memory 2g --memory-swap 2g \
+            --pids-limit 128 --user 1000:1000 --entrypoint python \
+            -v "$GITHUB_WORKSPACE:/source:ro" --workdir /source/apps/api \
+            anibridge-ci:smoke /source/scripts/catalog/query_pilot/media_limit_probe.py
 
   gate:
     name: Tests / Required Gate
