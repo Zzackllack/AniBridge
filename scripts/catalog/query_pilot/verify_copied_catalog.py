@@ -17,6 +17,15 @@ from catalog_worker.read_catalog import provider_root, publish
 from catalog_worker.state import State
 
 
+def native_total(db: sqlite3.Connection, title_id: str, season: int, episode: int) -> int:
+    # Native targeted requests retain old releases; only recent-feed requests
+    # apply the age window. Keep the independent SQL oracle aligned with that.
+    return db.execute(
+        "SELECT count(*) FROM release r JOIN canonical_episode ce USING(entity_id) JOIN canonical_title ct USING(mapping_id) WHERE ct.title_id=? AND ct.namespace='tvdb' AND ce.season=? AND ce.episode=?",
+        (title_id, season, episode),
+    ).fetchone()[0]
+
+
 async def verify(path: Path) -> dict:
     config = load(path)
     if not (config.state_dir / "COPY_ONLY").is_file():
@@ -88,10 +97,7 @@ async def verify(path: Path) -> dict:
                     else ((1, 1),)
                 )
                 for season, episode in coordinates:
-                    expected = db.execute(
-                        "SELECT count(*) FROM release r JOIN canonical_episode ce USING(entity_id) JOIN canonical_title ct USING(mapping_id) WHERE ct.title_id=? AND ct.namespace='tvdb' AND ce.season=? AND ce.episode=? AND r.first_seen_at>=?",
-                        (title[0], season, episode, now - 30 * 86400),
-                    ).fetchone()[0]
+                    expected = native_total(db, title[0], season, episode)
                     body = await query(
                         Request(
                             provider=provider,
