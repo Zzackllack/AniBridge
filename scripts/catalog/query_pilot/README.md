@@ -1,5 +1,11 @@
 # Private request API pilot
 
+Writable state requires effective process locks. The current guard refuses
+filesystems that accept conflicting `flock` owners, observed with Docker Desktop
+Mac bind mounts. Use Docker named volumes/Linux-local storage for databases and
+publication state. Preserve SQLite/WAL data and stop writers before any approved
+storage move; deleting a lock file does not repair filesystem semantics.
+
 Normal all-provider wiring and Linux operation now use [SERVER.md](SERVER.md):
 separate collector/API server and local client, bootstrap/resume, HTTPS ingress,
 status, backup and restore. AniWorld + Serienstream are usable; Megakino remains

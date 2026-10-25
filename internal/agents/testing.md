@@ -55,6 +55,20 @@
 
 ## Request catalog pilot
 
+Writable test/runtime state must enforce process-lock exclusion. `ProcessLock`
+probes this before claiming ownership; Docker Desktop Mac bind mounts that ignore
+`flock` are refused. Use Linux-local scratch/named volumes for Linux lock and
+migration checks. Do not reinterpret a bind-mount failure as a passing native
+Linux result or bypass it by deleting a lock file.
+
+`audit_snapshot.py` provides read-only full-ledger accounting on marked, WAL-free
+consistent backups, with a bounded deadline and a disjoint unresolved partition.
+`test_audit_snapshot.py` checks the copy/WAL guards and nonmutation.
+Canonical input/proof regressions live in `test_canonical_failures.py`;
+`test_process_lock.py` covers actual exclusion and unsupported filesystems.
+The generated acceptance runner now checks real Sonarr intermediate queue bytes
+and supports post-import `--verify-restart`; see ACCEPTANCE.md for proof limits.
+
 Run each uv project's suite from its directory: `uv run pytest -q` in
 `packages/catalog-core`, `apps/catalog-worker` and `apps/api`. New focused read
 tests cover strict responses, coalescing, outages/corruption/revision scopes,

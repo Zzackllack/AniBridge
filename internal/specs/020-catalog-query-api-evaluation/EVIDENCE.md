@@ -1,5 +1,47 @@
 # Private request API pilot evidence
 
+## Deep runtime audit — 2026-10-25
+
+Current decision: **NOT READY for review, merge or production**. The full finite
+[audit matrix and upgrade constraints](RUNTIME_AUDIT_2026-10-25.md) and
+[sanitized JSON](evidence/runtime-audit-2026-10-25.json) separate live `52065c7`,
+hosted `ff126cc` and the new unpushed local fixes. Both native manifests and all
+reported hosted checks passed for `ff126cc`; review remains required, and only
+the conventional title status is enforced by v3's status-check rule.
+
+Pinned SQLite backups include committed WAL. All 498,403 release rows/first-seen
+and 289,489 maps survive; Linux full-size replay compares 38 retained tables per
+provider, allowing only declared publication bookkeeping. Old `52065c7` reopens
+the resulting v6 copies. Nine complete live queries match pinned public SQL
+totals, including Classroom S04E16 and 510 unique large-season releases.
+
+New local regressions fix remote parent-proof override, malformed canonical
+inputs/cache proof, ineffective-filesystem lock admission, mixed history filters,
+legacy magnet logging and explicit reload. Generated AniWorld/Serienstream flows
+pass real Sonarr/Prowlarr intermediate queue progress, verified output/import and
+post-restart checks. Imports retained source files; there is no new real-move,
+visible UI progress-bar, provider-media acquisition or playback claim.
+
+The current consistent baseline has no overdue canonical retries. Its paired
+30-tick runs are idle with zero requests/maps, superseding a claim that the old
+overdue population is still present. Coverage remains partial; all 118 existing
+labelled positives resolve, seven pre-existing nonpositive-labelled maps remain,
+and the historical label timing still prevents a blind precision claim.
+
+Full Mac API: 313 passed / 18 skipped, 62% line coverage; coverage mode emits
+79 warnings, including untriaged resource warnings. Installed Linux: 322 core,
+300 worker; focused API/catalog/DB/wheel/acceptance-input checks: 148 passed.
+Linux-native migration/lock tests pass; a Docker Desktop Mac bind mount fails
+actual exclusion and is now refused. The developer stack remains stopped.
+
+Only this audit's redundant writer/test scratch was retired after comparisons;
+the frozen baseline and all live backup generations remain. Aggregate image/
+archive accounting is conservative and is not a certified continuous disk peak.
+No more full-copy admission or operational rollout is claimed. See the audit's
+explicit budget/recovery limitations before any further preparation.
+
+## Original pilot introduction
+
 2026-10-05. Contract: [IMPLEMENTATION.md](IMPLEMENTATION.md). Operator entry:
 [pilot README](../../../scripts/catalog/query_pilot/README.md). Machine-readable
 measurements: [pilot-results.json](evidence/pilot-results.json). No database,
@@ -1383,8 +1425,8 @@ association; these aggregates do not yet separate those causes.
 Code plus 8,611 partial-series records establish that two descriptor rechecks
 per hour would demand at least 17,222 requests/hour under the current 1,800/hour
 shared cap. This is a capacity lower bound, not a trace of actual request demand.
-The new [repair phase](MAPPING_REPAIR.md) and [agent prompt](NEXT_AGENT_PROMPT.md)
-prioritize sustainable evidence acquisition and held-out matching correctness.
+The new [repair phase](MAPPING_REPAIR.md) and the now-retired historical agent
+prompt prioritize sustainable evidence acquisition and held-out matching correctness.
 They do not replace the request API architecture or authorize a deployment.
 No code implementation or new live action is claimed by this handoff.
 

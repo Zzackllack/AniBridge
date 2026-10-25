@@ -6,6 +6,14 @@ a `sha-<commit>` tag can move on a rebuild. A digest identifies the exact image
 and makes rollback repeatable. Docker also pulls `latest` even with
 [`pull_policy: missing`](https://docs.docker.com/reference/compose-file/services/#pull_policy).
 
+The [October 25 runtime audit](../../../internal/specs/020-catalog-query-api-evaluation/RUNTIME_AUDIT_2026-10-25.md)
+supersedes historical deployment/readiness claims below. Its new local changes
+have no published image or hosted checks. They retain v6/schema2. Writable state
+must enforce `flock`; the new code refuses the observed unsafe Docker Desktop
+Mac bind mount. The live Linux pilot uses named volumes. Keep fresh aggregate
+disk admission: the retained audit copies leave insufficient room for another
+unplanned full snapshot plus a maximum-sized publication.
+
 Image publishing is already automatic through the preview workflow. Deployment
 is an explicit operator action: a new worker can migrate private state. The
 current Coolify token is read-only; use the authenticated **Zen** session for

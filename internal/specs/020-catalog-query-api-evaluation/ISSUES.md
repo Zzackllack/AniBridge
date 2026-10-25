@@ -1,8 +1,33 @@
 # Private-pilot defects and production improvements
 
-Updated 2026-10-20. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
+Updated 2026-10-25. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
 and [EVIDENCE.md](EVIDENCE.md). The October 8 implementation and bounded measurements are recorded below.
 Deployment is confined to the maintainer-authorized existing private pilot.
+
+## October 25 runtime audit — current decision
+
+[Full matrix, reproductions and operational limits](RUNTIME_AUDIT_2026-10-25.md)
+and [sanitized measurements](evidence/runtime-audit-2026-10-25.json) supersede
+older point-in-time deployment/coverage/CI claims. Review, v3 merge and production
+are **NOT READY**. Live `52065c7` remains unchanged; hosted checks/manifests pass
+for `ff126cc`, while the new local fixes have no hosted verification.
+
+| ID | State / priority | Trigger, impact and resolution |
+| --- | --- | --- |
+| CQ-28 | Fixed locally / P1 | A remote `parent` object could replace the descriptor's actual year proof and accept a conflicting association. Fresh remote proof now derives from the actual fields. Invalid retained proof is reacquired, with no history deletion. Four remote-field cases and three cache-recovery cases exercise the boundary. No live wrong-map incident is attributed to this reproduction. |
+| CQ-29 | Fixed locally / P1 | A list-valued legacy episode ID or a coordinate exceeding SQLite's integer range escaped normal retry handling and stopped a worker tick. Typed identity/coordinate checks reject these before persistence and retain a retry. Three malformed-input regressions pass. |
+| CQ-30 | Fixed locally / P1; storage move blocked | Docker Desktop's Mac bind mount accepted conflicting `flock` handles. Ownership now fails closed when exclusion is ineffective. This is a breaking safety change: the retained developer client cannot start on its present bind mount. Named-volume/Linux-local checks pass; moving retained state needs a separately reviewed, consistent backup/storage plan. |
+| CQ-31 | Fixed locally / P2 | Completion filters included every legacy alias in query mode and were ignored by the legacy route. Both modes now filter the complete projection; six mixed/history regressions pass without changing stored rows. |
+| CQ-32 | Fixed locally / P2 | Legacy grab/parser/helper logs included submitted magnets and private values, including rejected input. These boundaries now emit constant messages and safe hashes. A captured-log rejection regression fails before the fix. This does not establish privacy of every legacy downloader log or external proxy. |
+| CQ-33 | Fixed locally / P2 | A tuple accidentally combined reload configuration and catalog configuration, making explicit `true`/`1` ineffective. Four actual-Uvicorn-boundary regressions verify reload selection and query access-log policy. |
+| CQ-34 | Unchecked operational criterion | Retained page failures store attempts/deadlines/last successful check, but not a per-path safe last-reason/status or first-failure clock. Aggregate logs cannot be joined to each retained failure. Full reason/status/age attribution needs a separately designed bounded persistence change; this audit does not invent those facts. |
+
+The current frozen snapshot has zero overdue canonical retries; the October 20
+stall population is not today's population. There are 90 retained Serienstream
+page failures (maximum 3,554 attempts), eight unapproved quarantines and remaining
+feed gaps. Full-provider precision, a prospective independent trial, real Sonarr
+scene-number conversion/move cases, sustained capacity and public policy remain
+open. No failed criterion was downgraded to pass. No push or live cutover occurred.
 
 ## October 18 canonical rejection follow-up
 
@@ -246,8 +271,8 @@ Add frozen worker/core pytest CI and an always-running gate for both supported
 PR bases alongside the mapping fixes. Current tests CI covers only API; `v3`
 requires only the title status plus review/CodeQL policy. Preview imports do
 not run worker/core regressions. CI work is not the primary remedy for stalled
-mapping coverage. The executable task handoff is
-[NEXT_AGENT_PROMPT.md](NEXT_AGENT_PROMPT.md).
+mapping coverage. That historical agent prompt has been retired; use the
+[current audit](RUNTIME_AUDIT_2026-10-25.md) for present evidence and blockers.
 
 This recheck changed no live deployment, resources or collection schedule and
 did not reset bootstrap, failures or state. No fresh full-crawl or crash campaign
