@@ -47,9 +47,23 @@ class ProcessLock:
                 import fcntl
 
                 fcntl.flock(self.file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                # Some shared filesystems accept flock without excluding another
+                # open handle (observed with Docker Desktop's Mac bind mounts).
+                # Refuse ownership rather than allow concurrent state writers.
+                with path.open("a+b") as probe:
+                    try:
+                        fcntl.flock(probe.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    except BlockingIOError:
+                        pass
+                    else:
+                        fcntl.flock(probe.fileno(), fcntl.LOCK_UN)
+                        raise RuntimeError("data volume does not enforce process locks")
         except OSError:
             self.file.close()
             raise RuntimeError("data volume already owned by another process") from None
+        except BaseException:
+            self.file.close()
+            raise
 
     def close(self) -> None:
         self.file.close()
