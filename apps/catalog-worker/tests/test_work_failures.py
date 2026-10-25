@@ -1,6 +1,7 @@
 """Failure receipts survive restart and roll back with their queue mutation."""
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -209,3 +210,28 @@ def test_v7_reserves_a_wal_consistent_v6_backup_before_migration(tmp_path):
         )
         assert size > filename.stat().st_size
         assert migration_reserve(config) == STATE_HEADROOM + size
+
+
+def test_v7_backup_is_self_contained_without_temporary_wal_sidecars(tmp_path):
+    from test_query import seed
+
+    state, _ = seed(tmp_path)
+    filename = Path(state.db.execute("PRAGMA database_list").fetchone()[2])
+    state.close()
+    rollback_failures(filename, "aniworld.to")
+    with closing(sqlite3.connect(filename)) as writer:
+        writer.execute("PRAGMA wal_autocheckpoint=0")
+        writer.execute("UPDATE worker_meta SET revision=73")
+        writer.commit()
+        assert filename.with_name(filename.name + "-wal").stat().st_size > 0
+        initialize(filename, "aniworld.to")
+        assert writer.execute("PRAGMA journal_mode").fetchone() == ("wal",)
+
+    backup = filename.with_name(filename.name + ".pre-v7.backup")
+    assert preflight(backup, "aniworld.to") == 6
+    with closing(sqlite3.connect(backup)) as db:
+        assert db.execute("PRAGMA journal_mode").fetchone() == ("delete",)
+        assert db.execute("SELECT revision FROM worker_meta").fetchone() == (73,)
+    assert not list(tmp_path.glob(".worker-backup-*"))
+    assert not backup.with_name(backup.name + "-wal").exists()
+    assert not backup.with_name(backup.name + "-shm").exists()

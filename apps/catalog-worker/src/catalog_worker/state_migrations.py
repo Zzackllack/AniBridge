@@ -130,6 +130,13 @@ def backup(
             closing(sqlite3.connect(path)) as target,
         ):
             source.backup(target)
+            # A WAL source leaves that mode in the copied header. Seal only the
+            # disposable backup so read-only verification cannot strand sidecars
+            # under its temporary name before the main file is hard-linked.
+            require(
+                target.execute("PRAGMA journal_mode=DELETE").fetchone() == ("delete",),
+                "worker backup could not be sealed",
+            )
         verify_backup(path, provider, version)
         checkpoint("backup-copy")
         with path.open("rb") as stream:
