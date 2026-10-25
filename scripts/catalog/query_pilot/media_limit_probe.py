@@ -32,7 +32,7 @@ def phase(root: Path, operation: str, memory_mib: int) -> dict:
             "import sys, resource",
             "from catalog_core.supervisor import limit_child",
             "from app.catalog import local_media_child as child",
-            f"child.limit_child = lambda **kw: limit_child(memory_bytes={memory_mib} * 1024**2, **kw)",
+            f"child.limit_child = lambda **kw: limit_child(**{{**kw, 'memory_bytes': {memory_mib} * 1024**2}})",
             "sys.argv = ['local-media', *sys.argv[1:]]",
             "child.main()",
         ]
@@ -141,6 +141,10 @@ def main() -> None:
                 }
             )
         )
+        if any(
+            row["exit_code"] != 0 for row in results if row["address_limit_mib"] >= 320
+        ):
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":

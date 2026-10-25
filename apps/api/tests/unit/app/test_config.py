@@ -30,18 +30,35 @@ def test_provider_order_normalizes_case_and_drops_invalid(monkeypatch):
     assert cfg.PROVIDER_ORDER == ["VOE", "Filemoon", "GXPlayer"]
 
 
-def test_repo_root_defaults_anchor_local_data_paths(monkeypatch) -> None:
-    import importlib
-    import app.config
+def test_repo_root_defaults_anchor_local_data_paths() -> None:
+    import os
+    import subprocess
+    import sys
 
-    monkeypatch.delenv("DATA_DIR", raising=False)
-    monkeypatch.delenv("DOWNLOAD_DIR", raising=False)
-    cfg = importlib.reload(app.config)
-
-    assert (cfg.REPO_ROOT / ".github").exists()
-    assert (cfg.REPO_ROOT / "apps" / "api" / "pyproject.toml").exists()
-    assert cfg.DATA_DIR == (cfg.REPO_ROOT / "data").resolve()
-    assert cfg.DOWNLOAD_DIR == (cfg.REPO_ROOT / "data" / "downloads").resolve()
+    # Configuration imports have side effects. Test defaults in a fresh process
+    # without replacing the environment-backed module used by later tests.
+    program = "\n".join(
+        [
+            "from loguru import logger; logger.remove()",
+            "import app.config as cfg",
+            "assert (cfg.REPO_ROOT / '.github').exists()",
+            "assert (cfg.REPO_ROOT / 'apps/api/pyproject.toml').exists()",
+            "assert cfg.DATA_DIR == (cfg.REPO_ROOT / 'data').resolve()",
+            "assert cfg.DOWNLOAD_DIR == (cfg.REPO_ROOT / 'data/downloads').resolve()",
+        ]
+    )
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in {"DATA_DIR", "DOWNLOAD_DIR"}
+    }
+    subprocess.run(
+        [sys.executable, "-c", program],
+        env=env,
+        check=True,
+        capture_output=True,
+        timeout=10,
+    )
 
 
 def test_max_concurrency_floor(monkeypatch):
