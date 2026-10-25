@@ -84,7 +84,7 @@ alone does not rematch. Use `verify --local-rematch aniworld.to` only for an
 explicitly reviewed single cached tick; it checks one fairness-slot advancement
 and at most one matching receipt, not arbitrary retry/queue changes.
 
-The full-ledger v7 and real-client acceptance gaps remain in
+The remaining acceptance and release gates are in
 [ISSUES.md](../../../internal/specs/020-catalog-query-api-evaluation/ISSUES.md).
 Client upgrades are separate: preserve jobs/downloads and the auth boundary.
 An old unauthenticated image is not equivalent security rollback. PBKDF2 session

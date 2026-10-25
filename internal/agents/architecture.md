@@ -79,7 +79,7 @@ scraping. See spec 020's current IMPLEMENTATION.md and ISSUES.md for corresponde
 rules and unresolved acceptance work.
 
 Publication uses generations and a bounded changed-title journal introduced in
-private v6. The local v7 candidate adds per-work failure receipts; public schema2
+private v6. Private v7 adds per-work failure receipts; public schema2
 is unchanged. Pre-v7 first-failure clocks remain unknown rather than backfilled.
 The pilot server template mounts only configuration and published catalogs into
 metadata serving. Read-catalog remains writable for reader leases; writer state
