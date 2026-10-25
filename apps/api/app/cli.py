@@ -20,7 +20,7 @@ def run_server(app_obj):
     import uvicorn
 
     is_frozen = getattr(sys, "frozen", False) or hasattr(sys, "_MEIPASS")
-    reload_env = os.environ.get("ANIBRIDGE_RELOAD") or ANIBRIDGE_RELOAD, CATALOG_CONFIG
+    reload_env = os.environ.get("ANIBRIDGE_RELOAD") or ANIBRIDGE_RELOAD
     if reload_env is not None:
         reload_flag = reload_env == "1" or str(reload_env).lower() == "true"
     else:
