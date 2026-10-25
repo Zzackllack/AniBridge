@@ -172,6 +172,15 @@ jobs:
             --pids-limit 128 --user 1000:1000 --entrypoint python \
             -v "$GITHUB_WORKSPACE:/source:ro" --workdir /source/apps/api \
             anibridge-ci:smoke /source/scripts/catalog/query_pilot/media_limit_probe.py
+      - name: Run installed core and worker suites on the native worker image
+        if: matrix.component.name == 'catalog-worker'
+        run: |
+          for project in packages/catalog-core apps/catalog-worker; do
+            docker run --rm --log-driver none --network none --cpus 2 --memory 2g --memory-swap 2g \
+              --pids-limit 128 --user 1000:1000 --entrypoint python \
+              -v "$GITHUB_WORKSPACE:/source:ro" --workdir "/source/$project" \
+              anibridge-ci:smoke -m pytest tests -q -rs -o cache_dir=/tmp/pytest-cache --basetemp=/tmp/pytest-data
+          done
 
   gate:
     name: Tests / Required Gate

@@ -114,6 +114,9 @@ Native API image jobs also run the complete behavioral suite as UID 1000 at
 The reviewed checkout is mounted read-only for test sources; writable scratch
 stays inside the ephemeral container. The ordinary API job installs FFmpeg so
 generated-media checks cannot silently skip merely because the runner lacks it.
+Both native worker image jobs also run full core/worker suites against installed
+packages with the same Linux-local scratch/resource boundaries. These image
+behavior checks are required dependencies of the aggregate gate, not deployments.
 Hosted tests and native AMD64/ARM64 preview builds passed
 on `2240b91` on October 14. The final gate is not yet required by v3 protection:
 only the title check is a required status there. Require the aggregate
