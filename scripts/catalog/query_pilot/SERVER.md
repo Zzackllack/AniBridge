@@ -159,7 +159,7 @@ do not treat a short successful step as a discovered provider ceiling.
 The subsequent approved October 14 pilot uses shared admission **90/minute** on
 source `d85ed054d22ae8d117677670d6d0d29dd995ccca`, manifest
 `ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:9a0df2b03fd386142f36a5ba8704c17e2e1489bd2519d88959d62753d2157218`.
-The [rate evidence](../../../internal/specs/020-catalog-query-api-evaluation/evidence/canonical-rate-tuning-2026-10-14.json)
+The rate evidence (`../../../internal/specs/020-catalog-query-api-evaluation/evidence/canonical-rate-tuning-2026-10-14.json`, local-only)
 keeps copied-state, live metadata and existing client/media proof separate.
 
 ### Rate-only v5 rollback
@@ -1026,8 +1026,8 @@ The private durable plan on fra-node-01 is:
 A small Mac copy (excluding the stopped SQLite snapshots) is
 `/Users/zacklack/anibridge-worker-updates/2026-10-19/worker-update-plan.tar.gz`.
 The snapshots themselves remain in the server plan. Never restore them over
-new observations. The sanitized committed receipt is
-[worker-upgrade-2026-10-19.json](../../../internal/specs/020-catalog-query-api-evaluation/evidence/worker-upgrade-2026-10-19.json).
+new observations. The sanitized local receipt is
+worker-upgrade-2026-10-19.json (`../../../internal/specs/020-catalog-query-api-evaluation/evidence/worker-upgrade-2026-10-19.json`, local-only).
 
 For this **specific code rollback**, stop the service in Zen with Docker Cleanup
 unchecked, then use the XPipe-derived SSH connection and run on fra-node-01:

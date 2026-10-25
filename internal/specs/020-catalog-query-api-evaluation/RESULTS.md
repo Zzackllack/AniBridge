@@ -52,7 +52,7 @@ Neither approach fixes collection freshness, unresolved mappings or provider acc
   run). Host/cache variation is not a measured algorithmic speedup.
 
 Raw final measurements, actual SQL plans, requests, identities of input artifacts
-and source hashes are in [evidence/results.json](evidence/results.json).
+and source hashes are in evidence/results.json (`evidence/results.json`, local-only).
 
 ## Measured comparison
 

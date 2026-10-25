@@ -1,13 +1,13 @@
 # Private-pilot defects and production improvements
 
-Updated 2026-10-25. Evidence: [pilot follow-up](evidence/linux-private-pilot-followup-2026-10-08.json)
+Updated 2026-10-25. Evidence: pilot follow-up (`evidence/linux-private-pilot-followup-2026-10-08.json`, local-only)
 and [EVIDENCE.md](EVIDENCE.md). The October 8 implementation and bounded measurements are recorded below.
 Deployment is confined to the maintainer-authorized existing private pilot.
 
 ## October 25 authorized experiment cleanup
 
 [Exact cleanup and preservation receipt](CLEANUP_2026-10-25.md) and
-[sanitized JSON](evidence/cleanup-2026-10-25.json) supersede the old 33.02-GB
+sanitized JSON (`evidence/cleanup-2026-10-25.json`, local-only) supersede the old 33.02-GB
 retained-storage projection. Explicitly approved retirement removed 17 unique
 old experiment files; three fully verified duplicates were also removed.
 Total: 20 server files/8.75 GB and nine unreferenced local experiment images.
@@ -24,7 +24,7 @@ readiness gates and verdicts are unchanged.
 ## October 25 turn 2 — pushed fixes and current decision
 
 [Readiness report and complete 50-area matrix](TURN2_READINESS_2026-10-25.md),
-[sanitized measurements](evidence/turn2-readiness-2026-10-25.json) and
+sanitized measurements (`evidence/turn2-readiness-2026-10-25.json`, local-only) and
 [prepared PR description](PR_170_DESCRIPTION_TURN2.md) supersede the earlier
 unpushed/hosted-unchecked status below. Tested code `3064faf` is pushed;
 full native API/core/worker tests pass on AMD64 and ARM64, as do the aggregate
@@ -56,7 +56,7 @@ PR body/draft edit, protection change or merge occurred.
 ## October 25 implementation follow-up — current candidate
 
 [Implementation fixes, complete matrix and version-specific rollback](IMPLEMENTATION_FOLLOWUP_2026-10-25.md)
-and [machine-readable evidence](evidence/implementation-followup-2026-10-25.json)
+and machine-readable evidence (`evidence/implementation-followup-2026-10-25.json`, local-only)
 record eleven further local commits after the eight audit commits. Candidate state
 is private v7/public schema2; the last inspected live worker remains historical
 `52065c7`/v6 evidence. Review, v3 merge and production remain **NOT READY**.
@@ -75,7 +75,7 @@ by macOS fixtures. No push or operational write ran.
 ## October 25 runtime audit — current decision
 
 [Full matrix, reproductions and operational limits](RUNTIME_AUDIT_2026-10-25.md)
-and [sanitized measurements](evidence/runtime-audit-2026-10-25.json) supersede
+and sanitized measurements (`evidence/runtime-audit-2026-10-25.json`, local-only) supersede
 older point-in-time deployment/coverage/CI claims. Review, v3 merge and production
 are **NOT READY**. Live `52065c7` remains unchanged; hosted checks/manifests pass
 for `ff126cc`, while the new local fixes have no hosted verification.
@@ -139,7 +139,7 @@ yielded starts/new usable maps of 61/10 at 30, 124/20 at 60, 181/99 at 90 and
 243/102 at 120. No 403/429; one HTTP 500 at 120. Series mix and eligibility clocks
 vary; this is not independent accuracy or an upstream-ceiling measurement.
 All old releases/first-seen, maps and work retry/lease fields survive each copy.
-See [rate evidence](evidence/canonical-rate-tuning-2026-10-14.json).
+See rate evidence (`evidence/canonical-rate-tuning-2026-10-14.json`, local-only).
 
 Configurable admission, safe counters, copied-state comparisons and the approved
 90/minute pilot rollout are **implemented+verified**. Live source `d85ed05` pins
@@ -264,7 +264,7 @@ mapping is 58.20% of usable episodes; feed-gap reconciliation remains CQ-17.
 Serienstream collection continues, with 47,228 pending pages, 2,498 failed pages
 and 61.10% usable-episode mapping. This is resumed collection from retained state,
 not a fresh full-bootstrap benchmark. No runtime settings or deployments changed
-during the recheck. See [October 9 evidence](evidence/pilot-recheck-2026-10-09.json).
+during the recheck. See October 9 evidence (`evidence/pilot-recheck-2026-10-09.json`, local-only).
 
 October 11 recheck: AniWorld remains complete for discovered native first-pass
 work (63,579 episodes / 116,359 releases, zero pending/failed pages). Serienstream
@@ -273,11 +273,11 @@ observations to 50,933. Usable mapping stays near 58.17% / 61.13%. Both recent
 feeds still report a coverage gap, with 11 / 24 pending hints. The old 512 MiB
 collector is near its cgroup limit with heavy cumulative reclaim pressure but
 zero OOM kills/restarts. No settings changed. CQ-22/CQ-23 prevent treating this
-as merely a queue that needs more waiting. See [October 11 evidence](evidence/pilot-recheck-2026-10-11.json).
+as merely a queue that needs more waiting. See October 11 evidence (`evidence/pilot-recheck-2026-10-11.json`, local-only).
 
 ## October 11 implementation finish
 
-The [sanitized repair evidence](evidence/catalog-pilot-repair-2026-10-11.json) and
+The sanitized repair evidence (`evidence/catalog-pilot-repair-2026-10-11.json`, local-only) and
 [EVIDENCE.md](EVIDENCE.md#october-11-four-workstream-repair) record copied-state, live metadata
 and fixture proofs separately. No pilot deployment, resource change, push or PR
 was performed. Exact image-only upgrade and rollback instructions are in
@@ -286,7 +286,7 @@ was performed. Exact image-only upgrade and rollback instructions are in
 That preparation-only result predates the subsequent explicit authorization.
 Draft PR #170 is open against `v3`, with `main` still default. The existing
 pilot now runs pinned preview revision `36fbd51` at 2 CPU/2 GiB for collection;
-metadata remains 512 MiB. See [live deployment evidence](evidence/pilot-preview-upgrade-2026-10-11.json)
+metadata remains 512 MiB. See live deployment evidence (`evidence/pilot-preview-upgrade-2026-10-11.json`, local-only)
 and [current upgrade/rollback](../../../scripts/catalog/query_pilot/SERVER.md#october-11-published-preview-deployment).
 All 439,035 backup release identities/first-seen times were retained; 100-row
 recent queries and ordinary/mapped large targets passed. Live One Piece S01E06
@@ -308,7 +308,7 @@ Pending and failed sets overlap. Usable mapping is 65.31% AniWorld / 64.62%
 Serienstream; recent gap-parent queues are 0 / 5, without a lossless-feed claim.
 Four quarantines remain unapproved (three language, one entity removal).
 All 439,035 backed-up release IDs/first-seen times remain unchanged. See
-[current evidence](evidence/pilot-recheck-2026-10-14.json).
+current evidence (`evidence/pilot-recheck-2026-10-14.json`, local-only).
 
 Next development priorities:
 
@@ -349,7 +349,7 @@ was launched, so bootstrap-duration and whole-provider freshness gates remain.
 ## October 14 implemented mapping/maintenance follow-up
 
 See [MAPPING_IMPLEMENTATION.md](MAPPING_IMPLEMENTATION.md) and its machine-readable
-[evidence](evidence/mapping-implementation-2026-10-14.json). Historical recheck and
+evidence (`evidence/mapping-implementation-2026-10-14.json`, local-only). Historical recheck and
 CQ-22 causes remain historical; nothing here identifies discarded stderr.
 
 - CQ-06 correspondence: implemented/verified conservative parent checks,

@@ -18,7 +18,7 @@ retained developer client's current Docker Desktop Mac bind mount is affected.
 The running Linux service was inspected, not upgraded. Independent mapping,
 client-compatibility, enforcement and capacity acceptance criteria remain open.
 
-Measurements: [sanitized JSON](evidence/runtime-audit-2026-10-25.json).
+Measurements: sanitized JSON (`evidence/runtime-audit-2026-10-25.json`, local-only).
 Selected contract: [IMPLEMENTATION.md](IMPLEMENTATION.md). This document accounts
 for the requested audit scope; VERIFIED below always names a finite proof.
 UNCHECKED means an explicit remaining gap, not a passing result.

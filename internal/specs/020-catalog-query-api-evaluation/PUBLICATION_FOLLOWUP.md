@@ -25,7 +25,7 @@ changes are part of this work.
 ## Controlled comparison
 
 The exact measurements are in
-[publication-followup-2026-10-18.json](evidence/publication-followup-2026-10-18.json).
+publication-followup-2026-10-18.json (`evidence/publication-followup-2026-10-18.json`, local-only).
 The workload changes one generated episode name in an ordinary title and one in
 the largest title, separately for each provider. These are generated metadata
 edits, not evidence that a provider supplied those names. The ordinary/large

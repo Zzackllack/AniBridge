@@ -7,6 +7,9 @@ Essentials
 - Python runtime baseline: 3.14.
 - Package manager: uv for Python dependencies.
 - Repo-wide: do not commit artifacts under `data/`.
+- Specifications describe contracts and decisions, not a development journal.
+  Keep dated run reports and generated audit dumps local under `internal/local/`;
+  retain only concise findings in tracked docs and executable fixtures in tests.
 - Database: SQLite with Alembic migrations in `apps/api/app/db/migrations`.
 - Use of Context7 for up-to-date external documentation.
 - On change of any environment variable, update `apps/api/.env.example`.

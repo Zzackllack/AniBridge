@@ -1,9 +1,13 @@
 # Private request API pilot evidence
 
+Detailed JSON receipts referenced here are local artifacts; see
+[the output policy](evidence/README.md). Fresh clones contain the tracked
+Markdown summaries and executable test fixtures, not these generated dumps.
+
 ## Authorized cleanup — 2026-10-25
 
 [Cleanup report](CLEANUP_2026-10-25.md) and
-[exact sanitized receipt](evidence/cleanup-2026-10-25.json) record removal of
+exact sanitized receipt (`evidence/cleanup-2026-10-25.json`, local-only) record removal of
 20 old experiment files (8,745,074,688 logical/8,745,226,240 allocated bytes)
 and nine unused local images with source commits retained in the pushed branch.
 The maintainer explicitly approved retirement of the 17 unique experimental
@@ -26,7 +30,7 @@ upgrade/rollback, mapping precision or real-client acceptance proof.
 ## Turn 2 implementation and native verification — 2026-10-25
 
 [Current report, 50-area matrix and versioned commands](TURN2_READINESS_2026-10-25.md)
-and [sanitized JSON](evidence/turn2-readiness-2026-10-25.json) supersede earlier
+and sanitized JSON (`evidence/turn2-readiness-2026-10-25.json`, local-only) supersede earlier
 unpushed/native-unchecked statements. The original 20 local commits and new
 focused repairs are pushed. Final code `3064faf` passes
 [tests 40214183582](https://github.com/Zzackllack/AniBridge/actions/runs/40214183582):
@@ -71,7 +75,7 @@ query measurements retain their original proof boundaries.
 ## Implementation follow-up — 2026-10-25
 
 [Current implementation/readiness matrix](IMPLEMENTATION_FOLLOWUP_2026-10-25.md)
-and [sanitized measurements](evidence/implementation-followup-2026-10-25.json)
+and sanitized measurements (`evidence/implementation-followup-2026-10-25.json`, local-only)
 supersede the original audit's local v6-only candidate/rollback description.
 Tested source `1397b3f` contains eleven new implementation commits after the eight
 preserved audit commits. Private candidate state is now v7; public schema2 and
@@ -120,7 +124,7 @@ suite. The original runtime evidence below remains dated baseline evidence.
 
 Current decision: **NOT READY for review, merge or production**. The full finite
 [audit matrix and upgrade constraints](RUNTIME_AUDIT_2026-10-25.md) and
-[sanitized JSON](evidence/runtime-audit-2026-10-25.json) separate live `52065c7`,
+sanitized JSON (`evidence/runtime-audit-2026-10-25.json`, local-only) separate live `52065c7`,
 hosted `ff126cc` and the new unpushed local fixes. Both native manifests and all
 reported hosted checks passed for `ff126cc`; review remains required, and only
 the conventional title status is enforced by v3's status-check rule.
@@ -160,12 +164,12 @@ explicit budget/recovery limitations before any further preparation.
 
 2026-10-05. Contract: [IMPLEMENTATION.md](IMPLEMENTATION.md). Operator entry:
 [pilot README](../../../scripts/catalog/query_pilot/README.md). Machine-readable
-measurements: [pilot-results.json](evidence/pilot-results.json). No database,
+measurements: pilot-results.json (`evidence/pilot-results.json`, local-only). No database,
 credential, provider media or real search transcript is included.
 
 ## Local client progress and completed-output repair — 2026-10-24
 
-[Repair evidence](evidence/download-progress-repair-2026-10-24.json) follows the
+Repair evidence (`evidence/download-progress-repair-2026-10-24.json`, local-only) follows the
 read-only diagnosis below. Runtime commits `e1128bd` and `672a40e` fix CQ-26/CQ-27
 locally; the existing stopped API image is unchanged. No worker update or database
 migration is needed. Rebuild the local API to load the repair; rolling back its
@@ -218,7 +222,7 @@ services remain stopped; nothing was pushed, published or deployed.
 
 Historical read-only snapshot, superseded by the subsequent repair above.
 
-[Sanitized evidence](evidence/download-progress-diagnosis-2026-10-24.json) records
+Sanitized evidence (`evidence/download-progress-diagnosis-2026-10-24.json`, local-only) records
 read-only inspection of the stopped local October 19 API/Sonarr containers,
 retained wire logs and both local ledgers. API image `428b5d8` contains the same
 four relevant progress/projection modules as this checkout. Sonarr logs identify
@@ -259,7 +263,7 @@ explicit estimates/unknown totals, and keep 100% gated on validated publication.
 
 ## Anime-Lists correspondence research — 2026-10-21
 
-[Research](ANIME_LISTS_RESEARCH.md) and [aggregate evidence](evidence/anime-lists-research-2026-10-21.json)
+[Research](ANIME_LISTS_RESEARCH.md) and aggregate evidence (`evidence/anime-lists-research-2026-10-21.json`, local-only)
 inspect a pinned upstream XML revision, a bounded public AniWorld metadata sample
 and the existing October 20 frozen ledgers. Anime-Lists supplies AniDB→TVDB/TMDB
 correspondence; AniWorld→AniDB season/cut/order remains a separate proof. AniWorld
@@ -280,7 +284,7 @@ no client failure or additional mapping recovery is claimed from source inspecti
 
 ## Canonical failure classification and partial metadata — 2026-10-18
 
-[Aggregate evidence](evidence/mapping-failures-2026-10-18.json) records the local
+Aggregate evidence (`evidence/mapping-failures-2026-10-18.json`, local-only) records the local
 implementation and bounded read-only pilot checks. The live worker remains
 `d85ed05` at the existing allocations; nothing was pushed, published or deployed.
 
@@ -365,7 +369,7 @@ classify all 950 failures; the finite sample does not close that gap.
 
 ## Subsequent canonical budget tuning — 2026-10-14
 
-[Rate evidence](evidence/canonical-rate-tuning-2026-10-14.json) records implementation,
+Rate evidence (`evidence/canonical-rate-tuning-2026-10-14.json`, local-only) records implementation,
 bounded canonical-only trials on consistent copies and the approved 90/minute
 pilot rollout. Default is 30; configurable range 4–120 is our guard, not a Skyhook
 quota. Rate changes do not invalidate matching inputs. Runtime `d85ed05` pins
@@ -667,7 +671,7 @@ The failed queue/status calls did not establish that Docker Desktop was down.
 The short retained-queue check subsequently passed with `[]` (see below). No daemon
 restart or volume deletion; existing Bunny volumes and new separate client
 volumes were retained. Unrelated installations and the synthetic project were
-not started or changed. Details: [bunny-matching.json](evidence/bunny-matching.json).
+not started or changed. Details: bunny-matching.json (`evidence/bunny-matching.json`, local-only).
 Discovery reproduction:
 [BUNNY_MATCHING.md](../../../scripts/catalog/query_pilot/BUNNY_MATCHING.md).
 Extraction/import/playback/public gates remain open; historical validator
@@ -710,7 +714,7 @@ imported MKV 7,862,192 bytes. Container lifetime cgroup memory peaks:
 AniBridge 696,487,936 bytes under 1 GiB/2 CPUs; catalog 67,956,736 bytes under
 512 MiB/2 CPUs. Worker state/read catalog logical sizes: 331,776/123,413 bytes.
 These are short synthetic measurements, not capacity/endurance evidence.
-Bounded result/resource record: [generated-acceptance.json](evidence/generated-acceptance.json).
+Bounded result/resource record: generated-acceptance.json (`evidence/generated-acceptance.json`, local-only).
 
 Retained Bunny queue was checked read-only using a temporary SQLite/WAL copy:
 **`[]`**. Bunny containers stayed stopped; no collection or mapping changes.
@@ -729,7 +733,7 @@ failures remain failed evidence. There is no new implementation milestone.
 Finite local extension, preserving the existing implementation branch/commits.
 Reference worker/evaluation heads were inspected, not merged. Normal operator
 commands: [SERVER.md](../../../scripts/catalog/query_pilot/SERVER.md). Measurements:
-[provider-pilot.json](evidence/provider-pilot.json). No remote host was accessed,
+provider-pilot.json (`evidence/provider-pilot.json`, local-only). No remote host was accessed,
 full crawl launched on the Mac, real installation changed, push/PR/publication
 performed, or accepted AniWorld workflow unnecessarily repeated.
 
@@ -797,7 +801,7 @@ registry push, PR, existing installation change or live media acquisition occurr
 The runtime fix below was built on ARM Linux and applied through Coolify while
 retaining the same config, ledger and read-catalog volumes.
 
-Measured snapshot: [linux-private-pilot.json](evidence/linux-private-pilot.json).
+Measured snapshot: linux-private-pilot.json (`evidence/linux-private-pilot.json`, local-only).
 Initial useful publication took **289 seconds for AniWorld** and **409 seconds for
 Serienstream**, measured from the first listing checkpoint. These are partial
 publication times, not full-bootstrap durations. Authenticated HTTPS returned 200
@@ -880,7 +884,7 @@ The LAN-route conflict does not establish a cause for public-provider failures.
 
 ### Read-only pilot follow-up — 2026-10-08
 
-[Follow-up measurements](evidence/linux-private-pilot-followup-2026-10-08.json)
+Follow-up measurements (`evidence/linux-private-pilot-followup-2026-10-08.json`, local-only)
 cover approximately 37 hours since the last restart. Both worker containers had
 zero restarts/OOMs. Authenticated remote POSTs and both local provider category
 queries returned 200; missing authentication returned 401. The NetBird route and
@@ -944,7 +948,7 @@ of 112,742,400 and 210,939,904 bytes. A read-only post-cutover lookup preserved
 **100/100 sampled release IDs/first-seen times per provider**. Historical failure
 counts remained 249/738 during the finite window; they were not cleared.
 
-Numeric outputs: [collector-repair-2026-10-08](evidence/collector-repair-2026-10-08/summary.json).
+Numeric outputs: collector-repair-2026-10-08 (`evidence/collector-repair-2026-10-08/summary.json`, local-only).
 Reproduction: [finite benchmark](../../../scripts/catalog/collector_benchmark/README.md).
 Private raw metadata bodies/ledger copies stay outside Git. Three real season
 inputs were used: AniWorld Bunny season 1, Serienstream Breaking Bad season 1,
@@ -1087,7 +1091,7 @@ no pending configuration changes. Retained mounts, 512 MiB/2 CPU/64 PID limits,
 bounded logs, private authentication and both Docker/VPN network settings were
 verified unchanged. No push, registry publication or additional writer occurred.
 
-[final-deployment.json](evidence/collector-repair-2026-10-08/final-deployment.json)
+final-deployment.json (`evidence/collector-repair-2026-10-08/final-deployment.json`, local-only)
 records a **136.201-second** resumed window: **62/67 requests**, **674/673 new
 episodes**, **1,329/768 new releases**, and **zero new failures** for
 AniWorld/Serienstream. Both providers published after the restart; authenticated
@@ -1208,7 +1212,7 @@ it does not demonstrate a throughput gain at the newly recommended allocation.
 Accounted storage including reserve was **2,305,653,248 bytes**.
 
 Sanitized diagnostics and before/after/retry/resource results are in
-[later-review.json](evidence/collector-repair-2026-10-08/later-review.json).
+later-review.json (`evidence/collector-repair-2026-10-08/later-review.json`, local-only).
 Source response bodies, lookup terms, provider paths and sampled IDs are omitted.
 Failures remain durable retry work. Tombstoned confirmed removals and unsupported
 work are distinct; no sampled omission was tombstoned. Unknown language labels
@@ -1265,7 +1269,7 @@ the unchanged 512 MiB profile has substantial reclaim pressure and remains a
 constrained test. No benefit from the recommended 4-vCPU/4-GiB profile was
 measured here. No fresh bootstrap duration or live acquisition was measured.
 
-Sanitized counts and observations: [pilot-recheck-2026-10-09.json](evidence/pilot-recheck-2026-10-09.json).
+Sanitized counts and observations: pilot-recheck-2026-10-09.json (`evidence/pilot-recheck-2026-10-09.json`, local-only).
 
 ### October 11 recheck: continued collection and new availability findings
 
@@ -1323,11 +1327,11 @@ Storage including the reserve is **3,024,038,400 bytes of 30,000,000,000**;
 host free space is approximately **98 GiB**. `192.168.2.1` still routes via `wt0`
 in the NetBird table. No fresh complete-bootstrap benchmark or all-provider
 production-readiness claim follows from these checks. Sanitized counters and
-results: [pilot-recheck-2026-10-11.json](evidence/pilot-recheck-2026-10-11.json).
+results: pilot-recheck-2026-10-11.json (`evidence/pilot-recheck-2026-10-11.json`, local-only).
 
 ## October 11 four-workstream repair
 
-Evidence: [sanitized aggregates](evidence/catalog-pilot-repair-2026-10-11.json).
+Evidence: sanitized aggregates (`evidence/catalog-pilot-repair-2026-10-11.json`, local-only).
 Baseline branch `8adcbfa`; packaged candidate
 `73a996cbf78c524380f3ba387ebe97ed24b692cf`. Read-only live recheck still shows
 worker `39ba345`, 2 CPU/512 MiB, zero OOM/restarts and intact NetBird routing.
@@ -1473,12 +1477,12 @@ exactly. The supplied Configs YAML now matches it, with a private original YAML
 retained for rollback. Classified diagnostics are deployed; CQ-22's historical
 cause still needs an actual retained failure. The local client was not changed.
 No new extraction, acquisition, import or playback evidence is claimed. See
-[deployment aggregate](evidence/pilot-preview-upgrade-2026-10-11.json) and the
+deployment aggregate (`evidence/pilot-preview-upgrade-2026-10-11.json`, local-only) and the
 [current rollback procedure](../../../scripts/catalog/query_pilot/SERVER.md#october-11-published-preview-deployment).
 
 ### October 14 operational recheck
 
-[Sanitized evidence](evidence/pilot-recheck-2026-10-14.json), with sequential
+Sanitized evidence (`evidence/pilot-recheck-2026-10-14.json`, local-only), with sequential
 snapshots beginning 08:27 UTC (10:27 Europe/Berlin). Worker remains pinned to
 `36fbd51`; collector 2 CPU/2 GiB, metadata 512 MiB, zero OOM kills/restarts since
 October 11 startup. No redeploy/restart/resource change occurred. Charged storage
@@ -1530,7 +1534,7 @@ required test/build gates remain missing. Priorities are recorded in
 ### October 14 matching diagnosis and implementation handoff
 
 Subsequent bounded read-only ledger queries separated waiting from examined
-gaps. [Mapping diagnosis](evidence/mapping-diagnosis-2026-10-14.json) records
+gaps. Mapping diagnosis (`evidence/mapping-diagnosis-2026-10-14.json`, local-only) records
 15,280/92,506 usable episodes unresolved with descriptors cached, 6,775/8,345
 without a TVDB series association, and zero never-checked matching-input entries.
 Six concentrated large cohorts contain 4,739 names absent from the selected
@@ -1551,7 +1555,7 @@ No code implementation or new live action is claimed by this handoff.
 The implementation, honest work-item statuses, before/after ledger and labelled
 cohort limits are in [MAPPING_IMPLEMENTATION.md](MAPPING_IMPLEMENTATION.md).
 Raw aggregate measurements are in
-[mapping-implementation-2026-10-14.json](evidence/mapping-implementation-2026-10-14.json);
+mapping-implementation-2026-10-14.json (`evidence/mapping-implementation-2026-10-14.json`, local-only);
 fixed provider title selections are the two `mapping-*-cohort-2026-10-14.json` files.
 Required metadata names/IDs appear only in the sanitized worker test fixture.
 
@@ -1589,7 +1593,7 @@ allocation/network/default/protection/PR change or preview publication was made.
 
 The later user authorization supersedes the earlier no-push/publication boundary.
 [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) records the current outcome;
-[aggregate evidence](evidence/production-readiness-2026-10-14.json) keeps it separate
+aggregate evidence (`evidence/production-readiness-2026-10-14.json`, local-only) keeps it separate
 from the earlier frozen before/after replay. Code through `2240b91` is pushed.
 Hosted frozen API/core/worker tests, final gate, lint and native AMD64/ARM64
 API/worker builds passed. Matching pinned manifests are published; the actual
@@ -1640,7 +1644,7 @@ cannot be substituted. Four quarantines and every historical limit remain explic
 
 All four publication work items are implemented and verified locally. See
 [PUBLICATION_FOLLOWUP.md](PUBLICATION_FOLLOWUP.md) and the separate
-[aggregate evidence](evidence/publication-followup-2026-10-18.json).
+aggregate evidence (`evidence/publication-followup-2026-10-18.json`, local-only).
 Private state v6 records changed titles transactionally, separates content from
 observation-only publication eligibility, reuses verified unchanged row proofs
 and updates a cloned read catalog. Collection continues against a WAL snapshot;
@@ -1716,7 +1720,7 @@ only; the running dev API and hosted pilot were not changed.
 
 ## October 19 — finale announcement correspondence repair
 
-[Sanitized evidence](evidence/finale-announcement-repair-2026-10-19.json) records
+Sanitized evidence (`evidence/finale-announcement-repair-2026-10-19.json`, local-only) records
 read-only live inspection, consistent-copy replay, query results and preservation.
 The exact provider episode page returned available metadata and de-dub/de-sub/
 en-sub. The hosted catalog already exposes three native releases but no canonical
@@ -1763,7 +1767,7 @@ The hosted worker remains on its previously verified image pending deployment.
 ## October 19 — approved worker upgrade and real Sonarr verification
 
 This later cutover supersedes the pending-deployment statements above.
-[Sanitized upgrade evidence](evidence/worker-upgrade-2026-10-19.json) records the
+Sanitized upgrade evidence (`evidence/worker-upgrade-2026-10-19.json`, local-only) records the
 approved Zen deployment of source `52065c7`, worker manifest `sha256:1cc57eae…`,
 private v5→v6 migration and unchanged schema2 read contract. All three references,
 source labels, volumes, limits, unchanged worker JSON, backend subnet and Docker
@@ -1818,7 +1822,7 @@ durable plan locations are in SERVER.md and WORKER_UPDATES.md.
 
 ## October 20: cached canonical retries could stall the queue
 
-[Bounded recheck and replay](evidence/cached-retry-recheck-2026-10-20.json).
+Bounded recheck and replay (`evidence/cached-retry-recheck-2026-10-20.json`, local-only).
 Read-only XPipe-derived SSH inspection confirms hosted `52065c7`, private v6/public
 schema2, original allocations and zero restarts/OOM kills. The retained 24 hours
 contain 86/68 successful AniWorld/Serienstream publications, no maintenance failure

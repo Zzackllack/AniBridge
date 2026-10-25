@@ -10,7 +10,7 @@ Later canonical tuning is implemented and deployed: current worker is `d85ed05`,
 manifest `sha256:9a0df2b03fd386142f36a5ba8704c17e2e1489bd2519d88959d62753d2157218`,
 with shared admission configured at 90/minute. It followed bounded 30/60/90/120
 copied-ledger metadata trials and preserves existing state/resources/networks.
-See [rate evidence](evidence/canonical-rate-tuning-2026-10-14.json), EVIDENCE.md and
+See rate evidence (`evidence/canonical-rate-tuning-2026-10-14.json`, local-only), EVIDENCE.md and
 SERVER.md's v5 code/config-only rollback. The 30/minute value was our initial
 design choice, not an established upstream quota. Broader labels, publication
 cost and sustained capacity remain open; a short rate trial does not close them.

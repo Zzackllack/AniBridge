@@ -554,3 +554,8 @@ skills-lock.json
 /.github/chatmodes/
 /.github/instructions/
 /.github/prompts/
+
+# Local investigation output, not implementation contracts or test fixtures
+/internal/local/
+/internal/specs/020-catalog-query-api-evaluation/evidence/*
+!/internal/specs/020-catalog-query-api-evaluation/evidence/README.md

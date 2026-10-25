@@ -110,7 +110,8 @@ requirement; no whole-job 512-MiB client claim has been validated.
 
 Catalog repair tools `repair_benchmark.py` and `metadata_replay.py` use disposable
 consistent ledger copies and finite offline workloads. Keep raw live HTML and
-private state outside Git; commit sanitized aggregate evidence. Short Linux
+private state outside Git. Keep generated JSON results local; summarize only
+relevant findings and limitations in tracked Markdown. Short Linux
 profile runs do not establish full-bootstrap capacity, freshness SLA or media
 acceptance. No live pilot writer or long crash campaign is implied.
 
@@ -150,7 +151,8 @@ with recorded metadata and no network. Mount baseline read-only, use 2 CPU/2 GiB
 and bounded writable `/tmp`; full-ledger comparison uses in-memory SQL scratch.
 It advances the experiment clock to existing retry deadlines instead of clearing
 failures. Raw recordings and ledger copies stay in private scratch; commit only
-sanitized metadata fixtures and aggregate preservation/coverage evidence.
+sanitized metadata fixtures consumed by tests. Keep generated preservation and
+coverage receipts local, with concise findings in tracked documentation.
 
 Publication follow-up regressions live in `test_publication_followup.py`,
 `test_publication_migrations.py` and `test_publication_harness.py`: durable

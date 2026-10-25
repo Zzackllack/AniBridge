@@ -242,7 +242,7 @@ Complete mapping, full bootstrap, long endurance, live media acquisition and
 query-time scraping were neither implemented nor inferred from these results.
 
 Machine-readable measurements and hashes:
-[evidence/mapping-implementation-2026-10-14.json](evidence/mapping-implementation-2026-10-14.json).
+evidence/mapping-implementation-2026-10-14.json (`evidence/mapping-implementation-2026-10-14.json`, local-only).
 Raw HTML, full canonical payloads, credentials and SQLite copies remain private
 and are not committed. The final remote disposable tree is 7,642,062,369 bytes; live managed storage is
 2,980,126,720 bytes plus the 1-GB reserve, for an 11,622,189,089-byte measured

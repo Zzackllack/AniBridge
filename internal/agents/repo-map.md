@@ -88,4 +88,6 @@
 - `apps/catalog-worker`: central incremental collector and read-serving command.
 - `apps/api/app/catalog`: opt-in metadata integration, local corrections and durable jobs.
 - `scripts/catalog/query_pilot`: small Compose/operator validation guide and smoke.
-- `internal/specs/020-catalog-query-api-evaluation`: selected contract and evidence.
+- `internal/specs/020-catalog-query-api-evaluation`: selected contract and findings;
+  generated JSON under `evidence/` is local-only.
+- `internal/local/`: ignored investigation journals and generated run output.

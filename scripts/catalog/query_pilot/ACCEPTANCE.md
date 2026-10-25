@@ -37,7 +37,7 @@ it does not change the application, recollect Bunny Girl Senpai or alter mapping
 Full query → grab → completed production job → Sonarr import **passed** on
 2026-10-05 using generated media and the unchanged production job path.
 Validated build: `159fd2ac28e70518f74a1aaf27205a491aff277e`. Result:
-[generated-acceptance.json](../../../internal/specs/020-catalog-query-api-evaluation/evidence/generated-acceptance.json).
+generated-acceptance.json (`../../../internal/specs/020-catalog-query-api-evaluation/evidence/generated-acceptance.json`, local-only).
 Playback is outside this acceptance scenario.
 
 ## One generated-media scenario

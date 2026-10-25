@@ -1,5 +1,9 @@
 # Catalog metadata API evaluation
 
+Tracked Markdown records contracts, decisions and findings. Generated JSON under
+[`evidence/`](evidence/README.md) is local-only and is absent from fresh clones;
+references to individual JSON files below are local artifact paths.
+
 Date: 2026-10-05. Status: **evaluation brief, not an approved architecture
 replacement or production implementation specification**.
 

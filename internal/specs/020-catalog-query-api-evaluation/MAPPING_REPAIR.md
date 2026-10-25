@@ -9,7 +9,7 @@ rate/resource increase, public default, branch merge or media acquisition.
 The October 14 operational recheck establishes healthy publication/query serving,
 but only 65.31%/64.62% usable episode mapping for AniWorld/Serienstream. Waiting
 for collection is insufficient. The subsequent
-[mapping diagnosis](evidence/mapping-diagnosis-2026-10-14.json) found:
+mapping diagnosis (`evidence/mapping-diagnosis-2026-10-14.json`, local-only) found:
 
 - Zero never-checked entries in the existing matching-input queues.
 - 15,280/92,506 usable episodes unresolved despite cached canonical descriptors;

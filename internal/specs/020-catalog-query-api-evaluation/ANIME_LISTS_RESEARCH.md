@@ -5,7 +5,7 @@ It does **not** directly map AniWorld URLs or seasons. The missing join is still
 AniWorld's exact season/cut → AniDB entry and episode order. A matching franchise
 name, IMDb ID or episode count alone cannot establish that join.
 
-This is research, not a deployed matcher change. [Measurements and provenance](evidence/anime-lists-research-2026-10-21.json)
+This is research, not a deployed matcher change. Measurements and provenance (`evidence/anime-lists-research-2026-10-21.json`, local-only)
 separate current public metadata reads from an October 20 copied ledger. No maps,
 failures, scheduling receipts, live state or configuration were changed.
 

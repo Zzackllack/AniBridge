@@ -18,7 +18,7 @@ transition or merge occurred. `main` remains default/stable; PR #170 remains
 draft/open into protected `v3`.
 
 Tested code: `3064faf34c2ac29a0a246e5c6703c6d50ae94c18`.
-[Sanitized machine-readable evidence](evidence/turn2-readiness-2026-10-25.json)
+Sanitized machine-readable evidence (`evidence/turn2-readiness-2026-10-25.json`, local-only)
 contains the full matrix and bounded measurements. The final documentation
 commit descends from that source; its hosted checks must be read separately.
 

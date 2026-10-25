@@ -19,7 +19,7 @@ no new live inspection or service mutation is claimed in this phase. The local
 candidate now uses **private v7/public schema2**. The original report's v6→v6
 code-only rollback instructions do not apply to this candidate.
 
-[Machine-readable evidence](evidence/implementation-followup-2026-10-25.json)
+Machine-readable evidence (`evidence/implementation-followup-2026-10-25.json`, local-only)
 contains revisions, test counts, paired fixture hashes, dependency results,
 review dispositions and this entire matrix. Raw logs and ledgers stay private.
 
