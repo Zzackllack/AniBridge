@@ -10,6 +10,9 @@
   sessions expire in one hour. Logout clears the client's cookie; a copied
   cookie remains valid until expiry or credential/secret rotation. Login
   admission is 60 attempts/minute per process, with no retained user IPs.
+  Credentialed login input is bounded before framework parsing: 16 KiB,
+  five seconds and at most 1,024 ASGI receive frames, including empty frames.
+  Normal URL-encoded and multipart forms retain the framework's parser.
   Browser mutations reject a mismatched Origin. Use HTTPS and secure cookies
   outside trusted private HTTP networks. This protects `/api/v2` only; it does
   not authorize public exposure of legacy downloader or other routers.

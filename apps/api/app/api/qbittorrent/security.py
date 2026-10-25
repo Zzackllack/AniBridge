@@ -13,8 +13,10 @@ from starlette._utils import get_route_path
 from starlette.datastructures import MutableHeaders
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import HTTPConnection
-from starlette.responses import PlainTextResponse
+from starlette.responses import PlainTextResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from .login_body import bounded_receive
 
 
 class QbitAuth:
@@ -116,6 +118,12 @@ class QbitAuthMiddleware:
                 "Forbidden", status_code=403, headers={"Cache-Control": "no-store"}
             )
         else:
+            if login:
+                bounded = await bounded_receive(scope, receive)
+                if isinstance(bounded, Response):
+                    await bounded(scope, receive, send)
+                    return
+                receive = bounded
 
             async def private_send(message: Message) -> None:
                 if message["type"] == "http.response.start":
