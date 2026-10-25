@@ -147,6 +147,29 @@ def test_invalid_cached_parent_is_reacquired_without_losing_history(tmp_path, pa
         state.close()
 
 
+def test_private_parent_accepts_all_bounded_descriptor_and_search_aliases(tmp_path):
+    from catalog_worker.parent_evidence import status
+
+    state = ready(tmp_path)
+
+    async def fetch(origin, path, **kwargs):
+        item = {"tvdbId": 123, "title": "Example", "year": 2020, "episodes": []}
+        if "search" in path:
+            item["aliases"] = [f"Search alias {n}" for n in range(100)]
+        else:
+            item["originalTitle"] = "Original"
+            for field in ("aliases", "alternativeTitles", "translations"):
+                item[field] = [f"{field} alias {n}" for n in range(100)]
+        return Fetch("ok", json.dumps([item] if "search" in path else item).encode())
+
+    try:
+        assert asyncio.run(Enricher({}, fetcher=fetch).tick(state, NOW))
+        tid = state.db.execute("SELECT title_id FROM title").fetchone()[0]
+        assert status(state, tid, "123", "exact_title_year") == "verified"
+    finally:
+        state.close()
+
+
 @pytest.mark.parametrize("descriptor_year", [2020, 2022])
 @pytest.mark.parametrize(
     "remote_parent",

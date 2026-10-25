@@ -16,7 +16,9 @@ def valid(parent: object) -> bool:
     try:
         return (
             isinstance(names, list)
-            and 1 <= len(names) <= 302
+            # Compact metadata contributes at most 302 names, plus the
+            # separately ID-verified search title and its 100 aliases.
+            and 1 <= len(names) <= 403
             and all(
                 isinstance(name, str) and len(name.encode()) <= 512 for name in names
             )
