@@ -391,7 +391,12 @@ class Collector:
             return
         if ready.outcome != "ok":
             self.state.failure(
-                ready.plan.work, ready.outcome, ready.plan.now, ready.retry_after
+                ready.plan.work,
+                ready.outcome,
+                ready.plan.now,
+                ready.retry_after,
+                status=ready.status,
+                parser_reason=ready.parser_reason,
             )
             if ready.plan.signal:
                 Signals(self.state).failed(ready.plan.now, 900)

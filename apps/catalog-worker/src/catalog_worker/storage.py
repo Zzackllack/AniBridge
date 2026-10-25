@@ -148,7 +148,7 @@ def migration_reserve(config: Config) -> int:
                 * db.execute("PRAGMA page_size").fetchone()[0]
             )
         if (
-            version in (1, 2, 3, 4, 5)
+            version in (1, 2, 3, 4, 5, 6)
             and not filename.with_name(
                 filename.name + f".pre-v{version + 1}.backup"
             ).exists()

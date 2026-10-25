@@ -78,7 +78,9 @@ daily, under the shared 30/minute cap. This does not add demand refresh or searc
 scraping. See spec 020 MAPPING_IMPLEMENTATION.md for proof limits and remaining
 missing/ambiguous evidence.
 
-Publication uses private v6 generations and a bounded changed-title journal.
+Publication uses generations and a bounded changed-title journal introduced in
+private v6. The local v7 candidate adds per-work failure receipts; public schema2
+is unchanged. Pre-v7 first-failure clocks remain unknown rather than backfilled.
 Content changes retain their configured cadence; timestamp-only observations
 have a separate eligibility interval. A verified previous schema2 artifact can
 supply unchanged row-validation proofs; global admission checks still run. The

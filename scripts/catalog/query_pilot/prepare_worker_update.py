@@ -78,25 +78,28 @@ case "${{1:-}}" in
     test -f baseline.json
     docker run "${{COMMON[@]}}" "$IMAGE" --config /config/worker.json --publish
     ;;
-  rollback-v5)
+  rollback-v5|rollback-v6)
     test -f baseline.json
-    docker run -i "${{COMMON[@]}}" --entrypoint python "$IMAGE" - <<'PY'
+    docker run -i "${{COMMON[@]}}" -e ROLLBACK_VERSION="${{1#rollback-v}}" --entrypoint python "$IMAGE" - <<'PY'
 from catalog_worker.config import load
-from catalog_worker.state_migrations import preflight, rollback_publication
-import json
+from catalog_worker.state_migrations import preflight, rollback_failures, rollback_publication
+import json, os
 from pathlib import Path
 baseline = json.loads(Path('/plan/baseline.json').read_text())
-assert all(row['version'] == 5 for row in baseline.values()), 'Only a v5 baseline permits v6-to-v5 rollback'
+target = int(os.environ['ROLLBACK_VERSION'])
+assert all(row['version'] == target for row in baseline.values()), 'Rollback must match the pinned baseline version'
 config = load(Path('/config/worker.json'))
 for provider in config.providers:
     path = config.state_dir / (provider + '.sqlite')
-    if preflight(path, provider) == 6:
+    if preflight(path, provider) == 7:
+        rollback_failures(path, provider)
+    if target == 5 and preflight(path, provider) == 6:
         rollback_publication(path, provider)
-    assert preflight(path, provider) == 5
-print('Private state v5 retained; restore rollback.yaml in Zen before starting.')
+    assert preflight(path, provider) == target
+print('Private state retained; restore rollback.yaml in Zen before starting.')
 PY
     ;;
-  *) echo 'Usage: bash stopped-state.sh snapshot|publish|verify|rollback-v5' >&2; exit 2 ;;
+  *) echo 'Usage: bash stopped-state.sh snapshot|publish|verify|rollback-v5|rollback-v6' >&2; exit 2 ;;
 esac
 """
 

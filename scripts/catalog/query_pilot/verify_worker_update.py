@@ -119,8 +119,8 @@ def run(
     for provider in config.providers:
         filename = config.state_dir / (provider + ".sqlite")
         version = preflight(filename, provider)
-        if version not in (5, 6):
-            raise ValueError("this workflow supports private worker state v5/v6 only")
+        if version not in (5, 6, 7):
+            raise ValueError("this workflow supports private worker state v5/v6/v7 only")
         baseline = directory / (provider + ".before.sqlite")
         if mode == "snapshot":
             # SQLite backup includes committed WAL data; copying the main file

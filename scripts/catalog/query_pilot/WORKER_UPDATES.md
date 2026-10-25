@@ -8,11 +8,34 @@ and makes rollback repeatable. Docker also pulls `latest` even with
 
 The [October 25 runtime audit](../../../internal/specs/020-catalog-query-api-evaluation/RUNTIME_AUDIT_2026-10-25.md)
 supersedes historical deployment/readiness claims below. Its new local changes
-have no published image or hosted checks. They retain v6/schema2. Writable state
+have no published image or hosted checks. The implementation follow-up now uses
+private v7/public schema2; the original audit's v6 code-only rollback no longer
+applies to that candidate. Writable state
 must enforce `flock`; the new code refuses the observed unsafe Docker Desktop
 Mac bind mount. The live Linux pilot uses named volumes. Keep fresh aggregate
 disk admission: the retained audit copies leave insufficient room for another
 unplanned full snapshot plus a maximum-sized publication.
+
+### Local v7 candidate: failure receipts
+
+The candidate backs up existing v6 state to its original, no-overwrite
+`.pre-v7.backup` through SQLite's backup API before migrating. Admit that full
+backup, its temporary copy, publication scratch and all retained generations
+under the aggregate disk budget before starting. No live v7 upgrade is approved.
+One private receipt per work row records bounded classes/status and clocks;
+pre-upgrade first-failure times stay unknown. Available detail success clears
+the receipt; admission waits, unavailable templates and positive batch rows do
+not satisfy an outstanding detail retry. Public exports exclude these receipts.
+
+For an approved v6→v7 upgrade, use the existing pinned-image preparation and
+stopped snapshot/publish/verify sequence. To roll back, stop both services first,
+keep all volumes, and run `bash stopped-state.sh rollback-v6` using the **new
+v7 image**. This removes only v7 diagnostics and retains every current v6 table,
+including observations collected after the upgrade. Then restore the generated
+`rollback.yaml` in Zen and start that pinned old image. Do not restore an old
+ledger backup over new observations. The new image digest and final full-copy
+v7 migration proof remain unavailable; this is a prepared procedure, not a
+tested live upgrade. Historical v6 procedures below are version-specific.
 
 Image publishing is already automatic through the preview workflow. Deployment
 is an explicit operator action: a new worker can migrate private state. The
@@ -109,7 +132,7 @@ on fra-node-01 with the same XPipe-derived SSH connection. Keep a Mac copy too.
    a later publication, restart/OOM counters and last-good serving. A running
    status alone is insufficient. Retain the plan and preservation receipt.
 
-The helper supports the current **private v5/v6** worker formats. Future schema
+The helper supports **private v5/v6/v7** worker formats. Future schema
 versions need a reviewed migration/rollback path before using this procedure.
 No client upgrade is needed for the current schema2 read contract. Local matcher
 version changes normally rematch cached evidence in the background; publication

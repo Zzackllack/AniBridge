@@ -416,7 +416,11 @@ def test_positive_season_row_does_not_advance_failed_detail_retry(tmp_path):
             state.db.execute(
                 "UPDATE work SET failures=3,due=? WHERE path=?", (NOW + 300, ep)
             )
+            from catalog_worker.work_failures import record
+
+            record(state.db, {"path": ep, "failures": 3}, "http_error", NOW, 500, None)
             state.db.execute("UPDATE work SET due=0 WHERE path=?", (season,))
+        receipt = tuple(state.db.execute("SELECT * FROM work_failure").fetchone())
         state.detail(
             state.claim(NOW + 1),
             Page(
@@ -432,6 +436,9 @@ def test_positive_season_row_does_not_advance_failed_detail_retry(tmp_path):
             "SELECT failures,due FROM work WHERE path=?", (ep,)
         ).fetchone()
         assert tuple(row) == (3, NOW + 300)
+        assert (
+            tuple(state.db.execute("SELECT * FROM work_failure").fetchone()) == receipt
+        )
     finally:
         state.close()
 

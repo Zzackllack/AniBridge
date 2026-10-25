@@ -170,7 +170,7 @@ def main() -> None:
                 # A second open verifies restart with the retained no-overwrite backup.
                 state = State(path, provider)
                 state.close()
-                assert preflight(path, provider) == 6
+                assert preflight(path, provider) == 7
             result[provider] = "passed"
     (args.root / (args.mode + "-preservation.json")).write_text(
         json.dumps(result, indent=2) + "\n"

@@ -1,5 +1,7 @@
 """Coverage phases and qualified rates; growing discovery queues have no finish ETA."""
 
+from .work_failures import summary as failure_summary
+
 
 def canonical_queue(db, now: int) -> dict:
     """Expose retry starvation separately from provider page failures.
@@ -94,6 +96,7 @@ def measure(db, meta: dict, now: int) -> dict:
             "failed_due_now": retry_due,
         },
         "canonical_queue": canonical_queue(db, now),
+        "page_failures": failure_summary(db, now) if "work_failure" in tables else None,
         "first_pass_complete": first_pass,
         "detail_evidence_complete": first_pass and unknown == 0 and unavailable == 0,
         "unavailable_episode_observations": unavailable,

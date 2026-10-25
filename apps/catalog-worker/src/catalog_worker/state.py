@@ -463,6 +463,16 @@ class State:
                             "UPDATE work SET lease_until=0,failures=failures+1,due=? WHERE path=?",
                             (now + 86400, work["path"]),
                         )
+                        from .work_failures import record
+
+                        record(
+                            self.db,
+                            work,
+                            "unexpected_structure",
+                            now,
+                            200,
+                            "structure_changed",
+                        )
                         self.db.execute(
                             "UPDATE title SET detail_status='stale' WHERE title_id=?",
                             (tid,),
@@ -547,6 +557,10 @@ class State:
                 "UPDATE work SET checked_at=?,due=?,lease_until=0,failures=CASE WHEN ? THEN failures ELSE 0 END,fingerprint=? WHERE path=?",
                 (now, due, unavailable, fingerprint, work["path"]),
             )
+            if not unavailable and not work.get("batch"):
+                self.db.execute(
+                    "DELETE FROM work_failure WHERE path=?", (work["path"],)
+                )
             pending = self.db.execute(
                 "SELECT 1 FROM work w LEFT JOIN observation_gap g USING(path) WHERE title_id=? AND (checked_at IS NULL OR failures>0 OR coalesce(g.unknown_languages,0)>0) LIMIT 1",
                 (tid,),
@@ -569,7 +583,14 @@ class State:
             )
 
     def failure(
-        self, work: dict | None, outcome: str, now: int, retry_after: int | None = None
+        self,
+        work: dict | None,
+        outcome: str,
+        now: int,
+        retry_after: int | None = None,
+        *,
+        status: int | None = None,
+        parser_reason: str | None = None,
     ) -> None:
         from .retry import policy
 
@@ -598,6 +619,9 @@ class State:
                 (state, blocked, count),
             )
             if work:
+                from .work_failures import record
+
+                record(self.db, work, outcome, now, status, parser_reason)
                 self.db.execute(
                     "UPDATE work SET due=?,lease_until=0,failures=failures+1 WHERE path=?",
                     (now + delay, work["path"]),
