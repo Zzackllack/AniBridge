@@ -390,20 +390,25 @@ class Collector:
             self.state.defer(ready.plan, int(self.clock()), ready.retry_after or 1)
             return
         if ready.outcome != "ok":
-            self.state.failure(
-                ready.plan.work,
-                ready.outcome,
-                ready.plan.now,
-                ready.retry_after,
-                status=ready.status,
-                parser_reason=ready.parser_reason,
-            )
-            if ready.plan.signal:
-                Signals(self.state).failed(ready.plan.now, 900)
-            elif ready.plan.work:
-                Signals(self.state).settle(
-                    ready.plan.work, ready.plan.now, success=False
+            # Retry work and its signal checkpoint have the same transaction
+            # boundary as a positive observation. Feed failure must not defer
+            # independent inventory reconciliation.
+            with atomic(self.state.db):
+                self.state.failure(
+                    ready.plan.work,
+                    ready.outcome,
+                    ready.plan.now,
+                    ready.retry_after,
+                    status=ready.status,
+                    parser_reason=ready.parser_reason,
+                    schedule_listing=ready.plan.listing,
                 )
+                if ready.plan.signal:
+                    Signals(self.state).failed(ready.plan.now, 900)
+                elif ready.plan.work:
+                    Signals(self.state).settle(
+                        ready.plan.work, ready.plan.now, success=False
+                    )
             return
         with atomic(self.state.db):
             if ready.plan.path is not None:

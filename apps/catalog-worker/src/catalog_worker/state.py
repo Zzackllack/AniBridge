@@ -591,6 +591,7 @@ class State:
         *,
         status: int | None = None,
         parser_reason: str | None = None,
+        schedule_listing: bool = True,
     ) -> None:
         from .retry import policy
 
@@ -635,5 +636,5 @@ class State:
                         "UPDATE omissions SET confirmed_404=1 WHERE kind='title' AND id=?",
                         (work["title_id"],),
                     )
-            else:
+            elif schedule_listing:
                 self.db.execute("UPDATE worker_meta SET next_listing=?", (now + delay,))
