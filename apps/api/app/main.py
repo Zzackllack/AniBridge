@@ -7,6 +7,7 @@ from app.core.bootstrap import init as bootstrap_init
 from app.core.lifespan import lifespan
 from app.api.torznab import router as torznab_router
 from app.api.qbittorrent import router as qbittorrent_router
+from app.api.qbittorrent.security import QbitAuth, install as install_qbit_auth
 from app.api.health import router as health_router
 from app.api.legacy_downloader import router as legacy_router
 from app.api.strm import router as strm_router
@@ -16,6 +17,10 @@ from app.config import (
     ANIBRIDGE_CORS_ALLOW_CREDENTIALS,
     ANIBRIDGE_CORS_ORIGINS,
     CATALOG_CONFIG,
+    QBIT_USERNAME,
+    QBIT_PASSWORD,
+    QBIT_SESSION_SECRET,
+    QBIT_COOKIE_SECURE,
 )
 from app.utils.logger import config as configure_logger
 
@@ -25,6 +30,9 @@ bootstrap_init()
 
 
 app = FastAPI(title="AniBridge-Minimal", lifespan=lifespan)
+install_qbit_auth(
+    app, QbitAuth(QBIT_USERNAME, QBIT_PASSWORD, QBIT_SESSION_SECRET, QBIT_COOKIE_SECURE)
+)
 if ANIBRIDGE_CORS_ORIGINS:
     apply_cors_middleware(
         app,

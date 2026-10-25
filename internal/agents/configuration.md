@@ -6,6 +6,13 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 
 - Paths: `DATA_DIR`, `DOWNLOAD_DIR`, `QBIT_PUBLIC_SAVE_PATH`,
   `ANIWORLD_INSTALL_FOLDER`
+- qBittorrent authentication: configure `QBIT_USERNAME`, `QBIT_PASSWORD` (16+
+  bytes) and an independent random `QBIT_SESSION_SECRET` (32+ bytes) together.
+  Partial configuration refuses startup. `QBIT_COOKIE_SECURE=true` is required
+  for HTTPS exposure. Empty values retain trusted-private-network compatibility.
+  Signed `SID` sessions last one hour and survive application restarts; rotating
+  credentials or the secret invalidates them. These settings cover `/api/v2`,
+  not the other application routers.
 - Migrations: `DB_MIGRATE_ON_STARTUP`
 - Torznab: `INDEXER_NAME`, `INDEXER_API_KEY`, `TORZNAB_*`
 - Downloader: `PROVIDER_ORDER` (input env var, mapped at runtime to `VIDEO_HOST_ORDER`), `PROVIDER_REDIRECT_TIMEOUT_SECONDS`,

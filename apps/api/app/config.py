@@ -141,6 +141,13 @@ QBIT_PUBLIC_SAVE_PATH = os.getenv("QBIT_PUBLIC_SAVE_PATH", "").strip()
 if QBIT_PUBLIC_SAVE_PATH:
     QBIT_PUBLIC_SAVE_PATH = str(Path(QBIT_PUBLIC_SAVE_PATH).expanduser())
 logger.debug(f"QBIT_PUBLIC_SAVE_PATH={QBIT_PUBLIC_SAVE_PATH or '<none>'}")
+QBIT_USERNAME = os.getenv("QBIT_USERNAME", "")
+QBIT_PASSWORD = os.getenv("QBIT_PASSWORD", "")
+QBIT_SESSION_SECRET = os.getenv("QBIT_SESSION_SECRET", "")
+_qbit_secure = os.getenv("QBIT_COOKIE_SECURE", "false").strip().lower()
+if _qbit_secure not in {"", "true", "1", "yes", "on", "false", "0", "no", "off"}:
+    raise ValueError("QBIT_COOKIE_SECURE must be a boolean")
+QBIT_COOKIE_SECURE = _as_bool(_qbit_secure, False)
 
 # Resolve configured paths (treat empty env as unset)
 env_download = os.getenv("DOWNLOAD_DIR")
