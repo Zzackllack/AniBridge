@@ -1,0 +1,781 @@
+{
+  "schema": 1,
+  "recorded_at_utc": "2026-10-25T03:24:59.382672+00:00",
+  "scope": "Local implementation follow-up; no live service, publication, PR or protection writes",
+  "implementation_base": "10b87be",
+  "tested_source": "1397b3fac40d1dce55d20f17af758c54b4007e58",
+  "commits": [
+    {
+      "sha": "105b0cac72465ea49d3965de62e52447e76d58e6",
+      "subject": "fix(catalog): reacquire damaged shared descriptors"
+    },
+    {
+      "sha": "a8a0c0db0d51ac15c3163b07e4656ee8ece36a2d",
+      "subject": "fix(catalog): validate cached proofs during local rematching"
+    },
+    {
+      "sha": "07329fe291f52782f97b8a9104d0d52db444c7bc",
+      "subject": "feat(catalog): retain transactional page failure receipts"
+    },
+    {
+      "sha": "c9b5351cd23ddfc100a51d977dc76a05089a1f04",
+      "subject": "ci: require unprivileged native image smoke builds"
+    },
+    {
+      "sha": "9f6fb15b94b25a352fe80abf81ae891ad02dc865",
+      "subject": "feat(qbittorrent): support credentialed expiring sessions"
+    },
+    {
+      "sha": "08e22ce39bf023a8ce090180733fa8e6aca04790",
+      "subject": "fix(deps): update vulnerable Python dependency pins"
+    },
+    {
+      "sha": "6404cc73d0c6738c59c561f113d53c0ff0c87d7d",
+      "subject": "fix(docs): update vulnerable build dependencies"
+    },
+    {
+      "sha": "5310413fbae5eabadcb812226ce10d87275508e3",
+      "subject": "fix(pilot): retain old releases in targeted SQL checks"
+    },
+    {
+      "sha": "d9b1fe98cd77b61053e37ec9a3d4428066409ab2",
+      "subject": "fix(pilot): isolate metadata serving from private writer state"
+    },
+    {
+      "sha": "4983e2e4815e4c84dd37d2cae9aaddc4f5a6036d",
+      "subject": "fix(qbittorrent): protect mounted and proxied authentication"
+    },
+    {
+      "sha": "1397b3fac40d1dce55d20f17af758c54b4007e58",
+      "subject": "fix(qbittorrent): distinguish explicit origin ports"
+    }
+  ],
+  "remote": {
+    "head": "ff126cc2375275e9a829e6c69107ebf13008d759",
+    "base": "v3",
+    "default": "main",
+    "draft": true,
+    "review_decision": "REVIEW_REQUIRED",
+    "submitted_reviews": 0,
+    "inline_review_threads": 0,
+    "checks": [
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "CODEOWNERS Coverage",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Conventional Commit Title",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Ruff Lint",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Analyze (actions)",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Build api (amd64)",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Pylint (> 7.5)",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Pytest",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Analyze (python)",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Build api (arm64)",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Build catalog-worker (amd64)",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Build catalog-worker (arm64)",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Ruff Format",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Publish api manifest",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Pytest (packages/catalog-core)",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Publish catalog-worker manifest",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Pytest (apps/catalog-worker)",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "Tests / Required Gate",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": "SUCCESS",
+        "context": null,
+        "name": "CodeQL",
+        "state": null,
+        "status": "COMPLETED"
+      },
+      {
+        "conclusion": null,
+        "context": "CodeRabbit",
+        "name": null,
+        "state": "SUCCESS",
+        "status": null
+      }
+    ],
+    "required_status_contexts": [
+      "Conventional Commit Title"
+    ]
+  },
+  "last_runtime_baseline": {
+    "artifact": "runtime-audit-2026-10-25.json",
+    "worker_source": "52065c76aa8bb75d3df4fa43e4ebcd2cded5779e",
+    "private_schema": 6,
+    "public_schema": 2,
+    "reinspected_in_this_phase": false
+  },
+  "candidate": {
+    "private_schema": 7,
+    "public_schema": 2,
+    "api_schema_change": false,
+    "immutable_images": null
+  },
+  "tests": {
+    "environment": "macOS ARM64 / Python 3.14.9",
+    "api": {
+      "collected": 342,
+      "passed": 324,
+      "skipped": 18,
+      "skip_scope": "Linux resource enforcement",
+      "command": "cd apps/api && uv run --python 3.14 --frozen pytest -q -rs --tb=short",
+      "warnings": {
+        "testclient_deprecation_text_occurrences": 1,
+        "resource_warning_text_occurrences": 78,
+        "scope": "coverage-enabled test process; not distinct production leak counts"
+      }
+    },
+    "core": {
+      "passed": 322,
+      "skipped": 0,
+      "duration_s": 2.61
+    },
+    "worker": {
+      "passed": 303,
+      "skipped": 13,
+      "duration_s": 10.2,
+      "skip_scope": "Linux child/resource enforcement"
+    },
+    "installed_wheels": {
+      "platform": "macOS ARM64",
+      "core_passed": 322,
+      "core_duration_s": 2.63,
+      "worker_passed": 303,
+      "worker_skipped": 13,
+      "worker_duration_s": 11.23,
+      "imports_verified_from_site_packages": true,
+      "editable_project_environments_restored": true
+    },
+    "api_statement_coverage": {
+      "covered_lines": 6235,
+      "num_statements": 10032,
+      "percent_covered": 62.151116427432214,
+      "percent_covered_display": "62",
+      "missing_lines": 3797,
+      "excluded_lines": 35,
+      "percent_statements_covered": 62.151116427432214,
+      "percent_statements_covered_display": "62"
+    },
+    "core_statement_coverage": null,
+    "worker_statement_coverage": null,
+    "branch_coverage": null,
+    "api_coverage_scope": "Statements; not mapping coverage, scenario completeness, operational confidence or a blind precision trial",
+    "ruff": "API app and changed worker/new tests pass; all 154 API files formatted",
+    "pylint_score": 8.44,
+    "pylint_threshold": 7.5,
+    "actionlint": "passed",
+    "gate_shell": {
+      "combinations": 125,
+      "accepted": 1,
+      "rejected": 124,
+      "statuses": [
+        "success",
+        "failure",
+        "cancelled",
+        "skipped",
+        "missing"
+      ],
+      "hosted_execution": false
+    }
+  },
+  "regressions": {
+    "damaged_descriptor_cases": {
+      "before_failed": 8,
+      "after_passed": 8,
+      "existing_canonical_retry_matching_passed": 71,
+      "live_corruption_incident_claimed": false
+    },
+    "mounted_auth": {
+      "unauthorized_before_status": 200,
+      "unauthorized_after_status": 403,
+      "introduced_and_fixed_locally": true
+    },
+    "auth_current_focused_cases_passed": 13,
+    "native_old_release_oracle": {
+      "age_days": 60,
+      "old_expected": 0,
+      "correct_sql_and_http": 2,
+      "recent_sql_and_http": 0
+    },
+    "metadata_private_mount": {
+      "local_template_removed": true,
+      "live_removed": false,
+      "populated_serve_without_writer_directory": "passed"
+    }
+  },
+  "migration_fixture": {
+    "scope": "synthetic populated fixture; not a full copied ledger",
+    "private_versions": [
+      6,
+      7,
+      6
+    ],
+    "public_schema": 2,
+    "retained_tables": 39,
+    "prior_release_rows": 2,
+    "prior_canonical_episode_rows": 1,
+    "before_sha256": "7e19ae82f37ce6201ffa347c2e198404811b51d11b04875cc31d30a9e6974cc6",
+    "after_upgrade_sha256": "7e19ae82f37ce6201ffa347c2e198404811b51d11b04875cc31d30a9e6974cc6",
+    "after_new_observation_sha256": "98e9588eafc7afaf671cf4f6fc3cfd758968f1cc289a3079d756cf1863dc79ea",
+    "after_rollback_sha256": "98e9588eafc7afaf671cf4f6fc3cfd758968f1cc289a3079d756cf1863dc79ea",
+    "backup_unchanged": true,
+    "observations_after_upgrade_retained": true
+  },
+  "dependencies": {
+    "installed_api": {
+      "werkzeug": "3.1.9",
+      "setuptools": "84.2.1",
+      "itsdangerous": "2.2.0"
+    },
+    "docs_before": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 2,
+        "moderate": 4,
+        "high": 2,
+        "critical": 0
+      },
+      "dependencies": 181,
+      "devDependencies": 0,
+      "optionalDependencies": 0,
+      "totalDependencies": 181
+    },
+    "docs_after": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0
+      },
+      "dependencies": 180,
+      "devDependencies": 0,
+      "optionalDependencies": 0,
+      "totalDependencies": 180
+    },
+    "docs_frozen_install": "passed",
+    "docs_build": "passed",
+    "docs_build_duration_s": 2.19,
+    "hosted_open_alerts": [
+      {
+        "advisory": "GHSA-r825-w8mm-5pxw",
+        "manifest": "docs/pnpm-lock.yaml",
+        "package": "vite",
+        "patched": "8.3.3",
+        "severity": "medium"
+      },
+      {
+        "advisory": "GHSA-587h-7wmj-h5pm",
+        "manifest": "docs/pnpm-lock.yaml",
+        "package": "vite",
+        "patched": "8.3.3",
+        "severity": "high"
+      },
+      {
+        "advisory": "GHSA-698v-4r3x-3vcv",
+        "manifest": "docs/pnpm-lock.yaml",
+        "package": "vite",
+        "patched": "8.3.3",
+        "severity": "medium"
+      },
+      {
+        "advisory": "GHSA-68fv-2mgg-jv7q",
+        "manifest": "docs/pnpm-lock.yaml",
+        "package": "source-map-js",
+        "patched": "1.2.2",
+        "severity": "high"
+      },
+      {
+        "advisory": "GHSA-g6x2-hccm-hh4m",
+        "manifest": "apps/api/uv.lock",
+        "package": "Werkzeug",
+        "patched": "3.1.9",
+        "severity": "medium"
+      },
+      {
+        "advisory": "GHSA-h35f-9h28-mq5c",
+        "manifest": "apps/api/uv.lock",
+        "package": "setuptools",
+        "patched": "83.0.0",
+        "severity": "medium"
+      },
+      {
+        "advisory": "GHSA-g7r4-m6w7-qqqr",
+        "manifest": "docs/pnpm-lock.yaml",
+        "package": "esbuild",
+        "patched": "0.28.1",
+        "severity": "low"
+      }
+    ],
+    "full_python_os_advisory_audit": false,
+    "destination_linux_verification": false
+  },
+  "code_review": {
+    "tool": "CodeRabbit CLI 0.9.1",
+    "base": "10b87be",
+    "head_at_start": "5310413",
+    "issues": 3,
+    "major": 1,
+    "minor": 2,
+    "dispositions": [
+      {
+        "area": "secure cookie default",
+        "action": "fixed; production-wiring and cookie tests pass"
+      },
+      {
+        "area": "TLS proxy Origin",
+        "action": "fixed; preserved Host and explicit secure ingress, no arbitrary forwarded trust"
+      },
+      {
+        "area": "work failure FK deletion",
+        "action": "not applicable; foreign keys enabled but no work deletion path, durable rows intentionally retained"
+      }
+    ],
+    "subsequent_mount_fix": "independent manual regression, not credited to CodeRabbit",
+    "second_review_after_fixes": false
+  },
+  "full_size_v7_experiment": {
+    "status": "blocked",
+    "blocker": "Aggregate 30,000,000,000-byte admission; prior conservative total 30,902,859,428 and unresolved physical image/cache/old-experiment attribution",
+    "new_service_copies": 0,
+    "new_images": 0,
+    "new_service_containers": 0,
+    "historical_v6_full_copy_proof_reused_as_v7_proof": false
+  },
+  "current_measurements_not_taken": [
+    "new full-ledger mapping denominators",
+    "prospective independent mapping precision",
+    "new held-out cohort",
+    "current eligible age by class",
+    "requests per useful new map",
+    "current full-size publication/query latency",
+    "writer occupancy",
+    "CPU/throttling/memory/OOM/I/O under candidate limits",
+    "continuous aggregate disk peak",
+    "current Linux installed-wheel behavior",
+    "real credentialed Sonarr move/restart/import",
+    "visible progress bar",
+    "live provider media import/playback",
+    "sustained capacity or freshness SLA"
+  ],
+  "mac_free_bytes_sample": 27152801792,
+  "verdict": {
+    "review": "NOT READY",
+    "merge_v3": "NOT READY",
+    "production": "NOT READY"
+  },
+  "matrix": [
+    {
+      "id": "A1",
+      "area": "Inventory \u2192 title/season/episode \u2192 durable work",
+      "status": "VERIFIED",
+      "evidence": "`listing`, `Collector`, `State.detail`, `batch`, signals; collection/private-operation suites; exact snapshot totals",
+      "remaining": "Observed inventories can grow; no complete-provider claim"
+    },
+    {
+      "id": "A2",
+      "area": "Capped feeds, pagination and new-child reconciliation",
+      "status": "VERIFIED",
+      "evidence": "`signals`, `State.claim`, signal/collection repair tests; live gap markers and 0/5 gap parents",
+      "remaining": "Lossless provider feed coverage is UNCHECKED; feed caps and historical gaps cannot prove it"
+    },
+    {
+      "id": "A3",
+      "area": "Unknown language, subtitles, unavailable/missing/empty markup",
+      "status": "VERIFIED",
+      "evidence": "core episode-row/recent tests; sto/collection/finale cases; live 1 unknown and 8,478 unavailable observations",
+      "remaining": "No inferred audio; stable upstream gaps remain"
+    },
+    {
+      "id": "A4",
+      "area": "Retry/admission/circuit/cached retry/lease fairness",
+      "status": "VERIFIED",
+      "evidence": "retry/transport/cached-retry/canonical-rate/circuit tests; snapshot zero overdue canonical retries and expired leases",
+      "remaining": "Synthetic fairness is not live eligible-work throughput; cached retry repair remains undeployed"
+    },
+    {
+      "id": "A5",
+      "area": "Retained failure reason + HTTP status + first-failure age",
+      "status": "UNCHECKED",
+      "evidence": "`work_failures`, private v7, six migration/receipt regressions and the existing positive-batch regression",
+      "remaining": "Detail receipts are implemented locally; live v6 has no receipts. Historical first failures stay unknown. Listing/signal and full per-title canonical attribution remain separate gaps."
+    },
+    {
+      "id": "A6",
+      "area": "Hours-scale full bootstrap and sustainable maintenance",
+      "status": "UNCHECKED",
+      "evidence": "Status separates first-pass from mapping and feed gaps",
+      "remaining": "No fresh full bootstrap/endurance campaign authorized or measured"
+    },
+    {
+      "id": "B1",
+      "area": "Exact denominators/disjoint unresolved partition",
+      "status": "VERIFIED",
+      "evidence": "`audit_snapshot.py`, actual `correspondence.decisions`; tables above",
+      "remaining": "Retained observations, not provider population completeness"
+    },
+    {
+      "id": "B2",
+      "area": "Parent/episode IDs, provenance, no numbering/similarity acceptance",
+      "status": "VERIFIED",
+      "evidence": "Original finite identity/matching regressions plus eight damaged-cache recovery cases; current worker suite",
+      "remaining": "No numbering/similarity acceptance added. Existing uncertain maps are retained; no population precision claim."
+    },
+    {
+      "id": "B3",
+      "area": "Descriptor acquisition vs local rematching, reuse and freshness",
+      "status": "VERIFIED",
+      "evidence": "Digest/parent/language/episode codec validation in acquisition and local rematching; cross-provider and due-retry regressions",
+      "remaining": "Eight corruption cases reacquire normally and retain maps. Current live requests per useful map and eligible age by class remain unmeasured."
+    },
+    {
+      "id": "B4",
+      "area": "Prospective independently labelled trial",
+      "status": "FAILED",
+      "evidence": "215 fixed cases, 118 positives, development/held-out chronology in MAPPING_IMPLEMENTATION",
+      "remaining": "Labels followed original tuning; a new prospective independent trial or explicit contract decision is required"
+    },
+    {
+      "id": "B5",
+      "area": "Multilingual/annotations/specials/split seasons/cuts",
+      "status": "VERIFIED",
+      "evidence": "finite matching/identity/finale fixtures and retained label evaluation",
+      "remaining": "Population precision and newly labelled broad unresolved cohorts UNCHECKED; no matcher tuning in this audit"
+    },
+    {
+      "id": "B6",
+      "area": "Required current named targets",
+      "status": "VERIFIED",
+      "evidence": "live SQL/revision-paired native checks, including large pagination",
+      "remaining": "Published-map existence is not independent provider-order ground truth"
+    },
+    {
+      "id": "B7",
+      "area": "Anime-Lists/TheXEM/provider-order and Sonarr conversion",
+      "status": "UNCHECKED",
+      "evidence": "research reviewed; no adapter integrated",
+      "remaining": "Source order binding and a real differing scene\u2192canonical Sonarr case remain untested; do not adopt research as a map"
+    },
+    {
+      "id": "C1",
+      "area": "Observation \u2192 journal \u2192 export/proof \u2192 pointer \u2192 reader",
+      "status": "VERIFIED",
+      "evidence": "v6 triggers, export/snapshot/clone/ack code; publication tests and full-size retention",
+      "remaining": "Generation acknowledgement retains later fixture WAL writes; no distribution system added"
+    },
+    {
+      "id": "C2",
+      "area": "Corruption/tampering/receipts/partitions/cancel/crash",
+      "status": "VERIFIED",
+      "evidence": "publication follow-up/migration/validation-scope tests installed on Linux",
+      "remaining": "Finite injected failures, not long crash/endurance proof"
+    },
+    {
+      "id": "C3",
+      "area": "Fresh full-size concurrent publication/query workload",
+      "status": "UNCHECKED",
+      "evidence": "Historical overlap evidence retained; current fixture overlap passes",
+      "remaining": "Today's full-size runs are sequential; no new final-candidate full-size overlap/stress claim"
+    },
+    {
+      "id": "C4",
+      "area": "Migration/backup/idempotence/rollback/reopen",
+      "status": "UNCHECKED",
+      "evidence": "New populated v6\u2192v7\u2192v6 fixture, 39 retained tables, interruption/restart/WAL-backup reserve and code rollback",
+      "remaining": "Full-size v7 upgrade/rollback and current Linux execution are blocked by aggregate disk admission. Prior full-size proof was v6."
+    },
+    {
+      "id": "C5",
+      "area": "Entire release/map/history/correction preservation",
+      "status": "UNCHECKED",
+      "evidence": "New fixture preserves every retained table and observations added after upgrade; prior full-copy v6 proof remains recorded",
+      "remaining": "Two fixture releases/one map are not the full ledger. Full-copy v7 preservation has not run."
+    },
+    {
+      "id": "C6",
+      "area": "Query totals/isolation/pagination/corrections before policy",
+      "status": "VERIFIED",
+      "evidence": "Prior nine revision-paired live requests; new SQL/full-HTTP comparison for sixty-day-old releases",
+      "remaining": "Targeted native requests retain old content while recent feeds exclude it. No new live queries or freshness SLA in this phase."
+    },
+    {
+      "id": "C7",
+      "area": "Cache invalidation/coalescing/revision/outage/timeout",
+      "status": "VERIFIED",
+      "evidence": "query/client/provider tests, including cancellation and partial provider failures",
+      "remaining": "Positive stale cache is bounded prior-page coverage, not general outage availability"
+    },
+    {
+      "id": "C8",
+      "area": "Strict aggregate disk peak and next-copy admission",
+      "status": "UNCHECKED",
+      "evidence": "Original conservative 30,902,859,428-byte projection; fresh read-only Docker inventory and Mac free-space sample",
+      "remaining": "Shared physical layers, old experiment ownership and continuous aggregate peak remain uncertified. No new service copies/images/containers admitted."
+    },
+    {
+      "id": "D1",
+      "area": "Torznab grab \u2192 frozen identity \u2192 durable job/output",
+      "status": "UNCHECKED",
+      "evidence": "Prior two real Sonarr/Prowlarr generated-media flows and current durable-job unit suite",
+      "remaining": "Final candidate has no fresh real-client run; the new credentialed mode has only real-router tests."
+    },
+    {
+      "id": "D2",
+      "area": "Mixed history, missing jobs, states/categories/paths/full streams",
+      "status": "VERIFIED",
+      "evidence": "legacy-history/filter/completion/batch tests; actual copied four aliases",
+      "remaining": "No corruption-tolerant proof for every arbitrary private DB mutation"
+    },
+    {
+      "id": "D3",
+      "area": "Exact/estimated/unknown size, tracks, retries, STRM/counts",
+      "status": "VERIFIED",
+      "evidence": "synthetic HTTP/HLS and progress/receipt/STRM tests; configured fake peers retained",
+      "remaining": "Size/quality/counts are not invented measurements; unknown totals remain unknown"
+    },
+    {
+      "id": "D4",
+      "area": "Real Sonarr intermediate progress/import/restart",
+      "status": "UNCHECKED",
+      "evidence": "Prior two generated flows showed intermediate queue progress/import and six-second restart checks",
+      "remaining": "Those runs predate this implementation. Final-candidate/credentialed Sonarr acceptance is blocked by disk admission."
+    },
+    {
+      "id": "D5",
+      "area": "Real Sonarr move plus longer duplicate-prevention recovery",
+      "status": "UNCHECKED",
+      "evidence": "unit move/explicit retry and historical copied history pass",
+      "remaining": "Actual runs kept source; no new real move or long restart campaign"
+    },
+    {
+      "id": "D6",
+      "area": "Visible browser progress, provider import/playback",
+      "status": "UNCHECKED",
+      "evidence": "No UI/media proof claimed",
+      "remaining": "Browser omitted; real provider acquisition outside authorization"
+    },
+    {
+      "id": "D7",
+      "area": "Metadata service/Sonarr external outage independence",
+      "status": "VERIFIED",
+      "evidence": "local cache/provider isolation and frozen-source job tests; selected descriptors fetched",
+      "remaining": "Complete Sonarr metadata outage E2E is UNCHECKED; no substitute emulator"
+    },
+    {
+      "id": "D8",
+      "area": "Public qBittorrent authentication",
+      "status": "UNCHECKED",
+      "evidence": "Opt-in signed SID authentication in both modes; secure default, expiry, tampering, rotation, logout, login admission and production-wiring tests",
+      "remaining": "Unconfigured mode still accepts trusted-network clients. Credentialed real Sonarr/proxy ingress has not run; other application routers are outside this auth boundary."
+    },
+    {
+      "id": "D9",
+      "area": "Mounted/proxied authentication boundary",
+      "status": "VERIFIED",
+      "evidence": "Mounted real-router request returns 200 before repair and 403 after; complete mounted login/logout and simulated TLS proxy hop pass",
+      "remaining": "ASGI protocol fixture, not deployed HTTPS ingress or real Sonarr proof."
+    },
+    {
+      "id": "E1",
+      "area": "Outbound URL/redirect/DNS/TLS/session/decoding bounds",
+      "status": "VERIFIED",
+      "evidence": "Existing outbound transport fixtures; new populated CLI serve test with unusable writer-state path; server template removes private mount",
+      "remaining": "Existing service retains its historical writable state mount; update tooling preserves it. A separate reviewed operational change is needed."
+    },
+    {
+      "id": "E2",
+      "area": "Malformed canonical inputs and private proof recovery",
+      "status": "VERIFIED",
+      "evidence": "Original canonical input tests plus full stored-descriptor validation and eight cache recovery/rematching regressions",
+      "remaining": "Stored hashes detect accidental mutation, not authenticity against a writer controlling both hash and payload. No exhaustive fuzzing."
+    },
+    {
+      "id": "E3",
+      "area": "Secret/query logging boundaries",
+      "status": "VERIFIED",
+      "evidence": "worker allowlists, query access logs disabled, captured-log Torznab/grab tests",
+      "remaining": "Complete legacy downloader/OS/proxy logging privacy UNCHECKED"
+    },
+    {
+      "id": "E4",
+      "area": "Child limits/cancellation/shutdown and async boundaries",
+      "status": "UNCHECKED",
+      "evidence": "Existing native macOS async/cancellation checks and earlier Linux child tests",
+      "remaining": "Final candidate has 13 worker and 18 API Linux-only skips; current Linux resource enforcement and sustained FD/pool behavior have not run."
+    },
+    {
+      "id": "E5",
+      "area": "Dependency exposure across supported platforms",
+      "status": "UNCHECKED",
+      "evidence": "Werkzeug 3.1.9/setuptools 84.2.1 installed on macOS; docs audit eight\u2192zero after frozen build",
+      "remaining": "Seven hosted alerts still describe remote manifests. Current Linux/native image behavior, full Python/OS SBOM and Windows behavior remain unchecked."
+    },
+    {
+      "id": "E6",
+      "area": "Full-path profiling and short 2/2 resource samples",
+      "status": "VERIFIED",
+      "evidence": "phase medians, copied publication, Linux cgroup CPU/memory/I/O, query latency",
+      "remaining": "Sustained capacity, lock/writer occupancy, exact physical Mac backing I/O and eligible-class age UNCHECKED"
+    },
+    {
+      "id": "E7",
+      "area": "Filesystem/platform support",
+      "status": "FAILED",
+      "evidence": "actual Mac-bind exclusion failure; fail-closed fix; native Linux/macOS tests",
+      "remaining": "Developer state must move safely before candidate startup; Windows resource enforcement remains outside this Linux pilot"
+    },
+    {
+      "id": "F1",
+      "area": "Frozen project and installed-wheel checks",
+      "status": "UNCHECKED",
+      "evidence": "macOS Python 3.14: API 324/18 skips, core 322, worker 303/13 skips; installed core/worker wheels repeat 322 and 303/13",
+      "remaining": "No current native Linux/AMD64 candidate execution or published image. Previous Linux results cover the earlier source/dependencies."
+    },
+    {
+      "id": "F2",
+      "area": "Lint/workflow/static gate behavior",
+      "status": "VERIFIED",
+      "evidence": "Full API Ruff/format, Pylint 8.44 >7.5, actionlint; actual final gate shell tested over 125 combinations",
+      "remaining": "Only all-success passes. Current worker-wide pre-existing lint remains outside hosted lint scope; no mass cleanup."
+    },
+    {
+      "id": "F3",
+      "area": "Hosted results for new final local source",
+      "status": "UNCHECKED",
+      "evidence": "PR metadata/checks re-queried: remote ff126cc is draft/open into v3; all 19 reported contexts succeed",
+      "remaining": "Eleven new implementation commits remain local, as do the earlier eight audit commits. No push authorized; no final-source hosted checks/images."
+    },
+    {
+      "id": "F4",
+      "area": "Enforced unconditional test/build merge gate",
+      "status": "FAILED",
+      "evidence": "Unconditional unprivileged API/worker AMD64/ARM64 smoke jobs now feed Tests / Required Gate locally",
+      "remaining": "Effective v3 status policy still requires only Conventional Commit Title. Hosted validation and an approved protection change remain necessary."
+    },
+    {
+      "id": "F5",
+      "area": "Review approval and current PR description",
+      "status": "FAILED",
+      "evidence": "Fresh GitHub metadata: REVIEW_REQUIRED; zero submitted reviews and zero inline review threads",
+      "remaining": "Human/CODEOWNER approval and a current PR description remain missing; PR edits/draft transition were not authorized."
+    },
+    {
+      "id": "F6",
+      "area": "Stable/default/prerelease release policy",
+      "status": "UNCHECKED",
+      "evidence": "all workflows and v3 transition checklist reviewed",
+      "remaining": "main stays stable/default; prerelease/default/retention/external integrations remain separate release decisions"
+    }
+  ],
+  "wheels": [
+    {
+      "file": "anibridge_catalog_core-1.0.0-py3-none-any.whl",
+      "bytes": 59192,
+      "sha256": "725c21f0eed19844fd799c12e1d3cd2500977d8360a906532ea7032b6eeb4ef7"
+    },
+    {
+      "file": "anibridge_catalog_worker-1.0.0-py3-none-any.whl",
+      "bytes": 96994,
+      "sha256": "983470606bf75cc9085c3677e510f97ceae223f463b3e1e5fb587bd3383c8601"
+    }
+  ]
+}

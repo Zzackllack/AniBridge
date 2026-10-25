@@ -4,6 +4,25 @@ Updated 2026-10-25. Evidence: [pilot follow-up](evidence/linux-private-pilot-fol
 and [EVIDENCE.md](EVIDENCE.md). The October 8 implementation and bounded measurements are recorded below.
 Deployment is confined to the maintainer-authorized existing private pilot.
 
+## October 25 implementation follow-up — current candidate
+
+[Implementation fixes, complete matrix and version-specific rollback](IMPLEMENTATION_FOLLOWUP_2026-10-25.md)
+and [machine-readable evidence](evidence/implementation-followup-2026-10-25.json)
+record eleven further local commits after the eight audit commits. Candidate state
+is private v7/public schema2; the last inspected live worker remains historical
+`52065c7`/v6 evidence. Review, v3 merge and production remain **NOT READY**.
+Full-size v7/Linux/real-client acceptance and hosted checks are not substituted
+by macOS fixtures. No push or operational write ran.
+
+| ID | Status | Result / remaining boundary |
+| --- | --- | --- |
+| CQ-35 | Fixed locally / P1 | Damaged cached JSON/digests/IDs/languages/episode records could strand retries, crash or reuse unvalidated evidence. Full bounded decoding now gates acquisition and local rematching. Eight before/after cases preserve valid maps; no live corruption incident is claimed. |
+| CQ-36 | Implemented locally / public readiness unchecked | Optional qBittorrent credentials and secure, signed one-hour sessions protect both modes. Mounted-path bypass in the first local implementation is repaired; proxy-Origin, rotation, expiry, logout and production wiring pass. Default trusted-network compatibility and other application routers remain outside public acceptance; real credentialed Sonarr has not run. |
+| CQ-37 | Code gap fixed / enforcement blocked | Unconditional native API/worker smoke builds now feed the always-running test gate with no registry write credentials, including forks/Dependabot. Hosted execution and an approved protection change remain missing; title alone is currently enforced. |
+| CQ-38 | Selected pins fixed locally / platform audit open | Werkzeug 3.1.9/setuptools 84.2.1 are installed and tested on macOS. Docs Vite/source-map-js/esbuild updates yield zero registry advisories and a passing frozen build. This is not Linux/Windows behavior, full OS/SBOM or hosted-alert closure. |
+| CQ-39 | Fixed locally / P2 | The copied-state SQL oracle applied a recent-feed cutoff to native targets. A sixty-day-old paired SQL/HTTP case now returns two targeted releases and zero recent releases. |
+| CQ-40 | Template fixed / live hardening pending | Metadata's template omits writer-state access; populated serving succeeds with an unusable private state directory. Existing live Compose and update tool preserve the historical mount until a separate exact change is reviewed. |
+
 ## October 25 runtime audit — current decision
 
 [Full matrix, reproductions and operational limits](RUNTIME_AUDIT_2026-10-25.md)
@@ -20,7 +39,7 @@ for `ff126cc`, while the new local fixes have no hosted verification.
 | CQ-31 | Fixed locally / P2 | Completion filters included every legacy alias in query mode and were ignored by the legacy route. Both modes now filter the complete projection; six mixed/history regressions pass without changing stored rows. |
 | CQ-32 | Fixed locally / P2 | Legacy grab/parser/helper logs included submitted magnets and private values, including rejected input. These boundaries now emit constant messages and safe hashes. A captured-log rejection regression fails before the fix. This does not establish privacy of every legacy downloader log or external proxy. |
 | CQ-33 | Fixed locally / P2 | A tuple accidentally combined reload configuration and catalog configuration, making explicit `true`/`1` ineffective. Four actual-Uvicorn-boundary regressions verify reload selection and query access-log policy. |
-| CQ-34 | Unchecked operational criterion | Retained page failures store attempts/deadlines/last successful check, but not a per-path safe last-reason/status or first-failure clock. Aggregate logs cannot be joined to each retained failure. Full reason/status/age attribution needs a separately designed bounded persistence change; this audit does not invent those facts. |
+| CQ-34 | Implemented locally / live attribution blocked | Private v7 adds one transactional bounded receipt per detail work row, including status, parser reason and clocks. Six receipt/migration/reserve cases plus the positive-batch regression pass. Pre-upgrade first-failure times stay unknown; live v6, listing/signal attribution and complete per-title canonical failure attribution remain open. Full-size v7 proof is blocked by disk admission. |
 
 The current frozen snapshot has zero overdue canonical retries; the October 20
 stall population is not today's population. There are 90 retained Serienstream

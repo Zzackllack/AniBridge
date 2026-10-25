@@ -187,3 +187,15 @@ zero/new-evidence deadlines do not imply epoch-old work. The finite
 directories. Its simulated HTTP failures prove queue progress and full-ledger
 preservation, not successful live enrichment. `test_cached_retry_harness.py`
 exercises those guards and retained retry state.
+
+October 25 implementation regressions: `test_descriptor_recovery.py` rejects
+damaged shared descriptors during acquisition and local rematching.
+`test_work_failures.py` checks private v7 receipts, WAL-inclusive reserve,
+interruption, restart and state-preserving v7→v6 code rollback. Its populated
+fixture is not full-ledger upgrade evidence. `test_copied_native_query.py` pairs
+the independent SQL oracle with complete HTTP for releases older than recent
+feed policy. `test_serve_state_isolation.py` serves populated output without a
+usable writer-state directory. API `test_qbit_authentication.py` covers both
+routers, mounted/root paths, signed-cookie expiry/rotation, secure defaults,
+TLS proxy Origin and production wiring. Those ASGI tests do not replace real
+credentialed Sonarr/Prowlarr or external-ingress acceptance.

@@ -1,5 +1,53 @@
 # Private request API pilot evidence
 
+## Implementation follow-up — 2026-10-25
+
+[Current implementation/readiness matrix](IMPLEMENTATION_FOLLOWUP_2026-10-25.md)
+and [sanitized measurements](evidence/implementation-followup-2026-10-25.json)
+supersede the original audit's local v6-only candidate/rollback description.
+Tested source `1397b3f` contains eleven new implementation commits after the eight
+preserved audit commits. Private candidate state is now v7; public schema2 and
+the API database schema are unchanged. No push, deployment or live mutation ran.
+
+Eight damaged descriptor cases reproduce retry/crash/unvalidated-reuse defects;
+both acquisition and local rematching now validate the full cached evidence.
+Private detail failure receipts update atomically with retry work, retain unknown
+historical failure clocks and survive restart. A populated v6→v7→v6 fixture
+compares all 39 non-version v6 tables, preserves two releases/one accepted map,
+and retains observations added after upgrade plus original backup bytes. This
+is **fixture proof**, not a new full-ledger preservation experiment.
+
+Opt-in qBittorrent authentication covers legacy/query routes, with secure signed
+expiring sessions, credential/secret rotation, mounted paths and proxy-Origin
+checks. The first local mounted middleware had a bypass (HTTP 200 without
+credentials); its regression now returns 403 and complete mounted login/logout
+passes. CodeRabbit raised three issues: secure default and proxy-Origin fixes
+pass; its possible work-deletion concern has no application deletion path.
+Other application routers and real credentialed Sonarr remain separate gaps.
+
+macOS Python 3.14: API 324 passed/18 Linux skips; core 322 passed; worker 303
+passed/13 Linux skips. Installed core/worker wheels repeat 322 and 303/13;
+editable environments are restored. API statement coverage is 6,235/10,032
+(62.15%), separate from mapping/scenario/operational evidence. Ruff/format,
+Pylint 8.44 and actionlint pass. All 125 final-gate result combinations were
+checked: only all-success passes. Native image smoke builds are now unconditional
+and unprivileged, but neither hosted execution nor enforcement is established.
+
+Werkzeug/setuptools pins are patched locally; docs audit is eight→zero and the
+frozen docs build passes. Hosted alerts still describe remote manifests. The
+copied-query SQL oracle now agrees with native HTTP on sixty-day-old releases;
+metadata's local server template no longer mounts private writer state.
+
+**Review, v3 merge and production remain NOT READY.** Fresh GitHub queries keep
+PR #170 draft at `ff126cc`, REVIEW_REQUIRED, zero reviews/threads, with all 19
+reported remote contexts successful. Only the title status is enforced by v3.
+Final-candidate Linux/native images, full-size v7 upgrade/rollback/overlap and
+real-client move/scene-order acceptance remain blocked or unchecked. Aggregate
+disk admission is unresolved; no additional service copies/images/containers
+were created. No new mapping cohort/precision or resource/capacity metrics were
+measured. Issue #175's broad E2E expansion remains an idea, not this regression
+suite. The original runtime evidence below remains dated baseline evidence.
+
 ## Deep runtime audit — 2026-10-25
 
 Current decision: **NOT READY for review, merge or production**. The full finite

@@ -2,6 +2,11 @@
 
 **Review: NOT READY. Merge into v3: NOT READY. Public production: NOT READY.**
 
+The [implementation follow-up](IMPLEMENTATION_FOLLOWUP_2026-10-25.md) supersedes
+this report's local candidate state and code-only rollback: further local fixes
+now introduce private v7, while public schema2 is unchanged. This report retains
+its original live and v6 copied-state evidence; it does not prove a v7 rollout.
+
 The remote draft still contains reproducible input-validation, logging and reload
 defects. Their fixes are committed locally, without push or hosted verification.
 The proposed build also deliberately refuses ineffective filesystem locks: the
