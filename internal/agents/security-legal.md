@@ -13,6 +13,9 @@
   Credentialed login input is bounded before framework parsing: 16 KiB,
   five seconds and at most 1,024 ASGI receive frames, including empty frames.
   Normal URL-encoded and multipart forms retain the framework's parser.
+  Session keys use PBKDF2-HMAC-SHA256 (600,000 rounds) once at startup,
+  binding the random secret and username. The key-format change expires older
+  authenticated cookies; clients must log in again. No password hash is stored.
   Browser mutations reject a mismatched Origin. Use HTTPS and secure cookies
   outside trusted private HTTP networks. This protects `/api/v2` only; it does
   not authorize public exposure of legacy downloader or other routers.

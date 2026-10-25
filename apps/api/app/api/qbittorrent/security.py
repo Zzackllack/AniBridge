@@ -43,13 +43,18 @@ class QbitAuth:
             password,
             secure,
         )
-        # Rotate credentials or the independent random secret to invalidate all
-        # sessions across workers/restarts without storing passwords in cookies.
-        self.signing_key = hmac.new(
-            secret.encode(),
-            username.encode() + b"\0" + password.encode(),
-            hashlib.sha256,
-        ).hexdigest()
+        # Derive once at startup, never per unauthenticated request. The random
+        # secret salts the password; length framing binds the username without
+        # ambiguous field boundaries. Rotation invalidates existing sessions.
+        user = username.encode()
+        salt = b"anibridge/qbit-sid/v1\0" + len(user).to_bytes(4, "big") + user
+        self.signing_key = (
+            hashlib.pbkdf2_hmac(
+                "sha256", password.encode(), salt + secret.encode(), 600_000
+            ).hex()
+            if configured
+            else ""
+        )
         self.attempts: deque[float] = deque(maxlen=60)
 
     def admit_login(self) -> int:

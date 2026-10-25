@@ -12,9 +12,11 @@ PASSWORD = "private-password-12345"
 SECRET = "independent-random-session-secret-123456789"
 
 
-def application(*, password=PASSWORD, secure=False, query=False):
+def application(
+    *, username="operator", password=PASSWORD, secret=SECRET, secure=False, query=False
+):
     app = FastAPI()
-    install(app, QbitAuth("operator", password, SECRET, secure))
+    install(app, QbitAuth(username, password, secret, secure))
     if query:
         from app.catalog.qbit_http import router as query_router
 
@@ -88,6 +90,21 @@ def test_login_tamper_expiry_restart_rotation_logout_and_cookie_flags(monkeypatc
         client.cookies.set("SID", cookie, path="/api/v2")
         clock[0] += 3601
         assert client.get("/api/v2/app/version").status_code == 403
+
+
+@pytest.mark.parametrize(
+    "changed", [{"username": "new-operator"}, {"secret": SECRET + "rotated"}]
+)
+def test_username_and_secret_rotation_reject_existing_session(changed):
+    with TestClient(application()) as client:
+        login = client.post(
+            "/api/v2/auth/login", data={"username": "operator", "password": PASSWORD}
+        )
+        assert login.status_code == 200
+        cookie = login.cookies["SID"]
+    with TestClient(application(**changed)) as rotated:
+        rotated.cookies.set("SID", cookie, path="/api/v2")
+        assert rotated.get("/api/v2/app/version").status_code == 403
 
 
 def test_cross_origin_and_bounded_failed_login_admission():
