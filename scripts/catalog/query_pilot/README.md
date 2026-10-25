@@ -88,8 +88,8 @@ docker compose stop sonarr prowlarr
 The client check also accepts an explicit `--tvdb-id`, `--season`, `--episode`,
 expected release counts and `--season-search`. Use season matching against
 reviewed real episode metadata: the generated Breaking Bad fixture does not
-represent its complete real season. The retained maintainer-selected catalog and
-its discovery commands are documented in [BUNNY_MATCHING.md](BUNNY_MATCHING.md).
+represent its complete real season. Use the explicit selected-show procedure
+below for a real metadata case; do not substitute retained test state.
 
 The extra containers have separate disposable volumes, digest-pinned images,
 512-MiB/1-CPU limits and no host ports. Sonarr may fetch descriptor/artwork data;
@@ -215,4 +215,4 @@ no snapshot client/updater is present. Native job enforcement, public rights,
 public hosting/defaults, larger capacity/freshness remain
 release work. The old snapshot validator timeout remains failed evidence.
 
-Results and exact measurement scope: [EVIDENCE.md](../../../internal/specs/020-catalog-query-api-evaluation/EVIDENCE.md).
+Current acceptance gaps: [ISSUES.md](../../../internal/specs/020-catalog-query-api-evaluation/ISSUES.md).

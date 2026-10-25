@@ -75,8 +75,8 @@ verified cross-provider evidence reuse, while each provider retains its own
 source identities and accepted maps. Public catalog/wire schemas remain unchanged.
 Stable canonical evidence is eligible weekly; meaningful newly observed gaps
 daily, under the shared 30/minute cap. This does not add demand refresh or search
-scraping. See spec 020 MAPPING_IMPLEMENTATION.md for proof limits and remaining
-missing/ambiguous evidence.
+scraping. See spec 020's current IMPLEMENTATION.md and ISSUES.md for correspondence
+rules and unresolved acceptance work.
 
 Publication uses generations and a bounded changed-title journal introduced in
 private v6. The local v7 candidate adds per-work failure receipts; public schema2

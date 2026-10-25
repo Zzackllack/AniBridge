@@ -114,12 +114,12 @@ complete because the draft exists or one image build succeeds.
 ### 2. CI coverage and reproducibility
 
 - [x] Add independent API, `packages/catalog-core` and `apps/catalog-worker` jobs
-  with their own frozen uv projects. Hosted run `38598340921` passed on `2240b91`.
-- [ ] Verify the October 14 unconditional worker/core/workflow coverage and an
-  always-running final gate so skipped path-filter workflows do not leave a
-  required check pending forever. Verify PRs into both supported base branches.
-- [ ] Add API/worker package and image smoke builds to the required gate; include
-  the supported architectures and actual installed wheel imports.
+  with their own frozen uv projects.
+- [x] Configure unconditional API/core/worker and native image jobs with an
+  always-running aggregate gate. Verify the selected head's hosted results and
+  enforce that gate through the branch rules before merging.
+- [x] Include native AMD64/ARM64 API/worker image behavior and installed worker
+  wheel tests in the configured aggregate gate. Enforcement remains separate.
 - [ ] Run isolated contract/migration/backup/restore tests and bounded offline
   integration checks. Keep provider-network and media acquisition tests opt-in.
 - [x] Replace Ruff's auto-commit/rebase/force-with-lease workflow with check-only
@@ -208,31 +208,3 @@ complete because the draft exists or one image build succeeds.
 - [Docker multi-platform builds](https://docs.docker.com/build/ci/github-actions/multi-platform/)
 - [Container registry authentication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
 - [Current release/CI agent guide](../agents/release-ci.md)
-
-## October 14 local implementation update
-
-`tests.yml` now includes independent frozen API/core/worker jobs, installed-wheel
-smokes and an unconditional final gate for PRs into both `main` and `v3`. These
-changes are local and unpushed; hosted checks, native AMD64/ARM64 image gates and
-protection enforcement remain open. No default-branch, protection, release or
-publication policy was changed. See spec 020's mapping implementation evidence
-for the separately tested parser, correspondence and scheduling changes.
-
-## October 14 subsequent hosted verification
-
-After new user authorization, code through `2240b91` was pushed. Hosted tests
-`38598340921`, check-only Ruff and native preview builds `38598341152` passed;
-matching SHA-labelled API/worker manifests support AMD64 and ARM64. This supersedes
-the local/unpushed status above, without closing protection enforcement or release
-policy gates. Read-only v3 rules inspection still finds only the conventional
-title status required. Preview builds remain path-filtered and exclude fork/
-Dependabot publication: add a safe unconditional build gate before requiring
-images on every supported PR. No merge/default/protection change was made.
-
-The registry worker also passes offline full-copied-ledger publication/query
-checks on ARM64. The Mac was then unlocked and approved Coolify/client cutovers
-completed, preserving releases/maps/history and the original allocations/network
-ranges. Worker stays pinned to `2240b91`; the client received the subsequent
-hosted-tested `6818115` API logging privacy fix. Live metadata/health and installed
-fixtures pass; production/full-bootstrap/live-media/protection gates remain
-distinct. See spec 020's [production follow-up](../specs/020-catalog-query-api-evaluation/PRODUCTION_READINESS.md).

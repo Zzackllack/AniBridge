@@ -8,8 +8,9 @@ Essentials
 - Package manager: uv for Python dependencies.
 - Repo-wide: do not commit artifacts under `data/`.
 - Specifications describe contracts and decisions, not a development journal.
-  Keep dated run reports and generated audit dumps local under `internal/local/`;
-  retain only concise findings in tracked docs and executable fixtures in tests.
+  Keep audit reports, PR drafts, historical reviews and generated evidence local
+  under `internal/local/`, regardless of Markdown/JSON format. Track only current
+  contracts, concise open work, operator instructions and executable test fixtures.
 - Database: SQLite with Alembic migrations in `apps/api/app/db/migrations`.
 - Use of Context7 for up-to-date external documentation.
 - On change of any environment variable, update `apps/api/.env.example`.
@@ -50,5 +51,5 @@ More guidance
 
 Maintenance notice
 
-- This is not a development journal. For a bad example of this file see internal/agents/old-agents.md.
+- This guide and the specification directories are not development journals.
 - Update `AGENTS.md` and the relevant `internal/agents/*` files whenever changes would make agent guidance outdated.

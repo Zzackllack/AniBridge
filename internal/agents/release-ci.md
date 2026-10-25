@@ -107,8 +107,8 @@ Smoke builds use read-only permissions, no registry login, no publication, no
 path/actor exclusions and no saved checkout credentials, including fork and
 Dependabot PRs. They check the tested checkout's source label and installed
 imports offline. PR smoke builds test GitHub's merge revision; published preview
-images separately identify the PR head. Native behavioral jobs and the aggregate
-gate passed on `3064faf` on October 25; see the dated turn-2 readiness report.
+images separately identify the PR head. Verify hosted results against the selected
+head; historical run reports belong under ignored `internal/local/`.
 Native API image jobs also run the complete behavioral suite as UID 1000 at
 2 CPU/2 GiB, without network, using the image's locked dependencies and FFmpeg.
 The reviewed checkout is mounted read-only for test sources; writable scratch
@@ -117,14 +117,12 @@ generated-media checks cannot silently skip merely because the runner lacks it.
 Both native worker image jobs also run full core/worker suites against installed
 packages with the same Linux-local scratch/resource boundaries. These image
 behavior checks are required dependencies of the aggregate gate, not deployments.
-Hosted tests and native AMD64/ARM64 preview builds passed
-on `2240b91` on October 14. The final gate is not yet required by v3 protection:
+The final gate must also be required by effective v3 protection:
 only the title check is a required status there. Require the aggregate
 `Tests / Required Gate` after hosted verification and an approved rule change;
 path-filtered publishing checks cannot replace that gate.
 The draft PR still targets v3; main remains default.
 
-October 14 production-readiness follow-up replaces Ruff auto-fix/rebase/force-push
-with check-only lint and format jobs. Workflow permissions are contents:read,
+Ruff uses check-only lint and format jobs. Workflow permissions are contents:read,
 checkout persists no credentials, and main/v3 PRs run without path filtering.
 Local fixes remain explicit maintainer commits; CI never moves the reviewed SHA.

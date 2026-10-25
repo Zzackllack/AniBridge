@@ -89,5 +89,6 @@
 - `apps/api/app/catalog`: opt-in metadata integration, local corrections and durable jobs.
 - `scripts/catalog/query_pilot`: small Compose/operator validation guide and smoke.
 - `internal/specs/020-catalog-query-api-evaluation`: selected contract and findings;
-  generated JSON under `evidence/` is local-only.
-- `internal/local/`: ignored investigation journals and generated run output.
+  only current overview, implementation, identity and open-work docs are tracked.
+- `internal/local/catalog-history/`: ignored historical specs, audits, PR drafts
+  and generated evidence, mirrored under their original relative paths.
