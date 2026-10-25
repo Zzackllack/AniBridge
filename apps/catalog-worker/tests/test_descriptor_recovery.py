@@ -10,6 +10,7 @@ from test_matching_followup import NOW, seed
 from catalog_worker import descriptors
 from catalog_worker.canonical import Enricher
 from catalog_worker.mapping import CanonicalEpisode
+from catalog_worker.parent_evidence import status
 from catalog_worker.transport import Fetch
 
 
@@ -30,7 +31,7 @@ def test_invalid_shared_descriptor_falls_back_to_remote_without_state_loss(
     tmp_path, damage
 ):
     state, _ = seed(tmp_path)
-    other, _ = seed(tmp_path, provider="s.to")
+    other, other_tid = seed(tmp_path, provider="s.to")
     response = {"tvdbId": 123, "title": "Example", "year": 2020, "episodes": []}
     with other.db:
         descriptors.save(
@@ -62,6 +63,10 @@ def test_invalid_shared_descriptor_falls_back_to_remote_without_state_loss(
         t: list(state.db.execute(f"SELECT * FROM {t}"))
         for t in ("work", "release", "canonical_title", "canonical_episode")
     }
+    assert (
+        status(other, other_tid, "123", "exact_title_year")
+        == "waiting_parent_verification"
+    )
     calls = []
 
     async def fetch(origin, path, **kwargs):

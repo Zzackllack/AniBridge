@@ -246,7 +246,7 @@ def cached(
                 continue
             try:
                 data, records = decode(row[0], row[3], external, CODEC)
-            except (ValueError, UnicodeError, RecursionError):
+            except ValueError, UnicodeError, RecursionError:
                 # Reject the whole cache entry and reacquire through the normal
                 # durable retry/admission path; retain existing accepted maps.
                 continue

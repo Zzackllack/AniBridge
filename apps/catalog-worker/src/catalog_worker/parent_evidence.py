@@ -1,7 +1,5 @@
 """A shared IMDb ID can span edited series cuts; retain conflicting associations."""
 
-import json
-
 from catalog_core.json_codec import require
 
 from .mapping import CanonicalTitle, match_title
@@ -99,14 +97,18 @@ def status(state: State, tid: str, external: str, evidence: str) -> str:
     ).fetchone():
         return "waiting_parent_verification"
     row = state.db.execute(
-        "SELECT json_extract(payload,'$.parent') FROM canonical_descriptor WHERE external_id=?",
+        "SELECT payload,content_hash FROM canonical_descriptor WHERE external_id=?",
         (external,),
     ).fetchone()
-    if not row or not row[0]:
+    if not row:
         return "waiting_parent_verification"
-    parent = json.loads(row[0])
-    return (
-        check(state, tid, external, parent)
-        if valid(parent)
-        else "waiting_parent_verification"
-    )
+    # Local rematching must enforce the same proof boundary as acquisition.
+    # Import lazily because the codec also uses this module's parent validator.
+    from .descriptor_codec import decode
+    from .descriptors import CODEC
+
+    try:
+        data, _ = decode(row[0], row[1], external, CODEC)
+    except ValueError, UnicodeError, RecursionError:
+        return "waiting_parent_verification"
+    return check(state, tid, external, data["parent"])
