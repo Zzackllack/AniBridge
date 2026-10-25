@@ -4,6 +4,23 @@ Updated 2026-10-25. Evidence: [pilot follow-up](evidence/linux-private-pilot-fol
 and [EVIDENCE.md](EVIDENCE.md). The October 8 implementation and bounded measurements are recorded below.
 Deployment is confined to the maintainer-authorized existing private pilot.
 
+## October 25 authorized experiment cleanup
+
+[Exact cleanup and preservation receipt](CLEANUP_2026-10-25.md) and
+[sanitized JSON](evidence/cleanup-2026-10-25.json) supersede the old 33.02-GB
+retained-storage projection. Explicitly approved retirement removed 17 unique
+old experiment files; three fully verified duplicates were also removed.
+Total: 20 server files/8.75 GB and nine unreferenced local experiment images.
+All six experiment migration backups are byte-identical; all live volumes,
+backup generations, operator plans, current snapshots, rollback assets and
+container references remain. No application code or live service changed.
+
+C8 is now **UNCHECKED**, rather than the old failed projection: the updated
+accounting projection is 22.25 GB including reserve. Physical shared-cache
+attribution, continuous peak and the exact next-workload admission remain open.
+No v7 full-ledger or real-client acceptance was run by this cleanup. The other
+readiness gates and verdicts are unchanged.
+
 ## October 25 turn 2 — pushed fixes and current decision
 
 [Readiness report and complete 50-area matrix](TURN2_READINESS_2026-10-25.md),

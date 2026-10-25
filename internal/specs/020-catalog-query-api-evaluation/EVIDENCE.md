@@ -1,5 +1,28 @@
 # Private request API pilot evidence
 
+## Authorized cleanup — 2026-10-25
+
+[Cleanup report](CLEANUP_2026-10-25.md) and
+[exact sanitized receipt](evidence/cleanup-2026-10-25.json) record removal of
+20 old experiment files (8,745,074,688 logical/8,745,226,240 allocated bytes)
+and nine unused local images with source commits retained in the pushed branch.
+The maintainer explicitly approved retirement of the 17 unique experimental
+results. Three duplicates were verified by complete SHA256. All six experiment
+migration backups (3,737,993,216 bytes) match their complete pre-cleanup hashes.
+All unselected experiment files retain identical recorded metadata.
+
+Server free space increased by 8,724,033,536 bytes over the sample window.
+Container IDs/images/mounts/start times/restarts/OOM agree before/after; all
+Mac container references and all unselected image IDs remain. No volume or
+build-cache prune, live service mutation, application change or new copy ran.
+The latest snapshot, research archive, plans and all backup generations remain.
+
+Updated accounting is 22,247,119,360 bytes including reserve, versus the previous
+33.02-GB projection. Virtual image accounting is not physical Mac reclamation;
+shared caches/server images and continuous peak remain uncertified. C8 becomes
+UNCHECKED pending fresh next-workload admission. This is cleanup proof, not v7
+upgrade/rollback, mapping precision or real-client acceptance proof.
+
 ## Turn 2 implementation and native verification — 2026-10-25
 
 [Current report, 50-area matrix and versioned commands](TURN2_READINESS_2026-10-25.md)

@@ -1,5 +1,11 @@
 # Turn 2 implementation and readiness — 2026-10-25
 
+**Storage update:** [subsequent authorized cleanup](CLEANUP_2026-10-25.md)
+removed 8.75 GB of old experiment files and nine unused images. It supersedes
+the 33.02-GB projection below with a 22.25-GB projection. Exact next-workload
+admission and physical shared-cache attribution remain unchecked; all other
+evidence below retains its original revision and environment.
+
 **Review: NOT READY. Merge into v3: NOT READY. Public production: NOT READY.**
 
 This supersedes the push/hosted/native-platform claims in the earlier
