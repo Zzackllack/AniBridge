@@ -1,5 +1,6 @@
 """One real Sonarr grab -> production AniBridge job -> generated-file import."""
 
+import argparse
 import hashlib
 import json
 import os
@@ -9,11 +10,8 @@ import time
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from pathlib import Path
-from typing import TypeVar
 
 import httpx
-
-T = TypeVar("T")
 
 
 def digest(path: Path) -> str:
@@ -21,7 +19,7 @@ def digest(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def wait(check: Callable[[], T], seconds: int) -> T:
+def wait[T](check: Callable[[], T], seconds: int) -> T:
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         result = check()
@@ -164,6 +162,9 @@ def main() -> None:
                 {"guid": release["guid"], "indexerId": release["indexerId"]},
             )
 
+            intermediate = []
+            sonarr_progress = []
+
             def completed() -> dict | None:
                 rows = jobs()
                 assert len(rows) <= 1
@@ -171,9 +172,51 @@ def main() -> None:
                     raise RuntimeError(
                         "production job failed; retain state for diagnosis"
                     )
+                if rows and 0 < rows[0]["progress"] < 1:
+                    active = rows[0]
+                    intermediate.append(
+                        {key: active[key] for key in ("progress", "size", "downloaded")}
+                    )
+                    assert (
+                        active["size"] > 0
+                        and 0 < active["downloaded"] <= active["size"]
+                    )
+                    if not sonarr_progress:
+                        command = call(
+                            "POST", "/command", {"name": "RefreshMonitoredDownloads"}
+                        )
+
+                        def refreshed_active():
+                            record = call("GET", "/command/" + str(command["id"]))
+                            return (
+                                record
+                                if record["status"] in {"completed", "failed"}
+                                else None
+                            )
+
+                        assert wait(refreshed_active, 15)["status"] == "completed"
+                        queue = call("GET", "/queue", includeUnknownSeriesItems="true")
+                        for queued in queue["records"]:
+                            if (
+                                str(queued.get("downloadId", "")).lower()
+                                == active["hash"].lower()
+                            ):
+                                size, left = queued["size"], queued["sizeleft"]
+                                if size > 0 and 0 < left < size:
+                                    sonarr_progress.append(
+                                        {
+                                            "size": size,
+                                            "sizeleft": left,
+                                            "status": queued["status"],
+                                        }
+                                    )
                 return rows[0] if rows and rows[0]["progress"] == 1 else None
 
             row = wait(completed, 180)
+            assert intermediate, "no intermediate qBittorrent progress observed"
+            assert sonarr_progress, (
+                "real Sonarr never reported intermediate remaining bytes"
+            )
             output = Path(row["content_path"])
             assert output.is_file() and output.is_relative_to(Path("/downloads"))
             assert output.with_name(".verified-output.json").is_file()
@@ -261,6 +304,13 @@ def main() -> None:
                 "library_file": str(destination),
                 "media": "generated test pattern/sine",
                 "network": "fixture DNS/TLS/HTTP inputs; no live extraction proof",
+                "hash": row["hash"],
+                "series_id": series["id"],
+                "episode_id": episode["id"],
+                "sha256": output_digest,
+                "intermediate_qbit": intermediate,
+                "intermediate_sonarr": sonarr_progress,
+                "restart": "not_checked",
             }
             Path("/data/acceptance-result.json").write_text(
                 json.dumps(result, indent=2) + "\n"
@@ -268,5 +318,60 @@ def main() -> None:
             print(json.dumps(result))
 
 
+def verify_restart() -> None:
+    """Run after restarting only this disposable project's API container."""
+    path = Path("/data/acceptance-result.json")
+    result = json.loads(path.read_text())
+    assert result["acceptance"] == "passed"
+    assert Path(result["library_file"]).is_file()
+    assert digest(Path(result["library_file"])) == result["sha256"]
+    key = ET.parse("/sonarr-config/config.xml").findtext("ApiKey")
+    with httpx.Client(base_url="http://api:8000", trust_env=False, timeout=10) as api:
+
+        def ready() -> bool:
+            try:
+                return api.get("/health", timeout=2).status_code == 200
+            except httpx.HTTPError:
+                return False
+
+        wait(ready, 30)
+        for _ in range(3):
+            response = api.get("/api/v2/torrents/info")
+            response.raise_for_status()
+            rows = response.json()
+            assert len(rows) == 1 and rows[0]["hash"] == result["hash"]
+            row = rows[0]
+            assert row["progress"] == 1 and row["state"] in {"pausedUP", "missingFiles"}
+            if row["state"] == "missingFiles":
+                assert row["anibridge_output_missing"] and not row["content_path"]
+            with sqlite3.connect(
+                "file:/data/anibridge_jobs.db?mode=ro", uri=True
+            ) as db:
+                assert db.execute(
+                    "SELECT j.status,d.attempts FROM job j JOIN durable_request d ON j.id=d.job_id"
+                ).fetchall() == [("completed", 1)]
+            time.sleep(2)
+    with httpx.Client(
+        base_url="http://sonarr:8989/api/v3",
+        headers={"X-Api-Key": key},
+        trust_env=False,
+        timeout=10,
+    ) as sonarr:
+        response = sonarr.get("/episode/" + str(result["episode_id"]))
+        response.raise_for_status()
+        assert response.json()["hasFile"]
+    result["restart"] = {
+        "passed": True,
+        "attempts": 1,
+        "state": row["state"],
+        "window_s": 6,
+    }
+    path.write_text(json.dumps(result, indent=2) + "\n")
+    print(json.dumps(result))
+
+
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--verify-restart", action="store_true")
+    args = parser.parse_args()
+    verify_restart() if args.verify_restart else main()

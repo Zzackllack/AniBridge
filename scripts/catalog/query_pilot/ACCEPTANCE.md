@@ -1,5 +1,22 @@
 # Finite private-pilot acceptance handoff
 
+## Current runner requirements
+
+The runner now requires intermediate byte progress in both AniBridge's torrent
+response and the real Sonarr queue before accepting completion. The generated
+HTTP body is paced only inside the test fixture so polling can observe it.
+After the first successful run, restart **only that disposable project's API**
+and run `python /pilot/acceptance/run.py --verify-restart` in the API container.
+This verifies the same completed job, one attempt, library digest and availability
+over a six-second window. Retain the result, then stop the disposable stack.
+
+Both provider scenarios passed these checks on October 25; see
+[the runtime audit](../../../internal/specs/020-catalog-query-api-evaluation/RUNTIME_AUDIT_2026-10-25.md).
+Those Sonarr imports retained the source file. Missing-output behavior after an
+actual move remains a separate unit/copied-history proof, not a real-move claim.
+No browser progress-bar or provider-media playback claim follows from API progress.
+The broader suite proposed in issue #175 is still not implemented.
+
 The AniWorld metadata/season-1 discovery milestone is **closed** at application
 commit `0ce826fd30eba0cf8c0772a53e0695331028feb0`, with selected-show discovery
 evidence in `311f362`. This handoff adds only acceptance assets/documentation;

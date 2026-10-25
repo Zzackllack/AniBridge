@@ -26,6 +26,7 @@ def test_fixture_streams_through_resolver_and_transfer(
     fixture = importlib.util.module_from_spec(spec)
     try:
         spec.loader.exec_module(fixture)
+        fixture.CHUNK_DELAY_S = 0
         fixture.MEDIA = tmp_path / "generated.mp4"
         body = b"generated streaming boundary bytes" * 10000
         fixture.MEDIA.write_bytes(body)

@@ -8,6 +8,7 @@ resolve(), transfer(), SubprocessExecutor, job children, outcomes or DB writes.
 import json
 import os
 import sys
+import time
 from collections.abc import Iterator
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -26,6 +27,9 @@ URLS = {
     "https://media.fixture.invalid/generated.mp4": "media",
 }
 ADDRESS = "192.0.2.77"  # Never contacted: fixture transport handles these requests.
+# Leave enough time for real Sonarr polling to observe intermediate progress.
+# This delays generated input only; no production bandwidth/progress hook changes.
+CHUNK_DELAY_S = 0.15
 real_validate = provider_policy._validate_request_url
 real_client = httpx.Client
 
@@ -58,6 +62,7 @@ class Body(httpx.SyncByteStream):
     def __iter__(self) -> Iterator[bytes]:
         with MEDIA.open("rb") as stream:
             while block := stream.read(65536):
+                time.sleep(CHUNK_DELAY_S)
                 yield block
 
 
