@@ -129,7 +129,7 @@ def main() -> None:
         )
         results = [
             phase(root, operation, memory)
-            for memory in (256, 512)
+            for memory in (256, 320, 512)
             for operation in ("remux", "probe")
         ]
         print(

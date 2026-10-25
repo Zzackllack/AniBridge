@@ -171,6 +171,11 @@ and read-only missing-file projections after a simulated import move. Keep lost
 files visible without rewriting successful history or automatically downloading
 again. Fixtures with completed jobs need actual output files; otherwise the
 correct projection is `missingFiles`. No live media is needed for these checks.
+Native remux/probe children have a separate 320-MiB address-space cap after
+measured AMD64 1080p failures at 256 MiB; parser/transfer limits stay 256 MiB.
+`media_limit_probe.py` compares generated 1080p input at 256/320/512 MiB with
+sanitized virtual-memory/RSS/CPU measurements on both native image architectures.
+This is not aggregate concurrent-job memory capacity or provider-media proof.
 
 Worker `test_finale_announcements.py` uses six frozen metadata cases plus
 negative grammar/ambiguity checks. The labels predate the code change; its

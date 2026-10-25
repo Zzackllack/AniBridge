@@ -9,6 +9,7 @@ from pathlib import Path
 from catalog_core.supervisor import limit_child
 
 FORMATS = "mov,matroska,webm,mpegts"
+LOCAL_MEMORY_BYTES = 320 * 1024**2
 
 
 def main() -> None:
@@ -18,10 +19,10 @@ def main() -> None:
     parser.add_argument("output", type=Path)
     parser.add_argument("inputs", type=Path, nargs="+")
     args = parser.parse_args()
-    limit_child(output_bytes=resource.RLIM_INFINITY)
-    # FFmpeg's shared libraries already occupy much of the 256-MiB address
-    # allowance. Bound each native thread stack before exec instead of relaxing
-    # that cap; these phases only copy packets or inspect container metadata.
+    # Native AMD64 remux/probe needs about 257 MiB of virtual mappings even
+    # when sampled RSS is below 70 MiB. Keep a bounded 25% margin for these
+    # native-only phases; parser/transfer children retain their 256-MiB cap.
+    limit_child(memory_bytes=LOCAL_MEMORY_BYTES, output_bytes=resource.RLIM_INFINITY)
     resource.setrlimit(resource.RLIMIT_STACK, (1024**2, 1024**2))
     root = args.root.resolve()
     if not 1 <= len(args.inputs) <= 2 or not all(
