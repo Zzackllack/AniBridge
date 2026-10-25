@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -104,7 +105,7 @@ def test_rollback_can_read_the_private_operator_receipt(update, tmp_path, target
     invocation = tmp_path / "invocation.json"
     docker = tmp_path / "docker"
     docker.write_text(
-        "#!/usr/bin/env python3\n"
+        f"#!{sys.executable}\n"
         "import json,sys\n"
         "from pathlib import Path\n"
         "if sys.argv[1:3] == ['image','inspect']:\n"
