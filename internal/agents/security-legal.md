@@ -22,6 +22,13 @@
 
 ## Data Protection
 
+The API uses upstream urllib3 for Requests and `urllib3_future` for AniWorld's
+Niquests dependency. Use the repository's uv source-build configuration; the
+fork's default wheel replaces the `urllib3` namespace despite upstream package
+metadata. Runtime flags cannot undo that installation. Recreate an existing
+environment when adopting isolation and verify the installed-package regression
+on native images; do not infer imported code from lockfile versions alone.
+
 - Downloads stored locally; TTL cleanup recommended to avoid retention issues.
 - Logs may contain URLs; redact before sharing.
 
