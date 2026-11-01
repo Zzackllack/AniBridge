@@ -23,6 +23,7 @@ Repeat the preservation proof if migration behavior changes.
 | Client storage | Move retained developer state from the observed unsafe Mac bind to storage that enforces locks, using an admitted consistent backup and preservation checks. Do not disable the guard or reset jobs. |
 | Publication and capacity | Run final-source full-size publication/query overlap; retain last-good serving through failures. Measure writer occupancy, CPU/memory/I/O and bounded latency. Native tests do not establish sustained capacity. |
 | Resource pressure and reconciliation | Profile collector memory reclaim at its 2-GiB limit and overdue historical work under the existing reconciliation admission cap. Separate active parent refresh demand, unavailable episodes and persistent upstream errors before changing allocations or cadence. |
+| Client dependencies | The API lock now patches urllib3 streaming/proxy advisories and Windows Mako traversal. Verify native candidate images; the separate hosted worker dependency set and client deployment are different boundaries. |
 | Merge policy | Verify final-head CI and manifests, enforce `Tests / Required Gate`, obtain eligible human/CODEOWNER approval and review the current PR description. Configured workflows and enforced branch rules are separate. |
 | Public release | Decide public scope, all-router authentication/TLS/privacy/rights, destination OS/dependency exposure, external outage handling, release/retention policy and supported capacity before release. Optional qBittorrent credentials alone are insufficient. |
 
