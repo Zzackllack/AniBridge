@@ -308,7 +308,11 @@ class Signals:
                 due = self.db.execute(
                     "SELECT due FROM work WHERE path=?", (work["path"],)
                 ).fetchone()[0]
-                retry_due = max(now + (60 if success else 1), due if not success else 0)
+                # A feed can advertise a language that never appears on the
+                # detail page. Retain the obligation without fetching that same
+                # successful-but-incomplete page every minute indefinitely.
+                delay = min(3600, 60 * 2 ** min(row["failures"], 6)) if success else 1
+                retry_due = max(now + delay, due if not success else 0)
                 self.db.execute(
                     "UPDATE work SET due=? WHERE path=?", (retry_due, work["path"])
                 )

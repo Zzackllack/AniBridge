@@ -27,6 +27,9 @@ Missing markup or an absent language flag cannot erase previously valid data.
 Empty/unavailable templates do not satisfy outstanding detail retries.
 Observation failures, retry receipts and signal acknowledgements share one
 transaction. Unexpected writer termination must stop waiting producers.
+Complete season evidence can settle recent-feed obligations without postponing
+unresolved detail retries. Repeated successful pages missing an advertised
+language retain the obligation with increasing retry delays capped at one hour.
 
 Canonical parent and episode identities require verified provenance. Unique,
 non-generic names may establish correspondence; similarity and equal numbering

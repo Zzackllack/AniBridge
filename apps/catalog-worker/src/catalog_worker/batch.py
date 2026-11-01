@@ -5,6 +5,7 @@ import hashlib
 from catalog_core.json_codec import dumps
 
 from .aniworld import Page
+from .signals import Signals
 
 
 def admit(
@@ -18,6 +19,9 @@ def admit(
         ).fetchone()
         if work is None or work["lease_until"] > now:
             continue
+        hint = state.db.execute(
+            "SELECT generation FROM signal_pending WHERE path=?", (row.path,)
+        ).fetchone()
         fingerprint = hashlib.sha256(
             dumps([row.title, row.aliases, row.languages, row.unknown_languages])
         ).hexdigest()
@@ -66,3 +70,18 @@ def admit(
             state.db.execute(
                 "UPDATE work SET due=? WHERE path=?", (now + history, row.path)
             )
+        if hint is not None:
+            # A season refresh must not defer a recent obligation for a week.
+            # Preserve its retry deadline; only complete accepted evidence may
+            # settle it, and an existing detail failure still needs its retry.
+            if complete and not changed and not work["failures"]:
+                Signals(state).settle(
+                    {**dict(work), "signal_generation": hint["generation"]},
+                    now,
+                    success=True,
+                )
+            else:
+                state.db.execute(
+                    "UPDATE work SET due=min(due,?) WHERE path=?",
+                    (work["due"], row.path),
+                )
