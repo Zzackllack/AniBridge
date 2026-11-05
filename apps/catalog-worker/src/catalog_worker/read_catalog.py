@@ -75,11 +75,18 @@ def _publish(config: Config, state: State, now: int, *, full: bool = False) -> d
     for suffix in ("", "-journal", "-wal", "-shm"):
         destination.with_name(destination.name + suffix).unlink(missing_ok=True)
     check(config, startup=True, public_reserve=1024**3)
-    incremental = not full and clone(config, state, root, destination, now)
+    schema_version = 3 if state.provider == "filmo.to" else 2
+    # Scoped row-proof reuse is currently defined only for schema2. Filmo uses
+    # a full finite export until a schema3 admission scope is implemented.
+    incremental = (
+        schema_version == 2
+        and not full
+        and clone(config, state, root, destination, now)
+    )
     db = (
         sqlite3.connect(destination)
         if incremental
-        else schema.create(destination, version=2)
+        else schema.create(destination, version=schema_version)
     )
     db.execute("PRAGMA foreign_keys=ON")
     db.execute("PRAGMA temp_store=FILE")
@@ -111,12 +118,15 @@ def _publish(config: Config, state: State, now: int, *, full: bool = False) -> d
                 incremental=incremental,
             )
             with phase("export_summary"):
-                counts = {name: schema.row_count(db, name, 2) for name in TABLE_LIMITS}
+                counts = {
+                    name: schema.row_count(db, name, schema_version)
+                    for name in TABLE_LIMITS
+                }
                 # Exact compact groups replace repeated whole-catalog TV/language
                 # counts while a poll's cutoff includes the entire group. A later
                 # cutoff still uses SQL; bootstrap timestamps are not release dates.
                 summary = release_summary(db)
-    except (RebuildRequired, sqlite3.IntegrityError):
+    except RebuildRequired, sqlite3.IntegrityError:
         db.close()
         destination.unlink(missing_ok=True)
         if not incremental:
@@ -133,8 +143,8 @@ def _publish(config: Config, state: State, now: int, *, full: bool = False) -> d
             "provider": state.provider,
             "source_id": config.source_id,
             "revision": 1,
-            "catalog_schema_version": 2,
-            "identity_version": 1,
+            "catalog_schema_version": schema_version,
+            "identity_version": 2 if schema_version == 3 else 1,
             "published_at": now,
             "listing_checked_at": snapshot.listing_checked_at,
             "coverage": {"details": "partial", "mappings": "partial"},

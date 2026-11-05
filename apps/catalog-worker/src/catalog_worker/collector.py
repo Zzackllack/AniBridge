@@ -173,7 +173,11 @@ class Collector:
             return None
         if not listing and not recent and work is None:
             return None
-        traversal = Traversal(state.db) if listing else None
+        traversal = (
+            Traversal(state.db, max_pages=self._listing_page_limit())
+            if listing
+            else None
+        )
         path = (
             signal_path(state.provider)
             if recent
@@ -300,21 +304,24 @@ class Collector:
                         parser_s=time.monotonic() - parser_started,
                     )
                 page = Page(
-                    tuple(
+                    links=tuple(
                         Link(link["path"], link["name"], tuple(link["aliases"]))
                         for link in data["links"]
                     ),
-                    tuple(data["languages"]),
-                    data["unknown_languages"],
-                    data["title"],
-                    tuple(data["next_pages"]),
-                    data["year"],
-                    data["explicit_imdb"],
-                    tuple(data["aliases"]),
-                    data["episode_title"],
-                    tuple(data.get("episode_aliases", [])),
-                    tuple(EpisodeRow(**row) for row in data.get("episodes", [])),
-                    data.get("availability", "available"),
+                    languages=tuple(data["languages"]),
+                    unknown_languages=data["unknown_languages"],
+                    title=data["title"],
+                    next_pages=tuple(data["next_pages"]),
+                    year=data["year"],
+                    explicit_imdb=data["explicit_imdb"],
+                    aliases=tuple(data["aliases"]),
+                    episode_title=data["episode_title"],
+                    episode_aliases=tuple(data.get("episode_aliases", [])),
+                    episodes=tuple(
+                        EpisodeRow(**row) for row in data.get("episodes", [])
+                    ),
+                    availability=data.get("availability", "available"),
+                    offers=tuple(data.get("offers", [])),
                 )
         except (ValueError, UnicodeError, TimeoutError) as exc:
             return Ready(
@@ -436,7 +443,7 @@ class Collector:
         plan, page = ready.plan, ready.page
         listing, work, now, path = plan.listing, plan.work, plan.now, plan.path
         if listing:
-            traversal = Traversal(state.db)
+            traversal = Traversal(state.db, max_pages=self._listing_page_limit())
             if path is None:
                 state.listing(
                     page,
@@ -473,6 +480,10 @@ class Collector:
                 config.limits["active_interval_s"],
                 config.limits["historical_interval_s"],
             )
+
+    def _listing_page_limit(self) -> int:
+        """Filmo uses a larger but still finite checkpointed page budget."""
+        return 1000 if self.state.provider == "filmo.to" else 100
 
     async def tick(self) -> bool:
         """Single-page compatibility entry point for operator/fixture procedures."""

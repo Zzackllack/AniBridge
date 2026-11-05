@@ -20,6 +20,11 @@ def digest(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def supported_state_versions(provider: str) -> set[int]:
+    """Filmo's variant ledger is v8; existing provider ledgers stay at v5-v7."""
+    return {8} if provider == "filmo.to" else {5, 6, 7}
+
+
 def compare(current: Path, prior: Path, *, local_rematches: int = 0) -> dict:
     if type(local_rematches) is not int or not 0 <= local_rematches <= 32:
         raise ValueError("bounded local rematch count required")
@@ -119,8 +124,12 @@ def run(
     for provider in config.providers:
         filename = config.state_dir / (provider + ".sqlite")
         version = preflight(filename, provider)
-        if version not in (5, 6, 7):
-            raise ValueError("this workflow supports private worker state v5/v6/v7 only")
+        supported = supported_state_versions(provider)
+        if version not in supported:
+            expected = "v8" if provider == "filmo.to" else "v5/v6/v7"
+            raise ValueError(
+                f"{provider} private worker state must be {expected}; got v{version}"
+            )
         baseline = directory / (provider + ".before.sqlite")
         if mode == "snapshot":
             # SQLite backup includes committed WAL data; copying the main file

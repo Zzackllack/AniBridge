@@ -46,7 +46,7 @@ def report(config: Config) -> dict:
                 "SELECT sum(checked_at IS NULL),sum(failures>0),count(checked_at),min(checked_at) FROM work"
             ).fetchone()
             signal = dict(db.execute("SELECT * FROM signal_meta").fetchone())
-            if provider == "megakino":
+            if provider in {"megakino", "filmo.to"}:
                 signal["coverage"] = "unsupported"
             ambiguous_hints = db.execute(
                 "SELECT count(*) FROM canonical_hint WHERE episode IS NULL"

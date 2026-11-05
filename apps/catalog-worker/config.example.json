@@ -1,6 +1,7 @@
 {
   "providers": {
-    "aniworld.to": "https://aniworld.to"
+    "aniworld.to": "https://aniworld.to",
+    "filmo.to": "https://filmo.to"
   },
   "canonical_sources": {
     "tv": "skyhook",
@@ -34,6 +35,19 @@
         "Accept": "text/html,application/xhtml+xml",
         "Accept-Language": "de,en;q=0.8",
         "Referer": "https://aniworld.to/"
+      }
+    },
+    "filmo.to": {
+      "limits": {
+        "provider_concurrency": 2,
+        "provider_request_interval_s": 2,
+        "provider_requests_per_hour": 1800
+      },
+      "headers": {
+        "User-Agent": "AniBridge-Metadata/1.0",
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "de,en;q=0.8",
+        "Referer": "https://filmo.to/"
       }
     }
   }

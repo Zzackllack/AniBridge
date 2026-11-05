@@ -143,7 +143,11 @@ def execute(
                     title_ids=selected,
                     entity_ids=entities,
                     max_releases=2000 if request.operation == "native" else None,
-                    languages={request.provider: set(request.languages)}
+                    languages=(
+                        None
+                        if request.provider == "filmo.to" and not request.languages
+                        else {request.provider: set(request.languages)}
+                    )
                     if request.operation in {"recent", "native"}
                     else None,
                 )
@@ -173,7 +177,9 @@ def execute(
                 records.append(
                     Row(
                         **{
-                            key: row[key]
+                            key: row.get(key)
+                            if key in {"variant_anchor", "release_metadata"}
+                            else row[key]
                             for key in Row.model_fields
                             if key != "mappings"
                         },

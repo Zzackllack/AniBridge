@@ -9,12 +9,12 @@ from itertools import batched
 from catalog_core.json_codec import dumps, require
 
 from .aniworld import Link, Page
+from .transactions import atomic
 
 DDL = """
 CREATE TABLE IF NOT EXISTS listing_page(path TEXT PRIMARY KEY, complete INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS listing_record(path TEXT PRIMARY KEY, name TEXT NOT NULL, aliases TEXT NOT NULL);
 """
-from .transactions import atomic
 
 
 class Links:
@@ -38,8 +38,9 @@ class Links:
 
 
 class Traversal:
-    def __init__(self, db: sqlite3.Connection) -> None:
+    def __init__(self, db: sqlite3.Connection, *, max_pages: int = 100) -> None:
         self.db = db
+        self.max_pages = max_pages
 
     def next_path(self, initial: str) -> str | None:
         with atomic(self.db):
@@ -67,7 +68,7 @@ class Traversal:
                 )
             require(
                 self.db.execute("SELECT count(*) FROM listing_page").fetchone()[0]
-                <= 100,
+                <= self.max_pages,
                 "listing page overflow",
             )
             # Buffer at most the configured row batch, but keep page acceptance

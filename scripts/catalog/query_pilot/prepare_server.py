@@ -16,10 +16,19 @@ def main() -> None:
     parser.add_argument("--serienstream-origin", default="https://serienstream.to")
     parser.add_argument("--megakino-origin")
     parser.add_argument("--megakino-sitemap-origin", action="append", default=[])
+    parser.add_argument(
+        "--filmo-origin",
+        help=(
+            "enable Filmo movies; movie canonicalization remains off until you "
+            "configure TMDb explicitly"
+        ),
+    )
     args = parser.parse_args()
     origins = {"aniworld.to": args.aniworld_origin, "s.to": args.serienstream_origin}
     if args.megakino_origin:
         origins["megakino"] = args.megakino_origin
+    if args.filmo_origin:
+        origins["filmo.to"] = args.filmo_origin
     for origin in [
         args.metadata_origin,
         *origins.values(),
@@ -44,7 +53,11 @@ def main() -> None:
         )
     worker = {
         "providers": origins,
-        "canonical_sources": {"tv": "skyhook", "movie": "off", "episode_languages": ["deu"]},
+        "canonical_sources": {
+            "tv": "skyhook",
+            "movie": "off",
+            "episode_languages": ["deu"],
+        },
         "state_dir": "/state",
         "output_dir": "/read",
         "source_id": args.source_id,
@@ -70,6 +83,10 @@ def main() -> None:
     print(
         "Prepared worker.json, client.json and metadata-token. Compose initializes private container ownership separately."
     )
+    if args.filmo_origin:
+        print(
+            "Filmo movie canonicalization is off by default. Configure a TMDb token and explicitly set canonical_sources.movie to tmdb before expecting canonical movie IDs."
+        )
 
 
 if __name__ == "__main__":

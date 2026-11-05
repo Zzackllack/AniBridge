@@ -2,7 +2,7 @@
 
 import sqlite3
 
-from .export import QUERIES
+from .export import QUERIES, QUERIES_V3
 
 KEYS = {
     "title_data": "title_id",
@@ -20,9 +20,11 @@ SCOPES = {
 }
 
 
-def query(table: str, approved: frozenset[str]) -> tuple[str, tuple[str, ...]]:
+def query(
+    table: str, approved: frozenset[str], schema_version: int = 2
+) -> tuple[str, tuple[str, ...]]:
     """Add only fixed predicates to the reviewed full-export projections."""
-    sql = QUERIES[table]
+    sql = (QUERIES_V3 if schema_version == 3 else QUERIES)[table]
     values = tuple(sorted(approved)) if table == "canonical_title_data" else ()
     if table == "canonical_title_data":
         sql = sql.format(approved=",".join("?" for _ in values) or "NULL")
@@ -38,11 +40,16 @@ def query(table: str, approved: frozenset[str]) -> tuple[str, tuple[str, ...]]:
     return sql, values
 
 
-def upsert(db: sqlite3.Connection, table: str, approved: frozenset[str]) -> None:
+def upsert(
+    db: sqlite3.Connection,
+    table: str,
+    approved: frozenset[str],
+    schema_version: int,
+) -> None:
     """SQL handles bulk comparison; unchanged rows never trigger validation work."""
     columns = [r[1] for r in db.execute(f"PRAGMA main.table_info({table})")]
     db.execute(f"CREATE TEMP TABLE selected AS SELECT * FROM main.{table} WHERE 0")
-    sql, values = query(table, approved)
+    sql, values = query(table, approved, schema_version)
     db.execute(f"INSERT INTO selected {sql}", values)
     key = KEYS[table]
     updated = [c for c in columns if c not in {columns[0], key}]
@@ -57,24 +64,26 @@ def upsert(db: sqlite3.Connection, table: str, approved: frozenset[str]) -> None
     db.execute("DROP TABLE selected")
 
 
-def refresh(db: sqlite3.Connection, approved: frozenset[str]) -> None:
+def refresh(
+    db: sqlite3.Connection, approved: frozenset[str], schema_version: int = 2
+) -> None:
     """All deletions apply only to the changed partitions and source tombstones."""
-    upsert(db, "title_data", approved)
+    upsert(db, "title_data", approved, schema_version)
     db.execute(
         "CREATE TEMP TABLE affected_title AS SELECT title_key FROM main.title_data WHERE title_id IN (SELECT title_id FROM changed_title)"
     )
     db.execute("DELETE FROM main.alias_data WHERE title_key IN affected_title")
-    sql, values = query("alias_data", approved)
+    sql, values = query("alias_data", approved, schema_version)
     db.execute(f"INSERT INTO main.alias_data {sql}", values)
     for table in ("entity_data", "release_data", "canonical_title_data"):
-        upsert(db, table, approved)
+        upsert(db, table, approved, schema_version)
     db.execute(
         "DELETE FROM main.canonical_episode_data WHERE mapping_key IN (SELECT mapping_key FROM main.canonical_title_data WHERE title_key IN affected_title)"
     )
     db.execute(
         "DELETE FROM main.canonical_title_data WHERE title_key IN affected_title AND mapping_id NOT IN (SELECT id FROM keep_canonical_title_data)"
     )
-    sql, values = query("canonical_episode_data", approved)
+    sql, values = query("canonical_episode_data", approved, schema_version)
     db.execute(f"INSERT INTO main.canonical_episode_data {sql}", values)
     db.execute(
         "DELETE FROM main.release_data WHERE entity_key IN (SELECT entity_key FROM main.entity_data WHERE title_key IN affected_title) AND release_id NOT IN (SELECT id FROM keep_release_data)"
@@ -86,5 +95,5 @@ def refresh(db: sqlite3.Connection, approved: frozenset[str]) -> None:
         "DELETE FROM main.title_data WHERE title_key IN affected_title AND title_id NOT IN (SELECT id FROM keep_title_data)"
     )
     db.execute("DELETE FROM main.identity_alias")
-    sql, values = query("identity_alias", approved)
+    sql, values = query("identity_alias", approved, schema_version)
     db.execute(f"INSERT INTO main.identity_alias {sql}", values)

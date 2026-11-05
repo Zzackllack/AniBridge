@@ -111,7 +111,7 @@ class Events:
     def canonical_failure(self, provider: str, title_id: str, failure: Failure) -> None:
         """One bounded report per failed lookup, including HTTP-200 rejections."""
         # Validate again at the output boundary, even for callers outside Enricher.
-        if provider not in {"aniworld.to", "s.to", "megakino"}:
+        if provider not in {"aniworld.to", "s.to", "megakino", "filmo.to"}:
             return
         self.handler.handle(
             logging.LogRecord(

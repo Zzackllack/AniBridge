@@ -28,6 +28,9 @@ from .incremental_schema import VERSION_DDL as INCREMENTAL_VERSION_DDL
 from .listing import DDL as LISTING_DDL
 from .matching_schema import DDL as MATCHING_DDL
 from .matching_schema import VERSION_DDL as MATCHING_VERSION_DDL
+from .offer_schema import DDL as OFFER_DDL
+from .offer_schema import VERSION_DDL as OFFER_VERSION_DDL
+from .offer_schema import publication_ddl as OFFER_PUBLICATION_DDL
 from .publication_schema import DDL as PUBLICATION_DDL
 from .publication_schema import VERSION_DDL as PUBLICATION_VERSION_DDL
 from .state_schema import PRIVATE_DDL
@@ -56,12 +59,14 @@ def preflight(filename: Path, provider: str) -> int:
         require("worker_schema" in tables, "unrecognized worker database")
         rows = db.execute("SELECT version FROM worker_schema").fetchall()
         require(
-            rows in ([(1,)], [(2,)], [(3,)], [(4,)], [(5,)], [(6,)], [(7,)]),
+            rows in ([(1,)], [(2,)], [(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)]),
             "unsupported worker state version",
         )
         version = rows[0][0]
+        require(version < 8 or provider == "filmo.to", "variant state requires Filmo")
+        base_ddl = schema.DDL_V3_FLAT if provider == "filmo.to" else schema.DDL
         with closing(sqlite3.connect(":memory:")) as expected:
-            expected.executescript(schema.DDL + PRIVATE_DDL)
+            expected.executescript(base_ddl + PRIVATE_DDL)
             if version >= 2:
                 expected.execute("DROP TABLE worker_schema")
                 expected.execute(VERSION_DDL)
@@ -86,6 +91,11 @@ def preflight(filename: Path, provider: str) -> int:
                 expected.executescript(FAILURE_DDL)
                 expected.execute("DROP TABLE worker_schema")
                 expected.execute(FAILURE_VERSION_DDL)
+            if version >= 8:
+                expected.executescript(OFFER_DDL)
+                expected.executescript(OFFER_PUBLICATION_DDL())
+                expected.execute("DROP TABLE worker_schema")
+                expected.execute(OFFER_VERSION_DDL)
             contract = definitions(expected)
         # Early version-1 state created traversal tables on its first listing.
         if version == 1 and not {"listing_page", "listing_record"} & tables.keys():
@@ -93,7 +103,16 @@ def preflight(filename: Path, provider: str) -> int:
                 del contract[name]
         require(tables == contract, "unsupported worker table contract")
         require(
-            db.execute("SELECT provider FROM catalog").fetchall() == [(provider,)],
+            db.execute(
+                "SELECT provider,schema_version,identity_version FROM catalog"
+            ).fetchall()
+            == [
+                (
+                    provider,
+                    3 if provider == "filmo.to" else 1,
+                    2 if provider == "filmo.to" else 1,
+                )
+            ],
             "wrong worker state",
         )
         require(
@@ -232,8 +251,13 @@ def rollback_matching(filename: Path, provider: str) -> None:
     leases, first-seen, retry history and old recovery copies remain untouched.
     """
     version = preflight(filename, provider)
-    require(version in (5, 6, 7), "rollback requires matching state")
+    require(version in (5, 6, 7, 8), "rollback requires matching state")
     with closing(sqlite3.connect(filename)) as db:
+        require(
+            version < 8
+            or not db.execute("SELECT 1 FROM release_metadata LIMIT 1").fetchone(),
+            "release metadata must be exported before rollback",
+        )
         last = db.execute("SELECT max(at) FROM canonical_request_start").fetchone()[0]
         # The old worker cannot read this durable limiter. Don't erase an active
         # window and admit another burst immediately after the code downgrade.
@@ -243,6 +267,8 @@ def rollback_matching(filename: Path, provider: str) -> None:
         )
         db.execute("BEGIN IMMEDIATE")
         try:
+            if version >= 8:
+                drop_offers(db)
             if version >= 7:
                 db.execute("DROP TABLE work_failure")
             if version >= 6:
@@ -276,14 +302,31 @@ def drop_publication(db: sqlite3.Connection) -> None:
     db.execute("DROP TABLE publication_meta")
 
 
+def drop_offers(db: sqlite3.Connection) -> None:
+    """Remove only v8 metadata triggers and its additive table."""
+    names = db.execute(
+        "SELECT name FROM sqlite_schema WHERE type='trigger' AND name LIKE 'offer_pub_%'"
+    ).fetchall()
+    for (name,) in names:
+        db.execute(f'DROP TRIGGER "{name}"')
+    db.execute("DROP TABLE release_metadata")
+
+
 def rollback_publication(filename: Path, provider: str) -> None:
     """Stopped-writer v6/v7 -> v5, without restoring old observations."""
     version = preflight(filename, provider)
-    require(version in (6, 7), "rollback requires publication state")
+    require(version in (6, 7, 8), "rollback requires publication state")
     with closing(sqlite3.connect(filename)) as db:
+        require(
+            version < 8
+            or not db.execute("SELECT 1 FROM release_metadata LIMIT 1").fetchone(),
+            "release metadata must be exported before rollback",
+        )
         db.execute("BEGIN IMMEDIATE")
         try:
-            if version == 7:
+            if version >= 8:
+                drop_offers(db)
+            if version >= 7:
                 db.execute("DROP TABLE work_failure")
             drop_publication(db)
             db.execute("DROP TABLE worker_schema")
@@ -335,12 +378,45 @@ def upgrade_failures(db: sqlite3.Connection, checkpoint) -> None:
         raise
 
 
+def upgrade_offers(db: sqlite3.Connection, checkpoint) -> None:
+    """Add an isolated metadata table without rewriting retained releases."""
+    from .offer_schema import publication_ddl
+
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        statement = ""
+        for line in (OFFER_DDL + "\n" + publication_ddl()).splitlines(keepends=True):
+            statement += line
+            if sqlite3.complete_statement(statement):
+                db.execute(statement)
+                statement = ""
+        require(not statement.strip(), "incomplete release metadata DDL")
+        checkpoint("offer-tables")
+        db.execute("DROP TABLE worker_schema")
+        db.execute(OFFER_VERSION_DDL)
+        db.execute("INSERT INTO worker_schema VALUES(8)")
+        checkpoint("offer-version")
+        db.commit()
+        checkpoint("offer-commit")
+    except BaseException:
+        db.rollback()
+        raise
+
+
 def rollback_failures(filename: Path, provider: str) -> None:
     """Stopped-writer v7 -> v6: discard only new diagnostic receipts."""
-    require(preflight(filename, provider) == 7, "rollback requires v7 state")
+    version = preflight(filename, provider)
+    require(version in (7, 8), "rollback requires v7/v8 state")
     with closing(sqlite3.connect(filename)) as db:
+        require(
+            version < 8
+            or not db.execute("SELECT 1 FROM release_metadata LIMIT 1").fetchone(),
+            "release metadata must be exported before rollback",
+        )
         db.execute("BEGIN IMMEDIATE")
         try:
+            if version >= 8:
+                drop_offers(db)
             db.execute("DROP TABLE work_failure")
             db.execute("DROP TABLE worker_schema")
             db.execute(PUBLICATION_VERSION_DDL)
@@ -355,7 +431,7 @@ def rollback_failures(filename: Path, provider: str) -> None:
 def initialize(filename: Path, provider: str, checkpoint=lambda stage: None) -> None:
     if filename.exists():
         version = preflight(filename, provider)
-        if version == 7:
+        if version == 8 or (version == 7 and provider != "filmo.to"):
             return
         backup(filename, provider, checkpoint, version)
         with closing(sqlite3.connect(filename)) as db:
@@ -370,7 +446,10 @@ def initialize(filename: Path, provider: str, checkpoint=lambda stage: None) -> 
                 upgrade_matching(db, checkpoint)
             if version < 6:
                 upgrade_publication(db, checkpoint)
-            upgrade_failures(db, checkpoint)
+            if version < 7:
+                upgrade_failures(db, checkpoint)
+            if provider == "filmo.to":
+                upgrade_offers(db, checkpoint)
         return
     descriptor, temporary = tempfile.mkstemp(
         prefix=".worker-create-", dir=filename.parent
@@ -379,8 +458,13 @@ def initialize(filename: Path, provider: str, checkpoint=lambda stage: None) -> 
     path = Path(temporary)
     try:
         with closing(sqlite3.connect(path)) as db:
-            db.executescript(schema.DDL + PRIVATE_DDL)
-            db.execute("INSERT INTO catalog VALUES(1,?,1,1,0)", (provider,))
+            base_ddl = schema.DDL_V3_FLAT if provider == "filmo.to" else schema.DDL
+            catalog_version = 3 if provider == "filmo.to" else 1
+            db.executescript(base_ddl + PRIVATE_DDL)
+            db.execute(
+                "INSERT INTO catalog VALUES(1,?,?,?,0)",
+                (provider, catalog_version, 2 if provider == "filmo.to" else 1),
+            )
             db.commit()
             upgrade(db, checkpoint)
             upgrade_incremental(db, checkpoint)
@@ -388,6 +472,8 @@ def initialize(filename: Path, provider: str, checkpoint=lambda stage: None) -> 
             upgrade_matching(db, checkpoint)
             upgrade_publication(db, checkpoint)
             upgrade_failures(db, checkpoint)
+            if provider == "filmo.to":
+                upgrade_offers(db, checkpoint)
         with path.open("rb") as stream:
             os.fsync(stream.fileno())
         os.rename(path, filename)

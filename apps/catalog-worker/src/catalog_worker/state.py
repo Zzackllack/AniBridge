@@ -226,13 +226,15 @@ class State:
     def discover(self, link, now: int) -> str:
         """Admit a positive title hint without treating other titles as absent."""
         tid = identity.title_id(self.provider, link.path)
-        movie = self.provider == "megakino" and link.path.startswith("/films/")
+        movie = (
+            self.provider == "megakino" and link.path.startswith("/films/")
+        ) or self.provider == "filmo.to"
         media_type = (
             "movie" if movie else "unknown" if self.provider == "megakino" else "series"
         )
         update = (
             "DO NOTHING"
-            if self.provider == "megakino"
+            if self.provider in {"megakino", "filmo.to"}
             else "DO UPDATE SET display_title=excluded.display_title,search_key=excluded.search_key"
         )
         self.db.execute(
@@ -243,7 +245,7 @@ class State:
                 link.path,
                 adapter(self.provider).TITLE.fullmatch(link.path)[2]
                 if self.provider == "megakino"
-                else link.path.rsplit("/", 1)[1],
+                else link.path.rstrip("/").rsplit("/", 1)[1],
                 link.name,
                 identity.search_key(link.name),
                 media_type,
@@ -366,13 +368,16 @@ class State:
                     "year": page.year,
                     "explicit_imdb": page.explicit_imdb,
                     "aliases": page.aliases,
+                    "offers": page.offers,
                 }
             )
         ).hexdigest()
         if page.availability != "available":
             fingerprint = page.availability + ":" + fingerprint
         with atomic(self.db):
-            movie = self.provider == "megakino" and work["path"].startswith("/films/")
+            movie = (
+                self.provider == "megakino" and work["path"].startswith("/films/")
+            ) or self.provider == "filmo.to"
             if work["kind"] == "episode" or movie:
                 eid = identity.entity_id(self.provider, work["path"])
                 season, episode = (
@@ -410,29 +415,100 @@ class State:
                             (eid, identity.search_key(alias), alias),
                         )
                 # A genuinely new positive observation extends the active window.
-                new_languages = set(page.languages) - {
-                    row[0]
-                    for row in self.db.execute(
-                        "SELECT language FROM release WHERE entity_id=?", (eid,)
+                if self.provider == "filmo.to":
+                    from catalog_core import release_metadata
+
+                    require(
+                        page.availability in {"available", "unavailable"},
+                        "invalid Filmo availability",
                     )
-                }
-                if new_languages:
+                    require(
+                        bool(page.offers) == (page.availability == "available"),
+                        "incomplete Filmo offer observation",
+                    )
+                    prepared = []
+                    for raw_offer in page.offers:
+                        offer = release_metadata.validate(raw_offer)
+                        anchor = offer["variant_anchor"]
+                        language = release_metadata.language(offer)
+                        prepared.append(
+                            (
+                                identity.variant_release_id(self.provider, eid, anchor),
+                                language,
+                                anchor,
+                                dumps(offer).decode("utf-8"),
+                            )
+                        )
+                    require(
+                        len({item[0] for item in prepared}) == len(prepared),
+                        "duplicate source variant",
+                    )
+                    changed = False
+                    for rid, language, anchor, metadata in prepared:
+                        previous = self.db.execute(
+                            "SELECT available FROM release_metadata WHERE release_id=?",
+                            (rid,),
+                        ).fetchone()
+                        inserted = self.db.execute(
+                            "INSERT OR IGNORE INTO release VALUES(?,?,?,?,?)",
+                            (rid, eid, language, now, now),
+                        ).rowcount
+                        changed |= inserted > 0 or bool(previous and previous[0] == 0)
+                        self.db.execute(
+                            "UPDATE release SET language=?,observed_at=max(observed_at,?) WHERE release_id=?",
+                            (language, now, rid),
+                        )
+                        self.db.execute(
+                            "INSERT INTO release_metadata(release_id,variant_anchor,metadata_json,available) VALUES(?,?,?,1) ON CONFLICT(release_id) DO UPDATE SET variant_anchor=excluded.variant_anchor,metadata_json=excluded.metadata_json,available=1 WHERE release_metadata.available IS NOT 1 OR release_metadata.variant_anchor IS NOT excluded.variant_anchor OR release_metadata.metadata_json IS NOT excluded.metadata_json",
+                            (rid, anchor, metadata),
+                        )
+                        self.db.execute(
+                            "DELETE FROM omissions WHERE kind='release' AND id=?",
+                            (rid,),
+                        )
                     self.db.execute(
-                        "UPDATE title_schedule SET changed_at=? WHERE title_id=?",
-                        (now, tid),
+                        "CREATE TEMP TABLE observed_filmo_offer(release_id TEXT PRIMARY KEY) WITHOUT ROWID"
                     )
-                for language in page.languages:
-                    rid = identity.release_id(self.provider, eid, language)
-                    self.db.execute(
-                        "INSERT INTO release VALUES(?,?,?,?,?) ON CONFLICT(release_id) DO UPDATE SET observed_at=max(release.observed_at,excluded.observed_at)",
-                        (rid, eid, language, now, now),
+                    self.db.executemany(
+                        "INSERT INTO observed_filmo_offer VALUES(?)",
+                        ((item[0],) for item in prepared),
                     )
-                    self.db.execute(
-                        "DELETE FROM omissions WHERE kind='release' AND id=?", (rid,)
-                    )
-                # These parsers report positive language offers only. Missing
-                # buttons/labels, including an explicit unavailable page, do not
-                # prove removal. Preserve old offers and existing quarantines.
+                    withdrawn = self.db.execute(
+                        "UPDATE release_metadata SET available=0 WHERE available=1 AND release_id IN (SELECT release_id FROM release WHERE entity_id=? AND NOT EXISTS (SELECT 1 FROM observed_filmo_offer o WHERE o.release_id=release.release_id))",
+                        (eid,),
+                    ).rowcount
+                    self.db.execute("DROP TABLE observed_filmo_offer")
+                    changed |= withdrawn > 0
+                    if changed:
+                        self.db.execute(
+                            "UPDATE title_schedule SET changed_at=? WHERE title_id=?",
+                            (now, tid),
+                        )
+                else:
+                    new_languages = set(page.languages) - {
+                        row[0]
+                        for row in self.db.execute(
+                            "SELECT language FROM release WHERE entity_id=?", (eid,)
+                        )
+                    }
+                    if new_languages:
+                        self.db.execute(
+                            "UPDATE title_schedule SET changed_at=? WHERE title_id=?",
+                            (now, tid),
+                        )
+                    for language in page.languages:
+                        rid = identity.release_id(self.provider, eid, language)
+                        self.db.execute(
+                            "INSERT INTO release VALUES(?,?,?,?,?) ON CONFLICT(release_id) DO UPDATE SET observed_at=max(release.observed_at,excluded.observed_at)",
+                            (rid, eid, language, now, now),
+                        )
+                        self.db.execute(
+                            "DELETE FROM omissions WHERE kind='release' AND id=?",
+                            (rid,),
+                        )
+                # Language-only providers do not prove removal from missing
+                # labels. Filmo is handled above only when its parser confirms
+                # the provider container and returns the complete current set.
             else:
                 parent = self.db.execute(
                     "SELECT path FROM title WHERE title_id=?", (tid,)

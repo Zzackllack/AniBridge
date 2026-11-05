@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from catalog_core.diagnostics import phase
+from catalog_core.json_codec import require
 
 QUERIES = {
     "title_data": """SELECT NULL,t.title_id,t.identity_anchor,t.slug,t.display_title,t.search_key,
@@ -35,6 +36,18 @@ QUERIES = {
         (a.kind='entity' AND EXISTS (SELECT 1 FROM main.entity_data e WHERE e.entity_id=a.current_id)) ORDER BY a.kind,a.old_id""",
 }
 
+# Schema3 is selected only for Filmo. Existing provider projections stay byte
+# and column compatible with their released schema2 artifacts.
+QUERIES_V3 = {
+    **QUERIES,
+    "release_data": """SELECT NULL,r.release_id,e.entity_key,r.language,r.first_seen_at,r.observed_at,
+        m.variant_anchor,m.metadata_json AS metadata
+        FROM ledger.release r JOIN main.entity_data e USING(entity_id)
+        LEFT JOIN ledger.release_metadata m USING(release_id)
+        WHERE m.available IS NOT 0 AND r.release_id NOT IN (SELECT id FROM ledger.omissions WHERE kind='release' AND tombstoned=1)
+        ORDER BY r.release_id""",
+}
+
 
 @dataclass(frozen=True)
 class Snapshot:
@@ -55,9 +68,19 @@ def copy(
     *,
     incremental: bool = False,
 ) -> Snapshot:
+    schema_version = 3 if provider == "filmo.to" else 2
+    queries = QUERIES_V3 if schema_version == 3 else QUERIES
     db.execute(
         "ATTACH DATABASE ? AS ledger", (Path(filename).resolve().as_uri() + "?mode=ro",)
     )
+    if provider == "filmo.to":
+        require(
+            db.execute(
+                "SELECT 1 FROM ledger.release_metadata WHERE available NOT IN (0,1) LIMIT 1"
+            ).fetchone()
+            is None,
+            "invalid release availability",
+        )
     indexes = db.execute(
         "SELECT name,sql FROM main.sqlite_schema WHERE type='index' AND sql IS NOT NULL AND name<>'release_recent'"
     ).fetchall()
@@ -101,12 +124,18 @@ def copy(
                 db.execute("UPDATE main.catalog SET listing_checked_at=?", (checked,))
                 from .incremental_export import refresh
 
-                refresh(db, approved)
+                refresh(db, approved, schema_version=schema_version)
             else:
                 db.execute(
-                    "INSERT INTO main.catalog VALUES(1,?,2,1,?)", (provider, checked)
+                    "INSERT INTO main.catalog VALUES(1,?,?,?,?)",
+                    (
+                        provider,
+                        schema_version,
+                        2 if schema_version == 3 else 1,
+                        checked,
+                    ),
                 )
-                for table, query in QUERIES.items():
+                for table, query in queries.items():
                     values = ()
                     if table == "canonical_title_data":
                         values = tuple(sorted(approved))

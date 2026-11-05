@@ -87,7 +87,7 @@ def load(path: Path) -> Config:
     providers = raw["providers"]
     require(
         type(providers) is dict
-        and 0 < len(providers) <= 3
+        and 0 < len(providers) <= 4
         and providers.keys() <= PROVIDERS,
         "invalid providers",
     )
@@ -104,7 +104,9 @@ def load(path: Path) -> Config:
             and not url.fragment,
             "invalid HTTPS origin",
         )
-    sitemap_origins = fields(raw.get("sitemap_origins", {}), set(), {"megakino"})
+    sitemap_origins = fields(
+        raw.get("sitemap_origins", {}), set(), {"megakino", "filmo.to"}
+    )
     for aliases in sitemap_origins.values():
         require(type(aliases) is list and len(aliases) <= 4, "invalid sitemap origins")
         for alias in aliases:

@@ -27,6 +27,8 @@ def main() -> None:
         if provider == "megakino"
         else {}
     )
+    if provider == "filmo.to":
+        options = {"origin": providers[1]}
     if kind == "signal":
         from catalog_core.providers.recent import parse as parse_recent
 

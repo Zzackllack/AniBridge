@@ -208,7 +208,9 @@ def main() -> None:
     )
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument(
-        "--provider", choices=("aniworld.to", "s.to", "megakino"), default="aniworld.to"
+        "--provider",
+        choices=("aniworld.to", "s.to", "megakino", "filmo.to"),
+        default="aniworld.to",
     )
     parser.add_argument("--status", action="store_true")
     parser.add_argument("--backup", action="store_true")

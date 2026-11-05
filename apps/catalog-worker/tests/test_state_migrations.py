@@ -9,6 +9,7 @@ from contextlib import closing
 
 import pytest
 from catalog_core import schema
+
 from catalog_worker.state import State
 from catalog_worker.state_schema import PRIVATE_DDL
 
@@ -34,6 +35,25 @@ def test_private_upgrade_preserves_state_and_original_backup(tmp_path):
     assert backup.read_bytes() == before
     with closing(sqlite3.connect(backup)) as db:
         assert db.execute("SELECT version FROM worker_schema").fetchone()[0] == 1
+
+
+def test_filmo_initialization_is_atomic_at_variant_schema_install(tmp_path):
+    from catalog_worker.state_migrations import initialize
+
+    filename = tmp_path / "filmo.to.sqlite"
+
+    def interrupt(stage):
+        if stage == "offer-tables":
+            raise RuntimeError("controlled initialization interruption")
+
+    with pytest.raises(RuntimeError, match="initialization interruption"):
+        initialize(filename, "filmo.to", interrupt)
+    assert not filename.exists()
+    assert not filename.with_name(filename.name + ".pre-v9.backup").exists()
+
+    state = State(filename, "filmo.to")
+    assert state.db.execute("SELECT version FROM worker_schema").fetchone()[0] == 8
+    state.close()
 
 
 @pytest.mark.parametrize(
