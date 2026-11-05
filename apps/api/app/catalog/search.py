@@ -6,6 +6,25 @@ from catalog_core import identity, magnet
 from catalog_core.query import LANGUAGES, TORZNAB, NEWZNAB
 from catalog_core.query import parse as parse
 
+_AUDIO_LANGUAGE_NAMES = {
+    "deu": "German",
+    "eng": "English",
+    "jpn": "Japanese",
+    "ita": "Italian",
+    "spa": "Spanish",
+    "fra": "French",
+    "kor": "Korean",
+    "rus": "Russian",
+    "tur": "Turkish",
+    "ara": "Arabic",
+    "por": "Portuguese",
+    "zho": "Chinese",
+    "hin": "Hindi",
+    "pol": "Polish",
+    "nld": "Dutch",
+    "und": "Undetermined",
+}
+
 
 def rss(
     rows: list[dict], total: int, offset: int, *, seeders: int, leechers: int
@@ -26,6 +45,12 @@ def rss(
     )
     for row in rows:
         payload = {key: row[key] for key in magnet.PAYLOAD_FIELDS - {"canonical"}}
+        metadata = row.get("release_metadata")
+        if row["provider"] == "filmo.to":
+            if metadata is None or row.get("variant_anchor") is None:
+                raise ValueError("filmo_variant_metadata_required")
+            payload["variant_anchor"] = row["variant_anchor"]
+            payload["release_metadata"] = metadata
         canonical = None
         if row["namespace"] and (row["kind"] == "movie" or row["season"] is not None):
             canonical = {
@@ -46,7 +71,32 @@ def rss(
                 row["episode"] if row["episode"] is not None else row["native_episode"]
             )
             label += f".S{season:02d}E{episode:02d}"
-        label += "." + LANGUAGES[row["language"]].replace(" ", ".")
+        if metadata is None:
+            label += "." + LANGUAGES[row["language"]].replace(" ", ".")
+        else:
+            for language in metadata["audio_languages"]:
+                label += "." + _AUDIO_LANGUAGE_NAMES.get(language, language).replace(
+                    " ", "."
+                )
+            quality = metadata["quality"]
+            # Raw conflicting labels are evidence, not a safe client quality.
+            if quality["source"] != "unknown":
+                label += (
+                    "."
+                    + {
+                        "bluray": "BluRay",
+                        "web": "WEB",
+                        "webdl": "WEB-DL",
+                        "webrip": "WEBRip",
+                        "cam": "CAM",
+                        "telesync": "TS",
+                        "telecine": "TC",
+                        "dvd": "DVD",
+                        "tv": "HDTV",
+                    }[quality["source"]]
+                )
+            if quality["resolution"] is not None:
+                label += f".{quality['resolution']}p"
         if row.get("height") is not None:
             label += f".{row['height']}p"
             if row.get("estimated"):
@@ -58,6 +108,26 @@ def rss(
         link = magnet.encode(payload, label)
         item = ET.SubElement(channel, "item")
         ET.SubElement(item, "title").text = label
+        if metadata is not None:
+            audio = ", ".join(
+                _AUDIO_LANGUAGE_NAMES.get(language, language)
+                for language in metadata["audio_languages"]
+            )
+            subtitles = metadata["subtitle_languages"]
+            subtitle_text = (
+                "unknown"
+                if subtitles is None
+                else ", ".join(
+                    _AUDIO_LANGUAGE_NAMES.get(language, language)
+                    for language in subtitles
+                )
+                or "none declared"
+            )
+            ET.SubElement(item, "description").text = (
+                f"Filmo audio: {audio}; subtitles: {subtitle_text}; "
+                f"provider label: {metadata['language_label']}; "
+                f"declared quality labels: {', '.join(metadata['quality']['labels']) or 'unknown'}"
+            )
         ET.SubElement(
             item, "guid", {"isPermaLink": "false"}
         ).text = f"urn:anibridge:release:1:{row['release_id']}:{row['mode']}"
@@ -92,6 +162,32 @@ def rss(
                 attributes.update(
                     season=str(canonical["season"]), episode=str(canonical["episode"])
                 )
+        if metadata is not None:
+            attributes.update(
+                anibridge_host=metadata["host"],
+                anibridge_source_id=metadata["native_id"],
+                anibridge_audio_languages=",".join(metadata["audio_languages"]),
+                anibridge_audio_role=metadata["audio_role"],
+                anibridge_subtitle_mode=metadata["subtitle_mode"],
+            )
+            if metadata["subtitle_languages"] is not None:
+                attributes["anibridge_subtitle_languages"] = ",".join(
+                    metadata["subtitle_languages"]
+                )
+            quality = metadata["quality"]
+            attributes["anibridge_source_claim"] = quality["source"]
+            if quality["resolution"] is not None:
+                attributes["anibridge_resolution_claim"] = str(quality["resolution"])
+            for language in metadata["audio_languages"]:
+                if language != "und":
+                    ET.SubElement(
+                        item,
+                        "torznab:attr",
+                        {
+                            "name": "language",
+                            "value": _AUDIO_LANGUAGE_NAMES.get(language, language),
+                        },
+                    )
         for name, value in attributes.items():
             ET.SubElement(item, "torznab:attr", {"name": name, "value": value})
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)

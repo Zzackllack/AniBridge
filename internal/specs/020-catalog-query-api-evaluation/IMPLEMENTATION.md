@@ -13,6 +13,14 @@ search routing remains available. Opt-in routing does not disable additive
 private database migrations. Use [identity.md](identity.md) for source identity,
 language and magnet compatibility rules.
 
+Filmo movie collection and grabs are an explicit query-mode extension, not a
+rename/removal of Megakino or a legacy query-time scraper. Each native source
+choice has its own stable release identity and frozen selection descriptor.
+Declared quality/audio/subtitle metadata remains separate from measured media
+properties. Conflicting claims remain visible without selecting a convenient
+resolution/source. The collector never mints player tokens; accepted local grabs
+refetch their exact offer and use bounded session/CSRF handoffs to VOE or Byse.
+
 ## Collection and correspondence
 
 Persist inventory, title, season and episode work across restarts. Recent feeds
@@ -48,6 +56,13 @@ and optional-provider support requires explicit adapter/language evidence.
 
 Private state v7 adds bounded per-work failure receipts; public read schema2
 remains independent. Collection records journal generations transactionally.
+
+New Filmo ledgers use private v8 and publish schema3/identity2. Existing provider
+ledgers stay v7 and their public schema1/2 and magnet v2 compatibility remains.
+Schema3 adds nullable release variant anchor/metadata columns; Filmo requires
+both, with allowlisted metadata bounded to 4 KiB. No player URL, token or cookie
+is published. Filmo currently uses full export and full validation; existing
+schema2 partition/proof reuse is not automatically extended to schema3.
 Export uses a consistent SQLite snapshot, validates staging and atomically
 switches the provider pointer under the read lease. Acknowledgement removes only
 captured generations, leaving later writes pending. Proof reuse requires a

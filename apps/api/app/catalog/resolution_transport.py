@@ -4,9 +4,11 @@ Blocking DNS and parser code must run in the supervised job child. This class
 never provides a browser, ambient proxy, or unbounded retry path.
 """
 
+import json
 import time
 from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlsplit
+import re
 
 import httpx
 
@@ -27,6 +29,14 @@ class ResolutionError(ValueError):
 class Page:
     url: str = field(repr=False)
     text: str = field(repr=False)
+
+
+@dataclass(frozen=True)
+class Exchange:
+    url: str = field(repr=False)
+    status: int
+    headers: httpx.Headers = field(repr=False)
+    body: bytes = field(repr=False)
 
 
 class Budget:
@@ -66,6 +76,121 @@ class Budget:
         if looks_like_verification_page(text):
             raise ResolutionError("challenge")
         return Page(final_url, text)
+
+    def filmo_exchange(
+        self,
+        method: str,
+        url: str,
+        *,
+        origin: str,
+        cookies: httpx.Cookies,
+        headers: dict[str, str] | None = None,
+        json_body: dict | None = None,
+        max_body: int = 2 * 1024**2,
+    ) -> Exchange:
+        """One bounded exact-origin Filmo request, without auto redirects."""
+        from catalog_core.identity import path as canonical_path
+        from catalog_core.providers.filmo import MOVIE
+
+        target = urlsplit(url)
+        root = urlsplit(origin)
+        if (
+            target.scheme != "https"
+            or (target.scheme, target.netloc) != (root.scheme, root.netloc)
+            or target.username
+            or target.password
+            or target.fragment
+            or not 0 < max_body <= 2 * 1024**2
+            or method not in {"GET", "POST"}
+            or (method == "POST" and (target.path != "/n" or target.query))
+            or (
+                method == "GET"
+                and not (
+                    target.path == "/n"
+                    or re.fullmatch(r"/n/[A-Za-z0-9._~-]{1,4096}", target.path)
+                    or MOVIE.fullmatch(target.path)
+                    and canonical_path(target.path) == target.path
+                )
+            )
+            or (method == "GET" and target.query)
+            or (
+                method == "POST"
+                and (
+                    type(json_body) is not dict
+                    or set(json_body) != {"p"}
+                    or type(json_body["p"]) is not str
+                    or not 1 <= len(json_body["p"].encode()) <= 4096
+                )
+            )
+        ):
+            raise ResolutionError("extraction_error")
+        if (
+            method == "POST"
+            and len(
+                json.dumps(
+                    json_body, separators=(",", ":"), ensure_ascii=False
+                ).encode()
+            )
+            > 8192
+        ):
+            raise ResolutionError("extraction_error")
+        self.remaining()
+        if self.requests_left <= 0:
+            raise ResolutionError("extraction_error")
+        try:
+            logical = httpx.Request(method, url, json=json_body)
+            cookies.set_cookie_header(logical)
+            cookie_header = logical.headers.get("cookie")
+            if cookie_header and len(cookie_header.encode()) > 8192:
+                raise ResolutionError("extraction_error")
+            host, _, address = self.validate_url(url, stage="local Filmo resolution")
+            self.requests_left -= 1
+            remaining = self.remaining()
+            pinned = httpx.URL(url).copy_with(host=address)
+            self.client.cookies.clear()
+            request_headers = {
+                "Host": target.netloc,
+                "Accept-Encoding": "identity",
+                **(headers or {}),
+                **({"Cookie": cookie_header} if cookie_header else {}),
+            }
+            with self.client.stream(
+                method,
+                pinned,
+                json=json_body,
+                headers=request_headers,
+                extensions={"sni_hostname": host},
+                timeout=httpx.Timeout(
+                    min(10, remaining),
+                    connect=min(5, remaining),
+                    pool=min(1, remaining),
+                ),
+                follow_redirects=False,
+            ) as response:
+                from catalog_core.providers.megakino_session import extract_cookies
+
+                extract_cookies(cookies, response, logical)
+                if response.headers.get("content-encoding", "identity") != "identity":
+                    raise ResolutionError("extraction_error")
+                body = bytearray()
+                for chunk in response.iter_raw(min(65536, self.bytes_left + 1)):
+                    self.remaining()
+                    self.bytes_left -= len(chunk)
+                    if self.bytes_left < 0:
+                        raise ResolutionError("extraction_error")
+                    body.extend(chunk)
+                    if len(body) > max_body:
+                        raise ResolutionError("extraction_error")
+                self.remaining()
+                return Exchange(
+                    url, response.status_code, response.headers, bytes(body)
+                )
+        except ResolutionError:
+            raise
+        except httpx.HTTPError, OSError:
+            raise ResolutionError("transport_failure") from None
+        except ValueError, ProviderResolutionError:
+            raise ResolutionError("extraction_error") from None
 
     def get_megakino(self, url: str, *, origin: str) -> Page:
         """At most one exact same-origin cookie bootstrap within this budget."""

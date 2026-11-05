@@ -63,6 +63,17 @@ or network and must override the worker entrypoint, for example with
 
 ## Schema-specific rollback
 
+Filmo is a new optional provider: private v8/public schema3/identity2, with
+magnet v3 understood by the matching local client. Enabling it does not migrate
+existing v7 provider ledgers. For rollback to a pre-Filmo image, disable Filmo in
+the candidate worker/client configuration and retain its state/read directories
+untouched; do not feed v8 to the old binary or convert its source variants into
+v7 language-only releases. Existing providers can return to their unchanged
+v7-compatible image. Keep the matching client available for already-saved Filmo
+jobs; a pre-Filmo client cannot execute those grabs. No v8→v7 data downgrade is
+provided. Immutable candidate/rollback digests and storage admission still need
+to be reviewed before deployment.
+
 The helper supports private v5/v6/v7. Public read schema2 is separate. A v7
 upgrade retains an original no-overwrite `.pre-v7.backup`; admit both its
 temporary and final storage before migration. Old first-failure times remain

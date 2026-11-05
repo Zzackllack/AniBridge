@@ -5,6 +5,7 @@ our shared request budget, and Doodstream's helper disables TLS verification.
 """
 
 import json
+import re
 from urllib.parse import urlsplit
 
 from cryptography.exceptions import InvalidTag
@@ -13,12 +14,12 @@ from app.utils.aniworld_compat import prepare_aniworld_home
 
 # Other host modules are upstream stubs or require delivery headers which the
 # current URL-only receipt cannot represent. Keep their capability explicit.
-SUPPORTED = frozenset({"VOE", "Filemoon", "Vidoza"})
+SUPPORTED = frozenset({"VOE", "Byse", "Filemoon", "Vidoza"})
 
 
 def html_source(host: str, html: str) -> str | None:
     prepare_aniworld_home()
-    if host == "Filemoon":
+    if host in {"Filemoon", "Byse"}:
         from aniworld.extractors.provider.filemoon import _try_extract_from_html
 
         return _try_extract_from_html(html)
@@ -41,6 +42,23 @@ def filemoon_api(embed_url: str) -> str | None:
     return f"{parsed.scheme}://{parsed.netloc}/api/videos/{code}"
 
 
+def byse_api(embed_url: str) -> str | None:
+    """Return the API endpoint only for the observed HTTPS Byse embed shape."""
+    parsed = urlsplit(embed_url)
+    if (
+        parsed.scheme != "https"
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.port not in (None, 443)
+        or parsed.query
+        or parsed.fragment
+        or re.fullmatch(r"byse[a-z0-9-]*\.[a-z]{2,}", parsed.hostname or "") is None
+        or (match := re.fullmatch(r"/[de]/([A-Za-z0-9]{6,64})", parsed.path)) is None
+    ):
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}/api/videos/{match[1]}"
+
+
 def filemoon_source(body: str) -> str | None:
     """Decode observed playback data without claiming its height as quality."""
     prepare_aniworld_home()
@@ -54,9 +72,29 @@ def filemoon_source(body: str) -> str | None:
         playback = value.get("playback") if isinstance(value, dict) else None
         if not isinstance(playback, dict):
             return None
+        # Versioned Byse responses carry thirty keys, but the installed pure
+        # decoder concatenates every 16-byte part. Select the two documented
+        # version positions before handing it the reduced envelope.
+        version = playback.get("version")
         parts = playback.get("key_parts")
-        if not isinstance(parts, list) or not 1 <= len(parts) <= 4:
+        if not isinstance(parts, list) or not 1 <= len(parts) <= 64:
             return None
+        if version is not None:
+            # The live API uses a decimal string; older envelopes used numbers.
+            if type(version) is str:
+                if (
+                    len(version) > 16
+                    or not version.strip().isascii()
+                    or not version.strip().isdecimal()
+                ):
+                    return None
+                version = int(version.strip())
+            if type(version) is not int or not 1 <= version <= 20 or len(parts) != 30:
+                return None
+            parts = [parts[version - 1], parts[30 - version]]
+        elif len(parts) > 4:
+            return None
+        playback = {**playback, "key_parts": parts}
         if not all(isinstance(part, str) and len(part) <= 128 for part in parts):
             return None
         for name in ("iv", "iv2", "payload", "payload2"):

@@ -63,6 +63,7 @@ def timestamp(now: int) -> str:
 def decode(value: str) -> tuple[str, dict, str, str | None]:
     if "ab_v=" in value:
         digest, payload, label = magnet.decode(value)
+        identity_part = payload.get("variant_anchor", payload["language"])
         return (
             digest,
             payload,
@@ -71,7 +72,7 @@ def decode(value: str) -> tuple[str, dict, str, str | None]:
                 "local-job-1",
                 payload["provider"],
                 payload["entity_id"],
-                payload["language"],
+                identity_part,
                 payload["mode"],
             ),
         )
@@ -254,6 +255,7 @@ class Jobs:
                         "provider",
                         "entity_id",
                         "release_id",
+                        "variant_anchor",
                         "slug",
                         "native_season",
                         "native_episode",

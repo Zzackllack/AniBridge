@@ -44,14 +44,17 @@ class ProviderSearch:
                     )
                     relevant = (
                         {category, options.get("movie_category", 2000)}
-                        if search.provider == "megakino"
+                        if search.provider in {"megakino", "filmo.to"}
                         else {category}
                     )
                     if parsed.categories is not None and not relevant.intersection(
                         parsed.categories
                     ):
                         continue
-                    if parsed.mode == "movie" and search.provider != "megakino":
+                    if parsed.mode == "movie" and search.provider not in {
+                        "megakino",
+                        "filmo.to",
+                    }:
                         continue
                     try:
                         page, count, diagnostics = await search.search(

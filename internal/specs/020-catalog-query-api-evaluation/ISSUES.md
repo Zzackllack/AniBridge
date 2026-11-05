@@ -14,6 +14,8 @@ Repeat the preservation proof if migration behavior changes.
 
 | Area | Required work / acceptance boundary |
 | --- | --- |
+| Filmo acceptance | Verify candidate native images and an isolated real Radarr/Prowlarr generated-media workflow: parsed quality/audio, selected variant, output import/move and restart. Bounded live metadata/host JSON and synthetic job tests are separate proof; real provider acquisition/playback and independently labelled movie mappings remain unchecked. Unknown audio stays retained but is withheld from automatic Torznab language claims. |
+| Filmo publication capacity | Measure full schema3 export/validation at representative scale and resource limits before increasing provider budgets. Existing schema2 incremental-proof results do not establish schema3 performance or sustained Filmo freshness. |
 | Storage admission | Recalculate the next workload's aggregate peak, including images/shared caches, new copies, migration backups, publication scratch, logs and reserve. Cleanup alone does not certify the 30-GB cap. |
 | Mapping accuracy | Freeze independently verified expected matches before tuning and evaluate held-out ordinary/large/multilingual/special/reordered-season cases. Report incorrect acceptances, abstentions and conflicts separately. Existing post-implementation labels are regression evidence, not a blind precision estimate. |
 | Provider coverage and freshness | Recompute per-provider observed/usable/mapped/unresolved denominators and disjoint unresolved reasons on one consistent snapshot. Measure eligible age and requests per useful map. Do not infer completeness or an SLA from a short run. |

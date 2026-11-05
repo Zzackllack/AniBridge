@@ -136,6 +136,15 @@ opted-in disposable private HTTP. `CATALOG_SITES=aniworld.to,s.to` selects
 AniWorld + Serienstream; `s.to` is a stable provider key, not the current origin. Use `STO_BASE_URL=https://serienstream.to`.
 Megakino is optional; unlabelled languages remain gaps. Normal collection and
 server/client setup are in [SERVER.md](../../scripts/catalog/query_pilot/SERVER.md).
+
+Filmo is optional via worker provider key `filmo.to` and local
+`CATALOG_SITES=aniworld.to,s.to,filmo.to`. The client also requires explicit query
+configuration; legacy-mode Filmo configuration fails at startup. `FILMO_BASE_URL`
+defaults to `https://filmo.to` and must match the verified provider origin used
+for local grabs. Movie mappings require an explicitly configured TMDb credential
+and publication provenance; merely enabling Filmo does not establish movie IDs.
+Audio language claims and subtitle claims are separate; unknown audio stays in
+the metadata catalog and is not advertised as a known spoken language to *arr.
 `MANAGEMENT_API_TOKEN` optionally enables authenticated local job retry/cancel; it must encode 32 random bytes as base64url. Query requests
 disclose terms/IDs and service-visible IPs. No proxy/log privacy guarantees.
 See the [pilot guide](../../scripts/catalog/query_pilot/README.md).

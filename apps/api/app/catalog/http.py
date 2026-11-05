@@ -100,6 +100,7 @@ async def torznab(request: Request):
             names[name] for name in options["default_languages"] if name in names
         }
         for provider, options in CATALOG_SITE_CONFIGS.items()
+        if provider != "filmo.to"
     }
     try:
         service = runtime(request)

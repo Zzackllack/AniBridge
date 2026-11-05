@@ -92,3 +92,13 @@ publisher refreshes changed partitions in private staging and switches the point
 under the existing read lease. WAL snapshots let collection continue; acknowledgement
 removes only captured generations. First publication and invalid bases use full
 export/validation. No database engine, API wire schema or client migration changes.
+
+Filmo is an opt-in movie provider in query mode. Its separate private v8 ledger
+stores stable native source variants and token-free declared quality/audio/subtitle
+metadata; existing providers remain private v7/public schema2. Filmo publishes
+public schema3/identity2 and uses magnet v3. Its current publisher performs full
+export/admission; schema2 proof reuse is not enabled for this new format.
+Local grabs refetch and verify the chosen offer before a bounded same-origin
+session/CSRF exchange. Byse uses the Filemoon pure codec with explicit versioned
+key selection; no upstream global networking or browser solver is introduced.
+Keep old release IDs/jobs and providers unchanged. See spec 020's identity rules.

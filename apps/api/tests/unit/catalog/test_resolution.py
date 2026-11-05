@@ -75,6 +75,15 @@ def test_resolution_pins_each_hop_and_keeps_tokens_out_of_repr():
         assert all(body.closed for body in bodies)
     finally:
         budget.close()
+    budget, calls, _, _ = transport(
+        {"/page": (302, {"location": "/again"}, b"")}, requests=1
+    )
+    try:
+        with pytest.raises(ResolutionError, match="extraction_error"):
+            budget.get("https://example.test/page")
+        assert len(calls) == 1
+    finally:
+        budget.close()
 
 
 @pytest.mark.parametrize(
@@ -113,13 +122,46 @@ def test_request_bytes_and_deadline_are_shared_across_calls():
         assert len(calls) == 2
     finally:
         budget.close()
-    budget, calls, _, _ = transport(
-        {"/page": (302, {"location": "/again"}, b"")}, requests=1
+
+
+def test_filmo_exchange_pins_same_origin_and_preserves_session_cookie():
+    wire = []
+
+    def reply(request):
+        wire.append(request)
+        return httpx.Response(419, stream=Body(b"expired CSRF"))
+
+    budget = Budget(
+        client=httpx.Client(transport=httpx.MockTransport(reply)),
+        validate_url=lambda url, **kwargs: ("filmo.example", 443, "93.184.216.34"),
     )
+    cookies = httpx.Cookies()
+    cookies.set("session", "fixture", domain="filmo.example", path="/")
     try:
+        response = budget.filmo_exchange(
+            "POST",
+            "https://filmo.example/n",
+            origin="https://filmo.example",
+            cookies=cookies,
+            headers={"X-CSRF-TOKEN": "csrf-fixture"},
+            json_body={"p": "opaque-fixture"},
+        )
+        assert response.status == 419 and "CSRF" in response.body.decode()
+        assert wire[0].url.host == "93.184.216.34"
+        assert wire[0].headers["host"] == "filmo.example"
+        assert wire[0].headers["cookie"] == "session=fixture"
+        assert wire[0].headers["x-csrf-token"] == "csrf-fixture"
+        assert wire[0].read() == b'{"p":"opaque-fixture"}'
+        assert "opaque-fixture" not in repr(response)
         with pytest.raises(ResolutionError, match="extraction_error"):
-            budget.get("https://example.test/page")
-        assert len(calls) == 1
+            budget.filmo_exchange(
+                "POST",
+                "https://evil.example/n",
+                origin="https://filmo.example",
+                cookies=cookies,
+                json_body={"p": "x"},
+            )
+        assert len(wire) == 1
     finally:
         budget.close()
 
@@ -344,6 +386,201 @@ def test_filemoon_encrypted_api_is_observed_same_origin_and_quality_unasserted()
         assert not any(call.url.path == "/private" for call in calls)
     finally:
         budget.close()
+
+
+def test_byse_is_recognized_only_on_https_byse_embed_shapes():
+    from app.hosts import detect_host
+    from app.hosts.catalog_sources import byse_api
+
+    accepted = "https://byseabc123.com/d/Abc123"
+    assert detect_host(accepted).name == "Byse"
+    assert byse_api(accepted) == "https://byseabc123.com/api/videos/Abc123"
+    assert (
+        byse_api("https://byseabc123.com/e/Abc123")
+        == "https://byseabc123.com/api/videos/Abc123"
+    )
+    for rejected in (
+        "http://byseabc123.com/d/Abc123",
+        "https://notbyse.example/d/Abc123",
+        "https://byseabc123.com.evil.test/d/Abc123",
+        "https://byseabc123.com/d/Abc123?redirect=https://evil.test",
+        "https://user@byseabc123.com/d/Abc123",
+        "https://byseabc123.com/other/Abc123",
+    ):
+        assert byse_api(rejected) is None
+
+
+@pytest.mark.parametrize("version", [1, "1", " 1 ", 20, "20"])
+def test_bounded_byse_versioned_key_parts_decode_with_installed_pure_parser(version):
+    import base64
+    import json
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from app.hosts.catalog_sources import filemoon_source
+
+    key, iv = bytes(range(32)), bytes(range(12))
+
+    def encode(value):
+        return base64.urlsafe_b64encode(value).decode().rstrip("=")
+
+    plaintext = json.dumps(
+        {"sources": [{"url": "https://media.example/video.m3u8", "height": 1080}]}
+    ).encode()
+    parts = [encode(bytes([index]) * 16) for index in range(30)]
+    selected = int(version)
+    parts[selected - 1], parts[30 - selected] = encode(key[:16]), encode(key[16:])
+    playback = {
+        "version": version,
+        "algorithm": "AES-256-GCM",
+        "key_parts": parts,
+        "iv": encode(iv),
+        "payload": encode(AESGCM(key).encrypt(iv, plaintext, None)),
+    }
+    assert len(playback["key_parts"]) == 30
+    assert (
+        filemoon_source(json.dumps({"playback": playback}))
+        == "https://media.example/video.m3u8"
+    )
+    playback["key_parts"] *= 3
+    assert filemoon_source(json.dumps({"playback": playback})) is None
+
+
+@pytest.mark.parametrize("path", ["/movies/example", "/movies/caf%C3%A9"])
+def test_filmo_419_refreshes_offer_and_keeps_selected_native_variant(path):
+    import json
+    from app.catalog.filmo_resolution import _filmo_embed
+    from app.catalog.resolution_transport import Exchange
+    from catalog_core.providers import filmo
+
+    detail = b"""<meta name="csrf-token" content="csrf-one"><h1>Example</h1>
+      <div class="provider-row"><span class="provider-row__lang">Deutsch</span>
+      <div data-provider-chip aria-label="VOE" data-movie-link-id="42" data-p="opaque-choice">
+      <span class="provider-chip__metadata-tag">BluRay</span><span class="provider-chip__metadata-tag">720p</span>
+      </div></div>"""
+    offer = filmo.parse(detail, "detail", path).offers[0]
+
+    class FakeBudget:
+        def __init__(self):
+            self.calls = []
+            self.responses = [
+                ("GET", 200, detail, {}),
+                ("POST", 419, b"", {}),
+                ("GET", 200, detail.replace(b"csrf-one", b"csrf-two"), {}),
+                ("POST", 200, json.dumps({"x": "wrap-secret"}).encode(), {}),
+                ("GET", 302, b"", {"location": "https://voe.sx/e/selected"}),
+            ]
+
+        def filmo_exchange(self, method, url, **kwargs):
+            expected_method, status, body, headers = self.responses.pop(0)
+            assert method == expected_method
+            self.calls.append((method, url, kwargs))
+            if method == "POST":
+                assert kwargs["json_body"]["p"] == "opaque-choice"
+            return Exchange(url, status, httpx.Headers(headers), body)
+
+    budget = FakeBudget()
+    host, target = _filmo_embed(
+        {"kind": "movie", "path": path},
+        "https://filmo.to",
+        budget,
+        anchor=offer["variant_anchor"],
+        metadata=offer,
+    )
+    assert (host, target) == ("VOE", "https://voe.sx/e/selected")
+    assert len(budget.calls) == 5
+    assert budget.calls[1][2]["headers"]["X-CSRF-TOKEN"] == "csrf-one"
+    assert budget.calls[3][2]["headers"]["X-CSRF-TOKEN"] == "csrf-two"
+
+
+def test_filmo_transport_keeps_canonical_encoded_slug_and_rejects_delimiters():
+    wire = []
+
+    def reply(request):
+        wire.append(request)
+        return httpx.Response(200, stream=Body(b"metadata"))
+
+    budget = Budget(
+        client=httpx.Client(transport=httpx.MockTransport(reply)),
+        validate_url=lambda url, **kwargs: ("filmo.example", 443, "93.184.216.34"),
+    )
+    try:
+        budget.filmo_exchange(
+            "GET",
+            "https://filmo.example/movies/caf%C3%A9",
+            origin="https://filmo.example",
+            cookies=httpx.Cookies(),
+        )
+        assert wire[0].url.raw_path == b"/movies/caf%C3%A9"
+        for suffix in ("%2Fother", "%252Fother", "%2E%2E"):
+            with pytest.raises(ValueError):
+                budget.filmo_exchange(
+                    "GET",
+                    "https://filmo.example/movies/" + suffix,
+                    origin="https://filmo.example",
+                    cookies=httpx.Cookies(),
+                )
+        assert len(wire) == 1
+    finally:
+        budget.close()
+
+
+def test_filmo_changed_quality_is_stale_and_is_not_replaced_by_another_offer():
+    from app.catalog.filmo_resolution import _filmo_offer_token
+    from app.catalog.resolution_transport import ResolutionError
+    from catalog_core.providers import filmo
+
+    original = b"""<h1>Example</h1><div class="provider-row"><span class="provider-row__lang">Deutsch</span>
+      <div data-provider-chip aria-label="VOE" data-movie-link-id="42" data-p="opaque">
+      <span class="provider-chip__metadata-tag">720p</span></div></div>"""
+    changed = original.replace(b"720p", b"1080p")
+    offer = filmo.parse(original, "detail", "/movies/example").offers[0]
+    with pytest.raises(ResolutionError, match="stale_selection"):
+        _filmo_offer_token(
+            changed, {**offer, "path": "/movies/example"}, offer["variant_anchor"]
+        )
+
+
+def test_filmo_cosmetic_labels_do_not_permanently_stale_a_frozen_offer():
+    from app.catalog.filmo_resolution import _filmo_offer_token
+    from catalog_core.providers.filmo import parse
+
+    original = b"""<h1>Example</h1><div class="provider-row"><span class="provider-row__lang">Deutsch Dub</span>
+      <div data-provider-chip aria-label="VOE" data-movie-link-id="42" data-p="old-token">
+      <span class="provider-chip__metadata-tag">WEB</span><span class="provider-chip__metadata-tag">720p</span></div></div>"""
+    selected = parse(original, "detail", "/movies/example").offers[0]
+    changed = (
+        original.replace(b"Deutsch Dub", b"deutsch   DUB")
+        .replace(b">WEB<", b">web<")
+        .replace(b"720p", b"720P")
+        .replace(b"old-token", b"new-token")
+    )
+    assert (
+        _filmo_offer_token(
+            changed, {**selected, "path": "/movies/example"}, selected["variant_anchor"]
+        )
+        == "new-token"
+    )
+
+
+def test_filmo_ephemeral_token_lookup_survives_duplicate_offer_chips():
+    from app.catalog.filmo_resolution import _filmo_offer_token
+    from catalog_core.providers import filmo
+
+    detail = b"""<h1>Example</h1>
+      <div class="provider-row"><span class="provider-row__lang">Deutsch</span>
+        <div data-provider-chip aria-label="VOE" data-movie-link-id="42" data-p="duplicate-one"><span class="provider-chip__metadata-tag">720p</span></div>
+        <div data-provider-chip aria-label="VOE" data-movie-link-id="42" data-p="duplicate-two"><span class="provider-chip__metadata-tag">720p</span></div>
+      </div>
+      <div class="provider-row"><span class="provider-row__lang">Deutsch</span>
+        <div data-provider-chip aria-label="Byse" data-movie-link-id="84" data-p="selected-token"><span class="provider-chip__metadata-tag">BluRay</span></div>
+      </div>"""
+    offers = filmo.parse(detail, "detail", "/movies/example").offers
+    selected = next(item for item in offers if item["host"] == "Byse")
+    assert (
+        _filmo_offer_token(
+            detail, {**selected, "path": "/movies/example"}, selected["variant_anchor"]
+        )
+        == "selected-token"
+    )
 
 
 def test_unsupported_hosts_do_not_consume_a_supported_offer_or_run_legacy_network():

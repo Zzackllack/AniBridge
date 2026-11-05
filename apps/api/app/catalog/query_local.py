@@ -12,9 +12,23 @@ from catalog_core import identity, query, schema
 from catalog_core.json_codec import dumps, require
 from catalog_core.protocol import Request, Response
 from catalog_core.query_client import Client, Result, Unavailable
+from catalog_core.providers import filmo as filmo_parser
 
 from .async_database import call
 from .override_view import view
+
+_FILMO_KNOWN_AUDIO_LANGUAGES = (
+    frozenset(filmo_parser.LANGUAGES.values()) - {"und"}
+) | {"mul"}
+
+
+def filmo_audio_languages(
+    languages: dict[str, set[str]] | None,
+) -> set[str]:
+    """Return the Torznab-usable Filmo audio set, excluding unknown audio."""
+    if languages is None or "filmo.to" not in languages:
+        return set(_FILMO_KNOWN_AUDIO_LANGUAGES)
+    return set(languages["filmo.to"]) & _FILMO_KNOWN_AUDIO_LANGUAGES
 
 
 class LocalRead:
@@ -62,7 +76,18 @@ class LocalRead:
 
 def materialize(filename: Path, responses: list[Response]) -> dict:
     """Small request-owned schema1 view; never a full provider download."""
-    db = schema.create(filename)
+    schema_version = 3 if responses[0].provider == "filmo.to" else 1
+    if schema_version == 3:
+        db = sqlite3.connect(filename)
+        db.executescript(schema.DDL_V3_FLAT)
+        db.executescript(
+            "ALTER TABLE release ADD COLUMN variant_anchor TEXT;"
+            "ALTER TABLE release ADD COLUMN metadata TEXT;"
+            "CREATE UNIQUE INDEX release_variant ON release(entity_id,variant_anchor)"
+            " WHERE variant_anchor IS NOT NULL;"
+        )
+    else:
+        db = schema.create(filename)
     metadata = responses[0]
     provider = metadata.provider
     seen_titles, seen_entities, seen_maps, seen_episodes, seen_releases = (
@@ -75,8 +100,13 @@ def materialize(filename: Path, responses: list[Response]) -> dict:
     try:
         with db:
             db.execute(
-                "INSERT INTO catalog VALUES(1,?,1,1,?)",
-                (provider, metadata.listing_checked_at),
+                "INSERT INTO catalog VALUES(1,?,?,?,?)",
+                (
+                    provider,
+                    schema_version,
+                    2 if schema_version == 3 else 1,
+                    metadata.listing_checked_at,
+                ),
             )
             for response in responses:
                 for title in response.titles:
@@ -130,16 +160,35 @@ def materialize(filename: Path, responses: list[Response]) -> dict:
                         )
                         seen_entities.add(row.entity_id)
                     if row.release_id not in seen_releases:
-                        db.execute(
-                            "INSERT INTO release VALUES(?,?,?,?,?)",
-                            (
-                                row.release_id,
-                                row.entity_id,
-                                row.language,
-                                row.first_seen_at,
-                                row.observed_at,
-                            ),
+                        release_values = (
+                            row.release_id,
+                            row.entity_id,
+                            row.language,
+                            row.first_seen_at,
+                            row.observed_at,
                         )
+                        if schema_version == 3:
+                            from catalog_core.release_metadata import validate
+
+                            offer_metadata = (
+                                validate(row.release_metadata)
+                                if row.release_metadata is not None
+                                else None
+                            )
+                            db.execute(
+                                "INSERT INTO release VALUES(?,?,?,?,?,?,?)",
+                                (
+                                    *release_values,
+                                    row.variant_anchor,
+                                    dumps(offer_metadata).decode()
+                                    if offer_metadata
+                                    else None,
+                                ),
+                            )
+                        else:
+                            db.execute(
+                                "INSERT INTO release VALUES(?,?,?,?,?)", release_values
+                            )
                         seen_releases.add(row.release_id)
                     for mapping in row.mappings:
                         key = (mapping.mapping_id, mapping.entity_id)
@@ -153,6 +202,8 @@ def materialize(filename: Path, responses: list[Response]) -> dict:
         db.close()
     return {
         "provider": provider,
+        # query.query uses this local copy through its schema1 joins. The flat
+        # v3 DDL supplies the new offer columns without compact-artifact views.
         "catalog_schema_version": 1,
         "artifact": {"sqlite_sha256": metadata.snapshot_digest},
         "counts": {"release": len(seen_releases)},
@@ -254,6 +305,9 @@ class Search:
         languages: dict[str, set[str]] | None,
         results: list[Result],
     ) -> list[Response]:
+        filmo_languages = (
+            filmo_audio_languages(languages) if self.provider == "filmo.to" else None
+        )
         if parsed.recent:
             # Corrections cannot change kind/language/date. Filter these remotely,
             # then apply coordinate corrections to the bounded page locally.
@@ -265,11 +319,16 @@ class Search:
             remote.setdefault("t", parsed.mode)
             request = Request(
                 operation="recent",
+                provider=self.provider,
                 params=remote,
                 limit=min(100, (parsed.limit + len(modes) - 1) // len(modes) + 1),
                 offset=parsed.offset // len(modes),
-                languages=sorted(
-                    (languages or {}).get(self.provider, identity.LANGUAGES)
+                languages=(
+                    sorted(filmo_languages)
+                    if filmo_languages is not None
+                    else sorted(
+                        (languages or {}).get(self.provider, identity.LANGUAGES)
+                    )
                 ),
             )
             pages = []
@@ -293,6 +352,7 @@ class Search:
             batch = await self.fetch(
                 Request(
                     operation="native",
+                    provider=self.provider,
                     params={"t": "search"},
                     title_ids=sorted(selected),
                     offset=offset,
@@ -308,8 +368,12 @@ class Search:
                             if row["title_id"] in selected and row["entity_id"]
                         }
                     ),
-                    languages=sorted(
-                        (languages or {}).get(self.provider, identity.LANGUAGES)
+                    languages=(
+                        sorted(filmo_languages)
+                        if filmo_languages is not None
+                        else sorted(
+                            (languages or {}).get(self.provider, identity.LANGUAGES)
+                        )
                     ),
                 ),
                 results,
@@ -340,13 +404,16 @@ class Search:
             local_query = (
                 replace(parsed, offset=0, limit=10000) if parsed.recent else parsed
             )
+            local_languages = dict(languages or {})
+            if self.provider == "filmo.to":
+                local_languages[self.provider] = filmo_audio_languages(languages)
             rows, total, headers = await call(
                 query.query,
                 LocalRead(filename, metadata, local),
                 local_query,
                 now=now,
                 modes=modes,
-                languages=languages,
+                languages=local_languages,
                 anime_category=anime_category,
                 movie_category=movie_category,
                 mapping_view=view,
@@ -381,6 +448,8 @@ class Search:
         try:
             async with asyncio.timeout(15):
                 parsed = query.parse(params)
+                if self.provider == "filmo.to" and not filmo_audio_languages(languages):
+                    return [], 0, {}
                 if _window is not None:
                     parsed = replace(parsed, offset=0, limit=_window)
                 local = await call(overrides, self.database, self.provider)

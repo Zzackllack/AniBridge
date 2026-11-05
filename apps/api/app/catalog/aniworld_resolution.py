@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
-from catalog_core.identity import path as validate_path
+from catalog_core import identity
 from catalog_core.providers.sto_languages import LABELS as STO_LABELS
 
 from app.core.downloader.errors import ProviderResolutionError
@@ -76,17 +76,29 @@ def resolve(
     source_parser=None,
     redirect_parser=None,
 ) -> Media:
-    if payload["provider"] not in ("aniworld.to", "s.to", "megakino"):
+    if payload["provider"] not in ("aniworld.to", "s.to", "megakino", "filmo.to"):
         raise ResolutionError("extraction_error")
-    path = validate_path(payload["path"])
+    path = identity.path(payload["path"])
     if payload["provider"] == "megakino" and (
         payload.get("kind") != "movie"
         or re.fullmatch(r"/films/[1-9][0-9]*-[^/]+\.html", path) is None
     ):
         raise ResolutionError("extraction_error")
-    get = budget.get_megakino if payload["provider"] == "megakino" else budget.get
-    page = get(origin.rstrip("/") + path, origin=origin)
-    available = offers(page.text, origin, payload["language"], payload["provider"])
+    if payload["provider"] == "filmo.to":
+        from .filmo_resolution import _filmo_embed
+
+        metadata = payload.get("release_metadata")
+        anchor = payload.get("variant_anchor")
+        if not isinstance(metadata, dict) or metadata.get("variant_anchor") != anchor:
+            raise ResolutionError("extraction_error")
+        selected_host, selected_url = _filmo_embed(
+            payload, origin, budget, anchor=anchor, metadata=metadata
+        )
+        available = {selected_host: selected_url}
+    else:
+        get = budget.get_megakino if payload["provider"] == "megakino" else budget.get
+        page = get(origin.rstrip("/") + path, origin=origin)
+        available = offers(page.text, origin, payload["language"], payload["provider"])
     choices = [
         host
         for host in hosts
@@ -117,10 +129,16 @@ def resolve(
                 source = (
                     source_parser(page.text)
                     if host == "VOE"
+                    else None
+                    if host == "Byse"
                     else catalog_sources.html_source(host, page.text)
                 )
-                if not source and host == "Filemoon":
-                    api_url = catalog_sources.filemoon_api(page.url)
+                if not source and host in {"Filemoon", "Byse"}:
+                    api_url = (
+                        catalog_sources.byse_api(page.url)
+                        if host == "Byse"
+                        else catalog_sources.filemoon_api(page.url)
+                    )
                     if api_url is not None:
                         try:
                             observed = budget.get(api_url, origin=page.url)
