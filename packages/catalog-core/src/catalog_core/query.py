@@ -203,10 +203,12 @@ def query(
             if request.recent and title_ids is None:
                 where.append("r.first_seen_at>=?")
                 args.append(now - request.maxage * 86400)
-            allowed = (languages or {}).get(provider, set(LANGUAGES))
-            if not allowed:
+            allowed = (languages or {}).get(
+                provider, set() if provider == "filmo.to" else set(LANGUAGES)
+            )
+            if not allowed and provider != "filmo.to":
                 continue
-            if allowed != set(LANGUAGES):
+            if allowed and allowed != set(LANGUAGES):
                 where.append(f"r.language IN ({','.join('?' for _ in allowed)})")
                 args.extend(sorted(allowed))
             category_expr = f"CASE WHEN e.kind='movie' THEN {int(movie_category)} WHEN '{provider}'='aniworld.to' THEN {int(anime_category)} ELSE 5000 END"
@@ -226,7 +228,7 @@ def query(
                     "WHEN 'tvdb' THEN 0 WHEN 'tmdb-tv' THEN 1",
                     "WHEN 'tmdb-tv' THEN 0 WHEN 'tvdb' THEN 1",
                 )
-            compact = metadata["catalog_schema_version"] == 2 and not hasattr(
+            compact = metadata["catalog_schema_version"] >= 2 and not hasattr(
                 db, "alias"
             )
             if compact:
@@ -274,7 +276,11 @@ def query(
                 selected_groups = [
                     group
                     for group in summary
-                    if group["language"] in allowed
+                    if (
+                        not allowed
+                        and provider == "filmo.to"
+                        or group["language"] in allowed
+                    )
                     and (
                         request.mode == "search"
                         or group["kind"]
@@ -339,6 +345,11 @@ def query(
                     t.title_id,e.kind,e.native_season,e.native_episode,coalesce(e.path,e.identity_anchor) AS path,
                     e.identity_anchor AS entity_anchor,t.identity_anchor AS title_anchor,t.slug,t.display_title,t.year,
                     ct.namespace,ct.external_id,ce.season,ce.episode """
+                if metadata["catalog_schema_version"] == 3:
+                    select = select.replace(
+                        "SELECT r.release_id,",
+                        "SELECT r.variant_anchor,r.metadata,r.release_id,",
+                    )
             rows = db.execute(
                 select
                 + join
@@ -348,6 +359,12 @@ def query(
             )
             for row in rows:
                 record = dict(row)
+                if "metadata" in record:
+                    from .release_metadata import decode
+
+                    raw_metadata = record.pop("metadata")
+                    if raw_metadata is not None:
+                        record["release_metadata"] = decode(raw_metadata)
                 record.update(
                     provider=provider,
                     snapshot_digest=metadata["artifact"]["sqlite_sha256"],

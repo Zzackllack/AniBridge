@@ -18,7 +18,7 @@ dependencies = [
 dev = ["pytest>=9", "ruff>=0.14"]
 
 [tool.setuptools.package-data]
-catalog_core = ["schema.sql", "schema-v2.sql"]
+catalog_core = ["schema.sql", "schema-v2.sql", "schema-v3.sql", "schema-v3-flat.sql"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -50,6 +50,7 @@ class Page:
     episode_aliases: tuple[str, ...] = ()
     episodes: tuple[EpisodeRow, ...] = ()
     availability: str = "available"
+    offers: tuple[dict, ...] = ()
 
 
 class Parser(HTMLParser):

@@ -29,9 +29,11 @@ class Writer:
         require(table in ("catalog", "identity_alias", *TABLES), "unknown record")
         values = tuple(record)
         physical = table
-        if self.version == 2:
+        if self.version >= 2:
             if table == "catalog":
-                values = (*values[:2], 2, *values[3:])
+                values = (*values[:2], self.version, *values[3:])
+                if self.version == 3:
+                    values = (*values[:3], 2, *values[4:])
             elif table in TABLES:
                 physical += "_data"
                 if table == "title":
@@ -57,6 +59,8 @@ class Writer:
                         *values[2:],
                     )
                 elif table == "release":
+                    if self.version == 3 and len(values) == 5:
+                        values = (*values, None, None)
                     values = (
                         None,
                         values[0],
@@ -74,12 +78,12 @@ class Writer:
         )
 
 
-def validate_physical(db: sqlite3.Connection) -> None:
+def validate_physical(db: sqlite3.Connection, version: int = 2) -> None:
     """Check stored key types/nulls even when a hostile writer disabled checks."""
-    from .schema import DDL_V2
+    from .schema import SCHEMAS
 
     with closing(sqlite3.connect(":memory:")) as expected:
-        expected.executescript(DDL_V2)
+        expected.executescript(SCHEMAS[version])
         for table in TABLES:
             physical = table + "_data"
             invalid = []
@@ -128,7 +132,13 @@ FOREIGN_KEYS = (
 )
 
 
-def validate_foreign_keys(db: sqlite3.Connection) -> None:
+def validate_foreign_keys(db: sqlite3.Connection, version: int = 2) -> None:
+    if version == 3:
+        require(
+            db.execute("PRAGMA foreign_key_check").fetchone() is None,
+            "invalid foreign keys",
+        )
+        return
     for child, parent, key, index in FOREIGN_KEYS:
         require(
             db.execute(
@@ -145,7 +155,8 @@ def release_from(version: int, *, ordered: bool = False) -> str:
         return "FROM release r" + (" INDEXED BY release_recent" if ordered else "")
     if not ordered:
         return "FROM release r"
-    return """FROM (SELECT p.release_id,k.entity_id,p.language,p.first_seen_at,p.observed_at
+    metadata = ",p.variant_anchor,p.metadata" if version == 3 else ""
+    return f"""FROM (SELECT p.release_id,k.entity_id,p.language,p.first_seen_at,p.observed_at{metadata}
       FROM release_data p INDEXED BY release_recent
       JOIN entity_data k USING(entity_key)) r"""
 

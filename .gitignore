@@ -454,6 +454,8 @@ fish_variables
 
 # MySQL
 *.sql
+!/packages/catalog-core/src/catalog_core/schema-v3.sql
+!/packages/catalog-core/src/catalog_core/schema-v3-flat.sql
 
 # PostgreSQL
 *.pgsql

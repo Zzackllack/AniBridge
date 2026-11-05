@@ -48,7 +48,12 @@ def validate(
                 "invalid episode coordinates",
             )
     elif table == "release":
-        require(row["language"] in identity.LANGUAGES, "invalid release language")
+        if "variant_anchor" in row.keys() and row["variant_anchor"] is not None:  # noqa: SIM118 -- sqlite3.Row iterates values
+            from .release_metadata import valid_language
+
+            require(valid_language(row["language"]), "invalid release language")
+        else:
+            require(row["language"] in identity.LANGUAGES, "invalid release language")
         require(
             row["observed_at"] >= row["first_seen_at"], "observation before discovery"
         )

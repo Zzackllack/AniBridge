@@ -46,7 +46,7 @@ def retry_after(value: str | None, now: float | None = None) -> int:
                 date.timestamp() - (time.time() if now is None else now)
             )
         return max(1, min(86400, seconds))
-    except (ValueError, TypeError, OverflowError):
+    except ValueError, TypeError, OverflowError:
         return 60
 
 
@@ -127,6 +127,10 @@ async def _fetch(
             and path == "/index.php"
             and query == {"yg": "token"}
             or origin in ("https://skyhook.sonarr.tv", "https://api.themoviedb.org")
+            or path == "/movies"
+            and set(query) == {"page"}
+            and query["page"].isdecimal()
+            and 1 <= int(query["page"]) <= 10000
             or path == "/serien"
             and query.get("by") == "alpha"
             and set(query) <= {"by", "page"}

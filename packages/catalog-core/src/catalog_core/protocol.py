@@ -32,7 +32,7 @@ class Model(BaseModel):
 
 class Request(Model):
     operation: Literal["titles", "native", "recent"]
-    provider: Literal["aniworld.to", "s.to", "megakino"] = "aniworld.to"
+    provider: Literal["aniworld.to", "s.to", "megakino", "filmo.to"] = "aniworld.to"
     params: dict[str, str] = Field(default_factory=dict)
     title_ids: list[str] = Field(default_factory=list, max_length=200)
     limit: int = Field(default=500, ge=1, le=500)
@@ -43,8 +43,8 @@ class Request(Model):
     season: int | None = Field(default=None, ge=0, le=2**31 - 1)
     episode: int | None = Field(default=None, ge=1, le=2**31 - 1)
     include_entities: list[str] = Field(default_factory=list, max_length=1000)
-    languages: list[Literal["de-dub", "en-dub", "de-sub", "en-sub"]] = Field(
-        default_factory=lambda: sorted(identity.LANGUAGES), max_length=4
+    languages: list[str] = Field(
+        default_factory=lambda: sorted(identity.LANGUAGES), max_length=64
     )
 
     def wire(self) -> dict:
@@ -61,6 +61,16 @@ class Request(Model):
 
     @model_validator(mode="after")
     def bounded(self) -> Self:
+        from .release_metadata import valid_language
+
+        if self.provider == "filmo.to" and "languages" not in self.model_fields_set:
+            self.languages = []
+        if len(set(self.languages)) != len(self.languages) or any(
+            item not in identity.LANGUAGES
+            and not (self.provider == "filmo.to" and valid_language(item))
+            for item in self.languages
+        ):
+            raise ValueError("invalid requested languages")
         if self.params.keys() - PARAMS:
             raise ValueError("unsupported parameters")
         query = parse(self.params)
@@ -107,7 +117,7 @@ class EpisodeMap(Model):
 
 
 class Title(Model):
-    provider: Literal["aniworld.to", "s.to", "megakino"] = "aniworld.to"
+    provider: Literal["aniworld.to", "s.to", "megakino", "filmo.to"] = "aniworld.to"
     title_id: str = Field(pattern=r"^[0-9a-f]{64}$")
     identity_anchor: str = Field(max_length=1024)
     slug: str = Field(max_length=256)
@@ -149,7 +159,7 @@ class Title(Model):
 
 
 class Row(Model):
-    provider: Literal["aniworld.to", "s.to", "megakino"]
+    provider: Literal["aniworld.to", "s.to", "megakino", "filmo.to"]
     title_id: str = Field(pattern=r"^[0-9a-f]{64}$")
     entity_id: str = Field(pattern=r"^[0-9a-f]{64}$")
     release_id: str = Field(pattern=r"^[0-9a-f]{64}$")
@@ -161,7 +171,9 @@ class Row(Model):
     display_title: str = Field(max_length=512)
     year: int | None = Field(ge=1800, le=2200)
     kind: Literal["episode", "movie"]
-    language: Literal["de-dub", "en-dub", "de-sub", "en-sub"]
+    language: str = Field(max_length=64)
+    variant_anchor: str | None = Field(default=None, max_length=256)
+    release_metadata: dict | None = None
     native_season: int | None = Field(ge=0, le=2**31 - 1)
     native_episode: int | None = Field(ge=1, le=2**31 - 1)
     namespace: str | None = Field(max_length=16)
@@ -172,6 +184,14 @@ class Row(Model):
     observed_at: int = Field(ge=0)
 
     mappings: list[EpisodeMap] = Field(default_factory=list, max_length=4)
+
+    @model_serializer(mode="wrap")
+    def serialize(self, handler):
+        body = handler(self)
+        if self.provider != "filmo.to":
+            body.pop("variant_anchor", None)
+            body.pop("release_metadata", None)
+        return body
 
     @model_validator(mode="after")
     def identities(self) -> Self:
@@ -192,16 +212,22 @@ class Row(Model):
             raise ValueError("incomplete canonical map")
         if (self.season is None) != (self.episode is None):
             raise ValueError("incomplete episode map")
-        magnet.validate(
-            {
-                **{
-                    key: record[key]
-                    for key in magnet.PAYLOAD_FIELDS - {"mode", "canonical"}
-                },
-                "mode": "download",
-                "canonical": canonical,
-            }
-        )
+        grab = {
+            **{
+                key: record[key]
+                for key in magnet.PAYLOAD_FIELDS - {"mode", "canonical"}
+            },
+            "mode": "download",
+            "canonical": canonical,
+        }
+        if self.provider == "filmo.to":
+            grab.update(
+                variant_anchor=self.variant_anchor,
+                release_metadata=self.release_metadata,
+            )
+        elif self.variant_anchor is not None or self.release_metadata is not None:
+            raise ValueError("unexpected variant metadata")
+        magnet.validate(grab)
         if self.first_seen_at > self.observed_at:
             raise ValueError("discovery after observation")
         return self
@@ -215,7 +241,7 @@ class Response(Model):
     version: Literal[1] = 1
     query_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
     source_id: str = Field(pattern=r"^[a-z0-9._-]{1,64}$")
-    provider: Literal["aniworld.to", "s.to", "megakino"]
+    provider: Literal["aniworld.to", "s.to", "megakino", "filmo.to"]
     revision: int = Field(ge=1)
     snapshot_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
     listing_checked_at: int = Field(ge=0)
@@ -265,7 +291,11 @@ class Response(Model):
                 raise ValueError("row/title mismatch")
             if request.operation == "native" and row.title_id not in request.title_ids:
                 raise ValueError("unexpected title")
-            if request.operation == "recent" and row.language not in request.languages:
+            if (
+                request.operation == "recent"
+                and request.languages
+                and row.language not in request.languages
+            ):
                 raise ValueError("unexpected language")
             primary = next(
                 (m for m in title.mappings if m.namespace == row.namespace), None

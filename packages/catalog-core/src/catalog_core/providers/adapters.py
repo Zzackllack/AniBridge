@@ -6,7 +6,12 @@ from catalog_core.json_codec import require
 def adapter(provider: str):
     from importlib import import_module
 
-    modules = {"aniworld.to": "aniworld", "s.to": "sto", "megakino": "megakino"}
+    modules = {
+        "aniworld.to": "aniworld",
+        "s.to": "sto",
+        "megakino": "megakino",
+        "filmo.to": "filmo",
+    }
     require(provider in modules, "provider adapter unavailable")
     return import_module("." + modules[provider], __package__)
 
@@ -17,4 +22,5 @@ def listing_path(provider: str) -> str:
         "aniworld.to": "/animes-alphabet",
         "s.to": "/serien?by=alpha",
         "megakino": "/sitemap.xml",
+        "filmo.to": "/movies",
     }[provider]

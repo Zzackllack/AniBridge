@@ -27,7 +27,9 @@ def test_identity_golden():
     )
     assert identity.digest("é") == identity.digest("e\u0301")
     assert identity.search_key("Ｓtraße: Élan!") == "strasse élan"
-    assert len({identity.title_id(p, "/a") for p in identity.PROVIDERS}) == 3
+    assert len({identity.title_id(p, "/a") for p in identity.PROVIDERS}) == len(
+        identity.PROVIDERS
+    )
 
 
 @pytest.mark.parametrize(
@@ -67,7 +69,7 @@ def test_strict_json(raw):
         loads(raw)
 
 
-@pytest.mark.parametrize("provider", sorted(identity.PROVIDERS))
+@pytest.mark.parametrize("provider", sorted(identity.PROVIDERS - {"filmo.to"}))
 @pytest.mark.parametrize("movie", [False, True])
 def test_artifact_round_trip(tmp_path, provider, movie):
     compressed, payload, envelope, key = fixtures.build(tmp_path, provider, movie=movie)

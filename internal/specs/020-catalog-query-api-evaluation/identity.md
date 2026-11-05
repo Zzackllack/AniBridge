@@ -39,3 +39,27 @@ must not silently select another episode.
 Released `aw_*` and `sto_*` magnets remain accepted by the local compatibility
 decoder. Preserve their original hashes, history, categories and output paths;
 do not fabricate equivalence from equal native and canonical episode numbers.
+
+## Filmo source variants
+
+Filmo is a separate provider key, `filmo.to`. Public schema3/identity2 preserves
+the existing title/entity/mapping recipes and adds release identity
+`H(['ab-release-2', provider, entity_id, variant_anchor])`. The anchor scopes the
+native numeric link ID by a normalized declared-language-row/host context; the
+exact recipe is `providers.filmo.offer_metadata`. Raw tokens, quality text,
+canonical IDs and origins do not enter that anchor. Repeated native IDs under
+different language rows are separate choices; equal quality labels alone do not
+prove host-mirror equivalence.
+
+Magnet v3 uses `ab_v=3` and adds `variant_anchor` plus bounded `release_metadata`
+to the required payload. Old providers keep their original magnet/identity
+recipes. Admission freezes the complete source descriptor; resolution fails
+explicitly if the current provider no longer offers that selection. Cosmetic
+case/whitespace changes are tolerated, substantive quality/track changes are not.
+
+Filmo metadata uses independent audio/subtitle language lists, explicit unknown
+audio (`und`), unknown subtitle state (`null`), role/delivery claims and raw plus
+normalized quality labels. A subtitle language is never a spoken-language claim.
+Metadata claims do not establish actual streams, bitrate, codec, size or playback.
+Provider retirement/absence must preserve private release rows and first-seen;
+reappearance restores the same variant identity rather than inventing a new release.

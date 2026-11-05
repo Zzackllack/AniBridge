@@ -5,6 +5,7 @@ import re
 from urllib.parse import parse_qs, urlencode, urlsplit
 
 from . import identity as ident
+from . import release_metadata
 from .json_codec import ContractError, dumps, fields, integer, loads, require
 
 PAYLOAD_FIELDS = {
@@ -23,10 +24,12 @@ PAYLOAD_FIELDS = {
     "mode",
     "canonical",
 }
+VARIANT_FIELDS = {"variant_anchor", "release_metadata"}
 
 
 def validate(payload: dict) -> dict:
-    p = fields(payload, PAYLOAD_FIELDS)
+    variant = payload.get("provider") == "filmo.to"
+    p = fields(payload, PAYLOAD_FIELDS | VARIANT_FIELDS if variant else PAYLOAD_FIELDS)
     require(
         p["title_id"] == ident.title_id(p["provider"], p["title_anchor"]),
         "invalid title ID",
@@ -35,11 +38,22 @@ def validate(payload: dict) -> dict:
         p["entity_id"] == ident.entity_id(p["provider"], p["entity_anchor"]),
         "invalid entity ID",
     )
-    require(
-        p["release_id"]
-        == ident.release_id(p["provider"], p["entity_id"], p["language"]),
-        "invalid release ID",
-    )
+    if variant:
+        require(p["kind"] == "movie", "Filmo supports movie variants only")
+        metadata = release_metadata.validate(p["release_metadata"])
+        require(
+            metadata["variant_anchor"] == p["variant_anchor"]
+            and release_metadata.language(metadata) == p["language"],
+            "invalid variant metadata",
+        )
+        expected_release = ident.variant_release_id(
+            p["provider"], p["entity_id"], p["variant_anchor"]
+        )
+    else:
+        expected_release = ident.release_id(
+            p["provider"], p["entity_id"], p["language"]
+        )
+    require(p["release_id"] == expected_release, "invalid release ID")
     require(
         type(p["mode"]) is str and p["mode"] in {"download", "strm"},
         "invalid grab mode",
@@ -95,7 +109,7 @@ def encode(payload: dict, label: str) -> str:
         {
             "xt": "urn:btih:" + ident.infohash(p["release_id"], p["mode"]),
             "dn": label,
-            "ab_v": "2",
+            "ab_v": "3" if p["provider"] == "filmo.to" else "2",
             "ab_data": base64.urlsafe_b64encode(raw).decode().rstrip("="),
         },
         # Sonarr's MonoTorrent parser reads the xt URN without URL-decoding it.
@@ -127,7 +141,7 @@ def decode(value: str) -> tuple[str, dict, str]:
         and all(len(v) == 1 for v in params.values()),
         "invalid magnet fields",
     )
-    require(params["ab_v"] == ["2"], "unsupported magnet version")
+    require(params["ab_v"] in (["2"], ["3"]), "unsupported magnet version")
     token = params["ab_data"][0]
     require(
         re.fullmatch(r"[A-Za-z0-9_-]+", token) is not None, "invalid payload encoding"
@@ -138,6 +152,10 @@ def decode(value: str) -> tuple[str, dict, str]:
         "noncanonical payload encoding",
     )
     payload = validate(loads(raw, 8192))
+    require(
+        params["ab_v"] == (["3"] if payload["provider"] == "filmo.to" else ["2"]),
+        "magnet version/provider mismatch",
+    )
     infohash = ident.infohash(payload["release_id"], payload["mode"])
     require(params["xt"] == ["urn:btih:" + infohash], "grab hash mismatch")
     return infohash, payload, params["dn"][0]

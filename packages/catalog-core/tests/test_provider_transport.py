@@ -24,6 +24,40 @@ def test_retry_after_seconds_dates_and_bounds():
     assert retry_after("nonsense") == 60
 
 
+def test_movie_pagination_is_bounded_on_an_explicit_mirror_origin(monkeypatch):
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(200, stream=Stream(b"metadata"))
+
+    monkeypatch.setattr(
+        httpx, "AsyncHTTPTransport", lambda **kwargs: httpx.MockTransport(respond)
+    )
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [(2, 1, 6, "", ("93.184.216.34", 443))],
+    )
+
+    async def scenario():
+        origin = "https://mirror.example"
+        response = await fetch(origin, "/movies", query={"page": "175"})
+        assert response.outcome == "ok"
+        assert calls[0].headers["host"] == "mirror.example"
+        assert calls[0].url.query == b"page=175"
+        for query in (
+            {"page": "0"},
+            {"page": "10001"},
+            {"page": "2", "url": "https://other.example"},
+        ):
+            with pytest.raises(ValueError):
+                await fetch(origin, "/movies", query=query)
+        assert len(calls) == 1
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize(
     "status,outcome",
     [
@@ -149,7 +183,9 @@ def test_canonical_pool_retains_identifying_default_headers(monkeypatch):
         assert request.headers["User-Agent"] == "AniBridge-Metadata/1.0"
         assert request.headers["Accept"] == "*/*"
         assert request.headers["Accept-Encoding"] == "identity"
-        assert "cookie" not in request.headers and "authorization" not in request.headers
+        assert (
+            "cookie" not in request.headers and "authorization" not in request.headers
+        )
         return httpx.Response(200, stream=Stream(b"[]"))
 
     monkeypatch.setattr(

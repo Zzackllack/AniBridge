@@ -8,7 +8,7 @@ from urllib.parse import quote, unquote, urlsplit
 
 from .json_codec import require
 
-PROVIDERS = frozenset({"aniworld.to", "s.to", "megakino"})
+PROVIDERS = frozenset({"aniworld.to", "s.to", "megakino", "filmo.to"})
 LANGUAGES = frozenset({"de-dub", "en-dub", "de-sub", "en-sub"})
 NAMESPACES = frozenset({"tvdb", "tmdb-tv", "tmdb-movie", "imdb"})
 
@@ -73,6 +73,22 @@ def release_id(provider: str, entity: str, language: str) -> str:
         "unknown release variant",
     )
     return digest("ab-release-1", provider, entity, language)
+
+
+def variant_release_id(provider: str, entity: str, anchor: str) -> str:
+    """New source selections have a separate recipe; old grabs never rehash."""
+    require(provider == "filmo.to", "source variants unavailable for provider")
+    require(
+        type(entity) is str and re.fullmatch(r"[0-9a-f]{64}", entity) is not None,
+        "invalid entity ID",
+    )
+    require(
+        type(anchor) is str
+        and len(anchor) <= 256
+        and re.fullmatch(r"[A-Za-z0-9._:-]+", anchor) is not None,
+        "invalid variant anchor",
+    )
+    return digest("ab-release-2", provider, entity, anchor)
 
 
 def mapping_id(provider: str, title: str, namespace: str, external_id: str) -> str:

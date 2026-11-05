@@ -11,7 +11,7 @@ from contextlib import closing
 from importlib.resources import files
 from pathlib import Path
 
-from . import identity, row_validation
+from . import identity, release_metadata, row_validation
 from .diagnostics import phase
 from .json_codec import require
 from .manifest import TABLE_LIMITS, hex_digest
@@ -20,9 +20,11 @@ from .validation_scope import Scope
 DDL = files("catalog_core").joinpath("schema.sql").read_text()
 # Private admission receipts change when a validator bug is fixed. This is not
 # a wire schema/identity version and does not change published artifact bytes.
-VALIDATION_VERSION = 4
+VALIDATION_VERSION = 5
 DDL_V2 = files("catalog_core").joinpath("schema-v2.sql").read_text()
-SCHEMAS = {1: DDL, 2: DDL_V2}
+DDL_V3 = files("catalog_core").joinpath("schema-v3.sql").read_text()
+DDL_V3_FLAT = files("catalog_core").joinpath("schema-v3-flat.sql").read_text()
+SCHEMAS = {1: DDL, 2: DDL_V2, 3: DDL_V3}
 
 
 def create(path: Path, version: int = 1) -> sqlite3.Connection:
@@ -71,6 +73,10 @@ def _validate_definitions(
             ]
             for table in ("catalog", *TABLE_LIMITS)
         }
+        if version == 3:
+            columns["release"].extend(
+                [("variant_anchor", "TEXT", False), ("metadata", "TEXT", False)]
+            )
     for pragma, value in (
         ("application_id", 1094861633),
         ("user_version", version),
@@ -111,6 +117,9 @@ def _strings(row: sqlite3.Row) -> None:
         value = row[column]
         if not isinstance(value, str):
             continue
+        if column == "metadata":
+            release_metadata.decode(value)
+            continue
         if column.endswith("_id") and column not in {
             "external_id",
             "external_episode_id",
@@ -139,7 +148,7 @@ def _strings(row: sqlite3.Row) -> None:
 def row_count(db: sqlite3.Connection, table: str, version: int) -> int:
     """Count physical schema2 rows after relationships have been checked."""
     require(table in TABLE_LIMITS, "unknown count table")
-    physical = table + "_data" if version == 2 and table != "identity_alias" else table
+    physical = table + "_data" if version >= 2 and table != "identity_alias" else table
     return db.execute(f"SELECT count(*) FROM {physical}").fetchone()[0]
 
 
@@ -170,20 +179,20 @@ def validate(
             require(version in SCHEMAS, "unsupported artifact schema")
             require(scope is None or version == 2, "scoped validation requires schema2")
             columns = _validate_definitions(db, version)
-            if version == 2:
+            if version >= 2:
                 from .compact import validate_physical
 
-                validate_physical(db)
+                validate_physical(db, version)
         with phase("validation_integrity"):
             require(
                 db.execute("PRAGMA integrity_check").fetchall()[0][0] == "ok",
                 "corrupt SQLite",
             )
         with phase("validation_relationships"):
-            if version == 2:
+            if version >= 2:
                 from .compact import validate_foreign_keys
 
-                validate_foreign_keys(db)
+                validate_foreign_keys(db, version)
             else:
                 require(
                     db.execute("PRAGMA foreign_key_check").fetchone() is None,
@@ -202,7 +211,13 @@ def validate(
             )
             require(
                 tuple(catalog[0])
-                == (1, provider, version, 1, payload["listing_checked_at"]),
+                == (
+                    1,
+                    provider,
+                    version,
+                    2 if version == 3 else 1,
+                    payload["listing_checked_at"],
+                ),
                 "catalog metadata mismatch",
             )
             counts = {}
@@ -257,11 +272,32 @@ def validate(
                             "entity identity mismatch",
                         )
                     elif table == "release":
-                        require(
-                            row["release_id"]
-                            == identity.release_id(
+                        if provider == "filmo.to":
+                            require(
+                                version == 3, "Filmo requires source variant schema"
+                            )
+                            metadata = release_metadata.decode(row["metadata"])
+                            require(
+                                metadata["variant_anchor"] == row["variant_anchor"]
+                                and release_metadata.language(metadata)
+                                == row["language"],
+                                "variant metadata mismatch",
+                            )
+                            expected_release = identity.variant_release_id(
+                                provider, row["entity_id"], row["variant_anchor"]
+                            )
+                        else:
+                            require(
+                                version != 3
+                                or row["metadata"] is None
+                                and row["variant_anchor"] is None,
+                                "unexpected source variant",
+                            )
+                            expected_release = identity.release_id(
                                 provider, row["entity_id"], row["language"]
-                            ),
+                            )
+                        require(
+                            row["release_id"] == expected_release,
                             "release identity mismatch",
                         )
                     elif table == "canonical_title":
@@ -293,6 +329,10 @@ def validate(
                 "SELECT 1 FROM identity_alias a JOIN title t ON a.old_id=t.title_id WHERE a.kind='title' LIMIT 1",
                 "SELECT 1 FROM identity_alias a JOIN entity e ON a.old_id=e.entity_id WHERE a.kind='entity' LIMIT 1",
             ]
+            if provider == "filmo.to":
+                invalid_queries.append(
+                    "SELECT 1 FROM entity WHERE kind<>'movie' LIMIT 1"
+                )
             for query in invalid_queries:
                 require(
                     db.execute(query).fetchone() is None, "invalid semantic association"
@@ -318,7 +358,7 @@ def validate(
                 from .compact import release_summary
 
                 require(
-                    version == 2 and payload["release_summary"] == release_summary(db),
+                    version >= 2 and payload["release_summary"] == release_summary(db),
                     "invalid release summary",
                 )
         return counts

@@ -78,9 +78,15 @@ def validate_payload(p: dict) -> dict:
             "artifact",
         },
     )
-    for name in ("protocol_version", "identity_version"):
-        integer(p[name], 1, 1)
-    integer(p["catalog_schema_version"], 1, 2)
+    integer(p["protocol_version"], 1, 1)
+    integer(p["identity_version"], 1, 2)
+    integer(p["catalog_schema_version"], 1, 3)
+    require(
+        (p["catalog_schema_version"], p["identity_version"]) == (3, 2)
+        if p["provider"] == "filmo.to"
+        else p["catalog_schema_version"] in (1, 2) and p["identity_version"] == 1,
+        "schema/provider identity version mismatch",
+    )
     require(
         type(p["source_id"]) is str
         and re.fullmatch(r"[a-z0-9._-]{1,64}", p["source_id"]) is not None,
