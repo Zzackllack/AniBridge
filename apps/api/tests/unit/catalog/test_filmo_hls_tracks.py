@@ -396,6 +396,36 @@ def test_byse_captions_use_verified_transfer_and_join_the_filmo_manifest(
     assert progress[-1]["total_bytes"] == progress[-1]["downloaded_bytes"]
 
 
+def test_byse_caption_does_not_hide_known_video_byte_progress(tmp_path, monkeypatch):
+    from app.catalog.media_captions import CaptionTrack
+
+    movie = b"generated movie bytes" * 8192
+    caption = b"WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nGenerated\n"
+    calls = _transport(monkeypatch, {"/movie.mp4": movie, "/caption.vtt": caption})
+    progress = []
+
+    outputs = transfer(
+        "https://media.example/movie.mp4",
+        tmp_path,
+        progress.append,
+        selection={"audio_languages": ["eng"], "subtitle_languages": ["deu"]},
+        captions=(CaptionTrack("https://media.example/caption.vtt", "deu", "vtt"),),
+    )
+
+    total = len(movie) + len(caption)
+    intermediate = [
+        row
+        for row in progress
+        if row["total_bytes"] == total and 0 < row["downloaded_bytes"] < total
+    ]
+    assert intermediate, "known video and caption sizes must yield byte progress"
+    assert all(row["total_bytes_estimated"] is False for row in intermediate)
+    assert progress[-1]["downloaded_bytes"] == progress[-1]["total_bytes"] == total
+    assert calls.count("/caption.vtt") == 1
+    assert outputs[0].read_bytes() == movie
+    assert outputs[1].read_bytes() == caption
+
+
 @pytest.mark.skipif(
     not shutil.which("ffmpeg") or not shutil.which("ffprobe"),
     reason="native FFmpeg tools are required",

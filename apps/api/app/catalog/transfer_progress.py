@@ -93,7 +93,11 @@ class TransferProgress:
                         MAX_COUNTER,
                         int(
                             (eta if eta is not None else remaining / speed)
-                            + sum(track.total for track in future) / speed
+                            + sum(
+                                max(0, track.total - track.downloaded)
+                                for track in future
+                            )
+                            / speed
                         ),
                     )
                     if eta is not None or remaining is not None

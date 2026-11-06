@@ -72,6 +72,18 @@ def test_unknown_future_track_does_not_invent_a_size_or_eta():
     assert last["eta"] == 3
 
 
+def test_prefetched_caption_bytes_do_not_extend_remaining_time():
+    tracker = TransferProgress([{}, {}])
+    tracker.finish(1, 20)
+
+    video = tracker.update(
+        0, {"downloaded_bytes": 40, "total_bytes": 80, "speed": 10, "eta": 4}
+    )
+
+    assert video["total_bytes"] == 100 and video["downloaded_bytes"] == 60
+    assert video["eta"] == 4
+
+
 @pytest.mark.parametrize("total", [None, 0, -1, float("inf"), float("nan"), True])
 def test_invalid_totals_remain_unknown(total):
     update = TransferProgress([{}]).update(

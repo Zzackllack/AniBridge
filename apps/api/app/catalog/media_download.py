@@ -210,6 +210,26 @@ def transfer(
                     *({"url": "", "ext": caption.format} for caption in captions),
                 ]
             )
+            # Resolve the small, bounded caption transfers first. Otherwise an
+            # unknown future caption size hides byte progress for the video.
+            caption_files = ()
+            if selection is not None and captions:
+                from .media_captions import acquire_captions
+
+                caption_index = [base_track_count]
+
+                def caption_progress(values):
+                    progress(tracker.update(caption_index[0], values))
+                    if values.get("status") == "finished":
+                        caption_index[0] += 1
+
+                caption_files = acquire_captions(
+                    captions,
+                    ydl,
+                    state,
+                    directory,
+                    caption_progress,
+                )
             for number, item in enumerate(selected):
                 if item.get("protocol") is None:
                     item["protocol"] = "https"
@@ -277,23 +297,7 @@ def transfer(
                             "format": extension if kind == "subtitle" else None,
                         }
                     )
-            if selection is not None and captions:
-                from .media_captions import acquire_captions
-
-                caption_index = [base_track_count]
-
-                def caption_progress(values):
-                    progress(tracker.update(caption_index[0], values))
-                    if values.get("status") == "finished":
-                        caption_index[0] += 1
-
-                caption_files = acquire_captions(
-                    captions,
-                    ydl,
-                    state,
-                    directory,
-                    caption_progress,
-                )
+            if caption_files:
                 # Acquisition reports wire bytes. Normalizing CRLF/BOM changes
                 # the local size, so do not replace those transfer counters.
                 for caption in caption_files:
