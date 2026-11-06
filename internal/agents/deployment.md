@@ -53,7 +53,8 @@ private installation and [WORKER_UPDATES.md](../../scripts/catalog/query_pilot/W
 for an existing service. The generated Compose fixture is not a production
 collector. Collector minimum is 2 CPU/2 GiB; serving has a separate budget.
 
-Pin tested immutable images, preserve every configuration/volume/backup and
+Prefer tested immutable images; the worker guide also describes explicitly
+chosen moving tags for routine private-pilot updates. Preserve every configuration/volume/backup and
 use the private plan's version-guarded snapshot/verification/rollback commands.
 No image build or documentation change authorizes a deployment, restart,
 resource/routing change or state reset. Coolify writes use authenticated Zen

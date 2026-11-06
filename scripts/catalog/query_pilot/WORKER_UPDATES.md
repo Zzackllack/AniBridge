@@ -1,9 +1,25 @@
 # State-preserving worker updates
 
-Updates require a tested full commit and an immutable manifest digest. Moving
-PR/source tags can change on rebuild. Publishing an image never authorizes a
+Migration/recovery plans require a tested full commit and an immutable manifest
+digest. Moving PR/source tags can change on rebuild. Publishing never authorizes a
 deployment. Re-read saved Compose and current worker configuration before
 preparing a plan; preserve unrelated editor drafts.
+
+## Routine private-pilot updates
+
+A maintainer may explicitly choose the moving `pr-170` preview tag for this
+disposable testing service. With `pull_policy: always` on all three components,
+Coolify's **Pull latest and restart** adopts the published image. Pushing alone
+does not deploy it; wait for the chosen commit's tests and manifest publication.
+Record the actual source revision and digest before and after the update, retain
+the previous compatible image and backups, and verify queries and collection.
+Keep volumes, configuration, resources and networks intact.
+
+For a code-only update that preserves the private/public schemas and recovery
+behavior, a full-ledger copy rehearsal is not required on every push. Use the
+full procedure below when migrations, storage formats or recovery change, or
+when investigating preservation. A reported backup is not a tested restore.
+Moving tags do not make an older binary able to read a newer schema.
 
 ## Prepare and review
 
