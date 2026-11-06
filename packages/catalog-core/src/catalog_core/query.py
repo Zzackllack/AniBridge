@@ -209,8 +209,20 @@ def query(
             if not allowed and provider != "filmo.to":
                 continue
             if allowed and allowed != set(LANGUAGES):
-                where.append(f"r.language IN ({','.join('?' for _ in allowed)})")
-                args.extend(sorted(allowed))
+                placeholders = ",".join("?" for _ in allowed)
+                if provider == "filmo.to" and "mul" not in allowed:
+                    # Multi-audio offers use one compact release.language value.
+                    # Keep them selectable by any declared track language.
+                    where.append(
+                        f"(r.language IN ({placeholders}) OR (r.language='mul' AND EXISTS ("
+                        f"SELECT 1 FROM json_each(r.metadata,'$.audio_languages') audio "
+                        f"WHERE audio.value IN ({placeholders}))))"
+                    )
+                    args.extend(sorted(allowed))
+                    args.extend(sorted(allowed))
+                else:
+                    where.append(f"r.language IN ({placeholders})")
+                    args.extend(sorted(allowed))
             category_expr = f"CASE WHEN e.kind='movie' THEN {int(movie_category)} WHEN '{provider}'='aniworld.to' THEN {int(anime_category)} ELSE 5000 END"
             if request.categories is not None:
                 where.append(
@@ -264,7 +276,16 @@ def query(
                     if hasattr(db, "oldest_release")
                     else oldest_release(db, metadata["catalog_schema_version"])
                 )
-            summary = metadata.get("release_summary") if compact else None
+            # release_summary groups by the scalar release language. It cannot
+            # count multilingual rows for a single-track language request.
+            multiaudio_filter = (
+                provider == "filmo.to" and bool(allowed) and "mul" not in allowed
+            )
+            summary = (
+                metadata.get("release_summary")
+                if compact and not multiaudio_filter
+                else None
+            )
             summary_count = None
             if (
                 summary is not None

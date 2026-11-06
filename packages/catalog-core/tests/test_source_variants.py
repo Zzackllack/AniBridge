@@ -10,7 +10,7 @@ from catalog_core import identity, magnet, query, release_metadata, schema
 from catalog_core.compact import Writer, release_summary
 from catalog_core.json_codec import ContractError, dumps
 from catalog_core.manifest import TABLE_LIMITS
-from catalog_core.protocol import Request, Row
+from catalog_core.protocol import Request, Response, Row, Title, request_digest
 
 NOW = 1800000000
 PATH = "/movies/example"
@@ -34,13 +34,21 @@ def offer(native="17", audio="deu", resolution=720):
     }
 
 
-def catalog(tmp_path):
+def catalog(tmp_path, *, include_dual_audio=False):
     path = tmp_path / "variants.sqlite"
     db = schema.create(path, 3)
     writer = Writer(db, 3)
     tid, eid = identity.title_id("filmo.to", PATH), identity.entity_id("filmo.to", PATH)
     offers = [offer(), offer("18", resolution=1080), offer("19", "jpn")]
     offers[2].update(subtitle_languages=["deu"], subtitle_mode="hard")
+    if include_dual_audio:
+        dual = offer("20", "eng")
+        dual.update(
+            variant_anchor="20:dual",
+            language_label="English Dub + Japanese Dub",
+            audio_languages=["eng", "jpn"],
+        )
+        offers.append(dual)
     with db:
         writer.insert("catalog", (1, "filmo.to", 3, 2, NOW))
         writer.insert(
@@ -94,6 +102,35 @@ def catalog(tmp_path):
         "artifact": {"sqlite_sha256": "0" * 64},
     }
     return path, payload
+
+
+def flat_store(tmp_path, source_path, release_count):
+    """Build the API's bounded flat Filmo projection for local filtering."""
+    path = tmp_path / "local-filmo.sqlite"
+    db = sqlite3.connect(path)
+    db.executescript(schema.DDL_V3_FLAT)
+    db.executescript(
+        "ALTER TABLE release ADD COLUMN variant_anchor TEXT;"
+        "ALTER TABLE release ADD COLUMN metadata TEXT;"
+    )
+    with schema.connect(source_path) as source, db:
+        db.execute("INSERT INTO catalog VALUES(1,'filmo.to',3,2,?)", (NOW,))
+        for table in ("title", "entity", "release"):
+            records = [tuple(row) for row in source.execute(f"SELECT * FROM {table}")]
+            db.executemany(
+                f"INSERT INTO {table} VALUES({','.join('?' for _ in records[0])})",
+                records,
+            )
+    db.close()
+    return Store(
+        path,
+        {
+            "provider": "filmo.to",
+            "catalog_schema_version": 1,
+            "artifact": {"sqlite_sha256": "0" * 64},
+            "counts": {"release": release_count},
+        },
+    )
 
 
 class Store:
@@ -177,6 +214,81 @@ def test_recent_summary_counts_all_filmo_languages_and_explicit_audio_filter(tmp
         store, parsed, now=NOW, languages={"filmo.to": {"jpn"}}
     )
     assert total == len(rows) == 1 and rows[0]["language"] == "jpn"
+
+
+def test_multiaudio_offers_match_any_requested_track_before_count_and_page(tmp_path):
+    path, payload = catalog(tmp_path, include_dual_audio=True)
+    store = Store(path, payload)
+    parsed = query.parse({"t": "movie", "limit": "1"})
+    english, english_total, _ = query.query(
+        store, parsed, now=NOW, languages={"filmo.to": {"eng"}}
+    )
+    assert english_total == len(english) == 1
+    dual = english[0]
+    assert dual["language"] == "mul"
+    assert dual["release_metadata"]["native_id"] == "20"
+
+    local, local_total, _ = query.query(
+        flat_store(tmp_path, path, 4),
+        parsed,
+        now=NOW,
+        languages={"filmo.to": {"eng"}},
+    )
+    assert local_total == len(local) == 1
+    assert local[0]["release_metadata"]["native_id"] == "20"
+
+    japanese, japanese_total, _ = query.query(
+        store, parsed, now=NOW, languages={"filmo.to": {"jpn"}}
+    )
+    japanese_tail, tail_total, _ = query.query(
+        store,
+        query.parse({"t": "movie", "limit": "1", "offset": "1"}),
+        now=NOW,
+        languages={"filmo.to": {"jpn"}},
+    )
+    assert japanese_total == tail_total == 2
+    assert len(japanese) == len(japanese_tail) == 1
+    assert {
+        row["release_metadata"]["native_id"] for row in japanese + japanese_tail
+    } == {"19", "20"}
+
+    request = Request(
+        operation="recent",
+        provider="filmo.to",
+        params={"t": "movie"},
+        limit=100,
+        languages=["eng"],
+    )
+    wire_row = Row.model_validate(
+        {key: value for key, value in dual.items() if key in Row.model_fields}
+    )
+    title = Title(
+        provider="filmo.to",
+        title_id=dual["title_id"],
+        identity_anchor=dual["title_anchor"],
+        slug=dual["slug"],
+        display_title=dual["display_title"],
+        search_key=identity.search_key(dual["display_title"]),
+        media_type="movie",
+        year=dual["year"],
+        path=dual["path"],
+        observed_at=dual["observed_at"],
+        detail_status="complete",
+    )
+    response = Response(
+        query_digest=request_digest(request),
+        source_id="variants",
+        provider="filmo.to",
+        revision=1,
+        snapshot_digest=dual["snapshot_digest"],
+        listing_checked_at=NOW,
+        total=1,
+        offset=0,
+        mapping="unresolved",
+        rows=[wire_row],
+        titles=[title],
+    )
+    response.check_request(request, "variants")
 
 
 @pytest.mark.parametrize(

@@ -291,12 +291,18 @@ class Response(Model):
                 raise ValueError("row/title mismatch")
             if request.operation == "native" and row.title_id not in request.title_ids:
                 raise ValueError("unexpected title")
-            if (
-                request.operation == "recent"
-                and request.languages
-                and row.language not in request.languages
-            ):
-                raise ValueError("unexpected language")
+            check_languages = request.operation == "recent" or (
+                request.provider == "filmo.to" and request.operation == "native"
+            )
+            if check_languages and request.languages:
+                matches_language = row.language in request.languages
+                if request.provider == "filmo.to" and row.release_metadata is not None:
+                    matches_language |= bool(
+                        set(row.release_metadata["audio_languages"])
+                        & set(request.languages)
+                    )
+                if not matches_language:
+                    raise ValueError("unexpected language")
             primary = next(
                 (m for m in title.mappings if m.namespace == row.namespace), None
             )
