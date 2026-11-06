@@ -36,8 +36,9 @@ provider unavailability retain distinct reasons. None implies a provider ban
 without supporting evidence.
 
 Keep source titles/native coordinates and positive language observations.
-Missing markup or an absent language flag cannot erase previously valid data.
-Empty/unavailable templates do not satisfy outstanding detail retries.
+Missing language/host markup and empty provider templates are parse gaps; they
+cannot withdraw previously valid offers or satisfy outstanding detail retries.
+Only explicit upstream negative evidence may mark an offer set unavailable.
 Observation failures, retry receipts and signal acknowledgements share one
 transaction. Unexpected writer termination must stop waiting producers.
 Complete season evidence can settle recent-feed obligations without postponing

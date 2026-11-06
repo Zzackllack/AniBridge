@@ -95,12 +95,43 @@ def test_detail_rejects_conflicting_duplicate_identity() -> None:
         fixture("filmo-detail.html")
         .replace(
             '<span class="provider-row__lang">Español</span>'.encode(),
-            '<span class="provider-row__lang">Japanese Sub / German Dub</span>'.encode(),
+            b'<span class="provider-row__lang">Japanese Sub / German Dub</span>',
         )
         .replace(b'aria-label="Byse"', b'aria-label="VOE"', 1)
     )
 
     with pytest.raises(ContractError, match="ambiguous duplicate"):
+        parse(body, "detail", "/movies/example-film")
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "reason"),
+    [
+        (
+            b'<span class="provider-row__lang">Japanese Sub / German Dub</span>',
+            b"",
+            "missing Filmo offer language",
+        ),
+        (
+            b'<span class="provider-row__lang">Japanese Sub / German Dub</span>',
+            b'<span class="provider-row__lang">   </span>',
+            "missing Filmo offer language",
+        ),
+        (b' aria-label="VOE"', b"", "missing Filmo offer host"),
+        (b' aria-label="VOE"', b' aria-label="  "', "missing Filmo offer host"),
+        (
+            b' aria-label="VOE"',
+            b' aria-label="' + b"X" * 65 + b'"',
+            "Filmo label too large",
+        ),
+    ],
+)
+def test_detail_rejects_missing_empty_or_oversized_offer_context(
+    old: bytes, new: bytes, reason: str
+) -> None:
+    body = fixture("filmo-detail.html").replace(old, new, 1)
+
+    with pytest.raises(ContractError, match=reason):
         parse(body, "detail", "/movies/example-film")
 
 
@@ -155,6 +186,17 @@ def test_offer_anchor_is_stable_across_cosmetic_language_changes() -> None:
     assert first["variant_anchor"] != different_row["variant_anchor"]
 
 
+def test_offer_metadata_requires_explicit_context_but_keeps_declared_unknown() -> None:
+    with pytest.raises(ContractError, match="missing Filmo offer host"):
+        offer_metadata("1001", "", "English", [])
+    with pytest.raises(ContractError, match="missing Filmo offer language"):
+        offer_metadata("1001", "VOE", "", [])
+
+    unknown = offer_metadata("1001", "VOE", "unknown", [])
+    assert unknown["language_label"] == "unknown"
+    assert unknown["audio_languages"] == ["und"]
+
+
 def test_conflicting_quality_claims_stay_unknown() -> None:
     offer = offer_metadata("1001", "VOE", "English", ["WEB", "BluRay", "720p", "1080p"])
 
@@ -204,15 +246,13 @@ def test_unknown_audio_rows_count_distinct_labels_without_dropping_offers() -> N
     assert all(offer["audio_languages"] == ["und"] for offer in page.offers)
 
 
-def test_empty_provider_rows_are_unavailable_but_missing_rows_are_a_parse_gap() -> None:
+def test_empty_provider_rows_are_a_parse_gap() -> None:
     empty_providers = b"""<!doctype html><html><body>
       <div id="movie-detail-page"></div><h1>Example Film</h1>
       <div class="provider-rows"></div>
     </body></html>"""
-    assert (
-        parse(empty_providers, "detail", "/movies/example-film").availability
-        == "unavailable"
-    )
+    with pytest.raises(ContractError, match="no complete provider offers"):
+        parse(empty_providers, "detail", "/movies/example-film")
     missing_providers = empty_providers.replace(
         b'<div class="provider-rows"></div>', b""
     )

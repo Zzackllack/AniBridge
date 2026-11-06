@@ -9,6 +9,7 @@ from catalog_core.protocol import Request
 from catalog_core.providers.aniworld import Link
 from catalog_core.providers.filmo import parse
 
+from catalog_worker.aniworld import Page
 from catalog_worker.config import LIMITS, Config
 from catalog_worker.listing import Links, Traversal
 from catalog_worker.query_reader import execute
@@ -268,13 +269,7 @@ def test_unavailable_offer_withdrawal_and_reappearance_preserve_history(tmp_path
             "SELECT content_generation FROM publication_meta"
         ).fetchone()[0]
 
-        unavailable = parse(
-            b"""<html><body><div id="movie-detail-page" data-movie-id="41"></div>
-            <h1>Observed Film</h1><div class="provider-rows"></div></body></html>""",
-            "detail",
-            movie_path,
-        )
-        assert unavailable.availability == "unavailable" and not unavailable.offers
+        unavailable = Page((), (), 0, "Observed Film", availability="unavailable")
         state.detail(work, unavailable, NOW)
         active = state.db.execute(
             "SELECT count(*) FROM release_metadata WHERE available=1"

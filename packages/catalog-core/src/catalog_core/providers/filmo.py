@@ -231,8 +231,10 @@ def offer_metadata(
     """Build one stable offer record, excluding all ephemeral player data."""
     require(ID.fullmatch(native_id) is not None, "invalid Filmo offer ID")
     host = _valid_label(host, 64)
+    require(bool(host), "missing Filmo offer host")
     host = {"voe": "VOE", "byse": "Byse"}.get(host.casefold(), host)
-    language_label = _valid_label(language_label or "unknown", 128)
+    language_label = _valid_label(language_label, 128)
+    require(bool(language_label), "missing Filmo offer language")
     language_key = " ".join(
         unicodedata.normalize("NFKC", language_label).casefold().split()
     )
@@ -278,6 +280,7 @@ class FilmoParser(HTMLParser):
         self.provider_rows_seen = False
         self.provider_container_seen = False
         self.row_language = ""
+        self.row_language_seen = False
         self.row_lang_text: list[str] | None = None
         self.row_lang_depth = 0
         self.chip_depth = 0
@@ -327,6 +330,7 @@ class FilmoParser(HTMLParser):
             self.row_depth += 1
             self.provider_rows_seen = True
             self.row_language = ""
+            self.row_language_seen = False
         elif self.row_depth and tag not in VOID_TAGS:
             self.row_depth += 1
         if "provider-rows" in classes:
@@ -363,11 +367,17 @@ class FilmoParser(HTMLParser):
         elif self.row_lang_text is not None and tag not in VOID_TAGS:
             self.row_lang_depth += 1
         if is_chip:
+            require(
+                self.row_language_seen and bool(self.row_language),
+                "missing Filmo offer language",
+            )
             native_id = values.get("data-movie-link-id") or ""
             require(ID.fullmatch(native_id) is not None, "invalid Filmo offer ID")
+            host = _valid_label(values.get("aria-label") or "", 64)
+            require(bool(host), "missing Filmo offer host")
             self.chip = {
                 "native_id": native_id,
-                "host": _valid_label(values.get("aria-label") or "unknown", 128),
+                "host": host,
             }
             self.tag_depth = 0
         if self.chip_depth and "provider-chip__metadata-tag" in classes:
@@ -420,6 +430,8 @@ class FilmoParser(HTMLParser):
             self.row_lang_depth -= 1
             if self.row_lang_depth == 0:
                 self.row_language = _valid_label("".join(self.row_lang_text), 128)
+                require(bool(self.row_language), "missing Filmo offer language")
+                self.row_language_seen = True
                 self.row_lang_text = None
         if self.tag_depth and tag in {"span", "small", "strong", "b"}:
             label = _valid_label("".join(self.tag_text), 64)
@@ -435,9 +447,11 @@ class FilmoParser(HTMLParser):
             self.chip_depth -= 1
             if self.chip_depth == 0 and self.chip is not None:
                 labels = self.chip.get("labels", "").splitlines()
-                host = self.chip["host"][:64]
                 offer = offer_metadata(
-                    self.chip["native_id"], host, self.row_language, labels
+                    self.chip["native_id"],
+                    self.chip["host"],
+                    self.row_language,
+                    labels,
                 )
                 variant = offer["variant_anchor"]
                 prior = next(
@@ -516,6 +530,7 @@ def parse(
         parser.provider_container_seen or parser.provider_rows_seen,
         "Filmo detail missing provider rows",
     )
+    require(bool(parser.offers), "Filmo detail has no complete provider offers")
     require(len(parser.imdb_ids) <= 1, "conflicting Filmo IMDb IDs")
     aliases = tuple(sorted(parser.aliases - titles))
     unknown_labels = {
@@ -534,5 +549,5 @@ def parse(
         explicit_imdb=next(iter(parser.imdb_ids), None),
         aliases=aliases,
         offers=tuple(parser.offers),
-        availability="unavailable" if not parser.offers else "available",
+        availability="available",
     )
