@@ -128,7 +128,7 @@ def load(path: Path) -> Config:
     )
     require(
         sources.get("tv", "skyhook") in ("skyhook", "off")
-        and sources.get("movie", "off") in ("tmdb", "off"),
+        and sources.get("movie", "off") in ("tmdb", "radarr", "off"),
         "invalid canonical source",
     )
     require(

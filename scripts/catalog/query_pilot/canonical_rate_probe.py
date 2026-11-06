@@ -8,26 +8,58 @@ This measures a finite backlog, not an upstream quota or sustainable capacity.
 import argparse
 import asyncio
 import json
-import shutil
+import sqlite3
 import time
 from collections import Counter
+from contextlib import closing
 from pathlib import Path
 
+from catalog_core.identity import PROVIDERS as CATALOG_PROVIDERS
 from catalog_core.providers.transport import Session
 from mapping_replay import metrics, resources
 
 from catalog_worker import canonical_cache
 from catalog_worker.canonical import Enricher
 from catalog_worker.state import State
+from catalog_worker.state_migrations import preflight
 
-PROVIDERS = ("aniworld.to", "s.to")
+DEFAULT_PROVIDERS = ("aniworld.to", "s.to")
+SUPPORTED_PROVIDERS = tuple(sorted(CATALOG_PROVIDERS))
+EXPECTED_VERSIONS = {"filmo.to": 8, "aniworld.to": 7, "s.to": 7, "megakino": 7}
+
+
+def selected_providers(args) -> tuple[str, ...]:
+    requested = getattr(args, "providers", None)
+    providers = tuple(DEFAULT_PROVIDERS if requested is None else requested)
+    if (
+        not providers
+        or len(set(providers)) != len(providers)
+        or not set(providers) <= set(SUPPORTED_PROVIDERS)
+    ):
+        raise ValueError("explicit supported providers required")
+    return providers
+
+
+def copy_consistent(source: Path, target: Path) -> None:
+    """Create a SQLite-consistent copy from an explicitly marked baseline."""
+    with (
+        closing(
+            sqlite3.connect(
+                source.resolve().as_uri() + "?mode=ro",
+                uri=True,
+            )
+        ) as src,
+        closing(sqlite3.connect(target)) as dst,
+    ):
+        src.backup(dst)
+        dst.execute("PRAGMA journal_mode=DELETE")
 
 
 def eligible(state: State, enricher: Enricher, now: int) -> dict:
     kinds = []
     if enricher.sources.get("tv", "skyhook") != "off":
         kinds.append("series")
-    if enricher.sources.get("movie", "off") == "tmdb":
+    if enricher.sources.get("movie", "off") in ("tmdb", "radarr"):
         kinds.append("movie")
     if not kinds:
         return {"parents": 0, "oldest_due_age_s": None, "unknown_eligibility_age": 0}
@@ -129,13 +161,17 @@ class Probe:
 
 
 async def step(args, probe: Probe, rate: int) -> dict:
+    providers = selected_providers(args)
     work = args.candidate / str(rate)
     work.mkdir()
     states = []
-    for provider in PROVIDERS:
+    for provider in providers:
         filename = provider + ".sqlite"
-        shutil.copyfile(args.baseline / filename, work / filename)
-        states.append(State(work / filename, provider))
+        source, copied = args.baseline / filename, work / filename
+        copy_consistent(source, copied)
+        if preflight(copied, provider) != EXPECTED_VERSIONS[provider]:
+            raise ValueError("copied provider baseline schema version mismatch")
+        states.append(State(copied, provider))
     enricher = Enricher(
         args.sources, states=states, fetcher=probe.fetch, requests_per_minute=rate
     )
@@ -151,7 +187,7 @@ async def step(args, probe: Probe, rate: int) -> dict:
     }
     usage = resources()
     start = time.monotonic()
-    examined = {provider: Counter() for provider in PROVIDERS}
+    examined = {provider: Counter() for provider in providers}
     try:
         async with asyncio.timeout(args.seconds):
             while not probe.stop:
@@ -179,10 +215,11 @@ async def step(args, probe: Probe, rate: int) -> dict:
     }
     useful = sum(
         after[p]["ledger"]["usable_mapped"] - before[p]["ledger"]["usable_mapped"]
-        for p in PROVIDERS
+        for p in providers
     )
     requests = len(probe.starts) - start_offset
     result = {
+        "providers": list(providers),
         "configured_requests_per_minute": rate,
         "duration_s": round(elapsed, 4),
         "requests": requests,
@@ -216,17 +253,67 @@ async def step(args, probe: Probe, rate: int) -> dict:
 
 
 async def run(args):
+    providers = selected_providers(args)
+    args.providers = providers
+    rates = tuple(args.rates)
     if (
-        args.baseline.resolve() == args.candidate.resolve()
-        or not (args.candidate / "COPY_ONLY").is_file()
+        not rates
+        or len(set(rates)) != len(rates)
+        or any(type(rate) is not int or not 4 <= rate <= 120 for rate in rates)
     ):
-        raise ValueError("explicit disposable candidate required")
-    if not (args.baseline / "COPY_ONLY").is_file():
-        raise ValueError("consistent disposable baseline required")
-    if args.output.exists() or not args.output.resolve().is_relative_to(
-        args.candidate.resolve()
+        raise ValueError("distinct bounded request rates required")
+    args.rates = rates
+    if args.baseline.is_symlink() or args.candidate.is_symlink():
+        raise ValueError("baseline and candidate roots cannot be symlinks")
+    baseline = args.baseline.resolve()
+    candidate = args.candidate.resolve()
+    if (
+        not baseline.is_dir()
+        or baseline.is_symlink()
+        or not candidate.is_dir()
+        or candidate.is_symlink()
+        or baseline == candidate
+        or baseline.is_relative_to(candidate)
+        or candidate.is_relative_to(baseline)
+    ):
+        raise ValueError(
+            "separate baseline and disposable candidate directories required"
+        )
+    for root in (baseline, candidate):
+        marker = root / "COPY_ONLY"
+        if not marker.is_file() or marker.is_symlink():
+            raise ValueError("marked disposable copy required")
+    if (
+        args.output.exists()
+        or args.output.is_symlink()
+        or not args.output.resolve().is_relative_to(candidate)
     ):
         raise ValueError("new output must be inside disposable candidate")
+    if any(
+        (candidate / (provider + ".sqlite")).exists()
+        or (candidate / (provider + ".sqlite")).is_symlink()
+        for provider in SUPPORTED_PROVIDERS
+    ):
+        raise ValueError("candidate root must not contain worker ledgers")
+    if any(
+        (candidate / str(rate)).exists() or (candidate / str(rate)).is_symlink()
+        for rate in rates
+    ):
+        raise ValueError("candidate rate-copy path already exists")
+    if not args.output.parent.resolve().is_relative_to(candidate):
+        raise ValueError("output parent must be inside disposable candidate")
+    if not args.output.parent.resolve().is_dir():
+        raise ValueError("output parent must already exist")
+    args.baseline = baseline
+    args.candidate = candidate
+    args.output = args.output.resolve()
+    for provider in providers:
+        filename = baseline / (provider + ".sqlite")
+        if not filename.is_file() or filename.is_symlink():
+            raise ValueError("selected provider ledger missing from baseline copy")
+        version = preflight(filename, provider)
+        if version != EXPECTED_VERSIONS[provider]:
+            raise ValueError("selected provider baseline schema version mismatch")
     probe = Probe()
     results = []
     try:
@@ -237,6 +324,7 @@ async def run(args):
                 json.dumps(
                     {
                         "evidence": "live canonical metadata on consistent disposable copies; no provider fetches or publication",
+                        "providers": list(providers),
                         "steps": results,
                     },
                     indent=2,
@@ -264,6 +352,12 @@ if __name__ == "__main__":
     for name in ("baseline", "candidate", "config", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--seconds", type=int, choices=range(60, 181), default=130)
+    parser.add_argument(
+        "--providers",
+        nargs="+",
+        choices=SUPPORTED_PROVIDERS,
+        help="explicit provider subset; defaults to aniworld.to and s.to",
+    )
     parser.add_argument(
         "--rates", type=int, nargs="+", choices=range(4, 121), default=[30, 60, 90]
     )

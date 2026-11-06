@@ -23,6 +23,8 @@ from .canonical_failures import CanonicalUnavailable, Failure, request_phase, ve
 from .canonical_ids import identifiers
 from .mapping import CanonicalTitle, match_title
 from .movie_canonical import lookup as movie_lookup
+from .radarr_movie_canonical import PROVENANCE as RADARR_MOVIE_PROVENANCE
+from .radarr_movie_canonical import lookup as radarr_movie_lookup
 from .state import State
 from .transport import fetch
 
@@ -228,7 +230,7 @@ class Enricher:
         kinds = []
         if self.sources.get("tv", "skyhook") != "off":
             kinds.append("series")
-        if self.sources.get("movie", "off") == "tmdb":
+        if self.sources.get("movie", "off") in ("tmdb", "radarr"):
             kinds.append("movie")
         if not kinds:
             return False
@@ -319,9 +321,14 @@ class Enricher:
             try:
                 self.failure_phase = "search"
                 if row["media_type"] == "movie":
-                    mapped, details = await movie_lookup(
-                        self.request, row, names, self.token
-                    )
+                    if self.sources.get("movie") == "radarr":
+                        mapped, details = await radarr_movie_lookup(
+                            self.request, row, names
+                        )
+                    else:
+                        mapped, details = await movie_lookup(
+                            self.request, row, names, self.token
+                        )
                     if mapped:
                         outcome = "matched"
                 else:
@@ -508,7 +515,11 @@ class Enricher:
                                     row["title_id"],
                                     namespace,
                                     external_id,
-                                    "tmdb-v3"
+                                    (
+                                        RADARR_MOVIE_PROVENANCE
+                                        if self.sources.get("movie") == "radarr"
+                                        else "tmdb-v3"
+                                    )
                                     if row["media_type"] == "movie"
                                     # Existing allowlist authority tag is kept;
                                     # compact private evidence records the API.

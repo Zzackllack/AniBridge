@@ -97,7 +97,9 @@ def test_prepare_server_keeps_defaults_and_only_adds_filmo_when_requested(
         load(filmo_dir / "worker.json").providers.keys() == worker["providers"].keys()
     )
     assert worker["canonical_sources"]["movie"] == "off"
-    assert "TMDb token" in capsys.readouterr().out
+    message = capsys.readouterr().out
+    assert "canonical_sources.movie to radarr" in message
+    assert "tmdb with a private token" in message
 
 
 def test_prepare_server_rejects_invalid_origin_and_never_replaces_credentials(

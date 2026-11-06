@@ -226,3 +226,112 @@ def test_eligibility_includes_episode_replay_and_does_not_guess_its_age(
         "unknown_eligibility_age": 0,
     }
     state.close()
+
+
+def test_eligibility_includes_movies_when_radarr_is_selected(tmp_path, rate_probe):
+    state = ready(tmp_path)
+    with state.db:
+        state.db.execute("UPDATE title SET media_type='movie'")
+    enricher = Enricher({"tv": "off", "movie": "radarr"})
+
+    assert rate_probe.eligible(state, enricher, NOW)["parents"] == 1
+
+    state.close()
+
+
+def test_rate_probe_measures_filmo_movies_from_explicit_marked_v8_copy(
+    tmp_path, rate_probe
+):
+    baseline, candidate = tmp_path / "baseline", tmp_path / "candidate"
+    baseline.mkdir()
+    candidate.mkdir()
+    (baseline / "COPY_ONLY").touch()
+    (candidate / "COPY_ONLY").touch()
+
+    from catalog_core.identity import title_id
+
+    path = "/movies/probe-fixture"
+    tid = title_id("filmo.to", path)
+    state = State(baseline / "filmo.to.sqlite", "filmo.to")
+    with state.db:
+        state.db.execute(
+            "INSERT INTO title VALUES(?,?,?,'Probe movie','probe movie','movie',2020,?,?,'complete')",
+            (tid, path, "probe-fixture", path, NOW),
+        )
+        state.db.execute(
+            "INSERT INTO title_schedule VALUES(?,?,?,?)", (tid, NOW, NOW, NOW)
+        )
+        state.db.execute("INSERT INTO mapping_input(title_id) VALUES(?)", (tid,))
+    state.close()
+
+    args = SimpleNamespace(
+        baseline=baseline,
+        candidate=candidate,
+        providers=("filmo.to",),
+        sources={"tv": "off", "movie": "radarr"},
+        seconds=0.01,
+        rates=[30],
+        output=candidate / "measure.json",
+    )
+    asyncio.run(rate_probe.run(args))
+
+    result = json.loads(args.output.read_text())
+    assert result["providers"] == ["filmo.to"]
+    step = result["steps"][0]
+    assert step["before"]["filmo.to"]["eligible"]["parents"] == 1
+    assert step["after"]["filmo.to"]["eligible"]["parents"] == 0
+    assert step["requests"] == 0
+    copied = candidate / "30" / "filmo.to.sqlite"
+    from catalog_worker.state_migrations import preflight
+
+    assert preflight(copied, "filmo.to") == 8
+
+
+def test_rate_probe_refuses_unmarked_or_missing_provider_ledgers(tmp_path, rate_probe):
+    baseline, candidate = tmp_path / "baseline", tmp_path / "candidate"
+    baseline.mkdir()
+    candidate.mkdir()
+    (baseline / "COPY_ONLY").touch()
+    (candidate / "COPY_ONLY").touch()
+    args = SimpleNamespace(
+        baseline=baseline,
+        candidate=candidate,
+        providers=("filmo.to",),
+        sources={"tv": "off", "movie": "radarr"},
+        seconds=0.01,
+        rates=[30],
+        output=candidate / "measure.json",
+    )
+
+    with pytest.raises(ValueError, match="ledger missing"):
+        asyncio.run(rate_probe.run(args))
+
+    assert not args.output.exists()
+    assert list(candidate.iterdir()) == [candidate / "COPY_ONLY"]
+
+
+def test_rate_probe_never_opens_candidate_root_ledger(tmp_path, rate_probe):
+    baseline, candidate = tmp_path / "baseline", tmp_path / "candidate"
+    baseline.mkdir()
+    candidate.mkdir()
+    (baseline / "COPY_ONLY").touch()
+    (candidate / "COPY_ONLY").touch()
+    live_marker = candidate / "filmo.to.sqlite"
+    live_marker.write_bytes(b"must-not-open")
+    args = SimpleNamespace(
+        baseline=baseline,
+        candidate=candidate,
+        providers=("filmo.to",),
+        sources={"tv": "off", "movie": "radarr"},
+        seconds=0.01,
+        rates=[30],
+        output=candidate / "measure.json",
+    )
+
+    with pytest.raises(
+        ValueError, match="candidate root must not contain worker ledgers"
+    ):
+        asyncio.run(rate_probe.run(args))
+
+    assert live_marker.read_bytes() == b"must-not-open"
+    assert not args.output.exists()

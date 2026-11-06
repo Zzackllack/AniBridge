@@ -89,4 +89,6 @@ def request_phase(path: str) -> str:
         return "descriptor" if path.startswith("/v2/tvdb/shows/eng/") else "translation"
     if path.startswith(("/v1/tvdb/shows/", "/3/movie/")):
         return "descriptor"
+    if path.startswith("/v1/movie/"):
+        return "descriptor" if path.removeprefix("/v1/movie/").isdecimal() else "search"
     return "search"

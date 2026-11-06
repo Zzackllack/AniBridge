@@ -165,6 +165,16 @@ is 1 vCPU/512 MiB for metadata/search; extraction/job peaks need separate proof.
 These profiles are independent of provider request-rate limits and the retained
 30,000,000,000-byte aggregate storage budget. See the selected 020 contract.
 
+Worker JSON supports `canonical_sources.movie` values `off`, `tmdb`, and
+`radarr`. `tmdb` retains the existing TMDb v3 flow and requires
+`tmdb_token_file`. `radarr` uses Radarr SkyHook without a credential, but only
+maps a movie when the catalog supplies an explicit IMDb ID and both the IMDb
+lookup list and TMDb detail agree on that ID. The Radarr title search returns a
+bare list without completeness metadata, so title/year-only matching abstains.
+The resulting TMDb movie ID is tagged `radarr-skyhook-v1`; add that exact value
+to `publication_sources` before those mappings may be published. `off` remains
+the default.
+
 Worker JSON optionally supports `canonical_sources.episode_languages: ["deu"]`
 for ID-joined Skyhook v2 German episode metadata. This is a canonical background
 evidence setting, not an API environment variable or guessed audio language.

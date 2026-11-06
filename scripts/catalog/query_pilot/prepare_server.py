@@ -19,8 +19,7 @@ def main() -> None:
     parser.add_argument(
         "--filmo-origin",
         help=(
-            "enable Filmo movies; movie canonicalization remains off until you "
-            "configure TMDb explicitly"
+            "enable Filmo movie catalog collection; movie canonicalization remains off"
         ),
     )
     args = parser.parse_args()
@@ -85,7 +84,7 @@ def main() -> None:
     )
     if args.filmo_origin:
         print(
-            "Filmo movie canonicalization is off by default. Configure a TMDb token and explicitly set canonical_sources.movie to tmdb before expecting canonical movie IDs."
+            "Filmo movie canonicalization is off by default. Set canonical_sources.movie to radarr for keyless exact-IMDb enrichment, or tmdb with a private token. Radarr abstains when no explicit IMDb ID is present."
         )
 
 

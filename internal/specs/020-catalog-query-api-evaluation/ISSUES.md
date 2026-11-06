@@ -5,18 +5,17 @@ measurements, deployment receipts and PR drafts are local-only under ignored
 `internal/local/catalog-history/`. Test fixtures remain tracked beside tests.
 Always verify the selected revision/environment before relying on prior results.
 
-The last recorded hosted worker was `f709263` with private v7/public schema2.
-That record is not a fresh container inspection. Re-query the deployed image,
-state and disk before an upgrade; repeat preservation proof if migration behavior
-changes. The Filmo implementation has not been deployed to that service.
+Runtime image identities and verification receipts remain local. Re-query the
+deployed image, state and disk before an upgrade; repeat preservation proof when
+migration behavior changes. Publishing a preview does not deploy that image.
 
 ## Open gates
 
 | Area | Required work / acceptance boundary |
 | --- | --- |
-| Hosted TLS trust | Verify the running worker's immutable image and installed CA bundle over a working SSH connection. Coolify's moving `pr-170` tag does not identify deployed bytes. Candidate locks now remove the compromised emSign ECC G3 root; an existing deployment is not patched by a source push. |
 | Filmo acceptance | Verify final candidate native images. The generated real Radarr/Prowlarr scenario covers authenticated multipart grabs, selected variants, byte progress, embedded tracks, explicit `Move` import and a bounded restart. This does not prove live provider acquisition/playback or independently labelled movie mappings. Unknown audio remains retained but withheld from automatic language claims. |
-| Filmo external tracks | Implement bounded external-caption acquisition and unambiguous multi-audio selection before claiming complete Filmo media support. Unsupported HLS/Byse track layouts currently stop with `unsupported_media_tracks`; retaining subtitle declarations is not the same as acquiring those captions. |
+| Filmo media breadth | Known SRT/WebVTT captions and group-bound HLS audio are implemented; extend unknown formats only with observed metadata and native regressions. Unsupported or ambiguous layouts still fail explicitly. No universal host-format coverage is claimed. |
+| Filmo movie identity | Keyless Radarr metadata validates explicit IMDb associations. Its opaque text-search results cannot prove candidate completeness; title/year-only movies require the paginated TMDb source or independently reviewed evidence. Do not infer coverage from successful exact-ID lookups. |
 | Filmo publication capacity | Measure full schema3 export/validation at representative scale and resource limits before increasing provider budgets. Existing schema2 incremental-proof results do not establish schema3 performance or sustained Filmo freshness. |
 | Storage admission | Recalculate the next workload's aggregate peak, including images/shared caches, new copies, migration backups, publication scratch, logs and reserve. Cleanup alone does not certify the 30-GB cap. |
 | Mapping accuracy | Freeze independently verified expected matches before tuning and evaluate held-out ordinary/large/multilingual/special/reordered-season cases. Report incorrect acceptances, abstentions and conflicts separately. Existing post-implementation labels are regression evidence, not a blind precision estimate. |

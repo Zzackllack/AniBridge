@@ -29,12 +29,17 @@ credential cannot establish a missing player language.
 
 For optional Filmo movies, add `--filmo-origin https://filmo.to` when preparing
 a new installation. The helper leaves canonical movie matching off. To enable
-verified background movie matching, configure worker `canonical_sources.movie`
-as `tmdb`, set `tmdb_token_file` to a private mounted TMDb read credential, and
-include `tmdb-v3` in `publication_sources`. Keep the token outside Git and public
-catalogs. Configure the separate local client with query mode,
+background movie matching, choose one worker `canonical_sources.movie` source.
+`radarr` requires no credential and maps only an exact IMDb ID after validating
+the result and its movie detail. Radarr's title search returns a bare list with
+no completeness signal, so title/year-only inputs remain unresolved. Its
+provenance is `radarr-skyhook-v1`; add that value to `publication_sources` to
+publish those maps. `tmdb` retains the TMDb v3 path and requires `tmdb_token_file`
+to point to a private mounted read credential; add `tmdb-v3` to
+`publication_sources`. Keep any token outside Git and public catalogs. Configure
+the separate local client with query mode,
 `CATALOG_SITES=aniworld.to,s.to,filmo.to` and matching `FILMO_BASE_URL`.
-Movie text search can expose unresolved entries; a Radarr ID search requires an
+Movie text search can expose unresolved entries. A qBittorrent grab needs an
 accepted canonical movie map. Filmo does not supply TV seasons/episodes here.
 
 The base template gives metadata 512 MiB. Add the collector's minimum separately:
