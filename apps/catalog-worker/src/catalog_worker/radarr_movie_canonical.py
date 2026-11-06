@@ -27,9 +27,13 @@ def _title_values(value: object, field: str) -> tuple[str, ...]:
         if title is None:
             continue
         require(
-            type(title) is str and 0 < len(title.encode()) <= MAX_TITLE_BYTES,
+            type(title) is str and len(title.encode()) <= MAX_TITLE_BYTES,
             f"invalid {field} title",
         )
+        # Radarr maps optional translation/alternative-title rows directly;
+        # those rows can carry an empty Title and are not usable aliases.
+        if not title:
+            continue
         result.append(title)
     return tuple(result)
 

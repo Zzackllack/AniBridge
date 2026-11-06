@@ -6,7 +6,6 @@ import json
 import pytest
 from catalog_core.identity import title_id
 from catalog_core.providers.transport import Fetch
-
 from catalog_worker.canonical import Enricher
 from catalog_worker.config import load
 from catalog_worker.radarr_movie_canonical import ORIGIN, lookup
@@ -71,6 +70,64 @@ def test_radarr_lookup_uses_explicit_imdb_then_exact_detail():
     assert [call[0] for call in calls] == ["/v1/movie/imdb/" + IMDB, "/v1/movie/123"]
     assert all(call[2] == {"origin": ORIGIN} for call in calls)
     assert "radarr.video" not in repr(matched)
+
+
+def test_radarr_optional_title_rows_ignore_empty_titles_but_keep_valid_names():
+    calls = []
+    movie = {
+        **MOVIE,
+        "AlternativeTitles": [{"Title": ""}, {"Title": "Another title"}],
+        "Translations": [{"Title": ""}, {"Title": "Übersetzung"}],
+    }
+
+    async def request(path, **kwargs):
+        calls.append(path)
+        return [movie] if "/imdb/" in path else movie
+
+    matched, _ = asyncio.run(lookup(request, {"explicit_imdb": IMDB}, ()))
+
+    assert matched[0].titles == (
+        "Example",
+        "Example Original",
+        "Another title",
+        "Übersetzung",
+    )
+    assert calls == ["/v1/movie/imdb/" + IMDB, "/v1/movie/123"]
+
+
+@pytest.mark.parametrize(
+    "optional_titles",
+    [
+        [{"Title": 123}],
+        [{"Title": "x" * 513}],
+    ],
+)
+def test_radarr_optional_title_rows_still_reject_invalid_or_oversized_names(
+    optional_titles,
+):
+    movie = {**MOVIE, "AlternativeTitles": optional_titles}
+
+    async def request(path, **kwargs):
+        return [movie]
+
+    with pytest.raises(ValueError, match="invalid alternative titles title"):
+        asyncio.run(lookup(request, {"explicit_imdb": IMDB}, ()))
+
+
+def test_radarr_movie_with_no_primary_or_optional_names_is_rejected():
+    movie = {
+        **MOVIE,
+        "Title": None,
+        "OriginalTitle": None,
+        "AlternativeTitles": [],
+        "Translations": [],
+    }
+
+    async def request(path, **kwargs):
+        return [movie]
+
+    with pytest.raises(ValueError, match="missing Radarr movie title"):
+        asyncio.run(lookup(request, {"explicit_imdb": IMDB}, ()))
 
 
 @pytest.mark.parametrize(
