@@ -63,6 +63,45 @@ def test_fixture_has_reviewed_tmdb_and_imdb_mappings():
     assert ("imdb", IMDB_ID) in CANONICAL_IDS
 
 
+def test_acceptance_requires_two_source_audio_tracks_and_external_caption():
+    source = {
+        "streams": [
+            {"codec_type": "video", "codec_name": "h264", "height": 720},
+            {
+                "codec_type": "audio",
+                "codec_name": "aac",
+                "tags": {"language": "eng"},
+            },
+            {
+                "codec_type": "audio",
+                "codec_name": "aac",
+                "tags": {"language": "deu"},
+            },
+        ],
+        "format": {"duration": "6001", "size": "1024"},
+    }
+    assert RUNNER.assert_embedded_tracks(source, remuxed=False)["subtitle"] == []
+
+    output = {
+        **source,
+        "streams": [
+            *source["streams"],
+            {
+                "codec_type": "subtitle",
+                "codec_name": "subrip",
+                "tags": {"language": "deu"},
+            },
+        ],
+    }
+    assert RUNNER.assert_embedded_tracks(output, remuxed=True)["subtitle"] == [
+        {"codec": "subrip", "language": "deu"}
+    ]
+    with pytest.raises(AssertionError):
+        RUNNER.assert_embedded_tracks(output, remuxed=False)
+    with pytest.raises(AssertionError):
+        RUNNER.assert_embedded_tracks(source, remuxed=True)
+
+
 @pytest.mark.parametrize(
     ("source_id", "quality", "accepted"),
     [("84", "BluRay 720p", True), ("42", "Unknown", True), ("42", "HDTV-720p", False)],

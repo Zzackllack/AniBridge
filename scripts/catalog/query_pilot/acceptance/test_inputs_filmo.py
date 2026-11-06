@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import logging
 from pathlib import Path
 
@@ -10,6 +11,7 @@ import pytest
 import httpx
 from catalog_core.providers import filmo
 from app.core.downloader import provider_policy
+from app.catalog.media_download import transfer
 
 import filmo_fixture
 
@@ -67,6 +69,12 @@ def test_fixture_rejects_unexpected_external_urls_before_networking():
 
 
 def test_generated_parser_fixture_contains_only_declared_metadata() -> None:
+    listing = filmo.parse(
+        filmo_fixture.LISTING_HTML.encode(),
+        "listing",
+        "/movies",
+        origin=filmo_fixture.ORIGIN,
+    )
     page = filmo.parse(
         filmo_fixture.DETAIL_HTML.encode(),
         "detail",
@@ -74,12 +82,18 @@ def test_generated_parser_fixture_contains_only_declared_metadata() -> None:
         origin=filmo_fixture.ORIGIN,
     )
 
+    assert [(link.path, link.name) for link in listing.links] == [
+        (filmo_fixture.MOVIE_PATH, filmo_fixture.TITLE)
+    ]
     assert page.title == filmo_fixture.TITLE
     assert page.year == filmo_fixture.YEAR
     assert {offer["native_id"] for offer in page.offers} == {"42", "84"}
     assert len({offer["variant_anchor"] for offer in page.offers}) == 2
-    assert all(offer["audio_languages"] == ["eng"] for offer in page.offers)
-    assert all(offer["subtitle_languages"] == ["deu"] for offer in page.offers)
+    assert all(offer["audio_languages"] == ["deu", "eng"] for offer in page.offers)
+    assert all(offer["subtitle_languages"] is None for offer in page.offers)
+    assert all(offer["language_label"] == "Deutsch / English" for offer in page.offers)
+    assert all(offer["audio_role"] == "unknown" for offer in page.offers)
+    assert all(offer["subtitle_mode"] == "unknown" for offer in page.offers)
     assert {tuple(offer["quality"]["labels"]) for offer in page.offers} == {
         ("WEB", "720p"),
         ("BluRay", "720p"),
@@ -88,6 +102,44 @@ def test_generated_parser_fixture_contains_only_declared_metadata() -> None:
     assert "fixture-p-" not in serialized
     assert "fixture-csrf" not in serialized
     assert "fixture.invalid" not in serialized
+
+
+def test_generated_byse_caption_route_is_fixed_and_returns_only_vtt(
+    tmp_path: Path,
+):
+    fixture = load_hook()
+    fixture.MEDIA = tmp_path / "generated.mp4"
+    fixture.MEDIA.write_bytes(b"placeholder media")
+
+    class Fallback(httpx.BaseTransport):
+        def handle_request(self, request):
+            raise AssertionError("closed fixture route must not reach network")
+
+    transport = fixture.Transport(Fallback())
+    response = transport.handle_request(
+        httpx.Request(
+            "GET",
+            "https://192.0.2.77/captions/generated-german.vtt",
+            headers={"Host": "media.fixture.invalid"},
+        )
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/vtt")
+    assert response.read() == filmo_fixture.CAPTION_VTT
+    assert fixture.CAPTION_CHOICES == ["german-vtt"]
+
+    for target in (
+        "https://192.0.2.77/captions/other.vtt",
+        "https://192.0.2.77/captions/generated-german.vtt?token=not-admitted",
+    ):
+        with pytest.raises(ValueError, match="undeclared generated Filmo request"):
+            transport.handle_request(
+                httpx.Request(
+                    "GET",
+                    target,
+                    headers={"Host": "media.fixture.invalid"},
+                )
+            )
 
 
 @pytest.mark.parametrize(
@@ -145,11 +197,44 @@ def test_resolver_selects_exact_offer_and_decodes_generated_byse_source(
     finally:
         budget.close()
 
+    assert len(resolved.captions) == 1
+    caption = resolved.captions[0]
+    assert caption.url == filmo_fixture.CAPTION_URL
+    assert (caption.language, caption.format) == ("deu", "vtt")
+
     import httpx
     from app.catalog import media_transport
 
     monkeypatch.setattr(httpx, "Client", fixture.Client)
     monkeypatch.setattr(media_transport, "_validate_request_url", fixture.validate)
+    fixture.CAPTION_CHOICES.clear()
+    transferred = transfer(
+        resolved.url,
+        tmp_path / "transfer",
+        lambda _update: None,
+        selection=metadata,
+        captions=resolved.captions,
+    )
+    assert len(transferred) == 2
+    assert transferred[1].suffix == ".vtt"
+    assert transferred[1].read_bytes() == filmo_fixture.CAPTION_VTT
+    track_manifest = json.loads((tmp_path / "transfer" / "tracks.json").read_text())
+    assert track_manifest["tracks"] == [
+        {
+            "file": transferred[0].name,
+            "kind": "video",
+            "language": None,
+            "format": None,
+        },
+        {
+            "file": transferred[1].name,
+            "kind": "subtitle",
+            "language": "deu",
+            "format": "vtt",
+        },
+    ]
+    assert fixture.CAPTION_CHOICES == ["german-vtt"]
+
     state = TransferState(tmp_path)
     handler = VerifiedRH(state=state, logger=SilentLog())
     response = handler.send(Request(resolved.url, headers={"Range": "bytes=0-4095"}))

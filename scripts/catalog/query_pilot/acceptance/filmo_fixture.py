@@ -41,7 +41,7 @@ DETAIL_HTML = f"""<!doctype html>
 <dl><dt>Release Year</dt><dd>{YEAR}</dd></dl>
 <div class="provider-rows">
   <div class="provider-row">
-    <span class="provider-row__lang">English Dub German Sub</span>
+    <span class="provider-row__lang">Deutsch / English</span>
     <button data-provider-chip data-movie-link-id="42" data-p="fixture-p-primary" aria-label="Byse">
       <span class="provider-chip__metadata-tag">WEB</span>
       <span class="provider-chip__metadata-tag">720p</span>
@@ -62,6 +62,8 @@ LISTING_HTML = f"""<!doctype html>
 PRIMARY_EMBED = "https://bysefixture.test/d/Abc123"
 ALTERNATE_EMBED = "https://bysefixture.test/d/Def456"
 MEDIA_URL = "https://media.fixture.invalid/generated.mp4"
+CAPTION_URL = "https://media.fixture.invalid/captions/generated-german.vtt"
+CAPTION_VTT = b"WEBVTT\n\n00:00:00.000 --> 00:00:02.000\nGenerated German caption\n"
 
 
 def _b64url(value: bytes) -> str:
@@ -83,11 +85,19 @@ def byse_response() -> bytes:
     parts[0] = _b64url(key[:16])
     parts[29] = _b64url(key[16:])
     payload = {
+        "tracks": [
+            {
+                "kind": "captions",
+                "file": CAPTION_URL,
+                "srclang": "deu",
+                "format": "vtt",
+            }
+        ],
         "playback": {
             "version": "1",
             "key_parts": parts,
             "iv": _b64url(nonce),
             "payload": _b64url(encrypted),
-        }
+        },
     }
     return json.dumps(payload, separators=(",", ":")).encode()

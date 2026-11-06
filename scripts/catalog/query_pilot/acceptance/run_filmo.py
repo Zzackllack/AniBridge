@@ -68,22 +68,35 @@ def assert_embedded_tracks(probe: dict, *, remuxed: bool) -> dict:
     video = streams_of_type(probe, "video")
     audio = streams_of_type(probe, "audio")
     subtitles = streams_of_type(probe, "subtitle")
-    assert len(video) == len(audio) == len(subtitles) == 1
+    assert len(video) == 1
+    assert len(audio) == 2
     assert video[0]["codec_name"] == "h264"
-    assert audio[0]["codec_name"] == "aac"
-    assert audio[0].get("tags", {}).get("language") == "eng"
-    assert subtitles[0].get("tags", {}).get("language") == "deu"
-    assert subtitles[0]["codec_name"] == ("subrip" if remuxed else "mov_text")
+    audio_languages = [stream.get("tags", {}).get("language") for stream in audio]
+    assert all(stream["codec_name"] == "aac" for stream in audio)
+    assert audio_languages == ["eng", "deu"]
+    if remuxed:
+        assert len(subtitles) == 1
+        assert subtitles[0].get("tags", {}).get("language") == "deu"
+        assert subtitles[0]["codec_name"] == "subrip"
+    else:
+        # The VTT enters through the Byse API route; the source MP4 has none.
+        assert subtitles == []
     return {
         "video": {"codec": video[0]["codec_name"], "height": video[0]["height"]},
-        "audio": {
-            "codec": audio[0]["codec_name"],
-            "language": audio[0].get("tags", {}).get("language"),
-        },
-        "subtitle": {
-            "codec": subtitles[0]["codec_name"],
-            "language": subtitles[0].get("tags", {}).get("language"),
-        },
+        "audio": [
+            {
+                "codec": stream["codec_name"],
+                "language": stream.get("tags", {}).get("language"),
+            }
+            for stream in audio
+        ],
+        "subtitle": [
+            {
+                "codec": stream["codec_name"],
+                "language": stream.get("tags", {}).get("language"),
+            }
+            for stream in subtitles
+        ],
         "duration_s": float(probe["format"]["duration"]),
         "size_bytes": int(probe["format"]["size"]),
     }
@@ -408,8 +421,8 @@ def parse_release(radarr: httpx.Client, title: str) -> dict:
         language.get("name") if isinstance(language, dict) else language
         for language in parsed.get("languages", [])
     }
-    if "English" not in languages or "German" in languages:
-        raise AssertionError("Radarr audio language parsing included subtitle language")
+    if languages != {"English", "German"}:
+        raise AssertionError("Radarr did not parse both declared audio languages")
     movie_info = parsed.get("parsedMovieInfo") or {}
     quality = movie_info.get("quality") or parsed.get("quality")
     if isinstance(quality, dict):
@@ -504,6 +517,7 @@ def main() -> None:
                 )
                 assert generated_tracks["duration_s"] == 6001
                 assert generated_tracks["size_bytes"] <= 64 * 1024**2
+                assert generated_tracks["subtitle"] == []
                 assert generated_tracks["duration_s"] > movie["runtime"] * 60
 
                 direct_items = torznab_items(
@@ -544,10 +558,13 @@ def main() -> None:
                     )
                     for item in direct_items
                 } == {"42": "web", "84": "bluray"}
-                assert all(item["languages"] == ["English"] for item in direct_items)
                 assert all(
-                    item["attrs"].get("anibridge_audio_languages") == "eng"
-                    and item["attrs"].get("anibridge_subtitle_languages") == "deu"
+                    set(item["languages"]) == {"English", "German"}
+                    for item in direct_items
+                )
+                assert all(
+                    item["attrs"].get("anibridge_audio_languages") == "deu,eng"
+                    and "anibridge_subtitle_languages" not in item["attrs"]
                     for item in direct_items
                 )
                 hashes = {infohash(item["magnet"]) for item in direct_items}
@@ -615,8 +632,11 @@ def main() -> None:
                 assert frozen["provider"] == "filmo.to"
                 assert frozen["release_metadata"]["native_id"] == "84"
                 assert frozen["release_metadata"]["quality"]["source"] == "bluray"
-                assert frozen["release_metadata"]["audio_languages"] == ["eng"]
-                assert frozen["release_metadata"]["subtitle_languages"] == ["deu"]
+                assert frozen["release_metadata"]["audio_languages"] == [
+                    "deu",
+                    "eng",
+                ]
+                assert frozen["release_metadata"]["subtitle_languages"] is None
 
                 intermediate_api = []
                 intermediate_radarr = []
@@ -713,12 +733,14 @@ def main() -> None:
                     .splitlines()
                 ]
                 stages = {event["input"] for event in events}
+                assert sum(event["input"] == "caption" for event in events) == 1
                 assert {
                     "detail",
                     "mint",
                     "wrapper_alternate",
                     "byse_embed_alternate",
                     "byse_api",
+                    "caption",
                     "media",
                 } <= stages
                 assert not {
@@ -745,6 +767,11 @@ def main() -> None:
                     "subtitle_languages": frozen["release_metadata"][
                         "subtitle_languages"
                     ],
+                    "external_caption": {
+                        "language": "deu",
+                        "source_format": "vtt",
+                        "remux_format": imported_tracks["subtitle"][0]["codec"],
+                    },
                     "job_status": status[0],
                     "attempts": status[1],
                     "library_file": str(destination),

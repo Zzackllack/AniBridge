@@ -32,6 +32,7 @@ ADDRESS = "192.0.2.77"  # The transport below handles this reserved address.
 CHUNK_DELAY_S = 0.25
 EVENTS = Path("/data/filmo-acceptance-http-events.jsonl")
 VARIANT_CHOICES: list[str] = []  # Test assertion only; never written to logs.
+CAPTION_CHOICES: list[str] = []  # Test assertion only; never written to logs.
 
 ROUTES = {
     ("fixture.invalid", "GET", "/movies"): "listing",
@@ -44,6 +45,11 @@ ROUTES = {
     ("bysefixture.test", "GET", "/api/videos/Abc123"): "byse_api",
     ("bysefixture.test", "GET", "/api/videos/Def456"): "byse_api",
     ("media.fixture.invalid", "GET", "/generated.mp4"): "media",
+    (
+        "media.fixture.invalid",
+        "GET",
+        "/captions/generated-german.vtt",
+    ): "caption",
 }
 URLS = {
     f"https://{host}{path}": stage for (host, _method, path), stage in ROUTES.items()
@@ -177,6 +183,16 @@ class Transport(httpx.BaseTransport):
                 200,
                 headers={"Content-Type": "application/json"},
                 stream=httpx.ByteStream(filmo_fixture.byse_response()),
+            )
+        if route == "caption":
+            CAPTION_CHOICES.append("german-vtt")
+            return httpx.Response(
+                200,
+                headers={
+                    "Content-Length": str(len(filmo_fixture.CAPTION_VTT)),
+                    "Content-Type": "text/vtt; charset=utf-8",
+                },
+                stream=httpx.ByteStream(filmo_fixture.CAPTION_VTT),
             )
 
         range_header = request.headers.get("Range")

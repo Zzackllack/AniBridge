@@ -1,4 +1,4 @@
-"""Generate a bounded, offline 720p test input for the disposable Filmo run."""
+"""Generate a bounded, offline 720p multi-audio input for Filmo acceptance."""
 
 from __future__ import annotations
 
@@ -24,11 +24,8 @@ def main() -> None:
     ROOT.mkdir(parents=True, exist_ok=True)
     if TARGET.exists():
         raise ValueError("acceptance requires a fresh generated-media volume")
-    subtitle = ROOT / "generated-german.srt"
-    subtitle.write_text(
-        "1\n00:00:00,000 --> 00:00:02,000\nGenerated German subtitle\n",
-        encoding="utf-8",
-    )
+    # Both audio streams are tones. The language tags exercise metadata flow;
+    # they do not represent spoken English or German.
     subprocess.run(
         [
             "ffmpeg",
@@ -50,8 +47,12 @@ def main() -> None:
             "1",
             "-i",
             "sine=frequency=440:sample_rate=44100",
+            "-f",
+            "lavfi",
+            "-threads",
+            "1",
             "-i",
-            str(subtitle),
+            "sine=frequency=660:sample_rate=44100",
             "-t",
             "6001",
             "-map",
@@ -59,7 +60,7 @@ def main() -> None:
             "-map",
             "1:a:0",
             "-map",
-            "2:s:0",
+            "2:a:0",
             "-c:v",
             "libx264",
             "-preset",
@@ -72,12 +73,14 @@ def main() -> None:
             "aac",
             "-b:a",
             "32k",
-            "-c:s",
-            "mov_text",
             "-metadata:s:a:0",
             "language=eng",
-            "-metadata:s:s:0",
+            "-metadata:s:a:0",
+            "title=Generated English tone",
+            "-metadata:s:a:1",
             "language=deu",
+            "-metadata:s:a:1",
+            "title=Generated German tone",
             "-movflags",
             "+faststart",
             "-fs",
@@ -126,21 +129,25 @@ def main() -> None:
         720,
     ):
         raise ValueError("generated video is not the declared 1280x720 input")
-    if len(audio) != 1 or duration != 6001:
+    if len(audio) != 2 or duration != 6001:
         raise ValueError(
-            "generated media duration does not match the 6001-second fixture"
+            "generated media must have two audio tracks and last exactly 6001 seconds"
         )
-    if (
-        audio[0].get("tags", {}).get("language") != "eng"
-        or len(subtitles) != 1
-        or subtitles[0].get("tags", {}).get("language") != "deu"
-    ):
-        raise ValueError("generated tracks do not match the declared audio/subtitles")
+    if [stream.get("tags", {}).get("language") for stream in audio] != [
+        "eng",
+        "deu",
+    ] or subtitles:
+        raise ValueError(
+            "input must contain tagged English/German audio and no subtitles"
+        )
     os.chown(ROOT, 1000, 1000)
     os.chown(TARGET, 1000, 1000)
     Path("/library").mkdir(parents=True, exist_ok=True)
     os.chown("/library", 1000, 1000)
-    print("generated one 6001-second 1280x720 test-pattern/sine MP4 offline")
+    print(
+        "generated one 6001-second 1280x720 test-pattern/tone MP4 offline; "
+        "two audio tags, no embedded subtitles"
+    )
 
 
 if __name__ == "__main__":

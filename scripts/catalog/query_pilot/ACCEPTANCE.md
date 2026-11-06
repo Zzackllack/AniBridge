@@ -77,10 +77,13 @@ browser progress-bar or real-provider-media claim follows from API fixtures.
 
 This separate disposable project exercises Filmo movie variants through real
 Prowlarr and Radarr, the authenticated qBittorrent adapter, durable job
-resolution and output import. TMDB metadata lookup is live; the Filmo page,
+resolution and output import. Radarr's movie metadata lookup is live; the Filmo page,
 Byse wrapper and 6,001-second audio/video file are generated fixtures. No
-provider media is acquired. The runner checks English audio separately from
-German subtitles, distinct source hashes, source quality, intermediate bytes in
+provider media is acquired. The source contains two tagged audio tones
+(`eng`/`deu`) and no embedded subtitles. A separate generated German VTT enters
+through Byse metadata and must become a German SubRip stream in the output;
+the tags do not establish spoken language. The runner checks distinct source
+hashes, source quality, intermediate bytes in
 AniBridge and Radarr, a completed output moved from `/downloads` to
 `/library` using Radarr's explicit `DownloadedMoviesScan` command with
 `importMode: Move`, and one durable attempt after API restart. The runner
