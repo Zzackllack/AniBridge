@@ -111,3 +111,89 @@ def test_worker_backup_retains_origin_pause_and_fractional_admission(tmp_path):
     finally:
         for collector in group:
             collector.state.close()
+
+
+@pytest.mark.parametrize("movie_source", ["radarr", "tmdb"])
+@pytest.mark.parametrize("paused_kind", ["series", "movie"])
+def test_mixed_queue_skips_paused_source_without_deferring_its_titles(
+    tmp_path, movie_source, paused_kind
+):
+    from catalog_core.identity import title_id
+    from test_movie_canonical import MOVIE as TMDB_MOVIE
+    from test_radarr_movie_canonical import MOVIE as RADARR_MOVIE
+    from test_radarr_movie_canonical import ready
+
+    state, _ = ready(tmp_path)
+    series_path = "/series/example"
+    series_id = title_id(state.provider, series_path)
+    with state.db:
+        state.db.execute(
+            "INSERT INTO title VALUES(?,?,?,'Example Series','example-series','series',2020,?,?,'complete')",
+            (series_id, series_path, "example-series", series_path, NOW),
+        )
+        state.db.execute(
+            "INSERT INTO title_schedule VALUES(?,?,?,?)", (series_id, NOW, NOW, NOW)
+        )
+        state.db.execute("INSERT INTO mapping_input(title_id) VALUES(?)", (series_id,))
+        state.db.execute(
+            "UPDATE mapping_input SET next_due=-1 WHERE title_id IN (SELECT title_id FROM title WHERE media_type=?)",
+            (paused_kind,),
+        )
+    paused_before = tuple(
+        state.db.execute(
+            "SELECT m.* FROM mapping_input m JOIN title t USING(title_id) WHERE t.media_type=?",
+            (paused_kind,),
+        ).fetchone()
+    )
+    sources = {"movie": movie_source}
+    if movie_source == "tmdb":
+        token = tmp_path / "fixture-token"
+        token.write_text("fixture-token")
+        sources["tmdb_token_file"] = str(token)
+    calls = []
+
+    async def fetch(origin, path, **kwargs):
+        calls.append(origin)
+        if origin == "https://api.radarr.video":
+            payload = [RADARR_MOVIE] if "/imdb/" in path else RADARR_MOVIE
+        elif origin == "https://api.themoviedb.org":
+            payload = (
+                {"movie_results": [TMDB_MOVIE]} if "/find/" in path else TMDB_MOVIE
+            )
+        else:
+            series = {
+                "tvdbId": 456,
+                "title": "Example Series",
+                "year": 2020,
+                "episodes": [],
+            }
+            payload = [series] if "/search" in path else series
+        return Fetch("ok", json.dumps(payload).encode())
+
+    e = Enricher(sources, fetcher=fetch, clock=lambda: NOW)
+    movie_origin = (
+        "https://api.radarr.video"
+        if movie_source == "radarr"
+        else "https://api.themoviedb.org"
+    )
+    paused_origin = (
+        "https://skyhook.sonarr.tv" if paused_kind == "series" else movie_origin
+    )
+    e.cooldowns.pause(paused_origin, 600, NOW)
+    try:
+        assert asyncio.run(e.tick(state, NOW))
+        assert calls and paused_origin not in calls
+        assert (
+            tuple(
+                state.db.execute(
+                    "SELECT m.* FROM mapping_input m JOIN title t USING(title_id) WHERE t.media_type=?",
+                    (paused_kind,),
+                ).fetchone()
+            )
+            == paused_before
+        )
+        assert (
+            state.db.execute("SELECT count(*) FROM canonical_title").fetchone()[0] > 0
+        )
+    finally:
+        state.close()

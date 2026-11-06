@@ -22,8 +22,10 @@ from . import canonical_cache, descriptors, parent_evidence
 from .canonical_failures import CanonicalUnavailable, Failure, request_phase, verify
 from .canonical_ids import identifiers
 from .mapping import CanonicalTitle, match_title, search_terms
+from .movie_canonical import ORIGIN as TMDB_ORIGIN
 from .movie_canonical import lookup as movie_lookup
 from .radarr_movie_canonical import MATCHER as RADARR_MOVIE_MATCHER
+from .radarr_movie_canonical import ORIGIN as RADARR_ORIGIN
 from .radarr_movie_canonical import PROVENANCE as RADARR_MOVIE_PROVENANCE
 from .radarr_movie_canonical import lookup as radarr_movie_lookup
 from .source_cooldowns import SourceCooldowns
@@ -229,13 +231,6 @@ class Enricher:
     async def tick(
         self, state: State, now: int, *, title_id: str | None = None
     ) -> bool:
-        kinds = []
-        if self.sources.get("tv", "skyhook") != "off":
-            kinds.append("series")
-        if self.sources.get("movie", "off") in ("tmdb", "radarr"):
-            kinds.append("movie")
-        if not kinds:
-            return False
         async with self.lock:
             if state not in self.states:
                 self.states.append(state)
@@ -243,6 +238,24 @@ class Enricher:
             self.last_work = "idle"
             self.last_failure = None
             self.failure_phase = "cache"
+            origins = {}
+            if self.sources.get("tv", "skyhook") != "off":
+                origins["series"] = ORIGIN
+            movie_origin = {"radarr": RADARR_ORIGIN, "tmdb": TMDB_ORIGIN}.get(
+                self.sources.get("movie", "off")
+            )
+            if movie_origin:
+                origins["movie"] = movie_origin
+            # A paused source must not pin the head of a mixed due queue.
+            # Evaluate under the lock: a preceding tick may just have paused it.
+            kinds = [
+                kind
+                for kind, origin in origins.items()
+                if not self.cooldowns.delay(origin, self.clock())
+            ]
+            if not kinds:
+                self.last_work = "source_cooldown" if origins else "idle"
+                return False
             slot = (
                 state.db.execute("SELECT slot FROM canonical_scheduler").fetchone()[0]
                 % 5

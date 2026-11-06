@@ -66,7 +66,7 @@ under `provider_settings` in the existing worker JSON:
 ```json
 "filmo.to": {
   "limits": {
-    "provider_concurrency": 2,
+    "provider_concurrency": 4,
     "provider_request_interval_ms": 200,
     "provider_requests_per_hour": 18000
   }
