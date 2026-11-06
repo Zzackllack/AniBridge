@@ -5,6 +5,7 @@ diagnostics are private tables and are never copied wholesale to publication.
 """
 
 import hashlib
+import math
 import sqlite3
 from pathlib import Path
 
@@ -49,7 +50,7 @@ class State:
         return now
 
     def budget_delay(
-        self, now: int, hourly: int, *, reconciliation: bool = False
+        self, now: float, hourly: int, *, reconciliation: bool = False
     ) -> int:
         """Hourly exhaustion is durable deferral, separate from brief start spacing."""
         count, first = self.db.execute(
@@ -63,11 +64,12 @@ class State:
             ).fetchone()
             if count >= max(1, hourly // 5):
                 delay = max(delay, first + 3600 - now)
-        return delay
+        # Durable work deadlines use whole seconds; never shorten an hourly wait.
+        return max(0, math.ceil(delay))
 
     def request_delay(
-        self, now: int, interval: int, hourly: int, *, reconciliation: bool = False
-    ) -> int:
+        self, now: float, interval: float, hourly: int, *, reconciliation: bool = False
+    ) -> float:
         last = self.db.execute(
             "SELECT max(at) FROM request_start WHERE at>?", (now - 3600,)
         ).fetchone()[0]
@@ -105,7 +107,7 @@ class State:
         self.db.execute("UPDATE worker_meta SET block_count=0 WHERE blocked_until=0")
 
     def allow_request(
-        self, now: int, interval: int, hourly: int, *, reconciliation: bool = False
+        self, now: float, interval: float, hourly: int, *, reconciliation: bool = False
     ) -> bool:
         with atomic(self.db):
             self.db.execute("DELETE FROM request_start WHERE at<=?", (now - 3600,))
@@ -119,8 +121,10 @@ class State:
             count, last = self.db.execute(
                 "SELECT count(*),max(at) FROM request_start"
             ).fetchone()
-            if count >= hourly or (last is not None and now - last < interval):
+            if count >= hourly or (last is not None and now < last + interval):
                 return False
+            # SQLite's non-STRICT INTEGER affinity retains fractional seconds as
+            # REAL. Existing second-based ledgers and older readers still work.
             self.db.execute("INSERT INTO request_start VALUES(?)", (now,))
             if reconciliation:
                 self.db.execute("INSERT INTO reconciliation_start VALUES(?)", (now,))

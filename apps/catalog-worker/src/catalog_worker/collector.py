@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import math
 import tempfile
 import time
 from dataclasses import dataclass, field
@@ -76,11 +77,18 @@ class Collector:
         )
 
     async def before_request(
-        self, *, reconciliation: bool = False, fetch_slot: FetchSlot | None = None
+        self,
+        *,
+        reconciliation: bool = False,
+        fetch_slot: FetchSlot | None = None,
+        circuit_lease: int | None = None,
     ) -> None:
         limits = self.config.provider_limits(self.state.provider)
         while True:
-            now = int(self.clock())
+            now = self.clock()
+            blocked = self.state.meta()["blocked_until"]
+            if blocked > now and blocked != circuit_lease:
+                raise AdmissionDeferred(math.ceil(blocked - now))
             budget = self.state.budget_delay(
                 now, limits["provider_requests_per_hour"], reconciliation=reconciliation
             )
@@ -88,7 +96,7 @@ class Collector:
                 raise AdmissionDeferred(budget)
             delay = self.state.request_delay(
                 now,
-                limits["provider_request_interval_s"],
+                self.config.provider_interval(self.state.provider),
                 limits["provider_requests_per_hour"],
                 reconciliation=reconciliation,
             )
@@ -104,17 +112,17 @@ class Collector:
                 continue
             if self.state.allow_request(
                 now,
-                limits["provider_request_interval_s"],
+                self.config.provider_interval(self.state.provider),
                 limits["provider_requests_per_hour"],
                 reconciliation=reconciliation,
             ):
                 return
 
-    def admission_delay(self) -> int:
+    def admission_delay(self) -> float:
         limits = self.config.provider_limits(self.state.provider)
         return self.state.request_delay(
-            int(self.clock()),
-            limits["provider_request_interval_s"],
+            self.clock(),
+            self.config.provider_interval(self.state.provider),
             limits["provider_requests_per_hour"],
         )
 
@@ -234,6 +242,7 @@ class Collector:
             )
             await self.before_request(
                 fetch_slot=plan.fetch_slot,
+                circuit_lease=plan.circuit_lease,
                 reconciliation=bool(
                     plan.work
                     and plan.work.get("incremental")
@@ -401,20 +410,22 @@ class Collector:
             # boundary as a positive observation. Feed failure must not defer
             # independent inventory reconciliation.
             with atomic(self.state.db):
+                # Parsing/network/queue waits must not consume Retry-After.
+                failed_at = math.ceil(self.clock())
                 self.state.failure(
                     ready.plan.work,
                     ready.outcome,
-                    ready.plan.now,
+                    failed_at,
                     ready.retry_after,
                     status=ready.status,
                     parser_reason=ready.parser_reason,
                     schedule_listing=ready.plan.listing,
                 )
                 if ready.plan.signal:
-                    Signals(self.state).failed(ready.plan.now, 900)
+                    Signals(self.state).failed(failed_at, 900)
                 elif ready.plan.work:
                     Signals(self.state).settle(
-                        ready.plan.work, ready.plan.now, success=False
+                        ready.plan.work, failed_at, success=False
                     )
             return
         with atomic(self.state.db):

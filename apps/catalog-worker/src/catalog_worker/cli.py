@@ -57,6 +57,7 @@ async def collect(path: Path, once: bool) -> None:
         enricher = Enricher(
             config.canonical_sources,
             states=states,
+            cooldown_file=config.state_dir / "canonical-cooldowns.json",
             requests_per_minute=config.limits["canonical_requests_per_minute"],
             on_fetch=events.canonical,
             on_failure=events.canonical_failure,
@@ -176,6 +177,7 @@ async def collect_title(
         collector = Collector(config, state)
         enricher = Enricher(
             config.canonical_sources,
+            cooldown_file=config.state_dir / "canonical-cooldowns.json",
             requests_per_minute=config.limits["canonical_requests_per_minute"],
         )
         async with asyncio.timeout(120):

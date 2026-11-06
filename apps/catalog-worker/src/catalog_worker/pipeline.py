@@ -115,12 +115,14 @@ class Pipeline:
         while True:
             try:
                 progressed = await self.page(collector)
+                # Preserve fractional pacing without occupying a global fetch slot.
+                delay = 0 if progressed else min(1, collector.admission_delay() or 1)
             except (ValueError, OSError, sqlite3.Error) as exc:
                 self.report(collector.state.provider, "collect", type(exc).__name__, 0)
-                progressed = False
+                delay = 1
             if once:
                 return
-            await asyncio.sleep(0 if progressed else 1)
+            await asyncio.sleep(delay)
 
     async def run(self, once: bool = False) -> None:
         writer = asyncio.create_task(self.writer())

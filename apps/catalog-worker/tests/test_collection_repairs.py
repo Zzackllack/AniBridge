@@ -529,3 +529,43 @@ def test_named_detail_without_alias_keeps_positive_season_alias(tmp_path):
         )
     finally:
         state.close()
+
+
+def test_retry_after_starts_at_failure_completion_not_request_plan(tmp_path):
+    from catalog_worker.collector import Ready
+
+    group = collectors(tmp_path)
+    c = group[0]
+    try:
+        work = c.state.claim(NOW)
+        c.clock = lambda: NOW + 30.25
+        c.apply(Ready(Plan(NOW, False, work, work["path"]), None, "rate_limited", 60))
+        assert c.state.meta()["blocked_until"] == NOW + 91
+        assert (
+            c.state.db.execute(
+                "SELECT due FROM work WHERE path=?", (work["path"],)
+            ).fetchone()[0]
+            == NOW + 91
+        )
+    finally:
+        for collector in group:
+            collector.state.close()
+
+
+def test_inflight_hop_cannot_ignore_another_pages_new_cooldown(tmp_path):
+    import pytest
+    from catalog_core.providers.transport import AdmissionDeferred
+
+    group = collectors(tmp_path)
+    c = group[0]
+    try:
+        c.state.failure(None, "rate_limited", NOW, retry_after=600)
+        with pytest.raises(AdmissionDeferred) as pause:
+            asyncio.run(c.before_request())
+        assert pause.value.seconds == 600
+        assert (
+            c.state.db.execute("SELECT count(*) FROM request_start").fetchone()[0] == 0
+        )
+    finally:
+        for collector in group:
+            collector.state.close()

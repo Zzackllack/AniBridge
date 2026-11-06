@@ -60,10 +60,43 @@ eligible-work age, useful observations, parser cost and publication alongside
 HTTP throughput before changing budgets. Search serves the published subset
 during bootstrap; complete collection is not required for initial use.
 
-Catalog 429 and 503 `Retry-After` waits pause the provider durably. Canonical
-429/503 hints pause all titles on that origin in the running collector; the
-failed title's retry persists, but the shared origin pause does not yet survive
-a restart. Keep that recovery limitation separate from per-title retry tests.
+For an opt-in five-request/second pilot trial, update only the selected entry
+under `provider_settings` in the existing worker JSON:
+
+```json
+"filmo.to": {
+  "limits": {
+    "provider_concurrency": 2,
+    "provider_request_interval_ms": 200,
+    "provider_requests_per_hour": 18000
+  }
+}
+```
+
+Merge these limits into the entry; retain its headers and all other settings.
+Positive `provider_request_interval_ms` takes precedence over seconds; zero uses
+`provider_request_interval_s`. A provider-specific seconds override also replaces
+an inherited global millisecond interval. Milliseconds must be integer 200–60000
+(or zero); hourly admission accepts 1–18000. Existing defaults stay unchanged.
+Concurrency and processing cost can keep actual throughput below this ceiling.
+Canonical matching retains its separate budget; this setting does not raise it.
+
+Catalog 429/503 pauses and canonical 429/503 origin pauses survive restarts.
+The latter use `/state/canonical-cooldowns.json`, an atomic, bounded recovery
+receipt containing only fixed source origins and expiry times. Retain it with
+state/backup sets. Corruption refuses collection startup; a failed receipt write
+stops collection. No catalog schema migration or public protocol change is needed.
+Admission records can retain fractional seconds in existing SQLite columns.
+Every hop rechecks provider cooldowns, including redirects already in progress;
+recovery waits start when the failed result is handled, not when it was planned.
+
+Save the original private config before editing, then pull/redeploy the verified
+new worker image through Coolify. Leave all volumes and resource limits intact.
+For code rollback, restore the saved config before starting the old pinned image:
+old versions reject the new millisecond field and hourly values over 3600. Keep
+the current ledger, backups and recovery receipt. Old code ignores the canonical
+receipt, so wait for any active source cooldown to expire before starting it.
+This pacing change does not require restoring a historical database.
 
 The base template gives metadata 512 MiB. Add the collector's minimum separately:
 

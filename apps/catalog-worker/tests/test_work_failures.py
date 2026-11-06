@@ -5,13 +5,12 @@ from contextlib import closing
 from pathlib import Path
 
 import pytest
-from test_pipeline import NOW, collectors
-
 from catalog_worker.aniworld import Page
 from catalog_worker.collector import Plan, Ready
 from catalog_worker.state import State
 from catalog_worker.state_migrations import initialize, preflight, rollback_failures
 from catalog_worker.work_failures import summary
+from test_pipeline import NOW, collectors
 
 
 def test_failures_keep_bounded_classes_clocks_and_deadlines_across_restart(tmp_path):
@@ -23,6 +22,7 @@ def test_failures_keep_bounded_classes_clocks_and_deadlines_across_restart(tmp_p
             (0, "http_error", 500, None),
             (3600, "unexpected_structure", 200, "parent_children_missing"),
         ):
+            c.clock = lambda offset=offset: NOW + offset
             current = dict(
                 c.state.db.execute(
                     "SELECT * FROM work WHERE path=?", (work["path"],)
@@ -59,6 +59,7 @@ def test_failures_keep_bounded_classes_clocks_and_deadlines_across_restart(tmp_p
             c.state.db.execute("SELECT count(*) FROM work_failure").fetchone()[0] == 1
         )
         before = tuple(c.state.db.execute("SELECT * FROM work_failure").fetchone())
+        c.clock = lambda: NOW + 3601
         c.apply(
             Ready(
                 Plan(NOW + 3601, False, work, work["path"]),
@@ -189,9 +190,8 @@ def test_v7_interruption_backup_and_rollback_preserve_every_v6_table(tmp_path, p
 
 
 def test_v7_reserves_a_wal_consistent_v6_backup_before_migration(tmp_path):
-    from test_query import seed
-
     from catalog_worker.storage import STATE_HEADROOM, migration_reserve
+    from test_query import seed
 
     state, config = seed(tmp_path)
     filename = Path(state.db.execute("PRAGMA database_list").fetchone()[2])

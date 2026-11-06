@@ -160,7 +160,16 @@ Collector tuning belongs in `apps/catalog-worker/config.example.json`.
 budget and User-Agent/Accept/Accept-Language/Referer. Referer is restricted to
 that configured origin's root; encoding remains identity. Defaults retain four
 total slots, two/provider and 2-second spacing; 1,800/hour matches that spacing
-without the old 1,200/hour idle period. This is a bounded measured setting, not
+without the old 1,200/hour idle period. Optional
+`provider_request_interval_ms` is an integer 200–60000; zero retains seconds.
+A positive millisecond setting wins over seconds. A provider-specific seconds
+setting resets inherited milliseconds unless that provider also sets milliseconds.
+The hourly ceiling is 18000; defaults remain 1800 and 2-second spacing. For a
+five/second trial use 200 ms and 18000/hour on the selected provider. Collection
+retains fractional admission times without a ledger schema migration. Shared
+canonical source pauses persist atomically in `state_dir/canonical-cooldowns.json`;
+retain that recovery receipt with backups. Downgrades must restore an old-compatible
+config and respect active canonical pause deadlines before starting old code. This is a bounded measured setting, not
 a full-bootstrap or sustained provider-capacity guarantee. API env is unchanged.
 
 Collector/index worker sizing: minimum 2 vCPU/2 GiB; recommended 4 vCPU/4 GiB,

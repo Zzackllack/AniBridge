@@ -14,7 +14,8 @@ LIMITS = {
     "fetch_concurrency": (4, 1, 8),
     "provider_concurrency": (2, 1, 4),
     "provider_request_interval_s": (2, 1, 60),
-    "provider_requests_per_hour": (1800, 1, 3600),
+    "provider_request_interval_ms": (0, 0, 60000),
+    "provider_requests_per_hour": (1800, 1, 18000),
     "body_bytes": (8 * MIB, MIB, 16 * MIB),
     "request_deadline_s": (30, 5, 60),
     "title_deadline_s": (120, 30, 300),
@@ -49,10 +50,26 @@ class Config:
     provider_settings: dict[str, dict] = field(default_factory=dict)
 
     def provider_limits(self, provider: str) -> dict[str, int]:
-        return {
+        overrides = self.provider_settings.get(provider, {}).get("limits", {})
+        result = {
             **self.limits,
-            **self.provider_settings.get(provider, {}).get("limits", {}),
+            **overrides,
         }
+        if (
+            "provider_request_interval_s" in overrides
+            and "provider_request_interval_ms" not in overrides
+        ):
+            result["provider_request_interval_ms"] = 0
+        return result
+
+    def provider_interval(self, provider: str) -> float:
+        limits = self.provider_limits(provider)
+        milliseconds = limits.get("provider_request_interval_ms", 0)
+        return (
+            milliseconds / 1000
+            if milliseconds
+            else limits["provider_request_interval_s"]
+        )
 
     def headers(self, provider: str) -> dict[str, str]:
         profile = self.provider_settings.get(provider, {}).get("headers", {})
@@ -180,6 +197,11 @@ def load(path: Path) -> Config:
         for k, (default, low, high) in LIMITS.items()
     }
     require(
+        limits["provider_request_interval_ms"] == 0
+        or limits["provider_request_interval_ms"] >= 200,
+        "request interval must be zero or at least 200 milliseconds",
+    )
+    require(
         limits["provider_concurrency"] <= limits["fetch_concurrency"],
         "invalid concurrency",
     )
@@ -197,11 +219,16 @@ def load(path: Path) -> Config:
             {
                 "provider_concurrency",
                 "provider_request_interval_s",
+                "provider_request_interval_ms",
                 "provider_requests_per_hour",
             },
         )
         for name, value in overrides.items():
             integer(value, LIMITS[name][1], LIMITS[name][2])
+            require(
+                name != "provider_request_interval_ms" or value == 0 or value >= 200,
+                "request interval must be zero or at least 200 milliseconds",
+            )
         require(
             overrides.get("provider_concurrency", limits["provider_concurrency"])
             <= limits["fetch_concurrency"],

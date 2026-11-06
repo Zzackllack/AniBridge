@@ -4,10 +4,11 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
-from catalog_core.files import fsync_directory
-from catalog_core.json_codec import require
+from catalog_core.files import atomic_write, fsync_directory
+from catalog_core.json_codec import dumps, require
 
 from .config import Config
+from .source_cooldowns import FILENAME, SourceCooldowns
 from .storage import check
 
 
@@ -43,6 +44,10 @@ def backup(config: Config) -> Path:
                     target.execute("PRAGMA integrity_check").fetchone()[0] == "ok",
                     "invalid backup",
                 )
+        cooldown = config.state_dir / FILENAME
+        if cooldown.exists():
+            receipt = SourceCooldowns(cooldown)
+            atomic_write(root / FILENAME, dumps({"version": 1, "until": receipt.until}))
         incomplete.unlink()
         fsync_directory(root)
         return root

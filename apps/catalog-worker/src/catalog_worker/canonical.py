@@ -26,6 +26,7 @@ from .movie_canonical import lookup as movie_lookup
 from .radarr_movie_canonical import MATCHER as RADARR_MOVIE_MATCHER
 from .radarr_movie_canonical import PROVENANCE as RADARR_MOVIE_PROVENANCE
 from .radarr_movie_canonical import lookup as radarr_movie_lookup
+from .source_cooldowns import SourceCooldowns
 from .state import State
 from .transport import fetch
 
@@ -83,12 +84,13 @@ class Enricher:
         requests_per_minute: int = 30,
         on_fetch: Callable[[str, Fetch], None] | None = None,
         on_failure: Callable[[str, str, Failure], None] | None = None,
+        cooldown_file: Path | None = None,
     ) -> None:
         self.sources, self.fetcher, self.clock = sources, fetcher, clock
         self.sessions = {}
         # Shared by all provider titles using this source. Per-title retry clocks
         # alone let the next queued title immediately hit a throttled origin.
-        self.origin_cooldowns: dict[str, float] = {}
+        self.cooldowns = SourceCooldowns(cooldown_file)
         self.pooled = fetcher is fetch
         self.token = None
         if sources.get("movie") == "tmdb":
@@ -150,7 +152,7 @@ class Enricher:
         self, path: str, query: dict | None = None, *, origin=ORIGIN, bearer=None
     ) -> object:
         self.failure_phase = request_phase(path)
-        remaining = self.origin_cooldowns.get(origin, 0) - self.clock()
+        remaining = self.cooldowns.delay(origin, self.clock())
         if remaining > 0:
             raise AdmissionDeferred(math.ceil(remaining))
         self.admit_request()
@@ -180,10 +182,7 @@ class Enricher:
         if response.retry_after is not None and (
             response.outcome == "rate_limited" or response.status == 503
         ):
-            self.origin_cooldowns[origin] = max(
-                self.origin_cooldowns.get(origin, 0),
-                self.clock() + max(1, min(86400, response.retry_after)),
-            )
+            self.cooldowns.pause(origin, response.retry_after, self.clock())
         if self.on_fetch is not None and self.current_state is not None:
             self.on_fetch(self.current_state.provider, response)
         if response.outcome != "ok":
