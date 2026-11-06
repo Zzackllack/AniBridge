@@ -60,9 +60,18 @@ def main() -> None:
         signal.alarm(0)
         phase = "transfer"
         status({"phase": "downloading"})
-        tracks = transfer(
-            media.url, args.directory, progress, bandwidth=request.get("bandwidth")
-        )
+        if request["payload"]["provider"] == "filmo.to":
+            tracks = transfer(
+                media.url,
+                args.directory,
+                progress,
+                bandwidth=request.get("bandwidth"),
+                selection=request["payload"].get("release_metadata"),
+            )
+        else:
+            tracks = transfer(
+                media.url, args.directory, progress, bandwidth=request.get("bandwidth")
+            )
         status(
             {
                 "phase": "finished",

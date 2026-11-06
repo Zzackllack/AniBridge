@@ -116,6 +116,163 @@ def test_hls_supplies_estimated_intermediate_progress(tmp_path, monkeypatch):
     assert updates[-1]["total_bytes_estimated"] is False
 
 
+def _master_manifest(*, subtitles=False, codecs=True, same_language=False):
+    lines = [
+        "#EXTM3U",
+        '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="Japanese",LANGUAGE="ja",DEFAULT=YES,AUTOSELECT=YES,URI="audio-ja.m3u8"',
+        '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="English",LANGUAGE="en",DEFAULT=NO,AUTOSELECT=YES,URI="audio-en.m3u8"',
+    ]
+    if same_language:
+        lines.append(
+            '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="English Commentary",LANGUAGE="en",DEFAULT=NO,AUTOSELECT=YES,URI="audio-en-commentary.m3u8"'
+        )
+    if subtitles:
+        lines.append(
+            '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="German",LANGUAGE="de",DEFAULT=NO,AUTOSELECT=YES,URI="subs-de.m3u8"'
+        )
+    lines.extend(
+        [
+            '#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=1280x720,'
+            + ('CODECS="avc1.64001f,mp4a.40.2",' if codecs else "")
+            + 'AUDIO="audio"'
+            + (',SUBTITLES="subs"' if subtitles else ""),
+            "video.m3u8",
+        ]
+    )
+    return ("\n".join(lines) + "\n").encode()
+
+
+def _audio_manifest(name):
+    return f"#EXTM3U\n#EXT-X-TARGETDURATION:2\n#EXTINF:2,\n{name}.ts\n#EXT-X-ENDLIST\n".encode()
+
+
+def _filmo_selection(languages=("eng",)):
+    return {
+        "audio_languages": list(languages),
+        "subtitle_languages": ["deu"],
+        "subtitle_mode": "unknown",
+    }
+
+
+def test_filmo_hls_uses_declared_audio_language_not_highest_bitrate(
+    tmp_path, monkeypatch
+):
+    pages = {
+        "/master.m3u8": _master_manifest(),
+        "/video.m3u8": _audio_manifest("video"),
+        "/audio-en.m3u8": _audio_manifest("english"),
+        "/audio-ja.m3u8": _audio_manifest("japanese"),
+        "/video.ts": b"video-segment",
+        "/english.ts": b"english-segment",
+        "/japanese.ts": b"japanese-segment",
+    }
+    calls = fixture_transport(monkeypatch, pages)
+    outputs = transfer(
+        "https://media.example/master.m3u8",
+        tmp_path,
+        lambda update: None,
+        selection=_filmo_selection(),
+    )
+    assert len(outputs) == 2
+    paths = [call.url.path for call in calls]
+    assert "/audio-en.m3u8" in paths
+    assert "/english.ts" in paths
+    assert "/audio-ja.m3u8" not in paths
+    assert "/japanese.ts" not in paths
+
+
+def test_filmo_hls_rejects_wrong_or_ambiguous_audio_before_media_download(
+    tmp_path, monkeypatch
+):
+    pages = {
+        "/master.m3u8": _master_manifest(),
+        "/video.m3u8": _audio_manifest("video"),
+    }
+    calls = fixture_transport(monkeypatch, pages)
+    with pytest.raises(ResolutionError, match="unsupported_media_tracks"):
+        transfer(
+            "https://media.example/master.m3u8",
+            tmp_path,
+            lambda update: None,
+            selection=_filmo_selection(("ita",)),
+        )
+    assert all(call.url.path == "/master.m3u8" for call in calls)
+
+    calls.clear()
+    with pytest.raises(ResolutionError, match="unsupported_media_tracks"):
+        transfer(
+            "https://media.example/master.m3u8",
+            tmp_path,
+            lambda update: None,
+            selection=_filmo_selection(("eng", "deu")),
+        )
+    assert all(call.url.path == "/master.m3u8" for call in calls)
+
+
+def test_filmo_hls_rejects_unbound_or_duplicate_language_renditions(
+    tmp_path, monkeypatch
+):
+    for manifest, extra in (
+        (_master_manifest(codecs=False), {}),
+        (
+            _master_manifest(same_language=True),
+            {"/audio-en-commentary.m3u8": _audio_manifest("commentary")},
+        ),
+    ):
+        pages = {
+            "/master.m3u8": manifest,
+            "/video.m3u8": _audio_manifest("video"),
+            **extra,
+        }
+        with monkeypatch.context() as scoped:
+            calls = fixture_transport(scoped, pages)
+            with pytest.raises(ResolutionError, match="unsupported_media_tracks"):
+                transfer(
+                    "https://media.example/master.m3u8",
+                    tmp_path,
+                    lambda update: None,
+                    selection=_filmo_selection(),
+                )
+        assert all(call.url.path == "/master.m3u8" for call in calls)
+
+def test_filmo_hls_external_captions_fail_closed(tmp_path, monkeypatch):
+    calls = fixture_transport(
+        monkeypatch,
+        {
+            "/master.m3u8": _master_manifest(subtitles=True),
+            "/video.m3u8": _audio_manifest("video"),
+        },
+    )
+    with pytest.raises(ResolutionError, match="unsupported_media_tracks"):
+        transfer(
+            "https://media.example/master.m3u8",
+            tmp_path,
+            lambda update: None,
+            selection=_filmo_selection(),
+        )
+    assert all(call.url.path == "/master.m3u8" for call in calls)
+
+
+def test_legacy_hls_keeps_highest_bitrate_audio_selection(tmp_path, monkeypatch):
+    pages = {
+        "/master.m3u8": _master_manifest(),
+        "/video.m3u8": _audio_manifest("video"),
+        "/audio-en.m3u8": _audio_manifest("english"),
+        "/audio-ja.m3u8": _audio_manifest("japanese"),
+        "/video.ts": b"video-segment",
+        "/english.ts": b"english-segment",
+        "/japanese.ts": b"japanese-segment",
+    }
+    calls = fixture_transport(monkeypatch, pages)
+    outputs = transfer(
+        "https://media.example/master.m3u8", tmp_path, lambda update: None
+    )
+    assert len(outputs) == 2
+    paths = [call.url.path for call in calls]
+    assert "/audio-ja.m3u8" in paths
+    assert "/japanese.ts" in paths
+
+
 def test_fractional_progress_crosses_strict_child_message_boundary():
     from app.catalog.media_download import progress_counters
     from catalog_core.json_codec import dumps, loads

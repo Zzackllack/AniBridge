@@ -148,7 +148,7 @@ def _probe_streams(binary: str, path: Path) -> tuple[dict, ...]:
             seen.add(index)
             result.append({"index": index, "codec_type": kind, "codec_name": codec})
         return tuple(result)
-    except (KeyError, TypeError, UnicodeDecodeError, json.JSONDecodeError):
+    except KeyError, TypeError, UnicodeDecodeError, json.JSONDecodeError:
         raise ValueError("invalid stream metadata") from None
 
 

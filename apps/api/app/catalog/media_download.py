@@ -11,7 +11,7 @@ from yt_dlp.dependencies import Cryptodome
 from yt_dlp.downloader.hls import HlsFD
 from yt_dlp.downloader.http import HttpFD
 from yt_dlp.extractor.common import InfoExtractor
-from yt_dlp.utils import DownloadError
+from yt_dlp.utils import DownloadError, ISO639Utils
 
 from .media_transport import TransferState, VerifiedRH
 from .resolution_transport import ResolutionError
@@ -57,7 +57,12 @@ class SilentLog:
 
 
 def transfer(
-    url: str, directory: Path, progress, *, bandwidth: int | None = None
+    url: str,
+    directory: Path,
+    progress,
+    *,
+    bandwidth: int | None = None,
+    selection: dict | None = None,
 ) -> list[Path]:
     directory.mkdir(parents=True, exist_ok=True)
     state = TransferState(directory)
@@ -85,9 +90,13 @@ def transfer(
                 beginning = response.read(512)
             if beginning.lstrip().startswith(b"#EXTM3U"):
                 extractor = InfoExtractor(ydl)
-                formats = extractor._extract_m3u8_formats(
+                formats, subtitles = extractor._extract_m3u8_formats_and_subtitles(
                     url, "local", ext="mp4", entry_protocol="m3u8_native"
                 )
+                if selection is not None and subtitles:
+                    # External HLS captions are parsed but cannot yet be mapped
+                    # into the bounded native transfer/remux output contract.
+                    raise ResolutionError("unsupported_media_tracks")
                 videos = [item for item in formats if item.get("vcodec") != "none"]
                 if not videos:
                     raise ResolutionError("extraction_error")
@@ -97,11 +106,55 @@ def transfer(
                     key=lambda item: (item.get("height") or 0, item.get("tbr") or 0),
                 )
                 selected = [video]
+                audio = [item for item in formats if item.get("vcodec") == "none"]
+                if selection is not None and audio and video.get("acodec") != "none":
+                    # Without codec metadata yt-dlp cannot prove that these
+                    # separate renditions belong with this video variant.
+                    raise ResolutionError("unsupported_media_tracks")
                 if video.get("acodec") == "none":
-                    audio = [item for item in formats if item.get("vcodec") == "none"]
                     if not audio:
-                        raise ResolutionError("extraction_error")
-                    selected.append(max(audio, key=lambda item: item.get("tbr") or 0))
+                        raise ResolutionError(
+                            "unsupported_media_tracks"
+                            if selection is not None
+                            else "extraction_error"
+                        )
+                    if selection is None:
+                        # Keep the established behavior exactly for legacy
+                        # providers, whose metadata cannot declare audio tags.
+                        selected.append(
+                            max(audio, key=lambda item: item.get("tbr") or 0)
+                        )
+                    else:
+                        expected = selection.get("audio_languages")
+                        if (
+                            not isinstance(expected, list)
+                            or len(expected) != 1
+                            or not isinstance(expected[0], str)
+                            or expected[0] == "und"
+                        ):
+                            raise ResolutionError("unsupported_media_tracks")
+                        audio_groups = {_audio_group(item) for item in audio}
+                        if None in audio_groups or len(audio_groups) != 1:
+                            # yt-dlp removes its internal group link when it
+                            # returns formats. A single declared rendition
+                            # group is the only case where compatibility with
+                            # the selected video can still be established.
+                            raise ResolutionError("unsupported_media_tracks")
+                        matches = [
+                            item
+                            for item in audio
+                            if _iso639_3(item.get("language")) == expected[0]
+                        ]
+                        match_urls = {
+                            item.get("url") for item in matches if item.get("url")
+                        }
+                        if (
+                            not matches
+                            or len(match_urls) != 1
+                            or any(not item.get("url") for item in matches)
+                        ):
+                            raise ResolutionError("unsupported_media_tracks")
+                        selected.append(matches[0])
             else:
                 selected = [{"url": url, "protocol": "https", "ext": "bin"}]
             tracker = TransferProgress(selected)
@@ -128,3 +181,32 @@ def transfer(
         return outputs
     except DownloadError:
         raise ResolutionError(state.error or "extraction_error") from None
+
+
+def _iso639_3(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    tag = value.strip().replace("_", "-").split("-", 1)[0].lower()
+    from catalog_core.providers.filmo import LANGUAGES
+
+    if tag in LANGUAGES:
+        return LANGUAGES[tag]
+    if len(tag) == 3 and tag.isalpha():
+        return tag
+    if len(tag) == 2 and tag.isalpha():
+        try:
+            return ISO639Utils.short2long(tag)
+        except KeyError:
+            return None
+    return None
+
+
+def _audio_group(item: dict) -> str | None:
+    format_id, name = item.get("format_id"), item.get("format_note")
+    if not isinstance(format_id, str) or not isinstance(name, str) or not name:
+        return None
+    suffix = f"-{name}"
+    if not format_id.endswith(suffix):
+        return None
+    group = format_id[: -len(suffix)]
+    return group or None
