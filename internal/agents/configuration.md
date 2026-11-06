@@ -141,8 +141,13 @@ Filmo is optional via worker provider key `filmo.to` and local
 `CATALOG_SITES=aniworld.to,s.to,filmo.to`. The client also requires explicit query
 configuration; legacy-mode Filmo configuration fails at startup. `FILMO_BASE_URL`
 defaults to `https://filmo.to` and must match the verified provider origin used
-for local grabs. Movie mappings require an explicitly configured TMDb credential
-and publication provenance; merely enabling Filmo does not establish movie IDs.
+for local grabs. Movie mappings require an explicitly configured canonical
+source and publication provenance; merely enabling Filmo does not establish
+movie IDs. The credential and exact-ID requirements for each source are below.
+Filmo translates page titles according to `Accept-Language`; the provider's
+`headers` profile can select English with `"Accept-Language": "en"`. This is a
+catalog-title preference, not an audio-language filter. Collection currently
+uses one locale; it does not automatically fetch and join translated aliases.
 Audio language claims and subtitle claims are separate; unknown audio stays in
 the metadata catalog and is not advertised as a known spoken language to *arr.
 `MANAGEMENT_API_TOKEN` optionally enables authenticated local job retry/cancel; it must encode 32 random bytes as base64url. Query requests

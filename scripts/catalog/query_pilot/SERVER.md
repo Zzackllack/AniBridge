@@ -41,6 +41,9 @@ the separate local client with query mode,
 `CATALOG_SITES=aniworld.to,s.to,filmo.to` and matching `FILMO_BASE_URL`.
 Movie text search can expose unresolved entries. A qBittorrent grab needs an
 accepted canonical movie map. Filmo does not supply TV seasons/episodes here.
+Filmo's `provider_settings["filmo.to"].headers` may set `"Accept-Language": "en"`
+for English catalog titles. This changes title presentation, not the advertised
+audio tracks. Collection uses one locale and does not join translated aliases.
 
 The base template gives metadata 512 MiB. Add the collector's minimum separately:
 
