@@ -72,3 +72,63 @@ checks remain explicit acceptance work in
 [ISSUES.md](../../../internal/specs/020-catalog-query-api-evaluation/ISSUES.md).
 The broader E2E proposal in issue #175 is not an implemented suite. No visible
 browser progress-bar or real-provider-media claim follows from API fixtures.
+
+## Filmo movie acceptance (Radarr)
+
+This separate disposable project exercises Filmo movie variants through real
+Prowlarr and Radarr, the authenticated qBittorrent adapter, durable job
+resolution and output import. TMDB metadata lookup is live; the Filmo page,
+Byse wrapper and 6,001-second audio/video file are generated fixtures. No
+provider media is acquired. The runner checks English audio separately from
+German subtitles, distinct source hashes, source quality, intermediate bytes in
+AniBridge and Radarr, a completed output moved from `/downloads` to
+`/library` using Radarr's explicit `DownloadedMoviesScan` command with
+`importMode: Move`, and one durable attempt after API restart. The runner
+disables Radarr's automatic completed-download handling for this scenario; it
+does not claim that automatic handling moves the source.
+
+Generate fresh private credentials. The helper prints only its directory; it
+never prints credential values. Its mode-0700 directory contains a mode-0600
+Compose environment file and a qBittorrent JSON file readable only through the
+explicit container file mount. Keep the directory outside Git and remove it
+after the disposable project is stopped.
+
+```sh
+FILMO_AUTH_DIR="$(uv run --project apps/api --frozen python scripts/catalog/query_pilot/acceptance/prepare_filmo_auth.py)"
+export FILMO_ACCEPTANCE_ENV_FILE="$FILMO_AUTH_DIR/api.env"
+export FILMO_ACCEPTANCE_AUTH_FILE="$FILMO_AUTH_DIR/qbit.json"
+export PILOT_COMMIT=$(git rev-parse HEAD)
+export COMPOSE_FILE=scripts/catalog/query_pilot/compose.yaml:scripts/catalog/query_pilot/clients.yaml:scripts/catalog/query_pilot/acceptance.yaml:scripts/catalog/query_pilot/acceptance-filmo.yaml
+if [ -n "${FILMO_ACCEPTANCE_RUNTIME_OVERRIDE:-}" ]; then
+  export COMPOSE_FILE="${COMPOSE_FILE}:${FILMO_ACCEPTANCE_RUNTIME_OVERRIDE}"
+fi
+docker compose -p anibridge-filmo-acceptance config --quiet
+docker compose -p anibridge-filmo-acceptance build catalog api
+docker compose -p anibridge-filmo-acceptance up -d catalog api radarr prowlarr
+timeout 12m docker compose -p anibridge-filmo-acceptance exec -T --user 1000 api \
+  python /pilot/acceptance/run_filmo.py
+docker compose -p anibridge-filmo-acceptance exec -T api \
+  cat /data/acceptance-filmo-result.json
+docker compose -p anibridge-filmo-acceptance restart api
+timeout 1m docker compose -p anibridge-filmo-acceptance exec -T --user 1000 api \
+  python /pilot/acceptance/run_filmo.py --verify-restart
+```
+
+The overlay uses isolated named volumes, bounded container resources, a pinned
+Radarr image and fixture-only Filmo/player/media routing. The Radarr lookup for
+TMDB 10331 requires external metadata access. The commands above build candidate
+API and worker images from the current checkout. A source-only run against
+already prepared images can optionally set `FILMO_ACCEPTANCE_RUNTIME_OVERRIDE`
+to a reviewed local Compose override; the snippet appends it to `COMPOSE_FILE`.
+This mounts candidate source over cached images and does not validate the built
+images. Stop the project after recording the result:
+
+```sh
+docker compose -p anibridge-filmo-acceptance down
+rm -rf "$FILMO_AUTH_DIR"
+```
+
+Only remove that project's volumes after retaining any needed private result.
+Passing this single generated movie proves the tested request and import path;
+it does not prove live Filmo availability, general movie metadata accuracy,
+playback or sustained capacity.
