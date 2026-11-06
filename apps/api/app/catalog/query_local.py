@@ -20,6 +20,7 @@ from .override_view import view
 _FILMO_KNOWN_AUDIO_LANGUAGES = (
     frozenset(filmo_parser.LANGUAGES.values()) - {"und"}
 ) | {"mul"}
+_FILMO_SELECTABLE_HOSTS = frozenset({"VOE", "Byse"})
 
 
 def filmo_audio_languages(
@@ -330,6 +331,11 @@ class Search:
                         (languages or {}).get(self.provider, identity.LANGUAGES)
                     )
                 ),
+                offer_hosts=(
+                    sorted(_FILMO_SELECTABLE_HOSTS)
+                    if self.provider == "filmo.to"
+                    else []
+                ),
             )
             pages = []
             end = (parsed.offset + parsed.limit + len(modes) - 1) // len(modes)
@@ -375,6 +381,11 @@ class Search:
                             (languages or {}).get(self.provider, identity.LANGUAGES)
                         )
                     ),
+                    offer_hosts=(
+                        sorted(_FILMO_SELECTABLE_HOSTS)
+                        if self.provider == "filmo.to"
+                        else []
+                    ),
                 ),
                 results,
             )
@@ -414,6 +425,9 @@ class Search:
                 now=now,
                 modes=modes,
                 languages=local_languages,
+                offer_hosts=(
+                    _FILMO_SELECTABLE_HOSTS if self.provider == "filmo.to" else None
+                ),
                 anime_category=anime_category,
                 movie_category=movie_category,
                 mapping_view=view,

@@ -46,6 +46,9 @@ class Request(Model):
     languages: list[str] = Field(
         default_factory=lambda: sorted(identity.LANGUAGES), max_length=64
     )
+    offer_hosts: list[Literal["VOE", "Byse"]] = Field(
+        default_factory=list, max_length=2
+    )
 
     def wire(self) -> dict:
         body = self.model_dump()
@@ -57,6 +60,8 @@ class Request(Model):
                 "include_entities",
             ):
                 body.pop(key)
+        if self.provider != "filmo.to" or not self.offer_hosts:
+            body.pop("offer_hosts", None)
         return body
 
     @model_validator(mode="after")
@@ -71,6 +76,10 @@ class Request(Model):
             for item in self.languages
         ):
             raise ValueError("invalid requested languages")
+        if len(set(self.offer_hosts)) != len(self.offer_hosts):
+            raise ValueError("duplicate requested offer hosts")
+        if self.provider != "filmo.to" and self.offer_hosts:
+            raise ValueError("offer hosts only apply to Filmo")
         if self.params.keys() - PARAMS:
             raise ValueError("unsupported parameters")
         query = parse(self.params)
@@ -303,6 +312,11 @@ class Response(Model):
                     )
                 if not matches_language:
                     raise ValueError("unexpected language")
+            if request.offer_hosts and (
+                row.release_metadata is None
+                or row.release_metadata["host"] not in request.offer_hosts
+            ):
+                raise ValueError("unexpected offer host")
             primary = next(
                 (m for m in title.mappings if m.namespace == row.namespace), None
             )

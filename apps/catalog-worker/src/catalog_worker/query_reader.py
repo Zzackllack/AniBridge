@@ -150,6 +150,7 @@ def execute(
                     )
                     if request.operation in {"recent", "native"}
                     else None,
+                    offer_hosts=set(request.offer_hosts) or None,
                 )
                 if (
                     request.operation == "native"

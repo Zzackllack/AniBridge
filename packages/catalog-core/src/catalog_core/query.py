@@ -122,6 +122,7 @@ def query(
     now: int,
     modes: tuple[str, ...] = ("download",),
     languages: dict[str, set[str]] | None = None,
+    offer_hosts: set[str] | frozenset[str] | None = None,
     anime_category: int = 5070,
     movie_category: int = 2000,
     mapping_view=None,
@@ -223,6 +224,15 @@ def query(
                 else:
                     where.append(f"r.language IN ({placeholders})")
                     args.extend(sorted(allowed))
+            selected_hosts = offer_hosts or set()
+            if selected_hosts:
+                require(
+                    provider == "filmo.to", "offer host filter only applies to Filmo"
+                )
+                where.append(
+                    f"json_extract(r.metadata,'$.host') IN ({','.join('?' for _ in selected_hosts)})"
+                )
+                args.extend(sorted(selected_hosts))
             category_expr = f"CASE WHEN e.kind='movie' THEN {int(movie_category)} WHEN '{provider}'='aniworld.to' THEN {int(anime_category)} ELSE 5000 END"
             if request.categories is not None:
                 where.append(
@@ -283,7 +293,7 @@ def query(
             )
             summary = (
                 metadata.get("release_summary")
-                if compact and not multiaudio_filter
+                if compact and not multiaudio_filter and not selected_hosts
                 else None
             )
             summary_count = None

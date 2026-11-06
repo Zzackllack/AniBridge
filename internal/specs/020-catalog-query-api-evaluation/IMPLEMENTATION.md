@@ -23,6 +23,8 @@ stay in RSS attributes/descriptions; *arr release titles omit them because bare
 resolution tokens can falsely imply HDTV and WEB cannot prove WEB-DL/WEBRip.
 The collector never mints player tokens; accepted local grabs
 refetch their exact offer and use bounded session/CSRF handoffs to VOE or Byse.
+Other hosts remain observed catalog data but are withheld from automatic client
+results. The optional Filmo host filter applies before totals and pagination.
 
 ## Collection and correspondence
 

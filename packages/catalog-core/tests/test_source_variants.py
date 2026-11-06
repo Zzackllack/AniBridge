@@ -16,11 +16,11 @@ NOW = 1800000000
 PATH = "/movies/example"
 
 
-def offer(native="17", audio="deu", resolution=720):
+def offer(native="17", audio="deu", resolution=720, host="Byse"):
     return {
         "variant_anchor": f"{native}:{audio}",
         "native_id": native,
-        "host": "Byse",
+        "host": host,
         "language_label": "Deutsch" if audio == "deu" else "JPN",
         "audio_languages": [audio],
         "subtitle_languages": None,
@@ -34,7 +34,7 @@ def offer(native="17", audio="deu", resolution=720):
     }
 
 
-def catalog(tmp_path, *, include_dual_audio=False):
+def catalog(tmp_path, *, include_dual_audio=False, include_unusable_host=False):
     path = tmp_path / "variants.sqlite"
     db = schema.create(path, 3)
     writer = Writer(db, 3)
@@ -49,6 +49,8 @@ def catalog(tmp_path, *, include_dual_audio=False):
             audio_languages=["eng", "jpn"],
         )
         offers.append(dual)
+    if include_unusable_host:
+        offers.append(offer("21", host="Filemoon"))
     with db:
         writer.insert("catalog", (1, "filmo.to", 3, 2, NOW))
         writer.insert(
@@ -291,6 +293,99 @@ def test_multiaudio_offers_match_any_requested_track_before_count_and_page(tmp_p
     response.check_request(request, "variants")
 
 
+def test_filmo_host_allowlist_filters_before_counts_pagination_and_response_validation(
+    tmp_path,
+):
+    path, payload = catalog(tmp_path, include_unusable_host=True)
+    store = Store(path, payload)
+    parsed = query.parse({"t": "movie", "limit": "1"})
+    raw_first, raw_total, _ = query.query(store, parsed, now=NOW)
+    assert raw_total == 4
+    assert len(raw_first) == 1
+    first, total, _ = query.query(store, parsed, now=NOW, offer_hosts={"VOE", "Byse"})
+    tail, tail_total, _ = query.query(
+        store,
+        query.parse({"t": "movie", "limit": "1", "offset": "1"}),
+        now=NOW,
+        offer_hosts={"VOE", "Byse"},
+    )
+    assert total == tail_total == 3
+    assert len(first) == len(tail) == 1
+    assert all(
+        row["release_metadata"]["host"] in {"VOE", "Byse"} for row in first + tail
+    )
+
+    local, local_total, _ = query.query(
+        flat_store(tmp_path, path, 4),
+        parsed,
+        now=NOW,
+        offer_hosts={"VOE", "Byse"},
+    )
+    assert local_total == 3
+    assert local and all(
+        row["release_metadata"]["host"] in {"VOE", "Byse"} for row in local
+    )
+
+    request = Request(
+        operation="recent",
+        provider="filmo.to",
+        params={"t": "movie"},
+        limit=100,
+        languages=[],
+        offer_hosts=["VOE", "Byse"],
+    )
+    assert request.wire()["offer_hosts"] == ["VOE", "Byse"]
+    assert (
+        "offer_hosts"
+        not in Request(
+            operation="recent",
+            params={"t": "movie"},
+            provider="aniworld.to",
+            limit=100,
+        ).wire()
+    )
+
+    raw_rows, _, _ = query.query(store, parsed, now=NOW)
+    unsupported = next(
+        row for row in raw_rows if row["release_metadata"]["host"] == "Filemoon"
+    )
+    with pytest.raises(ValueError, match="unexpected offer host"):
+        response_row = Row.model_validate(
+            {
+                key: value
+                for key, value in unsupported.items()
+                if key in Row.model_fields
+            }
+        )
+        response_title = Title(
+            provider="filmo.to",
+            title_id=unsupported["title_id"],
+            identity_anchor=unsupported["title_anchor"],
+            slug=unsupported["slug"],
+            display_title=unsupported["display_title"],
+            search_key=identity.search_key(unsupported["display_title"]),
+            media_type="movie",
+            year=unsupported["year"],
+            path=unsupported["path"],
+            observed_at=unsupported["observed_at"],
+            detail_status="complete",
+        )
+        response = Response(
+            query_digest=request_digest(request),
+            source_id="variants",
+            provider="filmo.to",
+            revision=1,
+            snapshot_digest=unsupported["snapshot_digest"],
+            listing_checked_at=NOW,
+            total=1,
+            offset=0,
+            mapping="unresolved",
+            rows=[response_row],
+            titles=[response_title],
+        )
+        response.check_request(request, "variants")
+
+
 @pytest.mark.parametrize(
     "statement",
     [
@@ -349,6 +444,7 @@ def test_filmo_wire_supports_all_languages_without_widening_legacy_requests():
         languages=[],
     )
     assert request.languages == []
+    assert "offer_hosts" not in request.wire()
     assert Request(
         operation="recent",
         limit=100,
@@ -363,4 +459,11 @@ def test_filmo_wire_supports_all_languages_without_widening_legacy_requests():
             params={"t": "search"},
             provider="aniworld.to",
             languages=["jpn"],
+        )
+    with pytest.raises(ValueError):
+        Request(
+            operation="recent",
+            params={"t": "movie"},
+            provider="aniworld.to",
+            offer_hosts=["VOE"],
         )
