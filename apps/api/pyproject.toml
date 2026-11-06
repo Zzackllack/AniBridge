@@ -21,7 +21,7 @@ dependencies = [
     "anyio>=4.10.0",
     "beautifulsoup4>=4.13.5",
     "bs4>=0.0.2",
-    "certifi>=2025.8.3",
+    "certifi>=2026.10.18",
     "charset-normalizer>=3.4.3",
     "click>=8.2.1",
     "defusedxml>=0.7.1",
@@ -68,7 +68,7 @@ dependencies = [
     "watchfiles>=1.1.0",
     "websockets>=15.0.1",
     "yt-dlp>=2026.7.4",
-    "pylint>=4.0.5",
+    "pylint>=4.0.9",
     "anibridge-catalog-core",
 ]
 

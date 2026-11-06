@@ -8,6 +8,7 @@ version = "1.0.0"
 description = "AniBridge signed catalog protocol and portable validators"
 requires-python = ">=3.14"
 dependencies = [
+    "certifi>=2026.10.18",
     "cryptography>=46.0.0",
     "httpx==0.28.1",
     "defusedxml==0.7.1",
