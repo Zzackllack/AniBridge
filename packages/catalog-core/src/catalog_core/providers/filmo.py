@@ -263,6 +263,10 @@ class FilmoParser(HTMLParser):
         self.origin, self.listing = urlsplit(origin), listing
         self.links: dict[str, Link] = {}
         self.next_pages: set[str] = set()
+        # Track card and provider wrappers separately from the permissive depth
+        # used to associate nested anchors. A mismatched close must not make an
+        # unfinished acquisition block look complete.
+        self.open_elements: list[tuple[str, bool]] = []
         self.document = {"html": False, "body": False}
         self.closed: set[str] = set()
         self.heading_depth = 0
@@ -311,11 +315,16 @@ class FilmoParser(HTMLParser):
         classes = set((values.get("class") or "").split())
         is_row = tag in {"div", "section"} and "provider-row" in classes
         is_chip = self.row_depth > 0 and "data-provider-chip" in values
+        is_provider_container = "provider-rows" in classes
         is_card = (
             self.listing
             and tag in {"a", "div", "article", "li"}
             and "movie-poster-grid-card" in classes
         )
+        if tag not in VOID_TAGS:
+            self.open_elements.append(
+                (tag, is_card or is_row or is_chip or is_provider_container)
+            )
         if tag in self.document:
             require(
                 not self.document[tag] and tag not in self.closed,
@@ -333,7 +342,7 @@ class FilmoParser(HTMLParser):
             self.row_language_seen = False
         elif self.row_depth and tag not in VOID_TAGS:
             self.row_depth += 1
-        if "provider-rows" in classes:
+        if is_provider_container:
             self.provider_container_seen = True
         if is_chip:
             self.chip_depth = 1
@@ -406,7 +415,28 @@ class FilmoParser(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         if tag in self.document:
             require(self.document[tag], "unexpected Filmo document end")
+            if tag in {"html", "body"}:
+                require(
+                    self.card_depth == 0
+                    and self.row_depth == 0
+                    and self.row_lang_text is None
+                    and self.chip_depth == 0
+                    and self.chip is None
+                    and self.anchor is None
+                    and self.heading_depth == 0
+                    and self.release_value_text is None
+                    and not any(scoped for _, scoped in self.open_elements),
+                    "incomplete Filmo HTML",
+                )
             self.closed.add(tag)
+        for index in range(len(self.open_elements) - 1, -1, -1):
+            if self.open_elements[index][0] == tag:
+                require(
+                    not any(scoped for _, scoped in self.open_elements[index + 1 :]),
+                    "incomplete Filmo HTML",
+                )
+                del self.open_elements[index:]
+                break
         if tag == "h1" and self.heading_depth:
             self.heading_depth -= 1
             title = _valid_label("".join(self.heading_text))
@@ -506,7 +536,10 @@ def parse(
         and parser.heading_depth == 0
         and parser.row_depth == 0
         and parser.row_lang_text is None
+        and parser.card_depth == 0
         and parser.chip_depth == 0
+        and parser.chip is None
+        and not any(scoped for _, scoped in parser.open_elements)
         and parser.release_value_text is None,
         "incomplete Filmo HTML",
     )

@@ -33,6 +33,44 @@ def test_listing_accepts_complete_html_fragment_from_worker_fixtures() -> None:
     assert page.links[0].path == "/movies/film-one"
 
 
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'<div class="movie-poster-grid-card"><a href="/movies/film-one">Film</a>',
+        b'<html><body><div class="movie-poster-grid-card">'
+        b'<a href="/movies/film-one">Film</a></body></html>',
+        b'<div><article class="movie-poster-grid-card">'
+        b'<a href="/movies/film-one">Film</a></div>',
+    ],
+)
+def test_listing_rejects_an_unclosed_movie_card_wrapper(body: bytes) -> None:
+    with pytest.raises(ContractError, match="incomplete Filmo HTML"):
+        parse(body, "listing", "/movies")
+
+
+def test_detail_rejects_an_unclosed_provider_row_at_document_end() -> None:
+    body = b"""<html><body><h1>Example</h1>
+    <div class="provider-row">
+      <span class="provider-row__lang">German</span>
+      <button data-provider-chip data-movie-link-id="41" aria-label="VOE"></button>
+    </body></html>"""
+
+    with pytest.raises(ContractError, match="incomplete Filmo HTML"):
+        parse(body, "detail", "/movies/example")
+
+
+def test_detail_rejects_an_unclosed_provider_container_at_document_end() -> None:
+    body = b"""<html><body><h1>Example</h1><div class="provider-rows">
+    <div class="provider-row">
+      <span class="provider-row__lang">German</span>
+      <button data-provider-chip data-movie-link-id="41" aria-label="VOE"></button>
+    </div>
+    </body></html>"""
+
+    with pytest.raises(ContractError, match="incomplete Filmo HTML"):
+        parse(body, "detail", "/movies/example")
+
+
 def test_listing_uses_the_configured_origin_and_rejects_foreign_cards():
     body = fixture("filmo-listing.html").replace(
         b"https://filmo.to", b"https://mirror.example"

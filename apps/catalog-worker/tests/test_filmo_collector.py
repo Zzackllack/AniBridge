@@ -11,9 +11,11 @@ from catalog_core.providers.transport import Fetch
 
 from catalog_worker.collector import Collector
 from catalog_worker.config import LIMITS, Config
+from catalog_worker.aniworld import Link
 from catalog_worker.query_reader import execute
 from catalog_worker.read_catalog import publish
 from catalog_worker.state import State
+from catalog_worker.transactions import atomic
 
 pytestmark = pytest.mark.skipif(
     sys.platform != "linux",
@@ -154,6 +156,14 @@ def test_filmo_collector_checkpoint_child_persistence_and_query(tmp_path: Path) 
                 b'<span class="provider-row__lang">Deutsch Dub</span>', b"", 1
             ),
             DETAIL.replace(b'aria-label="VOE"', b"", 1),
+            DETAIL.removesuffix(b"</div></div>"),
+            DETAIL.replace(
+                b'<div id="movie-detail-page" data-movie-id="41">',
+                b'<html><body><div id="movie-detail-page" data-movie-id="41">'
+                b'<div class="provider-rows">',
+                1,
+            ).removesuffix(b"</div></div>")
+            + b"</div></body></html>",
             (
                 b'<div id="movie-detail-page" data-movie-id="41">'
                 b'<h1>Example Feature</h1><div class="provider-rows"></div></div>'
@@ -207,5 +217,54 @@ def test_filmo_collector_checkpoint_child_persistence_and_query(tmp_path: Path) 
             row["release_id"]: row["first_seen_at"]
             for row in state.db.execute("SELECT * FROM release")
         } == first_seen
+    finally:
+        state.close()
+
+
+def test_incomplete_listing_wrapper_keeps_last_good_inventory(tmp_path: Path) -> None:
+    state_path = tmp_path / "state" / "filmo.to.sqlite"
+    state_path.parent.mkdir()
+    limits = {key: value[0] for key, value in LIMITS.items()}
+    limits["provider_request_interval_s"] = 1
+    config = Config(
+        {"filmo.to": ORIGIN},
+        {"tv": "off", "movie": "off"},
+        state_path.parent,
+        tmp_path / "read",
+        tmp_path / "unused-key",
+        "filmo-incomplete-listing",
+        "127.0.0.1",
+        8080,
+        limits,
+    )
+    state = State(state_path, "filmo.to")
+    with atomic(state.db):
+        state.discover(Link("/movies/retained-film", "Retained Film"), NOW)
+
+    body = (
+        b'<div class="movie-poster-grid-card"><a href="/movies/new-film">New Film</a>'
+    )
+
+    async def fetch(_origin: str, _path: str, **options) -> Fetch:
+        await options["before_request"]()
+        return Fetch("ok", body)
+
+    collector = Collector(config, state, fetcher=fetch, clock=lambda: NOW)
+    try:
+        plan = collector.prepare(signal_allowed=False)
+        assert plan and plan.listing and plan.path == "/movies"
+        ready = asyncio.run(collector.collect(plan))
+        assert ready.outcome == "unexpected_structure" and ready.page is None
+        collector.apply(ready)
+
+        assert state.db.execute("SELECT count(*) FROM title").fetchone()[0] == 1
+        assert (
+            state.db.execute("SELECT listing_checked_at FROM worker_meta").fetchone()[0]
+            == 0
+        )
+        assert state.db.execute("SELECT count(*) FROM omissions").fetchone()[0] == 0
+        assert tuple(
+            state.db.execute("SELECT path,complete FROM listing_page").fetchone()
+        ) == ("/movies", 0)
     finally:
         state.close()
