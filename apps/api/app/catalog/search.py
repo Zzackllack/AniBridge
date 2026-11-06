@@ -26,6 +26,27 @@ _AUDIO_LANGUAGE_NAMES = {
 }
 
 
+def declared_quality_label(quality: dict) -> str:
+    """Emit only claims that *arr can represent without guessing a source."""
+    source, resolution = quality["source"], quality["resolution"]
+    # Radarr has no generic WEB quality. Bare resolution tokens also imply
+    # HDTV there. Keep these uncertain claims in attributes/description only.
+    names = {
+        "bluray": "BluRay",
+        "webdl": "WEB-DL",
+        "webrip": "WEBRip",
+        "dvd": "DVD",
+        "tv": "HDTV",
+    }
+    if source in names and resolution in {480, 576, 720, 1080, 2160}:
+        return f".{names[source]}.{resolution}p"
+    return {
+        "cam": ".CAM",
+        "telesync": ".TELESYNC",
+        "telecine": ".TC",
+    }.get(source, "")
+
+
 def rss(
     rows: list[dict], total: int, offset: int, *, seeders: int, leechers: int
 ) -> bytes:
@@ -78,26 +99,8 @@ def rss(
                 label += "." + _AUDIO_LANGUAGE_NAMES.get(language, language).replace(
                     " ", "."
                 )
-            quality = metadata["quality"]
-            # Raw conflicting labels are evidence, not a safe client quality.
-            if quality["source"] != "unknown":
-                label += (
-                    "."
-                    + {
-                        "bluray": "BluRay",
-                        "web": "WEB",
-                        "webdl": "WEB-DL",
-                        "webrip": "WEBRip",
-                        "cam": "CAM",
-                        "telesync": "TS",
-                        "telecine": "TC",
-                        "dvd": "DVD",
-                        "tv": "HDTV",
-                    }[quality["source"]]
-                )
-            if quality["resolution"] is not None:
-                label += f".{quality['resolution']}p"
-        if row.get("height") is not None:
+            label += declared_quality_label(metadata["quality"])
+        if metadata is None and row.get("height") is not None:
             label += f".{row['height']}p"
             if row.get("estimated"):
                 label += ".Estimated"
@@ -178,6 +181,8 @@ def rss(
             attributes["anibridge_source_claim"] = quality["source"]
             if quality["resolution"] is not None:
                 attributes["anibridge_resolution_claim"] = str(quality["resolution"])
+            if row.get("height") is not None:
+                attributes["anibridge_measured_resolution"] = str(row["height"])
             for language in metadata["audio_languages"]:
                 if language != "und":
                     ET.SubElement(

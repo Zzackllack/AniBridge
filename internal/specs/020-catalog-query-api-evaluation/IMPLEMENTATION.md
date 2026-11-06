@@ -18,7 +18,10 @@ rename/removal of Megakino or a legacy query-time scraper. Each native source
 choice has its own stable release identity and frozen selection descriptor.
 Declared quality/audio/subtitle metadata remains separate from measured media
 properties. Conflicting claims remain visible without selecting a convenient
-resolution/source. The collector never mints player tokens; accepted local grabs
+resolution/source. Generic WEB, unknown sources and incomplete quality claims
+stay in RSS attributes/descriptions; *arr release titles omit them because bare
+resolution tokens can falsely imply HDTV and WEB cannot prove WEB-DL/WEBRip.
+The collector never mints player tokens; accepted local grabs
 refetch their exact offer and use bounded session/CSRF handoffs to VOE or Byse.
 
 ## Collection and correspondence

@@ -9,8 +9,22 @@ from app.catalog.query_local import LocalRead, materialize
 from app.catalog.search import rss
 
 
-def test_filmo_rss_separates_audio_from_subtitles():
-    metadata = offer_metadata("42", "VOE", "English Dub German Sub", ["BluRay", "720p"])
+@pytest.mark.parametrize(
+    "labels,expected_quality",
+    [
+        (["BluRay", "720p"], ".BluRay.720p"),
+        (["WEB-DL", "1080p"], ".WEB-DL.1080p"),
+        (["WEBRip", "720p"], ".WEBRip.720p"),
+        (["WEB", "720p"], ""),
+        (["720p"], ""),
+        (["BluRay"], ""),
+        (["WEB", "BluRay", "720p"], ""),
+    ],
+)
+def test_filmo_rss_separates_audio_subtitles_and_uncertain_quality(
+    labels, expected_quality
+):
+    metadata = offer_metadata("42", "VOE", "English Dub German Sub", labels)
     entity_id = identity.entity_id("filmo.to", "/movies/example/release/42")
     row = {
         "provider": "filmo.to",
@@ -52,9 +66,11 @@ def test_filmo_rss_separates_audio_from_subtitles():
     attrs = [node.attrib for node in item if node.tag.endswith("attr")]
     language_attrs = [attr["value"] for attr in attrs if attr["name"] == "language"]
     assert "English" in title
+    assert title == "Example.2020.English" + expected_quality
     assert "German" not in title
     assert language_attrs == ["English"]
     assert "German" in description
+    assert all(label in description for label in labels)
     assert {attr["name"]: attr["value"] for attr in attrs}[
         "anibridge_subtitle_languages"
     ] == "deu"
