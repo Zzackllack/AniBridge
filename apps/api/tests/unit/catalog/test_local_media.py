@@ -100,6 +100,118 @@ def test_generated_video_is_remuxed_and_probed_in_sequential_bounded_children(
     )
 
 
+def test_generated_german_soft_subtitle_survives_local_remux(tmp_path):
+    """An MP4 mov_text subtitle must survive as a compatible Matroska track."""
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        pytest.skip("local FFmpeg tools unavailable")
+    source = tmp_path / "english-audio-german-subtitle.mp4"
+    subtitle = tmp_path / "german.srt"
+    subtitle.write_text("1\n00:00:00,000 --> 00:00:02,000\nGenerated German subtitle\n")
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=320x180:rate=10",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:sample_rate=44100",
+            "-i",
+            str(subtitle),
+            "-t",
+            "2",
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
+            "-map",
+            "2:s:0",
+            "-c:v",
+            "libx264",
+            "-threads",
+            "1",
+            "-c:a",
+            "aac",
+            "-c:s",
+            "mov_text",
+            "-metadata:s:a:0",
+            "language=eng",
+            "-metadata:s:s:0",
+            "language=deu",
+            "-movflags",
+            "+faststart",
+            str(source),
+        ],
+        check=True,
+        timeout=30,
+        capture_output=True,
+    )
+    executor = SubprocessExecutor({}, (), tmp_path)
+    target, probe = tmp_path / "output.mkv", tmp_path / "probe.json"
+
+    async def phases():
+        assert (
+            await executor._run(
+                "app.catalog.local_media_child",
+                ["remux", str(tmp_path), str(target), str(source)],
+                activity=target,
+            )
+            == 0
+        )
+        assert (
+            await executor._run(
+                "app.catalog.local_media_child",
+                ["probe", str(tmp_path), str(probe), str(target)],
+                deadline=20,
+            )
+            == 0
+        )
+
+    asyncio.run(phases())
+    streams = json.loads(probe.read_text())["streams"]
+    audio = [stream for stream in streams if stream["codec_type"] == "audio"]
+    subtitles = [stream for stream in streams if stream["codec_type"] == "subtitle"]
+    assert len(audio) == 1
+    # Keep the failing baseline focused on the missing embedded subtitle,
+    # before inspecting optional language tags the production probe omits.
+    assert len(subtitles) == 1
+    assert subtitles[0]["codec_name"] == "subrip"
+    tags = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-protocol_whitelist",
+            "file,pipe",
+            "-format_whitelist",
+            "mov,matroska,webm,mpegts",
+            "-show_entries",
+            "stream=codec_type,codec_name:stream_tags=language",
+            "-of",
+            "json",
+            str(target),
+        ],
+        check=True,
+        timeout=10,
+        capture_output=True,
+    )
+    assert len(tags.stdout) <= 65536
+    tagged_streams = json.loads(tags.stdout)["streams"]
+    tagged_audio = [
+        stream for stream in tagged_streams if stream["codec_type"] == "audio"
+    ]
+    tagged_subtitles = [
+        stream for stream in tagged_streams if stream["codec_type"] == "subtitle"
+    ]
+    assert len(tagged_audio) == 1 and tagged_audio[0]["tags"]["language"] == "eng"
+    assert len(tagged_subtitles) == 1
+    assert tagged_subtitles[0]["tags"]["language"] == "deu"
+
+
 def test_local_probe_rejects_playlist_references(tmp_path):
     if not shutil.which("ffprobe"):
         pytest.skip("local FFmpeg tools unavailable")

@@ -1,15 +1,155 @@
 """Replace this limited process with local-only FFmpeg/ffprobe."""
 
 import argparse
+import json
 import os
 import resource
+import select
 import shutil
+import subprocess
+import time
 from pathlib import Path
 
 from catalog_core.supervisor import limit_child
 
 FORMATS = "mov,matroska,webm,mpegts"
 LOCAL_MEMORY_BYTES = 320 * 1024**2
+PROBE_BYTES = 65536
+PROBE_TIMEOUT_S = 10
+MAX_STREAMS = 64
+COPY_SUBTITLE_CODECS = frozenset(
+    {
+        "ass",
+        "ssa",
+        "subrip",
+        "dvd_subtitle",
+        "dvb_subtitle",
+        "hdmv_pgs_subtitle",
+        "arib_caption",
+    }
+)
+TEXT_SUBTITLE_CODECS = frozenset({"mov_text", "webvtt"})
+
+
+def subtitle_plan(
+    streams_by_input: tuple[tuple[dict, ...], ...],
+) -> tuple[list[str], list[str]]:
+    """Map supported embedded subtitle streams and choose a safe Matroska codec."""
+    mappings, codecs = [], []
+    for input_index, streams in enumerate(streams_by_input):
+        for stream in streams:
+            if type(stream) is not dict:
+                raise ValueError("invalid subtitle stream metadata")
+            if stream.get("codec_type") != "subtitle":
+                continue
+            codec = stream.get("codec_name")
+            if (
+                type(codec) is not str
+                or codec not in COPY_SUBTITLE_CODECS | TEXT_SUBTITLE_CODECS
+            ):
+                raise ValueError("unsupported subtitle codec")
+            stream_index = stream.get("index")
+            if type(stream_index) is not int or stream_index < 0:
+                raise ValueError("invalid subtitle stream index")
+            output_index = len(codecs) // 2
+            mappings.extend(("-map", f"{input_index}:{stream_index}"))
+            codecs.extend(
+                (
+                    f"-c:s:{output_index}",
+                    "srt" if codec in TEXT_SUBTITLE_CODECS else "copy",
+                )
+            )
+    return mappings, codecs
+
+
+def _probe_streams(binary: str, path: Path) -> tuple[dict, ...]:
+    """Read bounded local stream metadata under this child and its deadline."""
+    command = [
+        binary,
+        "-v",
+        "error",
+        "-probesize",
+        "5000000",
+        "-analyzeduration",
+        "5000000",
+        "-protocol_whitelist",
+        "file,pipe",
+        "-format_whitelist",
+        FORMATS,
+        "-show_entries",
+        "stream=index,codec_type,codec_name",
+        "-of",
+        "json",
+        "-i",
+        str(path.resolve()),
+    ]
+    process = subprocess.Popen(
+        command,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        assert process.stdout is not None
+        body = bytearray()
+        deadline = time.monotonic() + PROBE_TIMEOUT_S
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise ValueError("local stream probe timed out")
+            ready, _, _ = select.select([process.stdout], [], [], remaining)
+            if not ready:
+                raise ValueError("local stream probe timed out")
+            block = os.read(
+                process.stdout.fileno(), min(8192, PROBE_BYTES + 1 - len(body))
+            )
+            if not block:
+                break
+            body.extend(block)
+            if len(body) > PROBE_BYTES:
+                raise ValueError("stream metadata exceeds bound")
+        try:
+            status = process.wait(timeout=max(0.001, deadline - time.monotonic()))
+        except subprocess.TimeoutExpired:
+            raise ValueError("local stream probe timed out") from None
+        if status:
+            raise ValueError("local stream probe failed")
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait()
+        if process.stdout is not None:
+            process.stdout.close()
+
+    try:
+        decoded = json.loads(body)
+        streams = decoded["streams"]
+        if type(streams) is not list or len(streams) > MAX_STREAMS:
+            raise ValueError("invalid stream metadata")
+        result = []
+        seen = set()
+        for stream in streams:
+            if type(stream) is not dict:
+                raise ValueError("invalid stream metadata")
+            index, kind, codec = (
+                stream.get("index"),
+                stream.get("codec_type"),
+                stream.get("codec_name"),
+            )
+            if (
+                type(index) is not int
+                or index < 0
+                or index in seen
+                or kind not in {"video", "audio", "subtitle", "data", "attachment"}
+                or type(codec) is not str
+                or not 1 <= len(codec) <= 64
+            ):
+                raise ValueError("invalid stream metadata")
+            seen.add(index)
+            result.append({"index": index, "codec_type": kind, "codec_name": codec})
+        return tuple(result)
+    except (KeyError, TypeError, UnicodeDecodeError, json.JSONDecodeError):
+        raise ValueError("invalid stream metadata") from None
 
 
 def main() -> None:
@@ -56,13 +196,24 @@ def main() -> None:
             str(args.output),
         ]
     else:
+        ffprobe_binary = shutil.which("ffprobe")
+        if ffprobe_binary is None:
+            raise ValueError("local stream probe unavailable")
+        streams_by_input = tuple(
+            _probe_streams(ffprobe_binary, path) for path in args.inputs
+        )
+        if sum(len(streams) for streams in streams_by_input) > MAX_STREAMS:
+            raise ValueError("too many local media streams")
+        subtitle_maps, subtitle_codecs = subtitle_plan(streams_by_input)
         command += [
             "-map",
             "0:v:0",
             "-map",
             "1:a:0" if len(args.inputs) == 2 else "0:a?",
+            *subtitle_maps,
             "-c",
             "copy",
+            *subtitle_codecs,
             # Stream copy needs no lookahead. Bound the producer/muxer queue so
             # fast local reads cannot fill the child address-space allowance.
             "-thread_queue_size",
