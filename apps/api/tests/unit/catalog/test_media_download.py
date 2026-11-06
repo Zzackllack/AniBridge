@@ -128,7 +128,7 @@ def _master_manifest(*, subtitles=False, codecs=True, same_language=False):
         )
     if subtitles:
         lines.append(
-            '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="German",LANGUAGE="de",DEFAULT=NO,AUTOSELECT=YES,URI="subs-de.m3u8"'
+            '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="German",LANGUAGE="de",DEFAULT=NO,AUTOSELECT=YES,URI="subs-de.vtt"'
         )
     lines.extend(
         [
@@ -149,7 +149,7 @@ def _audio_manifest(name):
 def _filmo_selection(languages=("eng",)):
     return {
         "audio_languages": list(languages),
-        "subtitle_languages": ["deu"],
+        "subtitle_languages": [],
         "subtitle_mode": "unknown",
     }
 
@@ -212,38 +212,12 @@ def test_filmo_hls_rejects_wrong_or_ambiguous_audio_before_media_download(
 def test_filmo_hls_rejects_unbound_or_duplicate_language_renditions(
     tmp_path, monkeypatch
 ):
-    for manifest, extra in (
-        (_master_manifest(codecs=False), {}),
-        (
-            _master_manifest(same_language=True),
-            {"/audio-en-commentary.m3u8": _audio_manifest("commentary")},
-        ),
-    ):
-        pages = {
-            "/master.m3u8": manifest,
-            "/video.m3u8": _audio_manifest("video"),
-            **extra,
-        }
-        with monkeypatch.context() as scoped:
-            calls = fixture_transport(scoped, pages)
-            with pytest.raises(ResolutionError, match="unsupported_media_tracks"):
-                transfer(
-                    "https://media.example/master.m3u8",
-                    tmp_path,
-                    lambda update: None,
-                    selection=_filmo_selection(),
-                )
-        assert all(call.url.path == "/master.m3u8" for call in calls)
-
-
-def test_filmo_hls_external_captions_fail_closed(tmp_path, monkeypatch):
-    calls = fixture_transport(
-        monkeypatch,
-        {
-            "/master.m3u8": _master_manifest(subtitles=True),
-            "/video.m3u8": _audio_manifest("video"),
-        },
-    )
+    pages = {
+        "/master.m3u8": _master_manifest(same_language=True),
+        "/video.m3u8": _audio_manifest("video"),
+        "/audio-en-commentary.m3u8": _audio_manifest("commentary"),
+    }
+    calls = fixture_transport(monkeypatch, pages)
     with pytest.raises(ResolutionError, match="unsupported_media_tracks"):
         transfer(
             "https://media.example/master.m3u8",
@@ -252,6 +226,32 @@ def test_filmo_hls_external_captions_fail_closed(tmp_path, monkeypatch):
             selection=_filmo_selection(),
         )
     assert all(call.url.path == "/master.m3u8" for call in calls)
+
+
+def test_filmo_hls_downloads_declared_external_captions(tmp_path, monkeypatch):
+    captions = b"WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nGenerated caption\n"
+    calls = fixture_transport(
+        monkeypatch,
+        {
+            "/master.m3u8": _master_manifest(subtitles=True),
+            "/video.m3u8": _audio_manifest("video"),
+            "/audio-en.m3u8": _audio_manifest("english"),
+            "/subs-de.vtt": captions,
+            "/video.ts": b"video",
+            "/english.ts": b"english",
+        },
+    )
+    outputs = transfer(
+        "https://media.example/master.m3u8",
+        tmp_path,
+        lambda update: None,
+        selection={**_filmo_selection(), "subtitle_languages": ["deu"]},
+    )
+    assert len(outputs) == 3
+    assert outputs[-1].read_bytes() == captions
+    manifest = (tmp_path / "tracks.json").read_text()
+    assert '"kind":"subtitle","language":"deu","format":"vtt"' in manifest
+    assert any(call.url.path == "/subs-de.vtt" for call in calls)
 
 
 def test_legacy_hls_keeps_highest_bitrate_audio_selection(tmp_path, monkeypatch):

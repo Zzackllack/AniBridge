@@ -67,6 +67,7 @@ def main() -> None:
                 progress,
                 bandwidth=request.get("bandwidth"),
                 selection=request["payload"].get("release_metadata"),
+                captions=getattr(media, "captions", ()),
             )
         else:
             tracks = transfer(

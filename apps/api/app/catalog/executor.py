@@ -1,6 +1,7 @@
 """Supervise sequential transfer, remux and verification phases for a grab."""
 
 import asyncio
+from collections import Counter
 import os
 import signal
 import sys
@@ -16,6 +17,7 @@ from .output_publication import publish
 from .output_receipt import fingerprint
 from .quality_evidence import measured
 from .runner import Outcome
+from .media_tracks import validate_tracks_manifest
 
 
 class SubprocessExecutor:
@@ -254,16 +256,34 @@ class SubprocessExecutor:
             result = loads(status.read_bytes(), 65536)
             if result.get("outcome") != "ok":
                 return Outcome(result.get("outcome", "extraction_error"))
-            tracks = [Path(path) for path in result.get("tracks", [])]
-            if not 1 <= len(tracks) <= 2 or not all(
+            raw_tracks = result.get("tracks")
+            if type(raw_tracks) is not list or any(
+                type(path) is not str for path in raw_tracks
+            ):
+                return Outcome("extraction_error")
+            tracks = [Path(path) for path in raw_tracks]
+            filmo = payload.get("provider") == "filmo.to"
+            track_manifest = attempt / "tracks" / "tracks.json"
+            filmo_tracks = None
+            if filmo:
+                try:
+                    filmo_tracks = validate_tracks_manifest(
+                        track_manifest, attempt, tracks
+                    )
+                except OSError, TypeError, ValueError:
+                    return Outcome("extraction_error")
+            elif not 1 <= len(tracks) <= 2 or not all(
                 path.is_file() and path.resolve().is_relative_to(attempt)
                 for path in tracks
             ):
                 return Outcome("extraction_error")
             remux = attempt / "verified.mkv"
+            remux_args = ["remux", str(attempt), str(remux), *map(str, tracks)]
+            if filmo:
+                remux_args.extend(("--tracks-json", str(track_manifest)))
             code = await self._run(
                 "app.catalog.local_media_child",
-                ["remux", str(attempt), str(remux), *map(str, tracks)],
+                remux_args,
                 activity=remux,
                 diagnostic=attempt / "failure.json",
             )
@@ -285,6 +305,10 @@ class SubprocessExecutor:
             ):
                 return Outcome("extraction_error")
             if float(inspected.get("format", {}).get("duration", 0)) <= 0:
+                return Outcome("extraction_error")
+            if filmo and not _filmo_output_tracks_present(
+                payload, filmo_tracks, inspected
+            ):
                 return Outcome("extraction_error")
             if target.exists():
                 return Outcome("output_conflict")
@@ -315,3 +339,46 @@ class SubprocessExecutor:
             return Outcome("extraction_error")
         finally:
             request.unlink(missing_ok=True)
+
+
+def _filmo_output_tracks_present(
+    payload: dict, records: tuple[dict, ...], probe: dict
+) -> bool:
+    streams = probe.get("streams")
+    if type(streams) is not list:
+        return False
+    by_kind = {
+        "audio": Counter(),
+        "subtitle": Counter(),
+    }
+    counts = Counter()
+    for stream in streams:
+        if type(stream) is not dict:
+            return False
+        kind = stream.get("codec_type")
+        if kind in by_kind:
+            counts[kind] += 1
+            tags = stream.get("tags")
+            language = tags.get("language") if type(tags) is dict else None
+            if type(language) is str:
+                by_kind[kind][language] += 1
+
+    metadata = payload.get("release_metadata")
+    audio_languages = (
+        metadata.get("audio_languages") if type(metadata) is dict else None
+    )
+    if type(audio_languages) is not list or counts["audio"] < len(audio_languages):
+        return False
+    for kind in ("audio", "subtitle"):
+        expected = Counter(
+            record["language"] for record in records if record["kind"] == kind
+        )
+        if any(by_kind[kind][language] < count for language, count in expected.items()):
+            return False
+    if metadata.get("subtitle_mode") == "soft":
+        subtitle_languages = metadata.get("subtitle_languages")
+        if type(subtitle_languages) is not list or any(
+            by_kind["subtitle"][language] < 1 for language in subtitle_languages
+        ):
+            return False
+    return True

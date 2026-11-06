@@ -11,8 +11,10 @@ import time
 from pathlib import Path
 
 from catalog_core.supervisor import limit_child
+from .media_tracks import validate_tracks_manifest
 
 FORMATS = "mov,matroska,webm,mpegts"
+FORMATS_WITH_CAPTIONS = f"{FORMATS},srt,webvtt"
 LOCAL_MEMORY_BYTES = 320 * 1024**2
 PROBE_BYTES = 65536
 PROBE_TIMEOUT_S = 10
@@ -75,7 +77,7 @@ def _probe_streams(binary: str, path: Path) -> tuple[dict, ...]:
         "-protocol_whitelist",
         "file,pipe",
         "-format_whitelist",
-        FORMATS,
+        FORMATS_WITH_CAPTIONS if path.suffix.lower() in {".srt", ".vtt"} else FORMATS,
         "-show_entries",
         "stream=index,codec_type,codec_name",
         "-of",
@@ -158,6 +160,7 @@ def main() -> None:
     parser.add_argument("root", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("inputs", type=Path, nargs="+")
+    parser.add_argument("--tracks-json", type=Path)
     args = parser.parse_args()
     # Native AMD64 remux/probe needs about 257 MiB of virtual mappings even
     # when sampled RSS is below 70 MiB. Keep a bounded 25% margin for these
@@ -165,7 +168,13 @@ def main() -> None:
     limit_child(memory_bytes=LOCAL_MEMORY_BYTES, output_bytes=resource.RLIM_INFINITY)
     resource.setrlimit(resource.RLIMIT_STACK, (1024**2, 1024**2))
     root = args.root.resolve()
-    if not 1 <= len(args.inputs) <= 2 or not all(
+    if args.tracks_json is None and not 1 <= len(args.inputs) <= 2:
+        raise ValueError("invalid local input")
+    if args.tracks_json is not None and args.operation != "remux":
+        raise ValueError("track manifest is only valid for remux")
+    if args.tracks_json is not None and len(args.inputs) > 16:
+        raise ValueError("too many local inputs")
+    if not all(
         path.resolve().is_relative_to(root) and path.is_file() for path in args.inputs
     ):
         raise ValueError("invalid local input")
@@ -175,6 +184,11 @@ def main() -> None:
     if binary is None:
         raise ValueError("local media tool unavailable")
     command = [binary, "-v", "error", "-threads", "1"]
+    format_whitelist = FORMATS
+    track_records = None
+    if args.tracks_json is not None:
+        track_records = validate_tracks_manifest(args.tracks_json, root, args.inputs)
+        format_whitelist = FORMATS_WITH_CAPTIONS
     for path in args.inputs:
         # Also reject playlist/concat demuxers that could reference unrelated
         # local files. Only actual media containers may enter this phase.
@@ -182,14 +196,14 @@ def main() -> None:
             "-protocol_whitelist",
             "file,pipe",
             "-format_whitelist",
-            FORMATS,
+            format_whitelist,
             "-i",
             str(path.resolve()),
         ]
     if args.operation == "probe":
         command += [
             "-show_entries",
-            "stream=codec_type,codec_name,height,width:format=duration,size",
+            "stream=codec_type,codec_name,height,width:stream_tags=language:format=duration,size",
             "-of",
             "json",
             "-o",
@@ -204,16 +218,98 @@ def main() -> None:
         )
         if sum(len(streams) for streams in streams_by_input) > MAX_STREAMS:
             raise ValueError("too many local media streams")
-        subtitle_maps, subtitle_codecs = subtitle_plan(streams_by_input)
+        if track_records is None:
+            # Preserve the existing providers' one-video/optional-one-audio
+            # remux path as-is.
+            subtitle_maps, subtitle_codecs = subtitle_plan(streams_by_input)
+            maps = [
+                "-map",
+                "0:v:0",
+                "-map",
+                "1:a:0" if len(args.inputs) == 2 else "0:a?",
+            ]
+            metadata = []
+        else:
+            subtitle_streams = tuple(
+                streams
+                if track_records[input_index]["kind"] in ("video", "subtitle")
+                else ()
+                for input_index, streams in enumerate(streams_by_input)
+            )
+            subtitle_maps, subtitle_codecs = subtitle_plan(subtitle_streams)
+            video_input = next(
+                index
+                for index, record in enumerate(track_records)
+                if record["kind"] == "video"
+            )
+            if not any(
+                stream["codec_type"] == "video"
+                for stream in streams_by_input[video_input]
+            ):
+                raise ValueError("video track has no video stream")
+            has_separate_audio = any(
+                record["kind"] == "audio" for record in track_records
+            )
+            maps = ["-map", f"{video_input}:v:0"]
+            if not has_separate_audio:
+                maps.extend(("-map", f"{video_input}:a?"))
+            metadata = []
+            output_audio_index = (
+                0
+                if has_separate_audio
+                else sum(
+                    stream["codec_type"] == "audio"
+                    for stream in streams_by_input[video_input]
+                )
+            )
+            for input_index, record in enumerate(track_records):
+                if record["kind"] != "audio":
+                    continue
+                if not any(
+                    stream["codec_type"] == "audio"
+                    for stream in streams_by_input[input_index]
+                ):
+                    raise ValueError("audio track has no audio stream")
+                maps.extend(("-map", f"{input_index}:a:0"))
+                metadata.extend(
+                    (
+                        f"-metadata:s:a:{output_audio_index}",
+                        f"language={record['language']}",
+                    )
+                )
+                output_audio_index += 1
+
+            for input_index, record in enumerate(track_records):
+                if record["kind"] != "subtitle":
+                    continue
+                if not any(
+                    stream["codec_type"] == "subtitle"
+                    for stream in streams_by_input[input_index]
+                ):
+                    raise ValueError("subtitle track has no subtitle stream")
+
+            output_subtitle_index = 0
+            for input_index, streams in enumerate(subtitle_streams):
+                record = track_records[input_index]
+                for stream in streams:
+                    if stream["codec_type"] != "subtitle":
+                        continue
+                    if record["kind"] == "subtitle":
+                        metadata.extend(
+                            (
+                                f"-metadata:s:s:{output_subtitle_index}",
+                                f"language={record['language']}",
+                            )
+                        )
+                    output_subtitle_index += 1
+
         command += [
-            "-map",
-            "0:v:0",
-            "-map",
-            "1:a:0" if len(args.inputs) == 2 else "0:a?",
+            *maps,
             *subtitle_maps,
             "-c",
             "copy",
             *subtitle_codecs,
+            *metadata,
             # Stream copy needs no lookahead. Bound the producer/muxer queue so
             # fast local reads cannot fill the child address-space allowance.
             "-thread_queue_size",

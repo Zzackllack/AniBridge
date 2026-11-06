@@ -15,6 +15,7 @@ from catalog_core.providers.sto_languages import LABELS as STO_LABELS
 from app.core.downloader.errors import ProviderResolutionError
 from app.hosts import catalog_sources
 
+from .media_captions import CaptionTrack
 from .resolution_transport import Budget, ResolutionError
 
 LANGUAGES = {"de-dub": "1", "en-sub": "2", "de-sub": "3"}
@@ -24,6 +25,7 @@ LANGUAGES = {"de-dub": "1", "en-sub": "2", "de-sub": "3"}
 class Media:
     host: str
     url: str = field(repr=False)
+    captions: tuple[CaptionTrack, ...] = ()
 
 
 def offers(
@@ -121,6 +123,7 @@ def resolve(
     last = "extraction_error"
     for host in choices:
         url, visited = available[host], set()
+        captions: tuple[CaptionTrack, ...] = ()
         try:
             while url and url not in visited:
                 visited.add(url)
@@ -142,11 +145,14 @@ def resolve(
                     if api_url is not None:
                         try:
                             observed = budget.get(api_url, origin=page.url)
-                            source = catalog_sources.filemoon_source(
-                                observed.text,
-                                reject_external_tracks=payload["provider"]
-                                == "filmo.to",
-                            )
+                            if payload["provider"] == "filmo.to":
+                                playback = catalog_sources.filemoon_playback(
+                                    observed.text, allow_external_captions=True
+                                )
+                                source = playback.source_url if playback else None
+                                captions = playback.captions if playback else ()
+                            else:
+                                source = catalog_sources.filemoon_source(observed.text)
                         except catalog_sources.UnsupportedMediaTracks as exc:
                             raise ResolutionError("unsupported_media_tracks") from exc
                         except ResolutionError as exc:
@@ -157,7 +163,10 @@ def resolve(
                 budget.remaining()
                 if source:
                     budget.validate_url(source, stage="resolved media")
-                    return Media(host, source)
+                    for caption in captions:
+                        budget.remaining()
+                        budget.validate_url(caption.url, stage="resolved caption")
+                    return Media(host, source, captions)
                 url = redirect_parser(page.text, page.url) if host == "VOE" else None
         except ResolutionError as exc:
             if exc.code in {"challenge", "unsupported_media_tracks"}:

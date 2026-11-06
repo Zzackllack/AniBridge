@@ -470,7 +470,7 @@ def _encrypted_byse_response(data, *, api_tracks=None):
     return json.dumps(response)
 
 
-def test_filmo_byse_captions_fail_resolution_and_legacy_decoder_is_unchanged(
+def test_filmo_byse_captions_survive_resolution_and_legacy_decoder_is_unchanged(
     monkeypatch,
 ):
     from app.catalog import filmo_resolution
@@ -523,10 +523,19 @@ def test_filmo_byse_captions_fail_resolution_and_legacy_decoder_is_unchanged(
         "variant_anchor": "frozen-variant",
         "release_metadata": {"variant_anchor": "frozen-variant"},
     }
-    with pytest.raises(ResolutionError, match="unsupported_media_tracks") as error:
-        resolve(payload, "https://filmo.example", ("Byse",), budget)
-    assert error.value.code == "unsupported_media_tracks"
-    assert not any(url == media_url for url in budget.urls)
+    media = resolve(payload, "https://filmo.example", ("Byse",), budget)
+    assert media.url == media_url
+    assert len(media.captions) == 1
+    caption = media.captions[0]
+    assert caption.language == "deu" and caption.format == "vtt"
+    assert caption.url == "https://captions.example/generated.vtt"
+    assert media_url not in repr(media) and caption.url not in repr(media)
+    assert budget.urls == [
+        "https://bysefixture.test/d/Abc123",
+        "https://bysefixture.test/api/videos/Abc123",
+        media_url,
+        caption.url,
+    ]
 
 
 def test_filmo_byse_track_layout_requires_explicit_thumbnail_only_metadata():
@@ -558,6 +567,53 @@ def test_filmo_byse_track_layout_requires_explicit_thumbnail_only_metadata():
     )
     with pytest.raises(UnsupportedMediaTracks):
         filemoon_source(api_captions, reject_external_tracks=True)
+
+
+def test_filmo_caption_target_is_revalidated_before_transfer(monkeypatch):
+    from app.catalog import filmo_resolution
+
+    monkeypatch.setattr(
+        filmo_resolution,
+        "_filmo_embed",
+        lambda *args, **kwargs: ("Byse", "https://bysefixture.test/d/Abc123"),
+    )
+    response = _encrypted_byse_response(
+        {
+            "sources": [{"url": "https://media.example/generated.mp4"}],
+            "tracks": [
+                {
+                    "file": "https://127.0.0.1/private.vtt",
+                    "kind": "captions",
+                    "label": "German",
+                }
+            ],
+        }
+    )
+    budget, calls, bodies, validated = transport(
+        {
+            "/d/Abc123": (200, {}, b"<html></html>"),
+            "/api/videos/Abc123": (200, {}, response.encode()),
+        }
+    )
+    try:
+        with pytest.raises(ResolutionError, match="extraction_error"):
+            resolve(
+                {
+                    "provider": "filmo.to",
+                    "path": "/movies/example",
+                    "language": "eng",
+                    "variant_anchor": "frozen",
+                    "release_metadata": {"variant_anchor": "frozen"},
+                },
+                "https://filmo.example",
+                ("Byse",),
+                budget,
+            )
+        assert len(calls) == 2
+        assert validated[-1] == "https://127.0.0.1/private.vtt"
+        assert all(body.closed for body in bodies)
+    finally:
+        budget.close()
 
 
 @pytest.mark.parametrize("path", ["/movies/example", "/movies/caf%C3%A9"])

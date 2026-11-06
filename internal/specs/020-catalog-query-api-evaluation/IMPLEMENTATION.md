@@ -108,12 +108,14 @@ progress, completion and output availability. Unknown transfer sizes stay unknow
 no premature 100% or automatic duplicate acquisition after import/file movement.
 Legacy aliases, jobs, categories and path translation remain compatible.
 
-Filmo remuxing retains embedded subtitle tracks. Separate HLS audio requires a
-unique declared-language match and an identifiable compatible group. External
-subtitle tracks advertised by HLS or Byse, ambiguous audio and unsupported track
-layouts fail with `unsupported_media_tracks`; separate-caption acquisition is
-not implemented. Generic subtitle labels do not prove soft versus burned-in
-captions. STRM playback remains dependent on the player's manifest handling.
+Filmo remuxing retains embedded tracks and their language tags. Separate HLS
+audio binds each declared language to an exact rendition URI in the selected
+video's group. Known Byse SRT/WebVTT and HLS WebVTT captions use verified,
+bounded acquisition and a local track manifest, then remux to Matroska with
+explicit language tags. External-rendition limits are eight tracks per kind and
+sixteen total inputs; direct captions are capped at 2 MiB each. Ambiguous or
+unsupported layouts fail explicitly. Generic provider subtitle labels do not
+prove soft versus burned-in captions. STRM playback still depends on the player.
 
 Query-mode qBittorrent forms accept URL-encoded and multipart text fields.
 Admission bounds total bytes, receive frames, elapsed time and field counts;
