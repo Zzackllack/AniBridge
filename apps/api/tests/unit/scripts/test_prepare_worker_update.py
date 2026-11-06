@@ -60,6 +60,36 @@ def test_latest_rerun_supersedes_failure_across_paginated_results(update):
     assert update.checked_runs(checks + [{"check_runs": [rerun]}])[rerun["name"]] == 100
 
 
+@pytest.mark.parametrize(
+    "name,app,status,conclusion,accepted",
+    [
+        ("CodeRabbit", "coderabbitai", "completed", "skipped", True),
+        ("CodeRabbit", "coderabbitai", "completed", "failure", False),
+        ("CodeRabbit", "coderabbitai", "in_progress", None, False),
+        ("CodeRabbit", "other-app", "completed", "skipped", False),
+        ("Security scan", "coderabbitai", "completed", "skipped", False),
+    ],
+)
+def test_optional_review_skip_cannot_hide_required_or_unrecognized_checks(
+    update, name, app, status, conclusion, accepted
+):
+    checks = runs(update)
+    checks[0]["check_runs"].append(
+        {
+            "id": 100,
+            "name": name,
+            "app": {"slug": app},
+            "status": status,
+            "conclusion": conclusion,
+        }
+    )
+    if accepted:
+        assert update.checked_runs(checks)[name] == 100
+    else:
+        with pytest.raises(ValueError, match="unfinished or unsuccessful"):
+            update.checked_runs(checks)
+
+
 def test_manifest_requires_digest_and_both_linux_architectures(update):
     manifest = {
         "digest": "sha256:" + "a" * 64,

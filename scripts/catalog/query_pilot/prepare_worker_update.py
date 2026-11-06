@@ -19,6 +19,20 @@ REQUIRED = {
 }
 
 
+def accepted_check(run: dict) -> bool:
+    if run["status"] != "completed":
+        return False
+    if run["conclusion"] == "success":
+        return True
+    # This optional reviewer skips draft PRs. It is not the required test gate
+    # or the separate human/CODEOWNER approval required by branch protection.
+    return (
+        run["name"] == "CodeRabbit"
+        and run.get("app", {}).get("slug") == "coderabbitai"
+        and run["conclusion"] == "skipped"
+    )
+
+
 def checked_runs(pages: list[dict]) -> dict[str, int]:
     # A rerun supersedes an older failed attempt with the same check name.
     latest = {}
@@ -28,9 +42,8 @@ def checked_runs(pages: list[dict]) -> dict[str, int]:
                 latest[run["name"]] = run
     if not REQUIRED <= latest.keys():
         raise ValueError("required test/image checks are missing at this revision")
-    if any(
-        run["status"] != "completed" or run["conclusion"] != "success"
-        for run in latest.values()
+    if any(latest[name]["conclusion"] != "success" for name in REQUIRED) or any(
+        not accepted_check(run) for run in latest.values()
     ):
         raise ValueError("revision has unfinished or unsuccessful checks")
     return {name: latest[name]["id"] for name in sorted(latest)}
