@@ -23,6 +23,16 @@ from .state import State
 from .storage import check, migration_reserve, recover_scratch
 
 
+async def _cancel_and_wait(tasks: list[asyncio.Task]) -> None:
+    """Cancel unfinished tasks once, then let their cleanup finish."""
+    for task in tasks:
+        # gather() may already have cancelled siblings. A second request can
+        # interrupt their finally blocks before producers and writers settle.
+        if not task.done() and task.cancelling() == 0:
+            task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+
 async def collect(path: Path, once: bool) -> None:
     if sys.platform != "linux":
         raise ValueError("collector resource enforcement requires Linux")
@@ -116,9 +126,7 @@ async def collect(path: Path, once: bool) -> None:
             ]
             await asyncio.gather(*tasks)
     finally:
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
+        await _cancel_and_wait(tasks)
         if enricher is not None:
             await enricher.close()
         for collector in collectors:
