@@ -1,156 +1,52 @@
-name: CQ / Ruff Autofix
+name: CQ / Ruff Checks
 
 on:
   push:
-    tags-ignore:
-      - "v*"
-    paths:
-      - "apps/api/app/**"
-      - "apps/api/tests/**"
-      - "apps/api/pyproject.toml"
-      - "apps/api/uv.lock"
-      - "apps/api/pytest.ini"
+    tags-ignore: ['v*']
   pull_request:
-    paths:
-      - "apps/api/app/**"
-      - "apps/api/tests/**"
-      - "apps/api/pyproject.toml"
-      - "apps/api/uv.lock"
-      - "apps/api/pytest.ini"
+    branches: [main, v3]
+
+permissions:
+  contents: read
 
 concurrency:
   group: cq-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
-permissions:
-  contents: write
-  pull-requests: write
 
 jobs:
   linting:
     name: Ruff Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
-          ref: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) && github.head_ref || github.ref }}
-      - name: Set up Python
-        uses: actions/setup-python@v7
+          persist-credentials: false
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-      - name: Install dependencies
-        run: cd apps/api && uv sync --frozen
-      - name: Run Ruff linter (auto-fix)
-        run: cd apps/api && uv run ruff check --fix app tests
-      - name: Commit and push changes
-        env:
-          CAN_PUSH: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-        run: |
-          set -euo pipefail
-          git config --local user.name "github-actions[bot]"
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git add apps/api/app apps/api/tests
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
-          git commit -m "style: Lint Python code with Ruff"
-
-          if [ "${CAN_PUSH}" != "true" ]; then
-            echo "Fork PR detected; skipping push."
-            exit 0
-          fi
-
-          BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME:-}}"
-          if [ -z "${BRANCH}" ]; then
-            echo "No branch detected (neither GITHUB_HEAD_REF nor GITHUB_REF_NAME set); skipping push."
-            exit 0
-          fi
-
-          # Make push resilient to remote updates (e.g., overlapping workflow runs).
-          git fetch origin "${BRANCH}"
-          git rebase "origin/${BRANCH}"
-          for attempt in 1 2 3; do
-            if git push --force-with-lease origin "HEAD:${BRANCH}"; then
-              exit 0
-            fi
-            echo "Push rejected (attempt ${attempt}); rebasing onto latest remote and retrying..."
-            git fetch origin "${BRANCH}"
-            git rebase "origin/${BRANCH}"
-          done
-          echo "Push failed after retries."
-          exit 1
+          python-version: '3.14'
+      - uses: astral-sh/setup-uv@v7
+      - name: Install frozen project
+        working-directory: apps/api
+        run: uv sync --frozen
+      - name: Check lint without modifying the branch
+        working-directory: apps/api
+        run: uv run --frozen ruff check app tests
 
   format:
     name: Ruff Format
     runs-on: ubuntu-latest
     needs: linting
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
-          ref: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) && github.head_ref || github.ref }}
-      - name: Refresh branch with latest fixes
-        env:
-          CAN_PUSH: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-        run: |
-          set -euo pipefail
-          if [ "${CAN_PUSH}" != "true" ]; then
-            echo "Fork PR detected; skipping pull/rebase."
-            exit 0
-          fi
-          git fetch --all
-          git pull --rebase origin "${GITHUB_HEAD_REF:-$(git rev-parse --abbrev-ref HEAD)}"
-      - name: Set up Python
-        uses: actions/setup-python@v7
+          persist-credentials: false
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-      - name: Install dependencies
-        run: cd apps/api && uv sync --frozen
-      - name: Run Ruff formatter
-        run: cd apps/api && uv run ruff format app tests
-      - name: Commit and push changes
-        env:
-          CAN_PUSH: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-        run: |
-          set -euo pipefail
-          git config --local user.name "github-actions[bot]"
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git add apps/api/app apps/api/tests
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
-          git commit -m "style: Format Python code with Ruff"
-
-          if [ "${CAN_PUSH}" != "true" ]; then
-            echo "Fork PR detected; skipping push."
-            exit 0
-          fi
-
-          BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME:-}}"
-          if [ -z "${BRANCH}" ]; then
-            echo "No branch detected (neither GITHUB_HEAD_REF nor GITHUB_REF_NAME set); skipping push."
-            exit 0
-          fi
-
-          # Make push resilient to remote updates (e.g., overlapping workflow runs).
-          git fetch origin "${BRANCH}"
-          git rebase "origin/${BRANCH}"
-          for attempt in 1 2 3; do
-            if git push --force-with-lease origin "HEAD:${BRANCH}"; then
-              exit 0
-            fi
-            echo "Push rejected (attempt ${attempt}); rebasing onto latest remote and retrying..."
-            git fetch origin "${BRANCH}"
-            git rebase "origin/${BRANCH}"
-          done
-          echo "Push failed after retries."
-          exit 1
+          python-version: '3.14'
+      - uses: astral-sh/setup-uv@v7
+      - name: Install frozen project
+        working-directory: apps/api
+        run: uv sync --frozen
+      - name: Check format without modifying the branch
+        working-directory: apps/api
+        run: uv run --frozen ruff format --check app tests

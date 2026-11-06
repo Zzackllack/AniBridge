@@ -4,6 +4,9 @@
 
 - Job (SQLModel): `id`, `status`, `progress`, `downloaded_bytes`, `total_bytes`, `speed`, `eta`, `message`, `result_path`, timestamps.
 - Status transitions: `queued` -> `downloading` -> (`completed` | `failed` | `cancelled`).
+- Catalog jobs retain `completed` after a consumer moves the output. File absence
+  becomes a qBittorrent availability warning, not a recovery-time failure or
+  automatic retry. A missing completed output permits an explicit operator retry.
 
 - ClientTask (SQLModel): qBittorrent-compatible task state.
   - Maps magnet hash to job ID and stores category, save path, completion timestamp.

@@ -33,6 +33,13 @@ The simplest and most reliable way to run AniBridge.
 
 ### Minimal Compose
 
+V3 previews require working process-lock exclusion for writable state. Docker
+Desktop Mac bind mounts can accept conflicting `flock` owners; these builds
+refuse to start on such storage. Use a Docker named volume for `/data` and keep
+downloads separately mounted. For an existing installation, first prepare and
+verify a stopped-writer SQLite backup including WAL data; changing a mount alone
+would hide the existing database. Deleting a lock file cannot fix the filesystem.
+
 ```yaml
 services:
   anibridge:

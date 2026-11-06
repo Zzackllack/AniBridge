@@ -22,7 +22,7 @@ def _site_prefix(site: str) -> str:
         return "aw"
     if site == "s.to":
         return "sto"
-    logger.warning(f"Unknown site '{site}', defaulting to 'aw' prefix")
+    logger.warning("Unknown site, defaulting to 'aw' prefix")
     return "aw"
 
 
@@ -33,9 +33,7 @@ def _hash_id(slug: str, season: int, episode: int, language: str) -> str:
     Returns:
         A hexadecimal SHA-1 digest of the string "{slug}|{season}|{episode}|{language}" using UTF-8 encoding.
     """
-    logger.debug(
-        f"Hashing ID with slug={slug}, season={season}, episode={episode}, language={language}"
-    )
+    logger.debug("Hashing legacy source identity")
     h = hashlib.sha1(
         f"{slug}|{season}|{episode}|{language}".encode("utf-8")
     ).hexdigest()
@@ -65,13 +63,11 @@ def _hash_id_with_mode(
     """
     if not mode:
         return _hash_id(slug, season, episode, language)
-    logger.debug(
-        f"Hashing ID with slug={slug}, season={season}, episode={episode}, language={language}, mode={mode}"
-    )
+    logger.debug("Hashing legacy source identity with mode")
     h = hashlib.sha1(
         f"{slug}|{season}|{episode}|{language}|{mode}".encode("utf-8")
     ).hexdigest()
-    logger.info(f"Generated hash (mode={mode}): {h}")
+    logger.info("Generated variant hash: {}", h)
     return h
 
 
@@ -102,9 +98,7 @@ def build_magnet(
     Returns:
         magnet_uri (str): A magnet URI that includes `xt`, `dn`, and site-prefixed metadata (slug, s, e, lang, site, and optionally provider).
     """
-    logger.debug(
-        f"Building magnet for title='{title}', slug='{slug}', season={season}, episode={episode}, language='{language}', provider='{provider}', site='{site}'"
-    )
+    logger.debug("Building legacy magnet")
     mode_norm = mode.strip().lower() if mode else None
     xt = f"urn:btih:{_hash_id_with_mode(slug, season, episode, language, mode_norm)}"
     # Build query params, but ensure 'xt=urn:btih:...' keeps ':' unescaped.
@@ -127,7 +121,7 @@ def build_magnet(
         params.append((f"{prefix}_mode", mode_norm))
     if provider:
         params.append((f"{prefix}_provider", provider))
-        logger.debug(f"Added provider to magnet: {provider}")
+        logger.debug("Added host preference to magnet")
 
     # Encode each param individually; keep ':' in xt unescaped
     encoded_parts: list[str] = []
@@ -139,7 +133,7 @@ def build_magnet(
         encoded_parts.append(f"{k}={enc_v}")
 
     magnet_uri = f"magnet:?{'&'.join(encoded_parts)}"
-    logger.success(f"Magnet URI built: {magnet_uri}")
+    logger.success("Magnet URI built")
     return magnet_uri
 
 
@@ -161,7 +155,8 @@ def parse_magnet(magnet: str) -> Dict[str, str]:
     Raises:
         ValueError: If the input does not start with "magnet:?" or if any required parameter is missing.
     """
-    logger.debug(f"Parsing magnet URI: {magnet}")
+    # Magnets can contain private names and arbitrary caller-supplied tokens.
+    logger.debug("Parsing magnet URI")
     if not magnet.startswith("magnet:?"):
         logger.error("Provided string is not a magnet URI")
         raise ValueError("not a magnet")
@@ -170,10 +165,9 @@ def parse_magnet(magnet: str) -> Dict[str, str]:
     flat: Dict[str, str] = {}
     for k, v in params.items():
         if not v:
-            logger.warning(f"Magnet param '{k}' has no value, skipping")
+            logger.warning("Empty magnet parameter skipped")
             continue
         flat[k] = v[0]
-        logger.debug(f"Magnet param parsed: {k}={v[0]}")
 
     # Determine which prefix is used while rejecting mixed usage
     prefix: str | None = None
@@ -206,5 +200,5 @@ def parse_magnet(magnet: str) -> Dict[str, str]:
             logger.error(f"Missing required magnet param: {req}")
             raise ValueError(f"missing param: {req}")
 
-    logger.success(f"Magnet parsed successfully: {flat}")
+    logger.success("Magnet parsed successfully")
     return flat

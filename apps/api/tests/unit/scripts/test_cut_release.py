@@ -53,6 +53,7 @@ def test_main_outputs_release_plan_json(tmp_path: Path, monkeypatch) -> None:
     version_file.write_text("9.8.7\n", encoding="utf-8")
 
     monkeypatch.setattr(cut_release, "VERSION_FILE", version_file)
+    monkeypatch.setattr(cut_release, "git_output", lambda *args, **kwargs: "")
 
     exit_code = cut_release.main(
         ["--release-type", "patch", "--output-json", str(output_path)]

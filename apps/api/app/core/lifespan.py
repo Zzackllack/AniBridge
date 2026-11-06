@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 import threading
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
@@ -27,6 +28,11 @@ from app.config import (
     CATALOG_SITE_CONFIGS,
     ANIBRIDGE_TEST_MODE,
     DB_MIGRATE_ON_STARTUP,
+    CATALOG_CONFIG,
+    DATA_DIR,
+    VIDEO_HOST_ORDER,
+    QBIT_PUBLIC_SAVE_PATH,
+    STRM_PROXY_MODE,
 )
 
 from app.core.scheduler import init_executor, shutdown_executor
@@ -41,6 +47,7 @@ from app.db import (
 
 def _start_ttl_cleanup_thread(
     stop_event: threading.Event,
+    protected_directories=None,
 ) -> Optional[threading.Thread]:
     """Start a background thread that deletes old downloads based on TTL."""
 
@@ -53,33 +60,53 @@ def _start_ttl_cleanup_thread(
         while not stop_event.wait(max(1, int(CLEANUP_SCAN_INTERVAL_MIN)) * 60):
             now = datetime.utcnow()
             try:
-                for root, _, files in os.walk(DOWNLOAD_DIR):
-                    for fname in files:
-                        try:
-                            if os.path.splitext(fname)[1].lower() not in exts:
-                                continue
-                            fpath = os.path.join(root, fname)
-                            st = os.stat(fpath)
-                            mtime = datetime.utcfromtimestamp(st.st_mtime)
-                            if now - mtime >= ttl:
-                                try:
-                                    os.remove(fpath)
-                                    logger.success(f"TTL cleanup: deleted {fpath}")
-                                except Exception as e:
-                                    logger.warning(
-                                        f"TTL cleanup: failed to delete {fpath}: {e}"
-                                    )
-                        except FileNotFoundError:
+                # Capture durable ownership before walking. If the DB cannot be
+                # read, skip this pass rather than delete potentially owned data.
+                from contextlib import nullcontext
+
+                guard = (
+                    protected_directories()
+                    if protected_directories
+                    else nullcontext(None)
+                )
+                with guard as protected:
+                    for root, dirs, files in os.walk(DOWNLOAD_DIR):
+                        directory = Path(root).resolve()
+                        if protected is not None and protected.protects(directory):
+                            dirs[:] = []
                             continue
-                        except Exception as e:
-                            logger.warning(f"TTL cleanup: error on file {fname}: {e}")
-                # Try removing empty leaf dirs under DOWNLOAD_DIR
-                for root, dirs, files in os.walk(DOWNLOAD_DIR, topdown=False):
-                    try:
-                        if not dirs and not files and root != str(DOWNLOAD_DIR):
-                            os.rmdir(root)
-                    except Exception:
-                        pass
+                        for fname in files:
+                            try:
+                                if os.path.splitext(fname)[1].lower() not in exts:
+                                    continue
+                                fpath = os.path.join(root, fname)
+                                st = os.stat(fpath)
+                                mtime = datetime.utcfromtimestamp(st.st_mtime)
+                                if now - mtime >= ttl:
+                                    try:
+                                        os.remove(fpath)
+                                        logger.success(f"TTL cleanup: deleted {fpath}")
+                                    except Exception as e:
+                                        logger.warning(
+                                            f"TTL cleanup: failed to delete {fpath}: {e}"
+                                        )
+                            except FileNotFoundError:
+                                continue
+                            except Exception as e:
+                                logger.warning(
+                                    f"TTL cleanup: error on file {fname}: {e}"
+                                )
+                    # Try removing empty leaf dirs under DOWNLOAD_DIR
+                    for root, dirs, files in os.walk(DOWNLOAD_DIR, topdown=False):
+                        try:
+                            if protected is not None and protected.protects(
+                                Path(root).resolve()
+                            ):
+                                continue
+                            if not dirs and not files and root != str(DOWNLOAD_DIR):
+                                os.rmdir(root)
+                        except Exception:
+                            pass
             except Exception as e:
                 logger.warning(f"TTL cleanup loop error: {e}")
 
@@ -120,6 +147,8 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"notify_on_startup failed: {e}")
     logger.info("Application startup: creating DB and thread pool executor.")
+    if CATALOG_CONFIG.mode == "query" and not DB_MIGRATE_ON_STARTUP:
+        raise ValueError("query pilot requires DB_MIGRATE_ON_STARTUP=true")
     if DB_MIGRATE_ON_STARTUP:
         apply_migrations()
     else:
@@ -128,19 +157,48 @@ async def lifespan(app: FastAPI):
         cleaned = cleanup_dangling_jobs(s)
         if cleaned:
             logger.warning(f"Reset {cleaned} dangling jobs to 'failed'")
-    init_executor()
+    catalog_context = None
+    if CATALOG_CONFIG.mode == "query":
+        from app.catalog.runtime import Runtime
+
+        service = Runtime(
+            CATALOG_CONFIG,
+            DATA_DIR / "anibridge_jobs.db",
+            DATA_DIR / "catalog",
+            DOWNLOAD_DIR,
+            {
+                provider: settings["base_url"]
+                for provider, settings in CATALOG_SITE_CONFIGS.items()
+            },
+            tuple(VIDEO_HOST_ORDER),
+            strm_mode=STRM_PROXY_MODE,
+        )
+        service.client.public_root = QBIT_PUBLIC_SAVE_PATH
+        catalog_context = service.running()
+        app.state.catalog = await catalog_context.__aenter__()
+    else:
+        init_executor()
 
     # Start background workers
     cleanup_stop = threading.Event()
     ip_stop = threading.Event()
     megakino_stop = threading.Event()
-    if "megakino" in CATALOG_SITE_CONFIGS and not ANIBRIDGE_TEST_MODE:
+    if (
+        CATALOG_CONFIG.mode == "legacy"
+        and "megakino" in CATALOG_SITE_CONFIGS
+        and not ANIBRIDGE_TEST_MODE
+    ):
         try:
             resolve_megakino_base_url()
         except Exception as e:
             logger.warning(f"megakino domain resolution failed: {e}")
     try:
-        _start_ttl_cleanup_thread(cleanup_stop)
+        _start_ttl_cleanup_thread(
+            cleanup_stop,
+            service.jobs.retained_directory_guard
+            if catalog_context is not None
+            else None,
+        )
     except Exception as e:
         logger.debug(f"cleanup thread start failed: {e}")
     try:
@@ -148,7 +206,11 @@ async def lifespan(app: FastAPI):
             start_ip_check_thread(ip_stop)
     except Exception as e:
         logger.debug(f"start_ip_check_thread failed: {e}")
-    if "megakino" in CATALOG_SITE_CONFIGS and not ANIBRIDGE_TEST_MODE:
+    if (
+        CATALOG_CONFIG.mode == "legacy"
+        and "megakino" in CATALOG_SITE_CONFIGS
+        and not ANIBRIDGE_TEST_MODE
+    ):
         try:
             start_megakino_domain_check_thread(megakino_stop)
         except Exception as e:
@@ -158,7 +220,11 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         # Shutdown services
-        shutdown_executor()
+        if catalog_context is not None:
+            await catalog_context.__aexit__(None, None, None)
+            app.state.catalog = None
+        else:
+            shutdown_executor()
         try:
             from app.api import strm as strm_api
 

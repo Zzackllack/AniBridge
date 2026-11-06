@@ -1,0 +1,46 @@
+name: anibridge-private-catalog
+x-worker: &worker
+  image: anibridge-query-worker:${PILOT_COMMIT:?Set PILOT_COMMIT}
+  build:
+    context: ../../..
+    dockerfile: apps/catalog-worker/Dockerfile
+    args: {PILOT_COMMIT: '${PILOT_COMMIT}'}
+  volumes: [config:/config:ro, worker-state:/state, read-catalog:/read]
+  mem_limit: 512m
+  memswap_limit: 512m
+  cpus: 2
+  pids_limit: 64
+  logging: {driver: json-file, options: {max-size: 10m, max-file: '3'}}
+services:
+  initialize:
+    <<: *worker
+    user: root
+    entrypoint: [sh, -ec]
+    command: ['mkdir -p /state /read /config; cp /operator/worker.json /operator/metadata-token /config/; chmod 600 /config/*; chown -R 1000:1000 /config; chown 1000:1000 /state /read']
+    volumes: [config:/config, '${PILOT_CONFIG_DIR:?Select private configuration}:/operator:ro', worker-state:/state, read-catalog:/read]
+    network_mode: none
+  collector:
+    <<: *worker
+    command: [--config, /config/worker.json]
+    depends_on: {initialize: {condition: service_completed_successfully}}
+    restart: unless-stopped
+    stop_grace_period: 45s
+  metadata:
+    <<: *worker
+    # Readers need read-catalog leases, but no access to private writer state.
+    volumes: [config:/config:ro, read-catalog:/read]
+    command: [--config, /config/worker.json, --serve, --token-file, /config/metadata-token]
+    depends_on: {initialize: {condition: service_completed_successfully}}
+    ports: ['127.0.0.1:18080:8080']
+    restart: unless-stopped
+    stop_grace_period: 15s
+volumes:
+  config:
+  worker-state:
+  read-catalog:
+networks:
+  default:
+    # Docker's automatic pools can shadow a NetBird-advertised home LAN.
+    ipam:
+      config:
+        - subnet: ${PILOT_BACKEND_SUBNET:-172.16.27.0/24}

@@ -33,6 +33,14 @@
 - Sync: `/sync/maindata` exposes job states for Sonarr integration.
 - Transfer: `/transfer/info`, `/transfer/speedLimitsMode`, etc., return safe defaults.
 - Deletion endpoint optionally removes files when `DELETE_FILES_ON_TORRENT_DELETE` is true.
+- Query-mode transfer percentages use exact totals or labelled yt-dlp estimates
+  (`anibridge_size_estimated`). Unknown future-track sizes stay unknown. Transfer
+  completion remains gated on verified publication, with the final file size.
+- Missing previously published outputs return `missingFiles` and an empty
+  `content_path`, with `anibridge_output_missing=true`. This is availability,
+  not proof that a completed transfer failed or that Sonarr imported it. Reads
+  retain historical records and timestamps; repeating a transfer requires an
+  explicit retry/removal action. Legacy sync uses the shared info projection.
 
 ## Legacy Downloader (`/downloader/download`)
 
