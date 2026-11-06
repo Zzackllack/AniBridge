@@ -48,8 +48,7 @@ ROUTES = {
 URLS = {
     f"https://{host}{path}": stage for (host, _method, path), stage in ROUTES.items()
 }
-BLOCKED_HOSTS = {"fixture.invalid", "bysefixture.test", "media.fixture.invalid"}
-real_validate = provider_policy._validate_request_url
+INTERNAL_SERVICES = {"api": 8000, "catalog": 8080, "radarr": 7878, "prowlarr": 9696}
 real_client = httpx.Client
 
 
@@ -59,9 +58,7 @@ def validate(url: str, **kwargs: object) -> tuple[str, int, str]:
         if not MEDIA.is_file():
             raise ValueError("generated Filmo media is missing")
         return parsed.hostname or "", 443, ADDRESS
-    if parsed.hostname in BLOCKED_HOSTS:
-        raise ValueError("outside the fixed generated Filmo inputs")
-    return real_validate(url, **kwargs)
+    raise ValueError("outside the fixed generated Filmo inputs")
 
 
 def event(stage: str) -> None:
@@ -112,6 +109,11 @@ class Transport(httpx.BaseTransport):
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         if request.url.host != ADDRESS:
+            if (
+                request.url.scheme != "http"
+                or INTERNAL_SERVICES.get(request.url.host) != request.url.port
+            ):
+                raise ValueError("outside the disposable acceptance services")
             return self.fallback.handle_request(request)
         host = request.headers.get("Host", "").split(":", 1)[0].casefold()
         route = ROUTES.get((host, request.method, request.url.path))

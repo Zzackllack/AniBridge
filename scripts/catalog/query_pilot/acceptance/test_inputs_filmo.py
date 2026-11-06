@@ -36,6 +36,36 @@ def load_hook():
     return module
 
 
+def test_fixture_rejects_unexpected_external_urls_before_networking():
+    fixture = load_hook()
+    with pytest.raises(ValueError, match="fixed generated Filmo inputs"):
+        fixture.validate("https://unexpected.example/video.mp4")
+
+    calls = []
+
+    class Fallback(httpx.BaseTransport):
+        def handle_request(self, request):
+            calls.append(request.url.host)
+            return httpx.Response(200, content=b"{}")
+
+    transport = fixture.Transport(Fallback())
+    for target in (
+        "https://unexpected.example/video.mp4",
+        "https://api:8000/health",
+        "http://api:9999/health",
+    ):
+        with pytest.raises(ValueError, match="disposable acceptance services"):
+            transport.handle_request(httpx.Request("GET", target))
+    assert calls == []
+    assert (
+        transport.handle_request(
+            httpx.Request("GET", "http://api:8000/health")
+        ).status_code
+        == 200
+    )
+    assert calls == ["api"]
+
+
 def test_generated_parser_fixture_contains_only_declared_metadata() -> None:
     page = filmo.parse(
         filmo_fixture.DETAIL_HTML.encode(),
