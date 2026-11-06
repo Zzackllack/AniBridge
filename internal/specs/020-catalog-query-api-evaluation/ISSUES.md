@@ -5,16 +5,17 @@ measurements, deployment receipts and PR drafts are local-only under ignored
 `internal/local/catalog-history/`. Test fixtures remain tracked beside tests.
 Always verify the selected revision/environment before relying on prior results.
 
-The hosted worker at `f709263` uses private v7/public schema2. Its copied-state
-rehearsal and live stopped-snapshot/publication/preservation checks passed;
-the metadata API serves authenticated queries and collection has resumed.
-Repeat the preservation proof if migration behavior changes.
+The last recorded hosted worker was `f709263` with private v7/public schema2.
+That record is not a fresh container inspection. Re-query the deployed image,
+state and disk before an upgrade; repeat preservation proof if migration behavior
+changes. The Filmo implementation has not been deployed to that service.
 
 ## Open gates
 
 | Area | Required work / acceptance boundary |
 | --- | --- |
-| Filmo acceptance | Verify candidate native images and an isolated real Radarr/Prowlarr generated-media workflow: parsed quality/audio, selected variant, output import/move and restart. Bounded live metadata/host JSON and synthetic job tests are separate proof; real provider acquisition/playback and independently labelled movie mappings remain unchecked. Unknown audio stays retained but is withheld from automatic Torznab language claims. |
+| Filmo acceptance | Verify final candidate native images. The generated real Radarr/Prowlarr scenario covers authenticated multipart grabs, selected variants, byte progress, embedded tracks, explicit `Move` import and a bounded restart. This does not prove live provider acquisition/playback or independently labelled movie mappings. Unknown audio remains retained but withheld from automatic language claims. |
+| Filmo external tracks | Implement bounded external-caption acquisition and unambiguous multi-audio selection before claiming complete Filmo media support. Unsupported HLS/Byse track layouts currently stop with `unsupported_media_tracks`; retaining subtitle declarations is not the same as acquiring those captions. |
 | Filmo publication capacity | Measure full schema3 export/validation at representative scale and resource limits before increasing provider budgets. Existing schema2 incremental-proof results do not establish schema3 performance or sustained Filmo freshness. |
 | Storage admission | Recalculate the next workload's aggregate peak, including images/shared caches, new copies, migration backups, publication scratch, logs and reserve. Cleanup alone does not certify the 30-GB cap. |
 | Mapping accuracy | Freeze independently verified expected matches before tuning and evaluate held-out ordinary/large/multilingual/special/reordered-season cases. Report incorrect acceptances, abstentions and conflicts separately. Existing post-implementation labels are regression evidence, not a blind precision estimate. |
@@ -26,7 +27,7 @@ Repeat the preservation proof if migration behavior changes.
 | Publication and capacity | Run final-source full-size publication/query overlap; retain last-good serving through failures. Measure writer occupancy, CPU/memory/I/O and bounded latency. Native tests do not establish sustained capacity. |
 | Resource pressure and reconciliation | Profile collector memory reclaim at its 2-GiB limit and overdue historical work under the existing reconciliation admission cap. Separate active parent refresh demand, unavailable episodes and persistent upstream errors before changing allocations or cadence. |
 | Client dependencies | The API patches urllib3/Mako advisories and isolates AniWorld's urllib3-future namespace from Requests. Verify imported implementations in native candidate images; package metadata alone is insufficient. The hosted worker and client deployment are separate boundaries. |
-| Merge policy | Verify final-head CI and manifests, enforce `Tests / Required Gate`, obtain eligible human/CODEOWNER approval and review the current PR description. Configured workflows and enforced branch rules are separate. |
+| Merge policy | Verify final-head CI and manifests, enforce `Tests / Required Gate`, obtain eligible human/CODEOWNER approval and replace the stale PR description. The active `v3` ruleset requires the conventional-title check, review and CodeQL, but does not enforce the configured test gate. |
 | Public release | Decide public scope, all-router authentication/TLS/privacy/rights, destination OS/dependency exposure, external outage handling, release/retention policy and supported capacity before release. Optional qBittorrent credentials alone are insufficient. |
 
 ## Working boundaries

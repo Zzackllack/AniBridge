@@ -108,6 +108,18 @@ progress, completion and output availability. Unknown transfer sizes stay unknow
 no premature 100% or automatic duplicate acquisition after import/file movement.
 Legacy aliases, jobs, categories and path translation remain compatible.
 
+Filmo remuxing retains embedded subtitle tracks. Separate HLS audio requires a
+unique declared-language match and an identifiable compatible group. External
+subtitle tracks advertised by HLS or Byse, ambiguous audio and unsupported track
+layouts fail with `unsupported_media_tracks`; separate-caption acquisition is
+not implemented. Generic subtitle labels do not prove soft versus burned-in
+captions. STRM playback remains dependent on the player's manifest handling.
+
+Query-mode qBittorrent forms accept URL-encoded and multipart text fields.
+Admission bounds total bytes, receive frames, elapsed time and field counts;
+files, duplicate fields, incomplete multipart and blank pause values are rejected
+before job creation. This includes the multipart form *arr uses for long magnets.
+
 Metadata uses an explicitly selected verified HTTPS origin and bearer file;
 private HTTP requires the documented opt-in. Redirect/DNS/TLS, response decoding
 and child resource limits remain enforced. No credential, raw query, IP, player

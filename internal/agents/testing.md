@@ -68,9 +68,11 @@ filesystems that accept conflicting locks; use tested named-volume/Linux-local
 storage instead of deleting lock files or disabling ownership checks.
 
 The [generated acceptance runner](../../scripts/catalog/query_pilot/ACCEPTANCE.md)
-uses real Sonarr/Prowlarr, generated media and the production job path. It checks
-intermediate progress, import and a bounded restart window. It does not prove
-real provider extraction/playback, actual file movement or complete E2E coverage.
+uses real Sonarr/Prowlarr, generated media and the production job path. The
+separate Filmo scenario uses real Radarr/Prowlarr with authenticated multipart
+grabs, byte progress, embedded tracks, actual output movement and a bounded
+restart window. The base Sonarr scenario retains its source file. These fixtures
+do not prove real provider extraction/playback or complete E2E coverage.
 Never mix acceptance volumes with developer `data/` or ordinary/VPN dev stacks.
 
 Keep generated reports/measurements under ignored `internal/local/`, with any
