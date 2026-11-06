@@ -154,6 +154,30 @@ def test_german_heading_retained_generic_not_mapped(tmp_path):
         state.close()
 
 
+def test_service_unavailable_retry_after_blocks_other_pages_and_survives_restart(
+    tmp_path,
+):
+    group = collectors(tmp_path)
+    c = group[0]
+    try:
+        work = c.state.claim(NOW)
+        c.state.failure(work, "transport_failure", NOW, retry_after=600, status=503)
+        row = c.state.db.execute(
+            "SELECT due,lease_until,failures FROM work WHERE path=?", (work["path"],)
+        ).fetchone()
+        assert tuple(row) == (NOW + 600, 0, 1)
+        assert c.state.meta()["blocked_until"] == NOW + 600
+        c.state.close()
+        c.state = State(tmp_path / "aniworld.to.sqlite", "aniworld.to")
+        c.clock = lambda: NOW + 599
+        assert c.prepare() is None
+        c.clock = lambda: NOW + 600
+        assert c.prepare() is not None
+    finally:
+        for c in group:
+            c.state.close()
+
+
 def test_batch_saves_details_preserves_ids_and_missing_changed_evidence(tmp_path):
     state = State(tmp_path / "state.sqlite", "aniworld.to")
     path = "/anime/stream/example"

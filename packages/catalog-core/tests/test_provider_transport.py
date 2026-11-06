@@ -178,7 +178,7 @@ def test_status_and_pool_scope(monkeypatch, status, outcome):
             for _ in range(2):
                 r = await session.fetch("https://provider.example", "/episode")
                 assert r.outcome == outcome and r.status == status and r.requests == 1
-                if status == 429:
+                if status in (429, 503):
                     assert r.retry_after == 12
             with pytest.raises(ValueError, match="origin mismatch"):
                 await session.fetch("https://other.example", "/episode")

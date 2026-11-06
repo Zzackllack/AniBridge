@@ -47,6 +47,24 @@ Filmo's `provider_settings["filmo.to"].headers` may set `"Accept-Language": "en"
 for English catalog titles. This changes title presentation, not the advertised
 audio tracks. Collection uses one locale and does not join translated aliases.
 
+Provider request spacing and hourly admission are separate limits. For example,
+five-second spacing with a 120/hour cap permits a short burst followed by a long
+local wait; five-second spacing alone permits at most 720/hour. Neither value is
+an upstream quota. The canonical request budget is shared across providers and
+is separate from catalog HTTP admission. More CPU does not raise these budgets.
+
+Benchmark metadata from the intended host with bounded steps and count existing
+collector traffic. Stop on throttling/challenges; do not rotate IP families to
+bypass them. Short successful trials establish only the tested envelope. Check
+eligible-work age, useful observations, parser cost and publication alongside
+HTTP throughput before changing budgets. Search serves the published subset
+during bootstrap; complete collection is not required for initial use.
+
+Catalog 429 and 503 `Retry-After` waits pause the provider durably. Canonical
+429/503 hints pause all titles on that origin in the running collector; the
+failed title's retry persists, but the shared origin pause does not yet survive
+a restart. Keep that recovery limitation separate from per-title retry tests.
+
 The base template gives metadata 512 MiB. Add the collector's minimum separately:
 
 ```sh

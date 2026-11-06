@@ -242,6 +242,11 @@ async def _fetch(
                         )
                     if status in {404, 410}:
                         return result("not_found")
+                    if status == 503 and "retry-after" in response.headers:
+                        return result(
+                            "transport_failure",
+                            retry=retry_after(response.headers["retry-after"]),
+                        )
                     if status != 200:
                         return result(
                             "transport_failure" if status >= 500 else "http_error"

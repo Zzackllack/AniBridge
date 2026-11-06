@@ -86,6 +86,9 @@ class Enricher:
     ) -> None:
         self.sources, self.fetcher, self.clock = sources, fetcher, clock
         self.sessions = {}
+        # Shared by all provider titles using this source. Per-title retry clocks
+        # alone let the next queued title immediately hit a throttled origin.
+        self.origin_cooldowns: dict[str, float] = {}
         self.pooled = fetcher is fetch
         self.token = None
         if sources.get("movie") == "tmdb":
@@ -147,6 +150,9 @@ class Enricher:
         self, path: str, query: dict | None = None, *, origin=ORIGIN, bearer=None
     ) -> object:
         self.failure_phase = request_phase(path)
+        remaining = self.origin_cooldowns.get(origin, 0) - self.clock()
+        if remaining > 0:
+            raise AdmissionDeferred(math.ceil(remaining))
         self.admit_request()
         first_hop = True
 
@@ -171,6 +177,13 @@ class Enricher:
             before_request=before_request,
             **({"bearer": bearer} if bearer else {}),
         )
+        if response.retry_after is not None and (
+            response.outcome == "rate_limited" or response.status == 503
+        ):
+            self.origin_cooldowns[origin] = max(
+                self.origin_cooldowns.get(origin, 0),
+                self.clock() + max(1, min(86400, response.retry_after)),
+            )
         if self.on_fetch is not None and self.current_state is not None:
             self.on_fetch(self.current_state.provider, response)
         if response.outcome != "ok":

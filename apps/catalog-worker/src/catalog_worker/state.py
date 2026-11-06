@@ -688,7 +688,10 @@ class State:
                 ).fetchone()
                 # Eight consecutive real failures spanning >=30s establish more
                 # than one unlucky page. Parser/admission failures never enter.
-                if failures >= 8 and now - oldest >= 30:
+                if status == 503 and retry_after is not None:
+                    # Service-wide recovery hints apply to other queued pages too.
+                    blocked, count = max(blocked, now + delay), count + 1
+                elif failures >= 8 and now - oldest >= 30:
                     circuit, _ = policy("circuit", 0, count, None)
                     blocked, count = max(blocked, now + circuit), count + 1
             self.db.execute(

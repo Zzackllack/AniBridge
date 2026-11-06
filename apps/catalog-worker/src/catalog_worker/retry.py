@@ -23,4 +23,8 @@ def policy(
         if outcome == "circuit"
         else min(300, 5 * 2 ** min(attempts, 6))
     )
-    return max(1, int(base * random.uniform(0.8, 1.2))), "transport_error"
+    delay = max(1, int(base * random.uniform(0.8, 1.2)))
+    if outcome == "transport_failure" and retry_after is not None:
+        # Jitter must never shorten an upstream recovery instruction.
+        delay = max(delay, max(1, min(86400, retry_after)))
+    return delay, "transport_error"

@@ -4,12 +4,41 @@ import asyncio
 import json
 
 import pytest
-from catalog_core.providers.transport import Fetch
+from catalog_core.providers.transport import AdmissionDeferred, Fetch
+from catalog_worker.canonical import Enricher
+from catalog_worker.canonical_failures import CanonicalUnavailable, Failure
+from catalog_worker.events import Events
 from test_canonical import NOW, ready
 
-from catalog_worker.canonical import Enricher
-from catalog_worker.canonical_failures import Failure
-from catalog_worker.events import Events
+
+@pytest.mark.parametrize(
+    "status,outcome", [(429, "rate_limited"), (503, "transport_failure")]
+)
+def test_retry_after_stops_other_titles_on_same_canonical_origin(status, outcome):
+    clock = [NOW]
+    calls = []
+
+    async def fetch(origin, path, **kwargs):
+        calls.append(origin)
+        if len(calls) == 1:
+            return Fetch(outcome, status=status, retry_after=600, requests=1)
+        return Fetch("ok", b"{}", status=200, requests=1)
+
+    enricher = Enricher({}, fetcher=fetch, clock=lambda: clock[0])
+
+    async def scenario():
+        with pytest.raises(CanonicalUnavailable):
+            await enricher.request("/tvdb/search", {"term": "first fixture"})
+        with pytest.raises(AdmissionDeferred) as deferred:
+            await enricher.request("/tvdb/search", {"term": "other fixture"})
+        assert deferred.value.seconds == 600 and len(calls) == 1
+        # A TV metadata outage must not pause the independent movie source.
+        await enricher.request("/v1/movie/1", origin="https://api.radarr.video")
+        clock[0] += 600
+        await enricher.request("/tvdb/search", {"term": "other fixture"})
+        assert len(calls) == 3
+
+    asyncio.run(scenario())
 
 
 @pytest.mark.parametrize(
