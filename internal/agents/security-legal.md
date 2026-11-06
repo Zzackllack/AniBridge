@@ -29,6 +29,13 @@ metadata. Runtime flags cannot undo that installation. Recreate an existing
 environment when adopting isolation and verify the installed-package regression
 on native images; do not infer imported code from lockfile versions alone.
 
+Certifi must exclude `emSign ECC Root CA - G3` (GHSA-6q48-6c7w-9gw2).
+The package floors and frozen locks enforce a patched bundle; rebuild images to
+adopt it. The installed-wheel regression checks the actual loaded roots as well
+as the dependency requirement. Updating source does not patch existing services.
+Pylint also has a security floor for its stats-cache pickle advisory; the API
+does not invoke the linter in production.
+
 - Downloads stored locally; TTL cleanup recommended to avoid retention issues.
 - Logs may contain URLs; redact before sharing.
 
