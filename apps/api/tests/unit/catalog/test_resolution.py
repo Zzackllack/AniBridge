@@ -444,6 +444,122 @@ def test_bounded_byse_versioned_key_parts_decode_with_installed_pure_parser(vers
     assert filemoon_source(json.dumps({"playback": playback})) is None
 
 
+def _encrypted_byse_response(data, *, api_tracks=None):
+    import base64
+    import json
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    key, iv = bytes(range(32)), bytes(range(12))
+
+    def encode(value):
+        return base64.urlsafe_b64encode(value).decode().rstrip("=")
+
+    parts = [encode(bytes([index]) * 16) for index in range(30)]
+    parts[0], parts[29] = encode(key[:16]), encode(key[16:])
+    plaintext = json.dumps(data, separators=(",", ":")).encode()
+    playback = {
+        "version": "1",
+        "algorithm": "AES-256-GCM",
+        "key_parts": parts,
+        "iv": encode(iv),
+        "payload": encode(AESGCM(key).encrypt(iv, plaintext, None)),
+    }
+    response = {"playback": playback}
+    if api_tracks is not None:
+        response["tracks"] = api_tracks
+    return json.dumps(response)
+
+
+def test_filmo_byse_captions_fail_resolution_and_legacy_decoder_is_unchanged(
+    monkeypatch,
+):
+    from app.catalog import filmo_resolution
+    from app.hosts.catalog_sources import filemoon_source
+
+    media_url = "https://media.example/generated.mp4"
+    response = _encrypted_byse_response(
+        {
+            "sources": [{"url": media_url, "height": 720}],
+            "tracks": [
+                {
+                    "file": "https://captions.example/generated.vtt",
+                    "kind": "captions",
+                    "label": "German",
+                }
+            ],
+        }
+    )
+
+    # Legacy Filemoon/Byse jobs retain their established URL-only decoding.
+    assert filemoon_source(response) == media_url
+
+    monkeypatch.setattr(
+        filmo_resolution,
+        "_filmo_embed",
+        lambda *args, **kwargs: ("Byse", "https://bysefixture.test/d/Abc123"),
+    )
+
+    class FakeBudget:
+        def __init__(self):
+            self.urls = []
+
+        def get(self, url, *, origin=None):
+            self.urls.append(url)
+            body = "<html></html>" if "/d/" in url else response
+            return type("Page", (), {"url": url, "text": body})()
+
+        def validate_url(self, url, *, stage):
+            self.urls.append(url)
+            return "media.example", 443, "8.8.8.8"
+
+        def remaining(self):
+            pass
+
+    budget = FakeBudget()
+    payload = {
+        "provider": "filmo.to",
+        "path": "/movies/example",
+        "language": "eng",
+        "variant_anchor": "frozen-variant",
+        "release_metadata": {"variant_anchor": "frozen-variant"},
+    }
+    with pytest.raises(ResolutionError, match="unsupported_media_tracks") as error:
+        resolve(payload, "https://filmo.example", ("Byse",), budget)
+    assert error.value.code == "unsupported_media_tracks"
+    assert not any(url == media_url for url in budget.urls)
+
+
+def test_filmo_byse_track_layout_requires_explicit_thumbnail_only_metadata():
+    from app.hosts.catalog_sources import (
+        UnsupportedMediaTracks,
+        filemoon_source,
+    )
+
+    media_url = "https://media.example/generated.mp4"
+    response = _encrypted_byse_response(
+        {
+            "sources": [{"url": media_url, "height": 720}],
+            "tracks": [
+                {"file": "https://thumb.example/sprite.vtt", "kind": "thumbnails"}
+            ],
+        }
+    )
+    assert filemoon_source(response, reject_external_tracks=True) == media_url
+
+    unknown = _encrypted_byse_response(
+        {"sources": [{"url": media_url}], "tracks": {"subtitles": []}}
+    )
+    with pytest.raises(UnsupportedMediaTracks):
+        filemoon_source(unknown, reject_external_tracks=True)
+
+    api_captions = _encrypted_byse_response(
+        {"sources": [{"url": media_url}]},
+        api_tracks=[{"kind": "captions", "file": "https://captions.example/sub.vtt"}],
+    )
+    with pytest.raises(UnsupportedMediaTracks):
+        filemoon_source(api_captions, reject_external_tracks=True)
+
+
 @pytest.mark.parametrize("path", ["/movies/example", "/movies/caf%C3%A9"])
 def test_filmo_419_refreshes_offer_and_keeps_selected_native_variant(path):
     import json

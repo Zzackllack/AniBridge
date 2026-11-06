@@ -142,7 +142,13 @@ def resolve(
                     if api_url is not None:
                         try:
                             observed = budget.get(api_url, origin=page.url)
-                            source = catalog_sources.filemoon_source(observed.text)
+                            source = catalog_sources.filemoon_source(
+                                observed.text,
+                                reject_external_tracks=payload["provider"]
+                                == "filmo.to",
+                            )
+                        except catalog_sources.UnsupportedMediaTracks as exc:
+                            raise ResolutionError("unsupported_media_tracks") from exc
                         except ResolutionError as exc:
                             # A legacy HTML player may have no API. Challenges
                             # still stop the attempt; no unbudgeted fallback.
@@ -154,7 +160,7 @@ def resolve(
                     return Media(host, source)
                 url = redirect_parser(page.text, page.url) if host == "VOE" else None
         except ResolutionError as exc:
-            if exc.code == "challenge":
+            if exc.code in {"challenge", "unsupported_media_tracks"}:
                 raise
             last = exc.code
         except ValueError, TypeError, ProviderResolutionError:

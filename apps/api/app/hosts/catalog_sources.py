@@ -17,6 +17,46 @@ from app.utils.aniworld_compat import prepare_aniworld_home
 SUPPORTED = frozenset({"VOE", "Byse", "Filemoon", "Vidoza"})
 
 
+class UnsupportedMediaTracks(ValueError):
+    """Playback advertises tracks that the current transfer path cannot retain."""
+
+
+def _thumbnail_only_tracks(value: object) -> bool:
+    if not isinstance(value, list) or len(value) > 64:
+        return False
+    for track in value:
+        if not isinstance(track, dict):
+            return False
+        kinds = [track[key] for key in ("kind", "type") if key in track]
+        if (
+            not kinds
+            or any(not isinstance(kind, str) for kind in kinds)
+            or {kind.strip().casefold() for kind in kinds}
+            not in ({"thumbnail"}, {"thumbnails"})
+            or set(track) - {"kind", "type", "file", "url", "src"}
+            or not any(
+                isinstance(track.get(field), str) and track[field]
+                for field in ("file", "url", "src")
+            )
+        ):
+            return False
+    return True
+
+
+def _reject_unsupported_tracks(value: dict) -> None:
+    for name, tracks in value.items():
+        normalized = (
+            re.sub(r"[_-]", "", name.casefold()) if isinstance(name, str) else ""
+        )
+        if not any(marker in normalized for marker in ("track", "caption", "subtitle")):
+            continue
+        if normalized == "tracks" and _thumbnail_only_tracks(tracks):
+            continue
+        if normalized != "tracks" and tracks == []:
+            continue
+        raise UnsupportedMediaTracks("Byse API advertises unsupported track metadata")
+
+
 def html_source(host: str, html: str) -> str | None:
     prepare_aniworld_home()
     if host in {"Filemoon", "Byse"}:
@@ -59,7 +99,7 @@ def byse_api(embed_url: str) -> str | None:
     return f"{parsed.scheme}://{parsed.netloc}/api/videos/{match[1]}"
 
 
-def filemoon_source(body: str) -> str | None:
+def filemoon_source(body: str, *, reject_external_tracks: bool = False) -> str | None:
     """Decode observed playback data without claiming its height as quality."""
     prepare_aniworld_home()
     from aniworld.extractors.provider.filemoon import (
@@ -72,6 +112,9 @@ def filemoon_source(body: str) -> str | None:
         playback = value.get("playback") if isinstance(value, dict) else None
         if not isinstance(playback, dict):
             return None
+        if reject_external_tracks:
+            _reject_unsupported_tracks(value)
+            _reject_unsupported_tracks(playback)
         # Versioned Byse responses carry thirty keys, but the installed pure
         # decoder concatenates every 16-byte part. Select the two documented
         # version positions before handing it the reduced envelope.
@@ -107,6 +150,8 @@ def filemoon_source(body: str) -> str | None:
         data = _decrypt_playback_data(playback)
         if not isinstance(data, dict):
             return None
+        if reject_external_tracks:
+            _reject_unsupported_tracks(data)
         sources = data.get("sources")
         if sources is not None and (
             not isinstance(sources, list)
@@ -116,5 +161,7 @@ def filemoon_source(body: str) -> str | None:
             return None
         source = _extract_best_source_url(data)
         return source if isinstance(source, str) else None
+    except UnsupportedMediaTracks:
+        raise
     except ValueError, TypeError, InvalidTag:
         return None
