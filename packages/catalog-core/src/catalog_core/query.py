@@ -412,6 +412,12 @@ def query(
     selected = results[request.offset : request.offset + request.limit]
     if request.ids and not total:
         headers["X-AniBridge-Mapping"] = "unresolved"
-    elif any(r["kind"] == "episode" and r["season"] is None for r in selected):
+    elif any(
+        r["kind"] == "episode"
+        and r["season"] is None
+        or r["kind"] == "movie"
+        and r["external_id"] is None
+        for r in selected
+    ):
         headers["X-AniBridge-Mapping"] = "partial"
     return selected, total, headers

@@ -5,7 +5,6 @@ import sqlite3
 from contextlib import contextmanager
 
 import pytest
-
 from catalog_core import identity, magnet, query, release_metadata, schema
 from catalog_core.compact import Writer, release_summary
 from catalog_core.json_codec import ContractError, dumps
@@ -148,6 +147,37 @@ class Store:
             yield {"filmo.to": (db, self.payload)}, None
         finally:
             db.close()
+
+
+@pytest.mark.parametrize("flat", [False, True])
+@pytest.mark.parametrize("mapped", [False, True])
+def test_movie_mapping_status_does_not_claim_unmapped_offers_are_resolved(
+    tmp_path, flat, mapped
+):
+    path, payload = catalog(tmp_path)
+    store = flat_store(tmp_path, path, 3) if flat else Store(path, payload)
+    if mapped:
+        tid = identity.title_id("filmo.to", PATH)
+        with sqlite3.connect(store.path) as db:
+            Writer(db, 1 if flat else 3).insert(
+                "canonical_title",
+                (
+                    identity.mapping_id("filmo.to", tid, "tmdb-movie", "123"),
+                    tid,
+                    "tmdb-movie",
+                    "123",
+                    "synthetic-v1",
+                    "reviewed",
+                    NOW,
+                ),
+            )
+
+    rows, total, headers = query.query(store, query.parse({"t": "movie"}), now=NOW)
+
+    assert total == len(rows) == 3
+    assert headers.get("X-AniBridge-Mapping", "resolved") == (
+        "resolved" if mapped else "partial"
+    )
 
 
 def test_same_audio_quality_variants_and_subtitles_survive_validation_and_pagination(
