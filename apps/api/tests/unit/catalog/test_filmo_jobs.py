@@ -7,12 +7,18 @@ import sys
 import xml.etree.ElementTree as ET
 from contextlib import closing
 from pathlib import Path
+from types import SimpleNamespace
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 from catalog_core import magnet, schema
 from catalog_core.query_client import Cache, Client
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
+from app.catalog.client import ClientJobs
 from app.catalog.jobs import Jobs
+from app.catalog.qbit_http import router as qbit_router
 from app.catalog.query_local import Search
 from app.catalog.search import rss
 from app.catalog.state_schema import STATEMENTS
@@ -204,6 +210,136 @@ def test_filmo_variants_flow_through_publication_search_rss_and_durable_jobs(tmp
     restarted.action(first_job, "retry", NOW + 120)
     assert restarted.get(first_job)["attempts"] == 0
     assert json.loads(restarted.get(first_job)["payload"]) == frozen[first_job]
+
+
+def test_long_filmo_v3_magnet_is_admitted_from_bounded_multipart_form(tmp_path):
+    published = _published_filmo(tmp_path)
+    jobs = _job_store(tmp_path)
+    query_app = create_app(published, TOKEN, now=NOW)
+    client = Client(
+        "http://127.0.0.1",
+        "synthetic-filmo",
+        TOKEN,
+        Cache(tmp_path / "multipart-query-cache.sqlite"),
+        transport=httpx.ASGITransport(app=query_app),
+    )
+    scratch = tmp_path / "multipart-scratch"
+    scratch.mkdir()
+    search = Search(client, jobs.filename, scratch, "filmo.to")
+
+    async def query_magnet() -> str:
+        rows, total, _ = await search.search(
+            {"t": "movie", "q": "Example Film"}, now=NOW
+        )
+        await client.close()
+        assert total == 2
+        selected = next(
+            row for row in rows if row["release_metadata"]["native_id"] == "84"
+        )
+        item = ET.fromstring(rss([selected], 1, 0, seeders=2, leechers=1)).find(
+            "./channel/item"
+        )
+        return item.findtext("link")
+
+    uri = asyncio.run(query_magnet())
+    assert len(uri.encode()) > 1024
+    _hash, payload, _label = magnet.decode(uri)
+    assert payload["provider"] == "filmo.to"
+    assert parse_qs(urlsplit(uri).query)["ab_v"] == ["3"]
+    assert payload["release_metadata"]["native_id"] == "84"
+
+    app = FastAPI()
+    app.state.catalog = SimpleNamespace(
+        jobs=jobs,
+        client=ClientJobs(jobs),
+        mapping_check=lambda _payload: None,
+        legacy_path=lambda _payload: None,
+    )
+    app.include_router(qbit_router)
+    endpoint = "/api/v2/torrents/add"
+    fields = [
+        ("urls", (None, uri)),
+        ("paused", (None, "True")),
+        ("savepath", (None, str(jobs.download_dir))),
+        ("category", (None, "movies")),
+    ]
+    with TestClient(app) as http:
+        admitted = http.post(endpoint, files=fields)
+        assert admitted.status_code == 200, admitted.text
+        with closing(jobs.db()) as db:
+            rows = db.execute(
+                "SELECT j.id,d.payload FROM job j JOIN durable_request d ON d.job_id=j.id"
+            ).fetchall()
+        assert len(rows) == 1
+        job_id, frozen_text = rows[0]
+        frozen = json.loads(frozen_text)
+        assert frozen["release_metadata"]["native_id"] == "84"
+        assert frozen["release_metadata"] == payload["release_metadata"]
+        assert jobs.get(job_id)["status"] == "paused"
+
+        duplicate = http.post(
+            endpoint,
+            files=[("urls", (None, uri)), ("urls", (None, uri))],
+        )
+        assert duplicate.status_code == 400
+
+        upload = http.post(endpoint, files={"urls": ("magnet.txt", uri)})
+        assert upload.status_code == 400
+
+        oversized = http.post(
+            endpoint,
+            files=[("urls", (None, uri)), ("extra", (None, "x" * 130_000))],
+        )
+        assert oversized.status_code == 400
+
+        too_many_fields = http.post(
+            endpoint,
+            files=fields + [(f"extra-{number}", (None, "")) for number in range(29)],
+        )
+        assert too_many_fields.status_code == 400
+
+        boundary = "filmo-truncated-boundary"
+        truncated = (
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="urls"\r\n\r\n'
+            f"{uri}\r\n"
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="paused"\r\n\r\n'
+            "true\r\n"
+        ).encode()
+        partial = http.post(
+            endpoint,
+            content=truncated,
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        )
+        assert partial.status_code == 400
+
+        fake_close = (
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="urls"\r\n\r\n'
+            f"{uri}\r\n"
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="paused"\r\n\r\n'
+            f"true--{boundary}--"
+        ).encode()
+        suffix_only = http.post(
+            endpoint,
+            content=fake_close,
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        )
+        assert suffix_only.status_code == 400
+
+        blank_paused_urlencoded = http.post(endpoint, data={"urls": uri, "paused": ""})
+        assert blank_paused_urlencoded.status_code == 400
+
+        blank_paused_multipart = http.post(
+            endpoint,
+            files=[("urls", (None, uri)), ("paused", (None, ""))],
+        )
+        assert blank_paused_multipart.status_code == 400
+
+    with closing(jobs.db()) as db:
+        assert db.execute("SELECT count(*) FROM job").fetchone()[0] == 1
 
 
 def test_filmo_torznab_filters_unknown_audio_before_pagination(tmp_path):

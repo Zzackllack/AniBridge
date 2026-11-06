@@ -10,47 +10,21 @@ from collections.abc import Iterable, Iterator
 from itertools import chain
 from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import parse_qs
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlmodel import Session
 from starlette.concurrency import run_in_threadpool
-
 from app.db import get_session
 
 from .http import runtime
 from .jobs import JobError
+from .qbit_forms import form
 
 if TYPE_CHECKING:
     from .runtime import Runtime
 
 router = APIRouter(prefix="/api/v2")
-
-
-async def form(request: Request) -> dict[str, str]:
-    if (
-        request.headers.get("content-type", "").split(";", 1)[0]
-        != "application/x-www-form-urlencoded"
-    ):
-        raise HTTPException(400, "invalid form")
-    body = bytearray()
-    async for chunk in request.stream():
-        body.extend(chunk)
-        if len(body) > 128 * 1024:
-            raise HTTPException(400, "form too large")
-    try:
-        fields = parse_qs(
-            body.decode("utf-8"),
-            max_num_fields=32,
-            keep_blank_values=True,
-            strict_parsing=True,
-        )
-        if any(len(values) != 1 for values in fields.values()):
-            raise ValueError("duplicate field")
-        return {key: values[0] for key, values in fields.items()}
-    except ValueError, UnicodeError:
-        raise HTTPException(400, "invalid form") from None
 
 
 def boolean(value: str) -> bool:
@@ -74,6 +48,8 @@ def reject(exc: ValueError):
 async def add(request: Request):
     service = runtime(request)
     data = await form(request)
+    if "paused" in data and data["paused"] == "":
+        raise HTTPException(400, "invalid form")
     try:
         await run_in_threadpool(
             service.jobs.admit,
