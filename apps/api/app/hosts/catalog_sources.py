@@ -77,19 +77,16 @@ def _known_caption_tracks(value: dict) -> tuple[CaptionTrack, ...]:
         )
         if not any(marker in normalized for marker in ("track", "caption", "subtitle")):
             continue
-        if (
-            normalized != "tracks"
-            or not isinstance(rows, list)
-            or len(rows) > MAX_CAPTION_TRACKS
-        ):
+        if normalized != "tracks" or not isinstance(rows, list) or len(rows) > 64:
             if normalized != "tracks" and rows == []:
                 continue
             raise UnsupportedMediaTracks(
                 "Byse API advertises unsupported track metadata"
             )
-        if _thumbnail_only_tracks(rows):
-            continue
         for row in rows:
+            # Sprites share the track list but are not subtitle inputs.
+            if _thumbnail_only_tracks([row]):
+                continue
             if not isinstance(row, dict):
                 raise UnsupportedMediaTracks(
                     "Byse API advertises unsupported track metadata"

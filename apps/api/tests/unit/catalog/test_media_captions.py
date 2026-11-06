@@ -66,6 +66,60 @@ def test_byse_playback_exposes_only_recognized_private_caption_tracks():
     assert secret_url not in repr(playback.captions)
 
 
+@pytest.mark.parametrize("thumbnails", [1, 9, 64])
+def test_byse_thumbnail_rows_do_not_consume_caption_limit(thumbnails):
+    rows = [
+        {"kind": "thumbnails", "file": "https://cdn.example/sprite.vtt"}
+        for _ in range(thumbnails)
+    ]
+    response = _encrypted_byse_response(
+        {"sources": [{"url": "https://media.example/generated.mp4"}], "tracks": rows}
+    )
+
+    playback = filemoon_playback(response, allow_external_captions=True)
+
+    assert playback is not None
+    assert playback.captions == ()
+
+
+def test_byse_mixed_caption_and_thumbnail_rows_retain_only_captions():
+    caption_url = "https://cdn.example/sub.vtt"
+    response = _encrypted_byse_response(
+        {
+            "sources": [{"url": "https://media.example/generated.mp4"}],
+            "tracks": [
+                {"kind": "thumbnails", "file": "https://cdn.example/sprite.vtt"},
+                {"kind": "captions", "file": caption_url, "label": "German"},
+            ],
+        }
+    )
+
+    playback = filemoon_playback(response, allow_external_captions=True)
+
+    assert playback is not None
+    assert playback.captions == (CaptionTrack(caption_url, "deu", "vtt"),)
+
+
+@pytest.mark.parametrize("kind", ["thumbnails", "captions"])
+def test_byse_track_rows_remain_bounded_after_thumbnail_filtering(kind):
+    response = _encrypted_byse_response(
+        {
+            "sources": [{"url": "https://media.example/generated.mp4"}],
+            "tracks": [
+                {
+                    "kind": kind,
+                    "file": "https://cdn.example/sub.vtt",
+                    **({"label": "German"} if kind == "captions" else {}),
+                }
+                for _ in range(65 if kind == "thumbnails" else 9)
+            ],
+        }
+    )
+
+    with pytest.raises(UnsupportedMediaTracks):
+        filemoon_playback(response, allow_external_captions=True)
+
+
 @pytest.mark.parametrize(
     "row,expected",
     [
