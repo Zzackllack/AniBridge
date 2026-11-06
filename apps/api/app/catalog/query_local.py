@@ -234,10 +234,16 @@ class Search:
         database: Path,
         directory: Path,
         provider: str = "aniworld.to",
+        supported_hosts: tuple[str, ...] | None = None,
     ) -> None:
         self.client, self.database, self.directory = client, database, directory
         self.active = 0
         self.provider = provider
+        self.offer_hosts = (
+            _FILMO_SELECTABLE_HOSTS
+            if supported_hosts is None
+            else _FILMO_SELECTABLE_HOSTS.intersection(supported_hosts)
+        )
 
     async def candidates(
         self,
@@ -332,9 +338,7 @@ class Search:
                     )
                 ),
                 offer_hosts=(
-                    sorted(_FILMO_SELECTABLE_HOSTS)
-                    if self.provider == "filmo.to"
-                    else []
+                    sorted(self.offer_hosts) if self.provider == "filmo.to" else []
                 ),
             )
             pages = []
@@ -382,9 +386,7 @@ class Search:
                         )
                     ),
                     offer_hosts=(
-                        sorted(_FILMO_SELECTABLE_HOSTS)
-                        if self.provider == "filmo.to"
-                        else []
+                        sorted(self.offer_hosts) if self.provider == "filmo.to" else []
                     ),
                 ),
                 results,
@@ -425,9 +427,7 @@ class Search:
                 now=now,
                 modes=modes,
                 languages=local_languages,
-                offer_hosts=(
-                    _FILMO_SELECTABLE_HOSTS if self.provider == "filmo.to" else None
-                ),
+                offer_hosts=(self.offer_hosts if self.provider == "filmo.to" else None),
                 anime_category=anime_category,
                 movie_category=movie_category,
                 mapping_view=view,
@@ -462,7 +462,9 @@ class Search:
         try:
             async with asyncio.timeout(15):
                 parsed = query.parse(params)
-                if self.provider == "filmo.to" and not filmo_audio_languages(languages):
+                if self.provider == "filmo.to" and (
+                    not self.offer_hosts or not filmo_audio_languages(languages)
+                ):
                     return [], 0, {}
                 if _window is not None:
                     parsed = replace(parsed, offset=0, limit=_window)

@@ -22,7 +22,7 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
   `DOWNLOADS_TTL_HOURS`, `CLEANUP_SCAN_INTERVAL_MIN`
 - STRM: `STRM_FILES_MODE`, `STRM_PROXY_*`
 - Networking policy: external VPN/VPN-sidecar routing only + `PUBLIC_IP_CHECK_*`
-- Video-host order default: `VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza` via `PROVIDER_ORDER`, mapped at runtime to `VIDEO_HOST_ORDER`
+- Video-host order default: `VOE,Byse,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza` via `PROVIDER_ORDER`, mapped at runtime to `VIDEO_HOST_ORDER`
 - s.to/VOE note: if Sonarr shows `qBittorrent is reporting an error` for items
   that never started downloading, inspect logs for provider redirect timeouts and
   tune `PROVIDER_REDIRECT_TIMEOUT_SECONDS` / `PROVIDER_REDIRECT_RETRIES`

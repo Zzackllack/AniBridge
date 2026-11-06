@@ -59,7 +59,7 @@ class Runtime:
                     allow_private_http=config.allow_private_http,
                 )
                 self.search = ProviderSearch(
-                    self.metadata, database, directory, tuple(origins)
+                    self.metadata, database, directory, tuple(origins), hosts
                 )
             except sqlite3.Error:
                 # A broken disposable cache cannot stop already accepted local jobs.

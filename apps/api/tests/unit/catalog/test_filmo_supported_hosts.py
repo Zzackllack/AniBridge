@@ -22,6 +22,7 @@ from catalog_worker.read_catalog import publish  # noqa: E402
 from catalog_worker.state import State  # noqa: E402
 
 from app.catalog.query_local import Search  # noqa: E402
+from app.catalog.query_providers import ProviderSearch  # noqa: E402
 
 NOW = 1_800_000_000
 TOKEN = "synthetic-filmo-host-filter-token"
@@ -173,6 +174,40 @@ def test_search_filters_unsupported_hosts_before_local_totals_and_pagination(tmp
             )
             assert local_total == 2 and len(local_first) == 1
             assert local_first[0]["release_metadata"]["host"] in {"VOE", "Byse"}
+
+            voe_only = ProviderSearch(
+                client,
+                jobs_database,
+                scratch,
+                ("filmo.to",),
+                supported_hosts=("VOE",),
+            )
+            voe_first, voe_total, _ = await voe_only.search(
+                {"t": "movie", "limit": "1", "offset": "0"}, now=NOW
+            )
+            voe_tail, voe_tail_total, _ = await voe_only.search(
+                {"t": "movie", "limit": "1", "offset": "1"}, now=NOW
+            )
+            assert voe_total == voe_tail_total == 1
+            assert len(voe_first) == 1 and not voe_tail
+            assert voe_first[0]["release_metadata"]["host"] == "VOE"
+            voe_requests = [
+                request
+                for request in sent_requests
+                if request.operation == "recent" and request.offer_hosts == ["VOE"]
+            ]
+            assert len(voe_requests) == 2
+
+            request_count = len(sent_requests)
+            empty_hosts = ProviderSearch(
+                client,
+                jobs_database,
+                scratch,
+                ("filmo.to",),
+                supported_hosts=(),
+            )
+            assert await empty_hosts.search({"t": "movie"}, now=NOW) == ([], 0, {})
+            assert len(sent_requests) == request_count
         finally:
             await client.close()
 

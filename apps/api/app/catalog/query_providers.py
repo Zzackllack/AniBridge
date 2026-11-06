@@ -18,9 +18,11 @@ class ProviderSearch:
         database: Path,
         directory: Path,
         providers: tuple[str, ...],
+        supported_hosts: tuple[str, ...] | None = None,
     ) -> None:
         self.searches = [
-            Search(client, database, directory, provider) for provider in providers
+            Search(client, database, directory, provider, supported_hosts)
+            for provider in providers
         ]
         self.active = 0
 
