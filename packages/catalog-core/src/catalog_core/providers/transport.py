@@ -127,6 +127,16 @@ async def _fetch(
             and path == "/index.php"
             and query == {"yg": "token"}
             or origin in ("https://skyhook.sonarr.tv", "https://api.themoviedb.org")
+            or origin == "https://api.radarr.video"
+            and path == "/v1/search"
+            and set(query) == {"q", "year"}
+            and type(query["q"]) is str
+            and 0 < len(query["q"].encode()) <= 512
+            and type(query["year"]) is str
+            and query["year"].isascii()
+            and query["year"].isdecimal()
+            and len(query["year"]) == 4
+            and 1800 <= int(query["year"]) <= 2200
             or path == "/movies"
             and set(query) == {"page"}
             and query["page"].isdecimal()

@@ -14,15 +14,16 @@ from collections import deque
 from collections.abc import Callable
 from pathlib import Path
 
-from catalog_core.identity import mapping_id, search_key
+from catalog_core.identity import mapping_id
 from catalog_core.json_codec import dumps, integer, require
 from catalog_core.providers.transport import AdmissionDeferred, Fetch, Session
 
 from . import canonical_cache, descriptors, parent_evidence
 from .canonical_failures import CanonicalUnavailable, Failure, request_phase, verify
 from .canonical_ids import identifiers
-from .mapping import CanonicalTitle, match_title
+from .mapping import CanonicalTitle, match_title, search_terms
 from .movie_canonical import lookup as movie_lookup
+from .radarr_movie_canonical import MATCHER as RADARR_MOVIE_MATCHER
 from .radarr_movie_canonical import PROVENANCE as RADARR_MOVIE_PROVENANCE
 from .radarr_movie_canonical import lookup as radarr_movie_lookup
 from .state import State
@@ -30,19 +31,6 @@ from .transport import fetch
 
 MATCHER = "exact-title-year-3"
 ORIGIN = "https://skyhook.sonarr.tv"
-
-
-def search_terms(names: tuple[str, ...]) -> tuple[str, ...]:
-    """Keep two distinct terms without changing the historical parent digest."""
-    seen, result = set(), []
-    for name in names:
-        key = search_key(name)
-        if key and key not in seen:
-            result.append(name)
-            seen.add(key)
-        if len(result) == 2:
-            break
-    return tuple(result)
 
 
 def titles(payload: object) -> tuple[CanonicalTitle, ...]:
@@ -122,6 +110,8 @@ class Enricher:
         self.matcher = (
             MATCHER + ":" + hashlib.sha256(dumps(self.parent_sources)).hexdigest()
         )
+        if sources.get("movie") == "radarr":
+            self.matcher += ":" + RADARR_MOVIE_MATCHER
         if sources.get("episode_languages"):
             self.matcher += ":" + ",".join(sources["episode_languages"])
         self.states = list(states or [])

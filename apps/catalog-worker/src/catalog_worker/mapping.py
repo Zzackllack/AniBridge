@@ -24,6 +24,19 @@ class CanonicalEpisode:
     aliases: tuple[str, ...] = ()
 
 
+def search_terms(names: tuple[str, ...]) -> tuple[str, ...]:
+    """Keep two distinct terms without changing the historical parent digest."""
+    seen, result = set(), []
+    for name in names:
+        key = search_key(name)
+        if key and key not in seen:
+            result.append(name)
+            seen.add(key)
+        if len(result) == 2:
+            break
+    return tuple(result)
+
+
 def title_keys(name: str, year: int | None) -> set[str]:
     """A source's trailing year disambiguator adds no lexical series evidence."""
     keys = {search_key(name)}

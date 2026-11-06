@@ -143,7 +143,7 @@ configuration; legacy-mode Filmo configuration fails at startup. `FILMO_BASE_URL
 defaults to `https://filmo.to` and must match the verified provider origin used
 for local grabs. Movie mappings require an explicitly configured canonical
 source and publication provenance; merely enabling Filmo does not establish
-movie IDs. The credential and exact-ID requirements for each source are below.
+movie IDs. The credential and matching requirements for each source are below.
 Filmo translates page titles according to `Accept-Language`; the provider's
 `headers` profile can select English with `"Accept-Language": "en"`. This is a
 catalog-title preference, not an audio-language filter. Collection currently
@@ -172,10 +172,12 @@ These profiles are independent of provider request-rate limits and the retained
 
 Worker JSON supports `canonical_sources.movie` values `off`, `tmdb`, and
 `radarr`. `tmdb` retains the existing TMDb v3 flow and requires
-`tmdb_token_file`. `radarr` uses Radarr SkyHook without a credential, but only
-maps a movie when the catalog supplies an explicit IMDb ID and both the IMDb
-lookup list and TMDb detail agree on that ID. The Radarr title search returns a
-bare list without completeness metadata, so title/year-only matching abstains.
+`tmdb_token_file`. `radarr` uses Radarr SkyHook without a credential. An explicit
+IMDb ID uses the exact-ID route; otherwise up to two distinct names and the year
+are searched, using the same unique exact-title/year rule as TV. The selected
+TMDb movie detail must independently confirm that evidence. Ambiguous results
+remain unresolved. Search lists are not proof of exhaustive worldwide uniqueness;
+measure accepted mappings against independent labels before claiming accuracy.
 The resulting TMDb movie ID is tagged `radarr-skyhook-v1`; add that exact value
 to `publication_sources` before those mappings may be published. `off` remains
 the default.

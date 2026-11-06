@@ -30,9 +30,11 @@ credential cannot establish a missing player language.
 For optional Filmo movies, add `--filmo-origin https://filmo.to` when preparing
 a new installation. The helper leaves canonical movie matching off. To enable
 background movie matching, choose one worker `canonical_sources.movie` source.
-`radarr` requires no credential and maps only an exact IMDb ID after validating
-the result and its movie detail. Radarr's title search returns a bare list with
-no completeness signal, so title/year-only inputs remain unresolved. Its
+`radarr` requires no credential. It uses an explicit IMDb ID when available;
+otherwise it searches up to two distinct names with the year, accepts only a
+unique exact-title/year candidate and verifies the movie detail independently.
+This matches the TV title-selection policy; ambiguous results remain unresolved.
+Search results do not establish exhaustive worldwide uniqueness. Its
 provenance is `radarr-skyhook-v1`; add that value to `publication_sources` to
 publish those maps. `tmdb` retains the TMDb v3 path and requires `tmdb_token_file`
 to point to a private mounted read credential; add `tmdb-v3` to

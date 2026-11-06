@@ -10,12 +10,11 @@ from types import SimpleNamespace
 
 import pytest
 from catalog_core.providers.transport import AdmissionDeferred, Fetch
-from test_canonical import NOW, ready
-
 from catalog_worker.canonical import Enricher
 from catalog_worker.config import load
 from catalog_worker.events import Events
 from catalog_worker.state import State
+from test_canonical import NOW, ready
 
 
 @pytest.mark.parametrize("rate", [4, 30, 60, 90, 120])
@@ -240,7 +239,7 @@ def test_eligibility_includes_movies_when_radarr_is_selected(tmp_path, rate_prob
 
 
 def test_rate_probe_measures_filmo_movies_from_explicit_marked_v8_copy(
-    tmp_path, rate_probe
+    tmp_path, monkeypatch, rate_probe
 ):
     baseline, candidate = tmp_path / "baseline", tmp_path / "candidate"
     baseline.mkdir()
@@ -264,6 +263,21 @@ def test_rate_probe_measures_filmo_movies_from_explicit_marked_v8_copy(
         state.db.execute("INSERT INTO mapping_input(title_id) VALUES(?)", (tid,))
     state.close()
 
+    class EmptyMovieSearch:
+        def __init__(self, origin, *_args):
+            assert origin == "https://api.radarr.video"
+
+        async def fetch(self, origin, path, **options):
+            assert path == "/v1/search"
+            assert options["query"] == {"q": "Probe movie", "year": "2020"}
+            await options["before_request"]()
+            return Fetch("ok", b"[]", status=200, requests=1)
+
+        async def close(self):
+            pass
+
+    monkeypatch.setattr(rate_probe, "Session", EmptyMovieSearch)
+
     args = SimpleNamespace(
         baseline=baseline,
         candidate=candidate,
@@ -280,7 +294,7 @@ def test_rate_probe_measures_filmo_movies_from_explicit_marked_v8_copy(
     step = result["steps"][0]
     assert step["before"]["filmo.to"]["eligible"]["parents"] == 1
     assert step["after"]["filmo.to"]["eligible"]["parents"] == 0
-    assert step["requests"] == 0
+    assert step["requests"] == step["completed_requests"] == 1
     copied = candidate / "30" / "filmo.to.sqlite"
     from catalog_worker.state_migrations import preflight
 

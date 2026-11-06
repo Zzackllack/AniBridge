@@ -1,17 +1,17 @@
-"""Keyless Radarr SkyHook movie identity using explicit IMDb IDs only.
+"""Keyless Radarr movie identity, using the same title/year policy as TV.
 
-The SkyHook search endpoint returns a bare, potentially capped list. Without a
-completeness signal it cannot prove title/year uniqueness, so this adapter
-does not use it for canonical matching.
+Search results are candidates, never a first-result binding. A unique exact
+name/year match must survive an independent movie-detail lookup.
 """
 
 from catalog_core.identity import validate_external_id
 from catalog_core.json_codec import require
 
-from .mapping import CanonicalTitle
+from .mapping import CanonicalTitle, match_title, search_terms
 
 ORIGIN = "https://api.radarr.video"
 PROVENANCE = "radarr-skyhook-v1"
+MATCHER = "radarr-title-year-1"
 MAX_CANDIDATES = 1000
 MAX_ALIASES = 256
 MAX_TITLE_BYTES = 512
@@ -73,34 +73,56 @@ def _movie(item: object) -> tuple[CanonicalTitle, str | None, int]:
     )
 
 
-async def lookup(request, row, names: tuple[str, ...]):
-    """Resolve only a validated explicit IMDb ID, then verify movie detail.
-
-    ``names`` and provider year are deliberately insufficient to query this
-    non-paginated search API. Callers with no IMDb ID remain unresolved.
-    """
-    imdb_id = row["explicit_imdb"]
-    if not imdb_id:
-        return None, {}
-    validate_external_id("imdb", imdb_id)
-
-    response = await request(
-        "/v1/movie/imdb/" + imdb_id,
-        origin=ORIGIN,
-    )
+def _candidates(response: object) -> list[tuple[CanonicalTitle, str | None, int]]:
     require(
         type(response) is list and len(response) <= MAX_CANDIDATES,
-        "invalid Radarr IMDb lookup",
+        "invalid Radarr movie candidates",
     )
-    candidates = [_movie(item) for item in response]
-    matching = [candidate for candidate in candidates if candidate[1] == imdb_id]
-    # A direct ID route is evidence only when it yields one exact association.
-    if len(matching) != 1:
-        return None, {}
-    _candidate, _, movie_id = matching[0]
+    return [_movie(item) for item in response]
+
+
+async def lookup(request, row, names: tuple[str, ...]):
+    """Use an explicit ID when present, otherwise verify a unique title/year."""
+    imdb_id = row["explicit_imdb"]
+    if imdb_id:
+        validate_external_id("imdb", imdb_id)
+        response = await request("/v1/movie/imdb/" + imdb_id, origin=ORIGIN)
+        matching = [item for item in _candidates(response) if item[1] == imdb_id]
+        if len(matching) != 1:
+            return None, {}
+        candidate, search_imdb, movie_id = matching[0]
+        evidence = "explicit_id"
+    else:
+        year = row["year"]
+        if type(year) is not int or not 1800 <= year <= 2200:
+            return None, {}
+        candidates = []
+        for term in search_terms(names):
+            response = await request(
+                "/v1/search", {"q": term, "year": str(year)}, origin=ORIGIN
+            )
+            candidates.extend(_candidates(response))
+        matched = match_title(
+            names, year, "movie", tuple(item[0] for item in candidates)
+        )
+        if matched is None:
+            return None, {}
+        candidate, evidence = matched
+        movie_id = int(candidate.external_id)
+        associations = {
+            item[1] for item in candidates if item[2] == movie_id and item[1]
+        }
+        require(len(associations) <= 1, "Radarr search IMDb mismatch")
+        search_imdb = next(iter(associations), None)
 
     details = await request("/v1/movie/" + str(movie_id), origin=ORIGIN)
     detailed, detail_imdb, detail_id = _movie(details)
     require(detail_id == movie_id, "Radarr detail TMDb ID mismatch")
-    require(detail_imdb == imdb_id, "Radarr detail IMDb mismatch")
-    return (detailed, "explicit_id"), {"imdb_id": detail_imdb, "id": detail_id}
+    if imdb_id or search_imdb:
+        require(detail_imdb == (imdb_id or search_imdb), "Radarr detail IMDb mismatch")
+    if not imdb_id:
+        require(
+            match_title(names, row["year"], "movie", (detailed,)) is not None,
+            "Radarr detail title/year mismatch",
+        )
+    return (detailed, evidence), {"imdb_id": detail_imdb, "id": detail_id}

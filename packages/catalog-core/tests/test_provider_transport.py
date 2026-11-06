@@ -59,6 +59,87 @@ def test_movie_pagination_is_bounded_on_an_explicit_mirror_origin(monkeypatch):
 
 
 @pytest.mark.parametrize(
+    "origin,path,query,allowed",
+    [
+        (
+            "https://api.radarr.video",
+            "/v1/search",
+            {"q": "Example Film", "year": "2020"},
+            True,
+        ),
+        (
+            "https://provider.example",
+            "/v1/search",
+            {"q": "Example", "year": "2020"},
+            False,
+        ),
+        (
+            "https://api.radarr.video",
+            "/v1/movie/123",
+            {"q": "Example", "year": "2020"},
+            False,
+        ),
+        (
+            "https://api.radarr.video",
+            "/v1/search",
+            {"q": "Example", "year": "2020", "url": "https://other.example"},
+            False,
+        ),
+        ("https://api.radarr.video", "/v1/search", {"q": "", "year": "2020"}, False),
+        (
+            "https://api.radarr.video",
+            "/v1/search",
+            {"q": "x" * 513, "year": "2020"},
+            False,
+        ),
+        (
+            "https://api.radarr.video",
+            "/v1/search",
+            {"q": "Example", "year": "0"},
+            False,
+        ),
+        (
+            "https://api.radarr.video",
+            "/v1/search",
+            {"q": "Example", "year": "2020.0"},
+            False,
+        ),
+    ],
+)
+def test_radarr_title_queries_stay_on_the_bounded_metadata_route(
+    monkeypatch, origin, path, query, allowed
+):
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(200, stream=Stream(b"[]"))
+
+    monkeypatch.setattr(
+        httpx, "AsyncHTTPTransport", lambda **kwargs: httpx.MockTransport(respond)
+    )
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [(2, 1, 6, "", ("93.184.216.34", 443))],
+    )
+
+    async def scenario():
+        if allowed:
+            result = await fetch(origin, path, query=query)
+            assert result.outcome == "ok"
+        else:
+            with pytest.raises(ValueError):
+                await fetch(origin, path, query=query)
+
+    asyncio.run(scenario())
+    assert len(calls) == int(allowed)
+    if allowed:
+        assert calls[0].headers["Host"] == "api.radarr.video"
+        assert dict(calls[0].url.params) == query
+
+
+@pytest.mark.parametrize(
     "status,outcome",
     [
         (200, "ok"),
