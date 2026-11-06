@@ -8,7 +8,7 @@ Run each uv project from its own directory:
 (cd apps/api && uv run --python 3.14 --frozen pytest -q -rs --tb=short)
 (cd packages/catalog-core && uv run --python 3.14 --frozen pytest -q)
 (cd apps/catalog-worker && uv run --python 3.14 --frozen pytest -q)
-(cd apps/api && uv run --frozen ruff check app && uv run --frozen ruff format --check app)
+(cd apps/api && uv run --frozen ruff check app tests && uv run --frozen ruff format --check app tests)
 (cd apps/api && uv run --frozen pylint --fail-under=7.5 app)
 actionlint
 ```

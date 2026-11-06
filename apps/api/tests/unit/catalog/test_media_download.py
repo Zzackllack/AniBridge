@@ -132,7 +132,7 @@ def _master_manifest(*, subtitles=False, codecs=True, same_language=False):
         )
     lines.extend(
         [
-            '#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=1280x720,'
+            "#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=1280x720,"
             + ('CODECS="avc1.64001f,mp4a.40.2",' if codecs else "")
             + 'AUDIO="audio"'
             + (',SUBTITLES="subs"' if subtitles else ""),
@@ -234,6 +234,7 @@ def test_filmo_hls_rejects_unbound_or_duplicate_language_renditions(
                     selection=_filmo_selection(),
                 )
         assert all(call.url.path == "/master.m3u8" for call in calls)
+
 
 def test_filmo_hls_external_captions_fail_closed(tmp_path, monkeypatch):
     calls = fixture_transport(
