@@ -8,6 +8,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from loguru import logger
+
 from .async_database import call as database_call
 from .child_budget import CONSUMER_CHILDREN, ChildBudget, Lease
 from .jobs import Jobs
@@ -59,11 +61,16 @@ class Runner:
                     result = task.result()
                 except asyncio.CancelledError:
                     result = None
-                except Exception:  # noqa: BLE001 -- isolate one executor's failure from other jobs
+                except Exception as exc:  # noqa: BLE001 -- isolate one executor's failure from other jobs
                     # One executor failure must not stop unrelated durable jobs.
+                    logger.error(
+                        "Catalog job executor raised: job_id={}, error_class={}",
+                        job_id,
+                        type(exc).__name__,
+                    )
                     result = Outcome("extraction_error")
                 if result:
-                    await database_call(
+                    settled = await database_call(
                         self.jobs.finish,
                         job_id,
                         claim["generation"],
@@ -72,6 +79,14 @@ class Runner:
                         result.output,
                         result.evidence,
                     )
+                    if settled:
+                        logger.info(
+                            "Catalog job attempt finished: job_id={}, "
+                            "generation={}, outcome={}",
+                            job_id,
+                            claim["generation"],
+                            result.code,
+                        )
                 await database_call(self.jobs.settle_cancel, job_id, now)
                 del self.running[job_id]
             else:
@@ -90,6 +105,14 @@ class Runner:
             if claim is None:
                 lease.close()
                 break
+            logger.info(
+                "Catalog job attempt started: job_id={}, provider={}, "
+                "generation={}, attempt={}",
+                claim["job_id"],
+                claim["source_site"],
+                claim["generation"],
+                claim["attempts"] + 1,
+            )
             try:
                 payload = json.loads(claim["payload"])
                 payload.update(job_id=claim["job_id"], generation=claim["generation"])

@@ -3,6 +3,7 @@
 import asyncio
 import json
 import shutil
+import sqlite3
 import subprocess
 import sys
 
@@ -228,7 +229,8 @@ def test_local_probe_rejects_playlist_references(tmp_path):
     assert code != 0
 
 
-def test_executor_publishes_verified_generated_output(tmp_path):
+@pytest.mark.parametrize("checkpoint_busy", [False, True])
+def test_executor_publishes_verified_generated_output(tmp_path, checkpoint_busy):
     """Inject transfer bytes, then exercise the real remux/probe/publish phases."""
     from pathlib import Path
     from catalog_core.files import atomic_write
@@ -291,6 +293,14 @@ def test_executor_publishes_verified_generated_output(tmp_path):
         {"aniworld.to": "https://example.invalid"}, ("VOE",), downloads
     )
     updates = []
+
+    def save_progress(update):
+        updates.append(update)
+        if checkpoint_busy:
+            error = sqlite3.OperationalError("database is locked")
+            error.sqlite_errorcode = sqlite3.SQLITE_BUSY
+            raise error
+
     payload = {
         "provider": "aniworld.to",
         "mode": "download",
@@ -299,7 +309,7 @@ def test_executor_publishes_verified_generated_output(tmp_path):
         "job_id": "a" * 32,
         "generation": 1,
     }
-    result = asyncio.run(executor(payload, updates.append))
+    result = asyncio.run(executor(payload, save_progress))
     assert result.code == "ok" and result.output.is_file()
     assert result.evidence["height"] == 180 and result.evidence["codec"] == "h264"
     assert result.output.name == "Example.S01E01.German.Dub.mkv"
@@ -308,7 +318,7 @@ def test_executor_publishes_verified_generated_output(tmp_path):
     assert not list(downloads.rglob("request.json"))
     assert list(downloads.rglob("probe.json"))
     # Simulate pause/restart after output publication but before durable completion.
-    resumed = asyncio.run(executor({**payload, "generation": 3}, updates.append))
+    resumed = asyncio.run(executor({**payload, "generation": 3}, save_progress))
     assert resumed.code == "ok" and resumed.output == result.output
     assert len(transfers) == 1
     with result.output.open("ab") as stream:

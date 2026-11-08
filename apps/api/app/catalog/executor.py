@@ -2,8 +2,10 @@
 
 import asyncio
 from collections import Counter
+import logging
 import os
 import signal
+import sqlite3
 import sys
 import time
 from pathlib import Path
@@ -18,6 +20,8 @@ from .output_receipt import fingerprint
 from .quality_evidence import measured
 from .runner import Outcome
 from .media_tracks import validate_tracks_manifest
+
+logger = logging.getLogger(__name__)
 
 
 class SubprocessExecutor:
@@ -44,6 +48,7 @@ class SubprocessExecutor:
         deadline: float | None = None,
         activity: Path | None = None,
         diagnostic: Path | None = None,
+        job_id: str | None = None,
     ) -> int:
         process = await asyncio.create_subprocess_exec(
             sys.executable,
@@ -67,6 +72,11 @@ class SubprocessExecutor:
         previous = None
         previous_progress = None
         previous_phase = None
+        timeout_reason = None
+        parent_failure = None
+        operation = "supervision"
+        observed_bytes = None
+        progress_storage_busy = False
 
         async def read_output(stream) -> bytes:
             collected = bytearray()
@@ -86,34 +96,61 @@ class SubprocessExecutor:
             while process.returncode is None:
                 now = time.monotonic()
                 if deadline is not None and now - started > deadline:
+                    timeout_reason = "phase_deadline"
                     raise TimeoutError("local media phase deadline")
                 if status and status.exists():
+                    operation = "status_read"
                     if status.stat().st_size > 65536:
                         raise ValueError("invalid child status")
                     record = loads(status.read_bytes(), 65536)
                     if record.get("phase") == "resolving" and now - started > 60:
+                        timeout_reason = "resolution_deadline"
                         raise TimeoutError("resolution deadline")
                     if record.get("phase") != previous_phase:
                         previous_phase, changed_at = record.get("phase"), now
                     update = record.get("progress")
+                    if update and update.get("downloaded_bytes") != observed_bytes:
+                        observed_bytes = update.get("downloaded_bytes")
+                        changed_at = now
                     if progress and update and update != previous_progress:
-                        await database_call(progress, update)
-                        if previous_progress is None or update.get(
-                            "downloaded_bytes"
-                        ) != previous_progress.get("downloaded_bytes"):
-                            changed_at = now
-                        previous_progress = update
+                        operation = "progress_write"
+                        try:
+                            await database_call(progress, update)
+                        except sqlite3.OperationalError as exc:
+                            if not _sqlite_busy(exc):
+                                raise
+                            # Progress is a replaceable snapshot. Keep the child
+                            # running and retry the latest snapshot next poll.
+                            if not progress_storage_busy:
+                                logger.warning(
+                                    "catalog progress persistence delayed job_id=%s "
+                                    "reason=database_busy; transfer continues",
+                                    job_id,
+                                )
+                            progress_storage_busy = True
+                        else:
+                            if progress_storage_busy:
+                                logger.info(
+                                    "catalog progress persistence recovered job_id=%s",
+                                    job_id,
+                                )
+                            progress_storage_busy = False
+                            previous_progress = update
                     if previous_phase == "downloading" and now - changed_at > 120:
+                        timeout_reason = "download_inactivity"
                         raise TimeoutError("download inactivity")
                 elif status and now - started > 60:
+                    timeout_reason = "startup_deadline"
                     raise TimeoutError("resolution startup deadline")
                 if activity:
                     size = activity.stat().st_size if activity.exists() else 0
                     if size != previous:
                         previous, changed_at = size, now
                     if now - changed_at > 120:
+                        timeout_reason = "media_stall"
                         raise TimeoutError("local media phase stalled")
                 try:
+                    operation = "supervision"
                     await asyncio.wait_for(process.wait(), 0.2)
                 except TimeoutError:
                     pass
@@ -122,32 +159,26 @@ class SubprocessExecutor:
             if detail == b"diagnostic_limit" or stdout == b"diagnostic_limit":
                 code, detail = -1, b"diagnostic_limit"
             if code and diagnostic:
-                # FFmpeg/extractor messages can contain file metadata or URLs.
-                # Retain only a closed classification, never the raw stderr.
-                classes = {
-                    b"Cannot allocate memory": "memory_limit",
-                    b"not on whitelist": "unsupported_container",
-                    b"Invalid data found": "invalid_media",
-                    b"matches no streams": "missing_stream",
-                    b"Timestamps are unset": "missing_timestamps",
-                    b"diagnostic_limit": "diagnostic_limit",
-                }
-                reason = next(
-                    (value for key, value in classes.items() if key in detail),
-                    "media_process_failed",
+                reason = _stderr_failure_reason(detail, module.rsplit(".", 1)[-1])
+                error_class = (
+                    "output_limit" if detail == b"diagnostic_limit" else "process_exit"
                 )
-                atomic_write(
+                _write_failure_diagnostic(
                     diagnostic,
-                    dumps(
-                        {
-                            "outcome": "extraction_error",
-                            "failed_stage": module.rsplit(".", 1)[-1],
-                            "child_exit_code": process.returncode,
-                            "reason": reason,
-                        }
-                    ),
+                    module,
+                    error_class,
+                    reason,
+                    process.returncode,
+                    job_id,
                 )
             return code
+        except Exception as exc:
+            # Preserve the class and operation, never the exception's message:
+            # callback/storage failures can otherwise become an unexplained
+            # extraction_error while the saved child phase still says downloading.
+            if not timeout_reason:
+                parent_failure = (type(exc).__name__, operation + "_failed")
+            raise
         finally:
             if process.returncode is None:
                 try:
@@ -155,7 +186,24 @@ class SubprocessExecutor:
                 except ProcessLookupError:
                     pass
                 await asyncio.wait_for(asyncio.shield(process.wait()), 2)
-            await asyncio.gather(errors, output)
+            await asyncio.gather(errors, output, return_exceptions=True)
+            if timeout_reason and diagnostic:
+                _write_failure_diagnostic(
+                    diagnostic,
+                    module,
+                    "timeout",
+                    timeout_reason,
+                    process.returncode,
+                    job_id,
+                )
+            elif parent_failure and diagnostic:
+                _write_failure_diagnostic(
+                    diagnostic,
+                    module,
+                    *parent_failure,
+                    process.returncode,
+                    job_id,
+                )
 
     async def __call__(self, payload: dict, progress) -> Outcome:
         if sys.platform != "linux":
@@ -194,13 +242,7 @@ class SubprocessExecutor:
                 )
                 if code:
                     return Outcome("output_conflict")
-                await database_call(
-                    progress,
-                    {
-                        "downloaded_bytes": target.stat().st_size,
-                        "total_bytes": target.stat().st_size,
-                    },
-                )
+                await _published_progress(progress, target, payload["job_id"])
                 return Outcome("ok", target)
             except OSError, ValueError, TimeoutError:
                 return Outcome("output_conflict")
@@ -240,6 +282,8 @@ class SubprocessExecutor:
                 [str(request), str(status), str(attempt / "tracks")],
                 status=status,
                 progress=progress,
+                diagnostic=attempt / "failure.json",
+                job_id=payload["job_id"],
             )
             if code or not status.is_file():
                 atomic_write(
@@ -322,13 +366,7 @@ class SubprocessExecutor:
             with remux.open("rb") as stream:
                 os.fsync(stream.fileno())
             publish(remux, target)
-            await database_call(
-                progress,
-                {
-                    "downloaded_bytes": target.stat().st_size,
-                    "total_bytes": target.stat().st_size,
-                },
-            )
+            await _published_progress(progress, target, payload["job_id"])
             evidence = (
                 measured(inspected, result["host"])
                 if type(result.get("host")) is str
@@ -339,6 +377,93 @@ class SubprocessExecutor:
             return Outcome("extraction_error")
         finally:
             request.unlink(missing_ok=True)
+
+
+async def _published_progress(progress, target: Path, job_id: str) -> None:
+    try:
+        size = target.stat().st_size
+        await database_call(progress, {"downloaded_bytes": size, "total_bytes": size})
+    except sqlite3.OperationalError as exc:
+        if not _sqlite_busy(exc):
+            raise
+        # Jobs.finish records exact bytes in its completion transaction. A
+        # replaceable checkpoint must not reclassify verified output as failed.
+        logger.warning(
+            "catalog published progress delayed job_id=%s reason=database_busy; "
+            "completion will record exact bytes",
+            job_id,
+        )
+
+
+def _stderr_failure_reason(detail: bytes, module_stage: str) -> str:
+    # Child stderr may contain URLs, local paths, release titles, or credentials.
+    # Map only known markers to stable labels and discard the original bytes.
+    classes = {
+        b"Cannot allocate memory": "memory_limit",
+        b"not on whitelist": "unsupported_container",
+        b"Invalid data found": "invalid_media",
+        b"matches no streams": "missing_stream",
+        b"Timestamps are unset": "missing_timestamps",
+        b"diagnostic_limit": "diagnostic_limit",
+    }
+    default = (
+        "media_process_failed"
+        if module_stage == "local_media_child"
+        else "child_process_failed"
+    )
+    return next(
+        (value for marker, value in classes.items() if marker in detail), default
+    )
+
+
+def _sqlite_busy(exc: sqlite3.OperationalError) -> bool:
+    code = getattr(exc, "sqlite_errorcode", None)
+    if isinstance(code, int):
+        return code & 0xFF in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED)
+    return str(exc) in {"database is locked", "database table is locked"}
+
+
+def _write_failure_diagnostic(
+    path: Path,
+    module: str,
+    error_class: str,
+    reason: str,
+    exit_code: int | None,
+    job_id: str | None = None,
+) -> None:
+    stage = module.rsplit(".", 1)[-1]
+    safe_job_id = (
+        job_id
+        if type(job_id) is str
+        and len(job_id) == 32
+        and all(character in "0123456789abcdef" for character in job_id)
+        else None
+    )
+    try:
+        atomic_write(
+            path,
+            dumps(
+                {
+                    "outcome": "extraction_error",
+                    "failed_stage": stage,
+                    "error_class": error_class,
+                    "child_exit_code": exit_code,
+                    "reason": reason,
+                }
+            ),
+        )
+    except OSError:
+        # Failure reporting must not replace the subprocess result or exception.
+        pass
+    logger.warning(
+        "catalog subprocess failed stage=%s error_class=%s reason=%s "
+        "exit_code=%s job_id=%s",
+        stage,
+        error_class,
+        reason,
+        exit_code,
+        safe_job_id,
+    )
 
 
 def _filmo_output_tracks_present(

@@ -56,11 +56,14 @@ def torrent_info_record(
         if missing:
             state, progress, dlspeed = "missingFiles", 1.0, 0
         logger.trace(
-            "Job {}: status={}, wire_state={}, progress={}, speed={}, eta={}",
+            "Legacy job projection: job_id={}, stored_status={}, wire_state={}, "
+            "recorded_transfer_progress={}, output_missing={}, "
+            "speed_bytes_s={}, eta_s={}",
             job.id,
             job.status,
             state,
             progress,
+            missing,
             dlspeed,
             eta,
         )
