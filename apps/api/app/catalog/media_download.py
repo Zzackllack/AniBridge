@@ -20,6 +20,7 @@ from .media_transport import TransferState, VerifiedRH
 from .media_captions import MAX_CAPTION_BYTES
 from .resolution_transport import ResolutionError
 from .transfer_progress import TransferProgress, progress_counters  # noqa: F401 -- compatibility import
+from .hls_size_estimate import has_endlist_tag, preflight_hls_track_sizes
 
 MAX_MASTER_BYTES = 1024 * 1024
 MAX_FILMO_INPUTS = 16
@@ -40,12 +41,14 @@ class ControlledYDL(YoutubeDL):
 
 class NativeVod(HlsFD):
     def real_download(self, filename, info_dict):
-        with self.ydl.urlopen(info_dict["url"]) as response:
-            manifest = response.read().decode("utf-8", errors="strict")
-            source_url = response.url
-        if "#EXT-X-ENDLIST" not in manifest or not self.can_download(
-            manifest, info_dict
-        ):
+        manifest = info_dict.get("hls_media_playlist_data")
+        if manifest is None:
+            with self.ydl.urlopen(info_dict["url"]) as response:
+                manifest = response.read().decode("utf-8", errors="strict")
+                source_url = response.url
+        else:
+            source_url = info_dict["url"]
+        if not has_endlist_tag(manifest) or not self.can_download(manifest, info_dict):
             raise ResolutionError("extraction_error")
         if "#EXT-X-KEY:METHOD=AES-128" in manifest and not Cryptodome.AES:
             raise ResolutionError("extraction_error")
@@ -166,7 +169,7 @@ def transfer(
                         "#EXT-X-TARGETDURATION" in manifest
                         and "#EXT-X-STREAM-INF:" not in manifest
                     ):
-                        if "#EXT-X-ENDLIST" not in manifest:
+                        if not has_endlist_tag(manifest):
                             raise ResolutionError("unsupported_media_tracks")
                         expected_audio = selection.get("audio_languages")
                         if (
@@ -204,6 +207,8 @@ def transfer(
                 and not 1 <= base_track_count + len(captions) <= MAX_FILMO_INPUTS
             ):
                 raise ResolutionError("unsupported_media_tracks")
+            if selection is not None or len(selected) > 1:
+                preflight_hls_track_sizes(selected, ydl, state)
             tracker = TransferProgress(
                 [
                     *selected,

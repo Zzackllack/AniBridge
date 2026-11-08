@@ -6,6 +6,7 @@ streams have no sample-size limit; metadata-style read-all calls remain bounded.
 
 import io
 import shutil
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
@@ -22,6 +23,8 @@ from app.core.downloader.provider_policy import _validate_request_url
 class TransferState:
     directory: Path
     error: str | None = None
+    timeout_s: float = 120
+    deadline_s: float | None = None
 
     def fail(self, code: str) -> None:
         self.error = code
@@ -52,6 +55,11 @@ class StreamingBody(io.RawIOBase):
         try:
             while len(result) < maximum:
                 if not self.pending and not self.eof:
+                    if (
+                        self.state.deadline_s is not None
+                        and time.monotonic() >= self.state.deadline_s
+                    ):
+                        self.state.fail("transport_failure")
                     try:
                         self.pending.extend(next(self.chunks))
                     except StopIteration:
@@ -91,7 +99,7 @@ class VerifiedRH(RequestHandler):
         self.state = state
 
     def _check_extensions(self, extensions):
-        # yt-dlp may ask for a shorter timeout. It cannot relax the 120s ceiling.
+        # The caller owns the timeout ceiling; request extensions cannot relax it.
         extensions.pop("timeout", None)
 
     def _send(self, request) -> Response:
@@ -104,7 +112,22 @@ class VerifiedRH(RequestHandler):
             try:
                 if len(url.encode()) > 16384:
                     self.state.fail("extraction_error")
+                timeout_s = min(120.0, self.state.timeout_s)
+                if self.state.deadline_s is not None:
+                    timeout_s = min(
+                        timeout_s,
+                        self.state.deadline_s - time.monotonic(),
+                    )
+                    if timeout_s <= 0:
+                        self.state.fail("transport_failure")
                 host, _, address = _validate_request_url(url, stage="media transfer")
+                if self.state.deadline_s is not None:
+                    timeout_s = min(
+                        timeout_s,
+                        self.state.deadline_s - time.monotonic(),
+                    )
+                    if timeout_s <= 0:
+                        self.state.fail("transport_failure")
                 headers = {
                     key: value
                     for key, value in self._merge_headers(request.headers).items()
@@ -117,7 +140,11 @@ class VerifiedRH(RequestHandler):
                 client = httpx.Client(
                     trust_env=False,
                     follow_redirects=False,
-                    timeout=httpx.Timeout(120, connect=5, pool=1),
+                    timeout=httpx.Timeout(
+                        max(0.001, timeout_s),
+                        connect=max(0.001, min(5.0, timeout_s)),
+                        pool=max(0.001, min(1.0, timeout_s)),
+                    ),
                 )
                 context = client.stream(
                     request.method,
