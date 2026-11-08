@@ -5,6 +5,27 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+def _isolate_catalog_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Collection imports configuration too, before per-test fixtures can run.
+    monkeypatch.setenv("CATALOG_SITES", "aniworld.to,s.to,megakino")
+    for name in (
+        "CATALOG_MODE",
+        "CATALOG_CONFIG_FILE",
+        "CATALOG_API_URL",
+        "CATALOG_SOURCE_ID",
+        "CATALOG_API_TOKEN",
+        "CATALOG_API_TOKEN_FILE",
+        "CATALOG_ALLOW_PRIVATE_HTTP",
+    ):
+        monkeypatch.setenv(name, "")
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    isolation = pytest.MonkeyPatch()
+    _isolate_catalog_environment(isolation)
+    config.add_cleanup(isolation.undo)
+
+
 @pytest.fixture
 def stub_aniworld_parser(monkeypatch):
     """Provide a temporary stub for ``aniworld.parser`` in ``sys.modules``."""
@@ -39,6 +60,9 @@ def _fast_test_env(monkeypatch):
     monkeypatch.setenv("STRM_PROXY_AUTH", "none")
     monkeypatch.setenv("STRM_PUBLIC_BASE_URL", "http://testserver")
     monkeypatch.setenv("STRM_PROXY_UPSTREAM_ALLOWLIST", "upstream")
+    # dotenv must not connect tests to a developer's real collector or choose
+    # different providers. Query-mode cases opt in with their own configuration.
+    _isolate_catalog_environment(monkeypatch)
 
 
 @pytest.fixture

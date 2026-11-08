@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
 import time
 from collections.abc import Iterator
@@ -27,9 +28,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import filmo_fixture  # noqa: E402
 
 MEDIA = Path("/generated/generated.mp4")
+HLS_ROOT = Path("/generated/hls")
 ADDRESS = "192.0.2.77"  # The transport below handles this reserved address.
 # The generated input takes about 98 seconds, spanning Radarr's minute poll.
 CHUNK_DELAY_S = 0.25
+HLS_VIDEO_TRANSFER_SECONDS = 90
 EVENTS = Path("/data/filmo-acceptance-http-events.jsonl")
 VARIANT_CHOICES: list[str] = []  # Test assertion only; never written to logs.
 CAPTION_CHOICES: list[str] = []  # Test assertion only; never written to logs.
@@ -54,22 +57,70 @@ ROUTES = {
 URLS = {
     f"https://{host}{path}": stage for (host, _method, path), stage in ROUTES.items()
 }
+HLS_PLAYLISTS = {
+    "/hls/master.m3u8": "hls_master",
+    "/hls/stream_0.m3u8": "hls_english_audio_playlist",
+    "/hls/stream_1.m3u8": "hls_german_audio_playlist",
+    "/hls/stream_2.m3u8": "hls_video_playlist",
+}
+HLS_SEGMENT_RE = re.compile(r"/hls/segment_([012])_([0-9]{4})\.ts\Z")
+HLS_SEGMENT_STAGES = {
+    "hls_english_audio_segment",
+    "hls_german_audio_segment",
+    "hls_video_segment",
+}
 INTERNAL_SERVICES = {"api": 8000, "catalog": 8080, "radarr": 7878, "prowlarr": 9696}
 real_client = httpx.Client
 
 
+def media_url() -> str:
+    """Use generated HLS only in the explicit HLS acceptance overlay."""
+    if (HLS_ROOT / "master.m3u8").is_file():
+        return "https://media.fixture.invalid/hls/master.m3u8"
+    return filmo_fixture.MEDIA_URL
+
+
+def hls_route(path: str) -> tuple[str, Path] | None:
+    if not (HLS_ROOT / "master.m3u8").is_file():
+        return None
+    if path in HLS_PLAYLISTS:
+        target = HLS_ROOT / Path(path).name
+        return (HLS_PLAYLISTS[path], target) if target.is_file() else None
+    match = HLS_SEGMENT_RE.fullmatch(path)
+    if match is None:
+        return None
+    target = HLS_ROOT / Path(path).name
+    if not target.is_file() or target.parent != HLS_ROOT:
+        return None
+    stage = {
+        "0": "hls_english_audio_segment",
+        "1": "hls_german_audio_segment",
+        "2": "hls_video_segment",
+    }[match[1]]
+    return stage, target
+
+
 def validate(url: str, **kwargs: object) -> tuple[str, int, str]:
     parsed = urlsplit(url)
-    if url in URLS:
+    hls_url = (
+        parsed.scheme == "https"
+        and parsed.hostname == "media.fixture.invalid"
+        and not parsed.query
+        and not parsed.fragment
+        and url == f"https://media.fixture.invalid{parsed.path}"
+        and hls_route(parsed.path) is not None
+    )
+    if url in URLS or hls_url:
         if not MEDIA.is_file():
             raise ValueError("generated Filmo media is missing")
         return parsed.hostname or "", 443, ADDRESS
     raise ValueError("outside the fixed generated Filmo inputs")
 
 
-def event(stage: str) -> None:
+def event(stage: str, method: str = "GET") -> None:
     """Record only a closed route class; never write URLs, tokens, or query data."""
-    if stage not in set(ROUTES.values()):
+    allowed = set(ROUTES.values()) | set(HLS_PLAYLISTS.values()) | HLS_SEGMENT_STAGES
+    if stage not in allowed:
         raise ValueError("undeclared generated event")
     try:
         with EVENTS.open("a") as stream:
@@ -79,6 +130,7 @@ def event(stage: str) -> None:
                         "pid": os.getpid(),
                         "process": Path(sys.argv[0]).name,
                         "input": stage,
+                        "method": method,
                     }
                 )
                 + "\n"
@@ -89,11 +141,18 @@ def event(stage: str) -> None:
 
 
 class Body(httpx.SyncByteStream):
-    def __init__(self, *, start: int = 0, length: int | None = None) -> None:
-        self.start, self.length = start, length
+    def __init__(
+        self,
+        path: Path,
+        *,
+        start: int = 0,
+        length: int | None = None,
+        delay: float = CHUNK_DELAY_S,
+    ) -> None:
+        self.path, self.start, self.length, self.delay = path, start, length, delay
 
     def __iter__(self) -> Iterator[bytes]:
-        with MEDIA.open("rb") as stream:
+        with self.path.open("rb") as stream:
             stream.seek(self.start)
             remaining = self.length
             while remaining is None or remaining > 0:
@@ -102,8 +161,8 @@ class Body(httpx.SyncByteStream):
                 )
                 if not block:
                     break
-                if CHUNK_DELAY_S:
-                    time.sleep(CHUNK_DELAY_S)
+                if self.delay:
+                    time.sleep(self.delay)
                 if remaining is not None:
                     remaining -= len(block)
                 yield block
@@ -123,9 +182,15 @@ class Transport(httpx.BaseTransport):
             return self.fallback.handle_request(request)
         host = request.headers.get("Host", "").split(":", 1)[0].casefold()
         route = ROUTES.get((host, request.method, request.url.path))
+        hls = hls_route(request.url.path) if host == "media.fixture.invalid" else None
+        path = None
+        if route is None and hls is not None and request.method in {"GET", "HEAD"}:
+            route, path = hls
+        elif route == "media":
+            path = MEDIA
         if route is None or request.url.query:
             raise ValueError("undeclared generated Filmo request")
-        event(route)
+        event(route, request.method)
         if route == "listing":
             return httpx.Response(
                 200,
@@ -148,7 +213,7 @@ class Transport(httpx.BaseTransport):
                 return httpx.Response(419, stream=httpx.ByteStream(b"{}"))
             try:
                 payload = json.loads(request.content)
-            except (UnicodeDecodeError, json.JSONDecodeError):
+            except UnicodeDecodeError, json.JSONDecodeError:
                 return httpx.Response(400, stream=httpx.ByteStream(b"{}"))
             token = payload.get("p") if isinstance(payload, dict) else None
             wrappers = {
@@ -182,7 +247,7 @@ class Transport(httpx.BaseTransport):
             return httpx.Response(
                 200,
                 headers={"Content-Type": "application/json"},
-                stream=httpx.ByteStream(filmo_fixture.byse_response()),
+                stream=httpx.ByteStream(filmo_fixture.byse_response(media_url())),
             )
         if route == "caption":
             CAPTION_CHOICES.append("german-vtt")
@@ -195,10 +260,51 @@ class Transport(httpx.BaseTransport):
                 stream=httpx.ByteStream(filmo_fixture.CAPTION_VTT),
             )
 
+        if route.startswith("hls_"):
+            assert path is not None
+            size = path.stat().st_size
+            content_type = (
+                "application/vnd.apple.mpegurl"
+                if path.suffix == ".m3u8"
+                else "video/mp2t"
+            )
+            headers = {"Content-Length": str(size), "Content-Type": content_type}
+            delay = CHUNK_DELAY_S
+            if route == "hls_video_segment":
+                if HLS_VIDEO_TRANSFER_SECONDS <= 0:
+                    delay = 0
+                else:
+                    video_bytes = sum(
+                        segment.stat().st_size
+                        for segment in HLS_ROOT.glob("segment_2_*.ts")
+                    )
+                    chunk_count = max(1, (video_bytes + 65535) // 65536)
+                    delay = min(
+                        8.0,
+                        max(0.25, HLS_VIDEO_TRANSFER_SECONDS / chunk_count),
+                    )
+            if request.method == "HEAD":
+                return httpx.Response(200, headers=headers)
+            range_header = request.headers.get("Range")
+            if range_header:
+                match = re.fullmatch(r"bytes=0-([0-9]{0,8})", range_header)
+                if match is None:
+                    raise ValueError("unsupported generated HLS range")
+                end = min(int(match[1]) if match[1] else size - 1, size - 1)
+                length = end + 1
+                return httpx.Response(
+                    206,
+                    headers={
+                        **headers,
+                        "Content-Length": str(length),
+                        "Content-Range": f"bytes 0-{end}/{size}",
+                    },
+                    stream=Body(path, length=length, delay=delay),
+                )
+            return httpx.Response(200, headers=headers, stream=Body(path, delay=delay))
+
         range_header = request.headers.get("Range")
         if range_header:
-            import re
-
             match = re.fullmatch(r"bytes=0-([0-9]{0,8})", range_header)
             if match is None:
                 raise ValueError("unsupported generated media range")
@@ -212,7 +318,7 @@ class Transport(httpx.BaseTransport):
                     "Content-Range": f"bytes 0-{end}/{size}",
                     "Content-Type": "video/mp4",
                 },
-                stream=Body(length=length),
+                stream=Body(MEDIA, length=length),
             )
         return httpx.Response(
             200,
@@ -220,7 +326,7 @@ class Transport(httpx.BaseTransport):
                 "Content-Length": str(MEDIA.stat().st_size),
                 "Content-Type": "video/mp4",
             },
-            stream=Body(),
+            stream=Body(MEDIA),
         )
 
     def close(self) -> None:

@@ -102,6 +102,95 @@ def test_acceptance_requires_two_source_audio_tracks_and_external_caption():
         RUNNER.assert_embedded_tracks(source, remuxed=True)
 
 
+def test_hls_video_preflight_must_precede_segment_download():
+    RUNNER.assert_hls_video_preflight(
+        [
+            {"input": "hls_master", "method": "GET"},
+            {"input": "hls_video_segment", "method": "HEAD"},
+            {"input": "hls_video_segment", "method": "GET"},
+        ]
+    )
+    with pytest.raises(AssertionError):
+        RUNNER.assert_hls_video_preflight(
+            [
+                {"input": "hls_video_segment", "method": "GET"},
+                {"input": "hls_video_segment", "method": "HEAD"},
+            ]
+        )
+
+
+def test_hls_accepts_later_exact_progress_after_an_estimated_phase():
+    RUNNER.assert_hls_progress_evidence(
+        [
+            {
+                "anibridge_size_estimated": True,
+                "size": 1000,
+                "downloaded": 250,
+                "progress": 0.25,
+            },
+            {
+                "anibridge_size_estimated": False,
+                "size": 1000,
+                "downloaded": 900,
+                "progress": 0.9,
+            },
+        ],
+        [
+            {
+                "size": 1000,
+                "sizeleft": 750,
+                "fixture_events_seen": [
+                    {"input": "hls_video_segment", "method": "HEAD"},
+                    {"input": "hls_video_segment", "method": "GET"},
+                    {"input": "hls_english_audio_segment", "method": "HEAD"},
+                ],
+            }
+        ],
+    )
+    with pytest.raises(AssertionError):
+        RUNNER.assert_hls_progress_evidence(
+            [
+                {
+                    "anibridge_size_estimated": False,
+                    "size": 1000,
+                    "downloaded": 900,
+                    "progress": 0.9,
+                }
+            ],
+            [
+                {
+                    "size": 1000,
+                    "sizeleft": 100,
+                    "fixture_events_seen": [
+                        {"input": "hls_video_segment", "method": "GET"},
+                        {"input": "hls_english_audio_segment", "method": "GET"},
+                    ],
+                }
+            ],
+        )
+    with pytest.raises(AssertionError, match="video-only phase"):
+        RUNNER.assert_hls_progress_evidence(
+            [
+                {
+                    "anibridge_size_estimated": True,
+                    "size": 1000,
+                    "downloaded": 250,
+                    "progress": 0.25,
+                }
+            ],
+            [
+                {
+                    "size": 1000,
+                    "sizeleft": 750,
+                    "fixture_events_seen": [
+                        {"input": "hls_video_segment", "method": "GET"},
+                        {"input": "hls_english_audio_segment", "method": "GET"},
+                    ],
+                }
+            ],
+        )
+
+
 @pytest.mark.parametrize(
     ("source_id", "quality", "accepted"),
     [("84", "BluRay 720p", True), ("42", "Unknown", True), ("42", "HDTV-720p", False)],

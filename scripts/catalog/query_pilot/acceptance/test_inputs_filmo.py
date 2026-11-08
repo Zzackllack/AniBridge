@@ -142,6 +142,55 @@ def test_generated_byse_caption_route_is_fixed_and_returns_only_vtt(
             )
 
 
+def test_generated_hls_routes_are_closed_and_head_uses_real_segment_size(
+    tmp_path: Path,
+):
+    fixture = load_hook()
+    fixture.MEDIA = tmp_path / "generated.mp4"
+    fixture.MEDIA.write_bytes(b"placeholder mp4")
+    fixture.HLS_ROOT = tmp_path / "hls"
+    fixture.HLS_VIDEO_TRANSFER_SECONDS = 0
+    fixture.HLS_ROOT.mkdir()
+    (fixture.HLS_ROOT / "master.m3u8").write_text("#EXTM3U\n")
+    segment = fixture.HLS_ROOT / "segment_2_0000.ts"
+    segment.write_bytes(b"generated-video-segment")
+
+    assert fixture.media_url() == "https://media.fixture.invalid/hls/master.m3u8"
+    assert fixture.validate(fixture.media_url()) == (
+        "media.fixture.invalid",
+        443,
+        fixture.ADDRESS,
+    )
+
+    class Fallback(httpx.BaseTransport):
+        def handle_request(self, request):
+            raise AssertionError("closed fixture route must not reach network")
+
+    transport = fixture.Transport(Fallback())
+    target = "https://192.0.2.77/hls/segment_2_0000.ts"
+    headers = {"Host": "media.fixture.invalid"}
+    head = transport.handle_request(httpx.Request("HEAD", target, headers=headers))
+    assert head.status_code == 200
+    assert head.headers["content-length"] == str(segment.stat().st_size)
+    assert head.read() == b""
+
+    body = transport.handle_request(httpx.Request("GET", target, headers=headers))
+    assert body.status_code == 200
+    assert body.headers["content-length"] == str(segment.stat().st_size)
+    assert body.headers["content-type"] == "video/mp2t"
+    assert body.read() == segment.read_bytes()
+
+    for path in (
+        "/hls/segment_3_0000.ts",
+        "/hls/segment_2_0000.ts/extra",
+        "/hls/stream_3.m3u8",
+    ):
+        with pytest.raises(ValueError, match="undeclared generated Filmo request"):
+            transport.handle_request(
+                httpx.Request("GET", f"https://192.0.2.77{path}", headers=headers)
+            )
+
+
 @pytest.mark.parametrize(
     ("native_id", "expected_variant", "expected_source"),
     [

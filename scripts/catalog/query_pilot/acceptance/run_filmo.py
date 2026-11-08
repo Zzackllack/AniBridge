@@ -476,7 +476,66 @@ def initial_checks(api: httpx.Client) -> None:
     assert not list(Path("/library").glob("*")), "fresh movie library required"
 
 
+def assert_hls_video_preflight(events: list[dict]) -> None:
+    """Prove the selected video segment had a HEAD before transfer began."""
+    video = [event for event in events if event["input"] == "hls_video_segment"]
+    head = next(
+        (index for index, event in enumerate(video) if event["method"] == "HEAD"),
+        None,
+    )
+    get = next(
+        (index for index, event in enumerate(video) if event["method"] == "GET"),
+        None,
+    )
+    if head is None or get is None or head >= get:
+        raise AssertionError(
+            "HLS video segment was not preflighted with HEAD before GET"
+        )
+
+
+def assert_hls_progress_evidence(api_rows: list[dict], radarr_rows: list[dict]) -> None:
+    """Require early estimated progress and a Radarr read during video transfer."""
+    estimated = any(
+        row["anibridge_size_estimated"] is True
+        and row["size"] > row["downloaded"] > 0
+        and 0 < row["progress"] < 1
+        for row in api_rows
+    )
+    if not estimated:
+        raise AssertionError(
+            "no intermediate AniBridge progress used an estimated size"
+        )
+    if not any(
+        row["size"] > 0 and 0 < row["sizeleft"] < row["size"] for row in radarr_rows
+    ):
+        raise AssertionError(
+            "Radarr did not expose positive intermediate queue progress"
+        )
+    video_only = any(
+        ("hls_video_segment", "GET")
+        in {(event["input"], event["method"]) for event in row["fixture_events_seen"]}
+        and not any(
+            event["input"] in {"hls_english_audio_segment", "hls_german_audio_segment"}
+            and event["method"] == "GET"
+            for event in row["fixture_events_seen"]
+        )
+        for row in radarr_rows
+    )
+    if not video_only:
+        raise AssertionError(
+            "Radarr did not observe positive queue progress during the video-only phase"
+        )
+
+
+def fixture_events_seen() -> list[dict]:
+    path = Path("/data/filmo-acceptance-http-events.jsonl")
+    if not path.is_file():
+        return []
+    return [json.loads(line) for line in path.read_text().splitlines()]
+
+
 def main() -> None:
+    hls_mode = Path("/generated/hls/master.m3u8").is_file()
     with httpx.Client(
         base_url="http://api:8000", trust_env=False, timeout=15
     ) as health:
@@ -653,7 +712,12 @@ def main() -> None:
                         intermediate_api.append(
                             {
                                 key: torrent[key]
-                                for key in ("progress", "size", "downloaded")
+                                for key in (
+                                    "progress",
+                                    "size",
+                                    "downloaded",
+                                    "anibridge_size_estimated",
+                                )
                             }
                         )
                         assert torrent["size"] > 0
@@ -671,6 +735,13 @@ def main() -> None:
                                             "size": size,
                                             "sizeleft": left,
                                             "status": queued["status"],
+                                            **(
+                                                {
+                                                    "fixture_events_seen": fixture_events_seen()
+                                                }
+                                                if hls_mode
+                                                else {}
+                                            ),
                                         }
                                     )
                     return torrent if torrent["progress"] == 1 else None
@@ -682,6 +753,8 @@ def main() -> None:
                 assert intermediate_radarr, (
                     "no intermediate Radarr byte progress observed"
                 )
+                if hls_mode:
+                    assert_hls_progress_evidence(intermediate_api, intermediate_radarr)
                 source = Path(row["content_path"])
                 assert source.is_file() and source.is_relative_to(Path("/downloads"))
                 output_digest = digest(source)
@@ -726,12 +799,7 @@ def main() -> None:
                         (job_id,),
                     ).fetchone()
                 assert status == ("completed", 1, 1, output_size, output_size)
-                events = [
-                    json.loads(line)
-                    for line in Path("/data/filmo-acceptance-http-events.jsonl")
-                    .read_text()
-                    .splitlines()
-                ]
+                events = fixture_events_seen()
                 stages = {event["input"] for event in events}
                 assert sum(event["input"] == "caption" for event in events) == 1
                 assert {
@@ -748,6 +816,12 @@ def main() -> None:
                     "byse_embed_primary",
                 }.intersection(stages), "resolver touched the other queued variant"
                 assert all(event["process"] == "job_child.py" for event in events)
+                if hls_mode:
+                    assert "hls_video_segment" in stages
+                    assert not {"media"}.intersection(stages), (
+                        "HLS acceptance unexpectedly selected the MP4 source"
+                    )
+                    assert_hls_video_preflight(events)
 
                 result = {
                     "acceptance": "passed",
@@ -790,6 +864,8 @@ def main() -> None:
                     },
                     "intermediate_api": intermediate_api,
                     "intermediate_radarr": intermediate_radarr,
+                    "hls_mode": hls_mode,
+                    "hls_video_head_preflight": hls_mode,
                     "fixture_stages": sorted(stages),
                     "network": "fixture Filmo/provider/player/media inputs; no real media acquisition",
                     "restart": "not_checked",

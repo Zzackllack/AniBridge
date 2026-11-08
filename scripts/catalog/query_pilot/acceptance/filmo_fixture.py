@@ -70,14 +70,14 @@ def _b64url(value: bytes) -> str:
     return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
 
 
-def byse_response() -> bytes:
+def byse_response(media_url: str = MEDIA_URL) -> bytes:
     """Build a local versioned AES-GCM payload accepted by the maintained decoder."""
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
     key = bytes(range(32))
     nonce = bytes(range(12))
     plaintext = json.dumps(
-        {"sources": [{"url": MEDIA_URL, "height": 720}]},
+        {"sources": [{"url": media_url, "height": 720}]},
         separators=(",", ":"),
     ).encode()
     encrypted = AESGCM(key).encrypt(nonce, plaintext, None)
