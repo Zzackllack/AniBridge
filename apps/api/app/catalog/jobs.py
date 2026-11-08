@@ -220,7 +220,9 @@ class Jobs:
             admitted = []
             for digest, payload, label, equivalence in decoded:
                 existing = db.execute(
-                    "SELECT c.job_id,d.payload FROM clienttask c LEFT JOIN durable_request d ON d.job_id=c.job_id WHERE c.hash=?",
+                    "SELECT c.job_id,d.payload,j.status FROM clienttask c "
+                    "LEFT JOIN durable_request d ON d.job_id=c.job_id "
+                    "LEFT JOIN job j ON j.id=c.job_id WHERE c.hash=?",
                     (digest,),
                 ).fetchone()
                 frozen = {
@@ -264,6 +266,20 @@ class Jobs:
                     )
                     if any(old.get(key) != payload.get(key) for key in keys):
                         raise JobError("identity_conflict", 409)
+                    if existing["status"] == "cancelling":
+                        raise JobError("removal_pending", 409)
+                    if existing["status"] == "cancelled":
+                        pending_removal = db.execute(
+                            "SELECT 1 FROM catalog_task WHERE type='remove_aliases' "
+                            "AND state='queued' AND json_extract(body,'$.job_id')=? LIMIT 1",
+                            (existing["job_id"],),
+                        ).fetchone()
+                        raise JobError(
+                            "removal_pending"
+                            if pending_removal
+                            else "cancelled_request",
+                            409,
+                        )
                     admitted.append(existing["job_id"])
                     continue
                 # A duplicate needs no new durable state, so disk pressure must
@@ -281,13 +297,59 @@ class Jobs:
                 )
                 shared = (
                     db.execute(
-                        "SELECT job_id FROM durable_request WHERE identity_key=?",
+                        "SELECT d.job_id,j.status,j.progress,j.result_path "
+                        "FROM durable_request d JOIN job j ON j.id=d.job_id "
+                        "WHERE d.identity_key=?",
                         (equivalence,),
                     ).fetchone()
                     if equivalence
                     else None
                 )
                 job_id = shared["job_id"] if shared else uuid4().hex
+                if shared and shared["status"] == "cancelling":
+                    raise JobError("removal_pending", 409)
+                if shared and shared["status"] == "cancelled":
+                    pending_removal = db.execute(
+                        "SELECT 1 FROM catalog_task WHERE type='remove_aliases' "
+                        "AND state='queued' AND json_extract(body,'$.job_id')=? LIMIT 1",
+                        (job_id,),
+                    ).fetchone()
+                    has_alias = (
+                        db.execute(
+                            "SELECT 1 FROM clienttask WHERE job_id=? LIMIT 1", (job_id,)
+                        ).fetchone()
+                        or db.execute(
+                            "SELECT 1 FROM grab_alias WHERE job_id=? LIMIT 1", (job_id,)
+                        ).fetchone()
+                    )
+                    # A cancelled job may represent an item already published to
+                    # Sonarr/Radarr. Only an unpublished, alias-free request can
+                    # safely start a new generation while retaining its partials.
+                    if pending_removal:
+                        raise JobError("removal_pending", 409)
+                    if (
+                        has_alias
+                        or shared["progress"] is None
+                        or shared["progress"] >= 100
+                        or shared["result_path"] is not None
+                    ):
+                        raise JobError("cancelled_request", 409)
+                    count = db.execute(
+                        f"SELECT count(*) FROM job WHERE status IN ({','.join('?' for _ in ACTIVE)})",
+                        ACTIVE,
+                    ).fetchone()[0]
+                    if count >= self.queue_limit:
+                        raise JobError("queue_full", 503)
+                    db.execute(
+                        "UPDATE job SET status=?,speed=0,updated_at=? WHERE id=?",
+                        ("paused" if paused else "queued", timestamp(now), job_id),
+                    )
+                    db.execute(
+                        "UPDATE durable_request SET version=version+1,generation=generation+1,"
+                        "attempts=0,lease_until=0,next_retry_at=NULL,last_retry_at=NULL,"
+                        "prior_state=NULL,error_code=NULL WHERE job_id=?",
+                        (job_id,),
+                    )
                 if not shared:
                     count = db.execute(
                         f"SELECT count(*) FROM job WHERE status IN ({','.join('?' for _ in ACTIVE)})",
