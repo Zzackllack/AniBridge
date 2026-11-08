@@ -3,6 +3,9 @@
 ## Credential Handling
 
 - Do not commit secrets; use environment variables and `.env` files excluded from git.
+- Catalog bearer tokens can come from `CATALOG_API_TOKEN` or a read-only
+  `CATALOG_API_TOKEN_FILE`. Debug system reports fully redact the inline token;
+  exception logging disables local-variable diagnostics to avoid secret exposure.
 - `ANIBRIDGE_GITHUB_TOKEN` should be a GitHub PAT with read access.
 - Optional qBittorrent authentication uses Starlette signed sessions and an
   independent random `QBIT_SESSION_SECRET`. Never log credentials or cookies.

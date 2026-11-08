@@ -32,7 +32,8 @@ def config():
         sys.stdout,
         level=LOG_LEVEL,
         colorize=True,
-        diagnose=not bool(os.environ.get("CATALOG_CONFIG_FILE")),
+        # Exception locals can contain credentials, including inline env tokens.
+        diagnose=False,
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
         "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
     )
