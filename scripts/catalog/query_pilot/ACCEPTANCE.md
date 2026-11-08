@@ -135,3 +135,45 @@ Only remove that project's volumes after retaining any needed private result.
 Passing this single generated movie proves the tested request and import path;
 it does not prove live Filmo availability, general movie metadata accuracy,
 playback or sustained capacity.
+
+### Optional separated-audio HLS scenario
+
+This optional scenario extends the generated Filmo acceptance with a local HLS
+master playlist: one synthetic video rendition and separate synthetic English
+and German tone renditions. The base MP4 scenario remains the default. The
+existing external generated German caption is still included; no live provider
+or media URLs are admitted. The generated input is test media, not speech.
+
+The generator remuxes the bounded synthetic MP4 into HLS without changing its
+video or audio bytes. The test transport serves only the generated master,
+three media playlists, generated segments and caption. It reports each
+segment's actual filesystem `Content-Length`; the runner requires the video
+segment's `HEAD` preflight before `GET`. Intermediate progress must carry
+AniBridge's estimated-size marker and be visible in Radarr's queue.
+
+Prepare credentials and isolated volumes as described above, then append the
+optional overlay to the Filmo acceptance Compose files:
+
+```sh
+export COMPOSE_FILE=scripts/catalog/query_pilot/compose.yaml:scripts/catalog/query_pilot/clients.yaml:scripts/catalog/query_pilot/acceptance.yaml:scripts/catalog/query_pilot/acceptance-filmo.yaml:scripts/catalog/query_pilot/acceptance-filmo-hls.yaml
+docker compose -p anibridge-filmo-hls-20261108 config --quiet
+docker compose -p anibridge-filmo-hls-20261108 build catalog api
+docker compose -p anibridge-filmo-hls-20261108 up -d catalog api radarr prowlarr
+timeout 12m docker compose -p anibridge-filmo-hls-20261108 exec -T --user 1000 api \
+  python /pilot/acceptance/run_filmo.py
+docker compose -p anibridge-filmo-hls-20261108 exec -T api \
+  cat /data/acceptance-filmo-result.json
+```
+
+The API image must contain the HLS estimated-size and initial segment `HEAD`
+handling under evaluation. Inspect the result's `hls_mode`,
+`hls_video_head_preflight`, `intermediate_api`, `intermediate_radarr` and
+`fixture_stages` fields. Stop the isolated project after recording the result:
+
+```sh
+docker compose -p anibridge-filmo-hls-20261108 down
+```
+
+Only retire this project's volumes after preserving any needed private result.
+This is generated-media acceptance evidence; it does not establish live
+provider extraction or playback behavior.

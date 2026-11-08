@@ -122,6 +122,24 @@ progress, completion and output availability. Unknown transfer sizes stay unknow
 no premature 100% or automatic duplicate acquisition after import/file movement.
 Legacy aliases, jobs, categories and path translation remain compatible.
 
+Selected HLS tracks may use estimated byte totals from a bounded finite-playlist
+and first-segment HEAD preflight. Estimates use evidence from each selected track,
+remain labelled as estimates, and are replaced by measured lengths as transfer
+finishes. Missing metadata retains unknown totals; video bytes alone cannot stand
+in for an unknown audio track. Radarr requires a nonzero total to display progress.
+Logs distinguish legacy history from catalog jobs and report downloaded bytes,
+size basis and output availability. Supervised child failures retain only bounded
+reason/stage/exit diagnostics, never raw stderr, media URLs or release names.
+Transient SQLite busy/locked errors while saving progress retry the latest
+snapshot without stopping the transfer. Other parent failures retain the
+exception class and operation. These diagnostics do not establish the cause of
+older failures that did not record them.
+
+Removing an unfinished request and re-adding it after alias removal settles may
+queue a new generation of the same frozen request. Pending removals and remaining
+cancelled aliases return a conflict. Previously published requests stay protected
+from automatic acquisition even if their output was subsequently moved.
+
 Filmo remuxing retains embedded tracks and their language tags. Separate HLS
 audio binds each declared language to an exact rendition URI in the selected
 video's group. Known Byse SRT/WebVTT and HLS WebVTT captions use verified,

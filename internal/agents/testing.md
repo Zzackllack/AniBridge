@@ -74,6 +74,9 @@ grabs, byte progress, embedded tracks, actual output movement and a bounded
 restart window. The base Sonarr scenario retains its source file. These fixtures
 do not prove real provider extraction/playback or complete E2E coverage.
 Never mix acceptance volumes with developer `data/` or ordinary/VPN dev stacks.
+The optional `acceptance-filmo-hls.yaml` overlay tests separate generated HLS
+video/audio tracks, estimated totals during transfer and real Radarr queue
+progress. The default MP4 scenario alone cannot establish that HLS progress works.
 
 Keep generated reports/measurements under ignored `internal/local/`, with any
 needed archive outside the checkout. Specifications contain current contracts
