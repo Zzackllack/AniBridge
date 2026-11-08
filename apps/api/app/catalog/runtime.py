@@ -53,7 +53,7 @@ class Runtime:
                 self.metadata = Client(
                     config.origin,
                     config.source_id,
-                    config.token_file.read_text().strip(),
+                    config.bearer_token(),
                     Cache(directory / "query-cache.sqlite"),
                     transport=transport,
                     allow_private_http=config.allow_private_http,

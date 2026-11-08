@@ -15,7 +15,7 @@ from catalog_core.query_client import Cache, Client
 from catalog_core.json_codec import loads, require
 from catalog_core import schema
 
-from .config import load
+from .config import Config, from_env, load
 from .overrides import Overrides
 from .query_local import materialize
 
@@ -40,13 +40,15 @@ class CorrectionStore:
             yield {"aniworld.to": (read, self.metadata)}, private
 
 
-async def apply(config_file: str, database: Path, directory: Path, body: dict) -> dict:
-    config = load(config_file)
+async def apply(
+    config_file: str | Config, database: Path, directory: Path, body: dict
+) -> dict:
+    config = load(config_file) if isinstance(config_file, str) else config_file
     require(config.mode == "query", "query configuration required")
     client = Client(
         config.origin,
         config.source_id,
-        config.token_file.read_text().strip(),
+        config.bearer_token(),
         Cache(directory / "query-cache.sqlite"),
         allow_private_http=config.allow_private_http,
     )
@@ -113,11 +115,10 @@ def main() -> None:
     parser.add_argument("body", type=Path)
     args = parser.parse_args()
     from app.config import DATA_DIR
-    import os
 
     result = asyncio.run(
         apply(
-            os.environ["CATALOG_CONFIG_FILE"],
+            from_env(),
             DATA_DIR / "anibridge_jobs.db",
             DATA_DIR / "catalog",
             loads(args.body.read_bytes(), 16384),

@@ -154,6 +154,43 @@ docker compose -p anibridge-private-client build
 docker compose -p anibridge-private-client up -d
 ```
 
+For a client configured with environment variables, leave
+`CATALOG_CONFIG_FILE` unset and provide the complete query configuration to the
+API container. The default `CATALOG_MODE` is `legacy`, retained for existing
+installations; query mode is explicit. Legacy query-time scraping is deprecated
+and may be removed in a future release. Query mode searches collected metadata,
+so freshness and mapping quality affect results. This moves search work to the
+collector; media downloads still happen locally.
+
+```dotenv
+CATALOG_MODE=query
+CATALOG_API_URL=https://YOUR-METADATA-HOST
+CATALOG_SOURCE_ID=aniworld.to
+CATALOG_API_TOKEN_FILE=/run/secrets/catalog-api-token
+CATALOG_ALLOW_PRIVATE_HTTP=
+```
+
+Mount the token file read-only at `/run/secrets/catalog-api-token` inside the
+API container; host paths are not container paths. The URL is the HTTPS origin
+root, with no endpoint path. There is no preset endpoint. For HTTP testing on a
+trusted network, set `CATALOG_ALLOW_PRIVATE_HTTP=true`; this permits unencrypted
+HTTP to non-loopback hosts and does not enforce private IP addresses. Loopback
+HTTP needs no opt-in. Keep the token out of the dotenv file. If a mounted token
+file is not available, use `CATALOG_API_TOKEN=<secret>` instead and leave
+`CATALOG_API_TOKEN_FILE` blank. Set exactly one token source.
+
+Existing `CATALOG_CONFIG_FILE` JSON remains supported. When using it, leave all
+environment catalog settings blank; URL, source ID and credential are never
+combined across the file and environment. The Oracle-hosted endpoint is private
+testing infrastructure and must not be treated as a production default.
+
+The existing `local-client.yaml` above supplies JSON configuration explicitly;
+environment configuration must be passed to the API container instead, with
+`CATALOG_CONFIG_FILE` empty. Host shell variables alone do not enter a container.
+When rolling back to an API image that predates environment configuration,
+restore the equivalent JSON configuration and remove the new settings first;
+older clients otherwise ignore these variables and may resume legacy search.
+
 The client uses named local-state storage; do not substitute an unsafe shared
 filesystem or developer `data/` bind. Secure qBittorrent sessions require the
 documented environment settings and real-client acceptance. Search stays

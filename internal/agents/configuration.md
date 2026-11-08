@@ -112,6 +112,17 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 72. `SONARR_*`, `PROWLARR_*` — Integration values documented in `docs/src/integrations/clients`.
 73. `ANIWORLD_INSTALL_FOLDER` — Writable upstream configuration/session folder
     (default `${DATA_DIR}/aniworld`; does not change process `HOME`).
+74. `CATALOG_MODE` — Search routing (`legacy` by default; `query` opts into the
+    metadata API).
+75. `CATALOG_API_URL` — Query API HTTPS origin root; no endpoint path.
+76. `CATALOG_SOURCE_ID` — Configured metadata source identifier.
+77. `CATALOG_API_TOKEN` / `CATALOG_API_TOKEN_FILE` — Set exactly one in query
+    mode; file paths are resolved inside the API container.
+78. `CATALOG_ALLOW_PRIVATE_HTTP` — Permit unencrypted HTTP to non-loopback
+    hosts for trusted-network testing; no private-address enforcement (default
+    `false`; loopback HTTP remains allowed).
+79. `CATALOG_CONFIG_FILE` — Compatibility JSON configuration; do not combine
+    it with nonempty environment catalog settings.
 
 ## Removed Legacy Proxy Variables
 
@@ -130,12 +141,31 @@ query-mode Torznab results, including STRM variants. Negative values report zero
 `peers` is the sum of the reported seeders and leechers. These are synthetic
 compatibility counts, not measured torrent availability.
 
-`CATALOG_CONFIG_FILE` absent means mainline behavior. Explicit JSON `mode=query`
-requires `origin`, `source_id`, `token_file`; HTTPS except loopback or explicitly
-opted-in disposable private HTTP. `CATALOG_SITES=aniworld.to,s.to` selects
-AniWorld + Serienstream; `s.to` is a stable provider key, not the current origin. Use `STO_BASE_URL=https://serienstream.to`.
-Megakino is optional; unlabelled languages remain gaps. Normal collection and
-server/client setup are in [SERVER.md](../../scripts/catalog/query_pilot/SERVER.md).
+`CATALOG_MODE` defaults to `legacy`; blank preserves the prior JSON-file
+configuration path. Legacy query-time provider scraping is deprecated and may
+be removed in a future release. Query mode reads collected metadata instead of
+scraping providers per search. Collection freshness and mapping quality affect
+results; work moves to the collector, while media downloads remain local.
+
+Query mode requires `CATALOG_API_URL` (an HTTPS origin root),
+`CATALOG_SOURCE_ID`, and exactly one of `CATALOG_API_TOKEN` or
+`CATALOG_API_TOKEN_FILE`. The token-file path is inside the API container. No
+endpoint is preset; the Oracle-hosted endpoint is private testing infrastructure,
+not a production default. `CATALOG_ALLOW_PRIVATE_HTTP` defaults to false. True
+permits unencrypted HTTP to non-loopback hosts; use it only on a trusted test
+network. This opt-in does not enforce private IP addresses. Loopback HTTP is
+allowed. Complete query configuration is required, and legacy mode rejects
+source settings instead of silently ignoring them.
+
+Existing `CATALOG_CONFIG_FILE` JSON remains supported for compatibility. Do not
+mix it with nonempty environment catalog settings: URL, source and credential
+must come from one configuration source. The query JSON uses `mode=query`,
+`origin`, `source_id`, `token_file`, and optional `allow_private_http`.
+`CATALOG_SITES=aniworld.to,s.to` selects AniWorld + Serienstream; `s.to` is a
+stable provider key, not the current origin. Use
+`STO_BASE_URL=https://serienstream.to`. Megakino is optional; unlabelled
+languages remain gaps. Normal collection and server/client setup are in
+[SERVER.md](../../scripts/catalog/query_pilot/SERVER.md).
 
 Filmo is optional via worker provider key `filmo.to` and local
 `CATALOG_SITES=aniworld.to,s.to,filmo.to`. The client also requires explicit query

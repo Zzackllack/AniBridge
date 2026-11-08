@@ -8,10 +8,24 @@ evidence and publication. Its separate read command answers authenticated
 FastAPI application globals and never scrapes or extracts media during a query.
 
 Local AniBridge owns corrections, filtering, Torznab, accepted job identities,
-media resolution and output publication. Without `CATALOG_CONFIG_FILE`, legacy
-search routing remains available. Opt-in routing does not disable additive
-private database migrations. Use [identity.md](identity.md) for source identity,
-language and magnet compatibility rules.
+media resolution and output publication. `CATALOG_MODE` defaults to `legacy`;
+`query` explicitly selects metadata API search. Legacy query-time provider
+scraping is deprecated and may be removed in a future release. Query mode uses
+collected metadata, so freshness and mapping quality affect results; search work
+moves to the collector while media downloads remain local. Opt-in routing does
+not disable additive private database migrations. Use [identity.md](identity.md)
+for source identity, language and magnet compatibility rules.
+
+Query mode requires an HTTPS origin root (`CATALOG_API_URL`), a source ID
+(`CATALOG_SOURCE_ID`), and exactly one bearer credential source
+(`CATALOG_API_TOKEN` or `CATALOG_API_TOKEN_FILE`, whose path is inside the API
+container). `CATALOG_ALLOW_PRIVATE_HTTP` defaults false; true permits unencrypted
+non-loopback HTTP for trusted-network testing and does not enforce private IP
+addresses. Loopback HTTP remains allowed.
+The complete query configuration is mandatory. Legacy mode must reject source
+settings rather than ignore them. Existing `CATALOG_CONFIG_FILE` JSON remains
+supported, but nonempty environment catalog settings cannot be mixed with it.
+No API endpoint is preset; the Oracle-hosted endpoint is private testing only.
 
 Filmo movie collection and grabs are an explicit query-mode extension, not a
 rename/removal of Megakino or a legacy query-time scraper. Each native source

@@ -135,6 +135,15 @@ async def lifespan(app: FastAPI):
     Parameters:
         app (FastAPI): The FastAPI application instance whose lifespan is being managed.
     """
+    if CATALOG_CONFIG.mode == "legacy":
+        logger.warning(
+            "Legacy search is deprecated and no longer actively developed or "
+            "supported; it may be removed in a future release. Collector-based "
+            "search queries collected metadata instead of scraping providers "
+            "during each search. Set CATALOG_MODE=query and configure your own "
+            "collector connection to opt in. No production endpoint is configured "
+            "by default."
+        )
     # System report and update notifier (best effort)
     if not ANIBRIDGE_TEST_MODE:
         try:
