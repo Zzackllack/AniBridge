@@ -90,8 +90,8 @@ AniBridge-side fix planned in the near term for this class of issue. See [Issue 
 - `ANIWORLD_ALPHABET_URL`: AniWorld alphabet page (default `https://aniworld.to/animes-alphabet`).
 - `ANIWORLD_ALPHABET_HTML`: local AniWorld snapshot path (default `./data/aniworld-alphabeth.html`).
 - `ANIWORLD_TITLES_REFRESH_HOURS`: AniWorld index refresh cadence (default `24`).
-- `STO_BASE_URL`: Serienstream/s.to base URL (default `https://s.to`).
-- `STO_ALPHABET_URL`: Serienstream alphabet page (default `https://s.to/serien-alphabet`).
+- `STO_BASE_URL`: Serienstream/s.to base URL (default `https://serienstream.to`).
+- `STO_ALPHABET_URL`: Serienstream alphabet page (default `https://serienstream.to/serien?by=alpha`).
 - `STO_ALPHABET_HTML`: local Serienstream snapshot path (default `./data/sto-alphabeth.html`).
 - `STO_TITLES_REFRESH_HOURS`: Serienstream index refresh cadence (default `24`).
 - `MEGAKINO_BASE_URL`: megakino base URL (auto-resolved at startup; override if needed).
@@ -130,7 +130,7 @@ DOWNLOAD_DIR=./data/downloads
 DATA_DIR=./data
 ANIWORLD_INSTALL_FOLDER=./data/aniworld
 ANIWORLD_BASE_URL=https://aniworld.to
-STO_BASE_URL=https://s.to
+STO_BASE_URL=https://serienstream.to
 MEGAKINO_BASE_URL=https://megakino1.to
 INDEXER_NAME="AniBridge Torznab"
 TORZNAB_RETURN_TEST_RESULT=true

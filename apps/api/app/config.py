@@ -224,7 +224,7 @@ ANIWORLD_ALPHABET_URL = os.getenv(
 ).strip()
 
 # S.to (series)
-STO_BASE_URL = os.getenv("STO_BASE_URL", "https://s.to").strip()
+STO_BASE_URL = os.getenv("STO_BASE_URL", "https://serienstream.to").strip()
 STO_ALPHABET_HTML = Path(
     os.getenv("STO_ALPHABET_HTML", DATA_DIR / "sto-alphabeth.html")
 )

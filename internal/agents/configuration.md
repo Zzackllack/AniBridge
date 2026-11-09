@@ -49,7 +49,8 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 11. `ANIWORLD_ALPHABET_URL` — AniWorld alphabet page (default `https://aniworld.to/animes-alphabet`).
 12. `ANIWORLD_TITLES_REFRESH_HOURS` — Title refresh interval (default `24`).
 13. `STO_ALPHABET_HTML` — Override local s.to HTML.
-14. `STO_ALPHABET_URL` — s.to alphabet page.
+14. `STO_ALPHABET_URL` — Serienstream alphabet page (default
+    `https://serienstream.to/serien?by=alpha`).
 15. `STO_TITLES_REFRESH_HOURS` — Title refresh interval for s.to (default `24`).
 16. `MEGAKINO_BASE_URL` — Megakino base URL override.
 17. `MEGAKINO_TITLES_REFRESH_HOURS` — Megakino refresh interval.
