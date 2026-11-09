@@ -4,9 +4,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from catalog_core.files import atomic_write
-from catalog_core.json_codec import loads
 
 from .async_database import call as database_call
+from .child_status import read_finished_status
 from .output_publication import publish
 from .output_receipt import fingerprint
 from .runner import Outcome
@@ -31,9 +31,11 @@ async def create(
         status=status,
         deadline=60,
     )
-    if code or not status.is_file() or status.stat().st_size > 65536:
+    if code:
         return Outcome("extraction_error")
-    result = loads(status.read_bytes(), 65536)
+    result = await read_finished_status(status)
+    if result is None:
+        return Outcome("extraction_error")
     if result.get("outcome") != "ok":
         return Outcome(result.get("outcome", "extraction_error"))
     url = result.get("url")

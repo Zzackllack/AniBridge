@@ -14,6 +14,7 @@ from catalog_core.files import atomic_write
 from catalog_core.json_codec import dumps, loads
 
 from .async_database import call as database_call
+from .child_status import read_finished_status, read_status
 from .output_paths import output_paths
 from .output_publication import publish
 from .output_receipt import fingerprint
@@ -98,14 +99,11 @@ class SubprocessExecutor:
                 if deadline is not None and now - started > deadline:
                     timeout_reason = "phase_deadline"
                     raise TimeoutError("local media phase deadline")
-                if status and status.exists():
+                record = None
+                if status is not None:
                     operation = "status_read"
-                    if status.stat().st_size > 65536:
-                        raise ValueError("invalid child status")
-                    record = loads(status.read_bytes(), 65536)
-                    if record.get("phase") == "resolving" and now - started > 60:
-                        timeout_reason = "resolution_deadline"
-                        raise TimeoutError("resolution deadline")
+                    record = read_status(status)
+                if record is not None:
                     if record.get("phase") != previous_phase:
                         previous_phase, changed_at = record.get("phase"), now
                     update = record.get("progress")
@@ -136,15 +134,25 @@ class SubprocessExecutor:
                                 )
                             progress_storage_busy = False
                             previous_progress = update
+                # A missed snapshot does not change the last known phase or
+                # count as progress. Keep enforcing that phase's timeout.
+                if status is not None:
+                    if previous_phase is None and now - started > 60:
+                        timeout_reason = "startup_deadline"
+                        raise TimeoutError("resolution startup deadline")
+                    if previous_phase == "resolving" and now - started > 60:
+                        timeout_reason = "resolution_deadline"
+                        raise TimeoutError("resolution deadline")
                     if previous_phase == "downloading" and now - changed_at > 120:
                         timeout_reason = "download_inactivity"
                         raise TimeoutError("download inactivity")
-                elif status and now - started > 60:
-                    timeout_reason = "startup_deadline"
-                    raise TimeoutError("resolution startup deadline")
                 if activity:
-                    size = activity.stat().st_size if activity.exists() else 0
-                    if size != previous:
+                    operation = "activity_read"
+                    try:
+                        size = activity.stat().st_size
+                    except FileNotFoundError:
+                        size = None
+                    if size is not None and size != previous:
                         previous, changed_at = size, now
                     if now - changed_at > 120:
                         timeout_reason = "media_stall"
@@ -285,19 +293,19 @@ class SubprocessExecutor:
                 diagnostic=attempt / "failure.json",
                 job_id=payload["job_id"],
             )
-            if code or not status.is_file():
-                atomic_write(
-                    status,
-                    dumps(
-                        {
-                            "phase": "finished",
-                            "outcome": "extraction_error",
-                            "child_exit_code": code,
-                        }
-                    ),
+            if code:
+                return Outcome("extraction_error")
+            result = await read_finished_status(status)
+            if result is None:
+                _write_failure_diagnostic(
+                    attempt / "failure.json",
+                    "app.catalog.job_child",
+                    "missing_status",
+                    "terminal_status_missing",
+                    code,
+                    payload["job_id"],
                 )
                 return Outcome("extraction_error")
-            result = loads(status.read_bytes(), 65536)
             if result.get("outcome") != "ok":
                 return Outcome(result.get("outcome", "extraction_error"))
             raw_tracks = result.get("tracks")

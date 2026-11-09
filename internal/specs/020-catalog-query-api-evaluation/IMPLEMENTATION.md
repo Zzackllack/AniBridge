@@ -132,8 +132,10 @@ size basis and output availability. Supervised child failures retain only bounde
 reason/stage/exit diagnostics, never raw stderr, media URLs or release names.
 Transient SQLite busy/locked errors while saving progress retry the latest
 snapshot without stopping the transfer. Other parent failures retain the
-exception class and operation. These diagnostics do not establish the cause of
-older failures that did not record them.
+exception class and operation. A missing child progress snapshot leaves the
+last known phase and its deadline intact; completion still requires a readable
+terminal receipt. These diagnostics do not establish the cause of older
+failures that did not record them.
 
 Removing an unfinished request and re-adding it after alias removal settles may
 queue a new generation of the same frozen request. Pending removals and remaining
