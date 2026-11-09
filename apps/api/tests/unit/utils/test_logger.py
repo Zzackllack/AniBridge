@@ -61,7 +61,6 @@ except AssertionError:
 """
     env = {
         **os.environ,
-        "CATALOG_CONFIG_FILE": "",
         "CATALOG_MODE": "query",
         "CATALOG_API_TOKEN": "synthetic-env-catalog-token",
         "PYTHONPATH": str(Path(__file__).resolve().parents[3]),
@@ -87,6 +86,7 @@ def test_catalog_token_has_no_visible_fragment_in_system_diagnostics(monkeypatch
 
     messages = []
     monkeypatch.setenv("CATALOG_API_TOKEN", "sensitive-catalog-secret-XY")
+    monkeypatch.setenv("STRM_PROXY_SECRET", "sensitive-proxy-secret-AB")
     monkeypatch.setattr(system_info.logger, "debug", messages.append)
     monkeypatch.setattr(system_info, "_default_route_ip", lambda: None)
     system_info.log_full_system_report()
@@ -96,3 +96,5 @@ def test_catalog_token_has_no_visible_fragment_in_system_diagnostics(monkeypatch
     assert "'CATALOG_API_TOKEN': '[redacted]'" in report
     assert "sensitive-catalog-secret-XY" not in report
     assert "sen****XY" not in report
+    assert "'STRM_PROXY_SECRET': '[redacted]'" in report
+    assert "sensitive-proxy-secret-AB" not in report
