@@ -8,8 +8,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
-from loguru import logger
-
 from .jobs import JobError, Jobs
 
 
@@ -172,26 +170,6 @@ class ClientJobs:
             "num_seeds": 0,
             "num_leechs": 0,
         }
-        logger.trace(
-            "Catalog job projection: job_id={}, alias_hash={}, stored_status={}, "
-            "wire_state={}, downloaded_bytes={}, total_bytes={}, size_basis={}, "
-            "transfer_progress={}, speed_bytes_s={}, eta_s={}, output_missing={}",
-            row["id"],
-            alias["hash"],
-            row["status"],
-            view["state"],
-            view["downloaded"],
-            row["total_bytes"],
-            "estimated"
-            if view["anibridge_size_estimated"]
-            else "exact"
-            if row["total_bytes"]
-            else "unknown",
-            view["progress"],
-            view["dlspeed"],
-            view["eta"],
-            view["anibridge_output_missing"],
-        )
         return view
 
     def remove(self, hashes: str, delete_files: bool, now: int) -> None:

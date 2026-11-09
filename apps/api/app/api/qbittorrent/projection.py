@@ -3,8 +3,6 @@
 import os
 from types import SimpleNamespace
 
-from loguru import logger
-
 from app.config import DOWNLOAD_DIR, QBIT_PUBLIC_SAVE_PATH
 from app.catalog.output_state import missing_output
 from app.db import ClientTask, Job
@@ -55,18 +53,6 @@ def torrent_info_record(
             state = "downloading"
         if missing:
             state, progress, dlspeed = "missingFiles", 1.0, 0
-        logger.trace(
-            "Legacy job projection: job_id={}, stored_status={}, wire_state={}, "
-            "recorded_transfer_progress={}, output_missing={}, "
-            "speed_bytes_s={}, eta_s={}",
-            job.id,
-            job.status,
-            state,
-            progress,
-            missing,
-            dlspeed,
-            eta,
-        )
 
     content_path = None
     save_path_val = r.save_path or (QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR))

@@ -13,6 +13,7 @@ from loguru import logger
 from .async_database import call as database_call
 from .child_budget import CONSUMER_CHILDREN, ChildBudget, Lease
 from .jobs import Jobs
+from .progress_log import JobProgressLog
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,7 @@ class Runner:
         concurrency: int = 2,
         clock=time.time,
         children: ChildBudget = CONSUMER_CHILDREN,
+        progress_log: JobProgressLog | None = None,
     ) -> None:
         if not 1 <= concurrency <= 2:
             raise ValueError("private profile permits at most two downloads")
@@ -44,6 +46,7 @@ class Runner:
             clock,
         )
         self.children = children
+        self.progress_log = progress_log or JobProgressLog()
         self.running: dict[str, tuple[dict, asyncio.Task, Lease]] = {}
         self.stopping = False
 
@@ -69,6 +72,7 @@ class Runner:
                         type(exc).__name__,
                     )
                     result = Outcome("extraction_error")
+                settled = False
                 if result:
                     settled = await database_call(
                         self.jobs.finish,
@@ -87,6 +91,13 @@ class Runner:
                             claim["generation"],
                             result.code,
                         )
+                # Publish the final bar only after the completion transaction
+                # settled; a pause or failed attempt must not look finished.
+                self.progress_log.finish(
+                    job_id,
+                    published=bool(result and settled and result.code == "ok"),
+                    size=_output_size(result),
+                )
                 await database_call(self.jobs.settle_cancel, job_id, now)
                 del self.running[job_id]
             else:
@@ -113,17 +124,20 @@ class Runner:
                 claim["generation"],
                 claim["attempts"] + 1,
             )
+            self.progress_log.start(claim["job_id"])
             try:
                 payload = json.loads(claim["payload"])
                 payload.update(job_id=claim["job_id"], generation=claim["generation"])
 
                 def progress(update: dict, claim=claim) -> None:
+                    self.progress_log.update(claim["job_id"], update)
                     self.jobs.heartbeat(
                         claim["job_id"], claim["generation"], int(self.clock()), update
                     )
 
                 task = asyncio.create_task(self.execute(payload, progress))
             except Exception:  # noqa: BLE001 -- release admission if executor construction fails
+                self.progress_log.finish(claim["job_id"])
                 lease.close()
                 await database_call(
                     self.jobs.finish,
@@ -168,7 +182,18 @@ class Runner:
             await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), 5)
         for _, _, lease in self.running.values():
             lease.close()
+        self.progress_log.close()
         # Actual state is already durable. Shutdown consumes an interrupted
         # attempt, while pause/block/cancel desired states stay untouched.
         await database_call(self.jobs.recover, int(self.clock()), startup=True)
         self.running.clear()
+
+
+def _output_size(result: Outcome | None) -> int | None:
+    """Only a published output can size the final bar; never invent one."""
+    if result is None or result.output is None:
+        return None
+    try:
+        return result.output.stat().st_size
+    except OSError:
+        return None

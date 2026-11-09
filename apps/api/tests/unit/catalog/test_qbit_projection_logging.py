@@ -1,17 +1,19 @@
-"""Legacy history must not masquerade as the current catalog transfer in logs."""
+"""Repeated client polling preserves transfer facts without logging every job."""
 
 from datetime import datetime
 from types import SimpleNamespace
 
 from app.api.qbittorrent import projection
+from loguru import logger
+
 from app.catalog.client import ClientJobs
 from test_jobs import NOW, grab, setup_jobs
 
 
-def test_legacy_missing_output_log_explains_recorded_completion(tmp_path, monkeypatch):
+def test_legacy_missing_output_polling_is_quiet(tmp_path, monkeypatch):
     messages = []
     monkeypatch.setattr(
-        projection.logger,
+        logger,
         "trace",
         lambda message, *args: messages.append(message.format(*args)),
     )
@@ -36,23 +38,16 @@ def test_legacy_missing_output_log_explains_recorded_completion(tmp_path, monkey
     )
     row = projection.torrent_info_record(alias, job)
     assert row["state"] == "missingFiles" and row["progress"] == 1
-    (message,) = messages
-    assert message.startswith("Legacy job projection:")
-    assert "job_id=historical-job" in message
-    assert "stored_status=failed" in message
-    assert "recorded_transfer_progress=1.0" in message
-    assert "output_missing=True" in message
-    assert "private-release-title" not in message
+    assert projection.torrent_info_record(alias, job) == row
+    assert messages == []
 
 
-def test_catalog_log_reports_actual_bytes_and_unknown_or_estimated_total(
+def test_catalog_polling_retains_unknown_and_estimated_totals_without_logs(
     tmp_path, monkeypatch
 ):
-    from app.catalog import client
-
     messages = []
     monkeypatch.setattr(
-        client.logger,
+        logger,
         "trace",
         lambda message, *args: messages.append(message.format(*args)),
     )
@@ -65,10 +60,6 @@ def test_catalog_log_reports_actual_bytes_and_unknown_or_estimated_total(
     )
     unknown = next(views.views())
     assert unknown["size"] == 0 and unknown["downloaded"] == 25
-    assert "Catalog job projection:" in messages[-1]
-    assert f"job_id={job}" in messages[-1]
-    assert "downloaded_bytes=25" in messages[-1]
-    assert "total_bytes=None, size_basis=unknown" in messages[-1]
     jobs.heartbeat(
         job,
         claim["generation"],
@@ -82,6 +73,6 @@ def test_catalog_log_reports_actual_bytes_and_unknown_or_estimated_total(
     )
     estimated = next(views.views())
     assert estimated["progress"] == 0.5
-    assert "size_basis=estimated" in messages[-1]
-    assert "transfer_progress=0.5" in messages[-1]
-    assert "Example.S01E02" not in "\n".join(messages)
+    assert estimated["anibridge_size_estimated"] is True
+    assert next(views.views()) == estimated
+    assert messages == []

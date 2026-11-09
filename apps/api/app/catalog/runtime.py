@@ -10,6 +10,9 @@ from types import SimpleNamespace
 
 from catalog_core.files import ProcessLock
 from catalog_core.query_client import Cache, Client
+from loguru import logger
+
+from app.config import DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC, MAX_CONCURRENCY
 
 from .async_database import call
 from .client import ClientJobs
@@ -19,6 +22,10 @@ from .jobs import Jobs
 from .query_providers import ProviderSearch
 from .runner import Runner
 from .strm_http import Playback
+
+# Two 256-MiB children are the full private allowance; MAX_CONCURRENCY may be
+# higher because the legacy scheduler does not share this budget.
+MAX_CATALOG_DOWNLOADS = 2
 
 
 class Runtime:
@@ -35,11 +42,22 @@ class Runtime:
         transport=None,
         clock=time.time,
         strm_mode="direct",
+        concurrency: int | None = None,
+        bandwidth: int | None = None,
     ) -> None:
         if config.mode != "query" or not origins:
             raise ValueError("query pilot requires enabled provider origins")
         if executor is None and sys.platform != "linux":
             raise ValueError("private job enforcement requires Linux; use Docker")
+        if concurrency is None:
+            concurrency = max(1, min(MAX_CATALOG_DOWNLOADS, MAX_CONCURRENCY))
+        if bandwidth is None:
+            bandwidth = DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC or None
+        logger.debug(
+            "Catalog scheduler: concurrency={}, bandwidth={}",
+            concurrency,
+            f"{bandwidth} B/s" if bandwidth else "unlimited",
+        )
         directory.mkdir(parents=True, exist_ok=True)
         self.owner = ProcessLock(directory / "query.lock")
         self.directory = directory
@@ -77,9 +95,15 @@ class Runtime:
             self.runner = Runner(
                 self.jobs,
                 executor
-                or SubprocessExecutor(origins, hosts, downloads, strm_mode=strm_mode),
+                or SubprocessExecutor(
+                    origins,
+                    hosts,
+                    downloads,
+                    bandwidth=bandwidth,
+                    strm_mode=strm_mode,
+                ),
                 clock=clock,
-                concurrency=1,
+                concurrency=concurrency,
             )
             # Playback only needs a scratch directory, never a snapshot registry.
             self.playback = Playback(

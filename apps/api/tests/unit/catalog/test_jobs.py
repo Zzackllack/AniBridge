@@ -359,6 +359,114 @@ def test_runner_releases_budget_on_corrupt_payload_and_executor_failure(tmp_path
     asyncio.run(scenario())
 
 
+def test_runner_renders_progress_for_two_concurrent_jobs(tmp_path):
+    import asyncio
+    from app.catalog.child_budget import ChildBudget
+    from app.catalog.runner import Outcome, Runner
+
+    jobs = setup_jobs(tmp_path)
+    expected = {
+        jobs.admit(legacy_magnet("a", "first"), NOW)[0],
+        jobs.admit(legacy_magnet("b", "second"), NOW)[0],
+    }
+    release = asyncio.Event()
+    progress_log = RecordingProgressLog()
+
+    async def execute(payload, progress):
+        progress({"downloaded_bytes": 50, "total_bytes": 100, "speed": 5, "eta": 10})
+        await release.wait()
+        return Outcome("challenge")
+
+    async def scenario():
+        runner = Runner(
+            jobs,
+            execute,
+            concurrency=2,
+            clock=lambda: NOW,
+            children=ChildBudget(),
+            progress_log=progress_log,
+        )
+        await runner.tick()
+        await runner.tick()
+        assert len(runner.running) == 2
+        assert set(progress_log.started) == expected
+
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        assert {job_id for job_id, _ in progress_log.updates} == expected
+
+        release.set()
+        await asyncio.sleep(0)
+        await runner.tick()
+        assert {job_id for job_id, _, _ in progress_log.finished} == expected
+        assert all(not published for _, published, _ in progress_log.finished)
+        await runner.close()
+        assert progress_log.closed
+
+    asyncio.run(scenario())
+
+
+def test_runner_marks_progress_complete_only_after_durable_finish(tmp_path):
+    import asyncio
+    from app.catalog.child_budget import ChildBudget
+    from app.catalog.runner import Outcome, Runner
+
+    jobs = setup_jobs(tmp_path)
+    job = jobs.admit(legacy_magnet("c", "third"), NOW)[0]
+    progress_log = RecordingProgressLog()
+
+    async def execute(payload, progress):
+        progress({"downloaded_bytes": 100, "total_bytes": 100})
+        output = jobs.download_dir / "published.mkv"
+        output.write_bytes(b"published")
+        return Outcome("ok", output)
+
+    async def scenario():
+        runner = Runner(
+            jobs,
+            execute,
+            clock=lambda: NOW,
+            children=ChildBudget(),
+            progress_log=progress_log,
+        )
+        await runner.tick()
+        await asyncio.sleep(0)
+        await runner.tick()
+        assert jobs.get(job)["status"] == "completed"
+        assert progress_log.finished == [(job, True, len(b"published"))]
+        await runner.close()
+
+    asyncio.run(scenario())
+
+
+class RecordingProgressLog:
+    """Runner-facing double: keeps terminal rendering out of scheduler tests."""
+
+    def __init__(self) -> None:
+        self.started, self.updates, self.finished = [], [], []
+        self.closed = 0
+
+    def start(self, job_id: str) -> None:
+        self.started.append(job_id)
+
+    def update(self, job_id: str, update: dict) -> None:
+        self.updates.append((job_id, dict(update)))
+
+    def finish(self, job_id: str, *, published=False, size=None) -> None:
+        self.finished.append((job_id, published, size))
+
+    def close(self) -> None:
+        self.closed += 1
+
+
+def legacy_magnet(digest: str, slug: str) -> str:
+    return (
+        "magnet:?xt=urn:btih:"
+        + digest * 40
+        + f"&dn={slug}&aw_slug={slug}&aw_s=1&aw_e=2&aw_lang=German+Dub"
+    )
+
+
 def test_alias_removal_intent_survives_restart_and_preserves_files(tmp_path):
     from app.catalog.client import ClientJobs
 
