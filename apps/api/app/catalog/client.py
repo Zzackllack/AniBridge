@@ -161,9 +161,7 @@ class ClientJobs:
             "category": alias["category"] or "",
             "save_path": save,
             "content_path": content,
-            "completion_on": epoch(row["updated_at"])
-            if row["status"] == "completed"
-            else 0,
+            "completion_on": epoch(projection["completion_on"]),
             "added_on": epoch(alias["added_on"]),
             "downloaded": row["downloaded_bytes"] or 0,
             "upspeed": 0,

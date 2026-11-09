@@ -727,14 +727,16 @@ class Jobs:
 
     @staticmethod
     def project(row: dict) -> dict:
-        from .output_state import missing_output
+        from .output_state import missing_output, published_output
 
-        complete = row["status"] == "completed"
+        complete = published_output(row)
         missing = missing_output(row)
         progress = 1.0 if complete else min(0.999, max(0, (row["progress"] or 0) / 100))
         return {
-            "state": "missingFiles" if missing else QBIT.get(row["status"], "error"),
-            "progress": 1.0 if missing else progress,
+            "state": QBIT["completed"]
+            if complete
+            else QBIT.get(row["status"], "error"),
+            "progress": progress,
             "size": row["total_bytes"] or 0,
             "dlspeed": int(row["speed"] or 0) if row["status"] == "downloading" else 0,
             "eta": int(row["eta"])

@@ -4,7 +4,7 @@ import os
 from types import SimpleNamespace
 
 from app.config import DOWNLOAD_DIR, QBIT_PUBLIC_SAVE_PATH
-from app.catalog.output_state import missing_output
+from app.catalog.output_state import missing_output, published_output
 from app.db import ClientTask, Job
 
 
@@ -28,18 +28,18 @@ def torrent_info_record(
     size = job.total_bytes if job and job.total_bytes else 0
     missing = False
     if job:
-        missing = missing_output(
-            {
-                key: getattr(job, key, None)
-                for key in ("status", "progress", "message", "result_path")
-            }
-        )
+        output = {
+            key: getattr(job, key, None)
+            for key in ("status", "progress", "message", "result_path")
+        }
+        complete = published_output(output)
+        missing = missing_output(output)
         progress = (job.progress or 0.0) / 100.0
         dlspeed = int(job.speed or 0)
         eta = int(job.eta or 0)
-        if job.status == "completed":
+        if complete:
             state = "uploading"
-            dlspeed = 0
+            progress, dlspeed, eta = 1.0, 0, 0
             if job.result_path and os.path.exists(job.result_path):
                 try:
                     size = int(os.path.getsize(job.result_path))
@@ -51,8 +51,6 @@ def torrent_info_record(
             state = "pausedDL"
         else:
             state = "downloading"
-        if missing:
-            state, progress, dlspeed = "missingFiles", 1.0, 0
 
     content_path = None
     save_path_val = r.save_path or (QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR))

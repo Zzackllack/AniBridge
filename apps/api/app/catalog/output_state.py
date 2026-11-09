@@ -3,15 +3,19 @@
 from pathlib import Path
 
 
-def missing_output(row: dict) -> bool:
-    if row["status"] == "completed":
-        return not row.get("result_path") or not Path(row["result_path"]).is_file()
-    # Old recovery code rewrote completed records to this exact failure. Leave
-    # their ledger/audit data intact; don't expose a stale import path or repeat
-    # the transfer. Other failures and partial transfers keep their old meaning.
-    return bool(
+def published_output(row: dict) -> bool:
+    """Recognize completion, including the old missing-file recovery rewrite."""
+    return row["status"] == "completed" or bool(
         row["status"] == "failed"
         and row.get("message") == "missing_output"
         and (row.get("progress") or 0) >= 100
         and row.get("result_path")
+    )
+
+
+def missing_output(row: dict) -> bool:
+    # A moved/imported or expired source is unavailable for another import, but
+    # its absence cannot undo verified publication or prove a client imported it.
+    return published_output(row) and (
+        not row.get("result_path") or not Path(row["result_path"]).is_file()
     )

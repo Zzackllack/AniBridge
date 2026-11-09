@@ -37,7 +37,7 @@ def test_legacy_missing_output_polling_is_quiet(tmp_path, monkeypatch):
         message="missing_output",
     )
     row = projection.torrent_info_record(alias, job)
-    assert row["state"] == "missingFiles" and row["progress"] == 1
+    assert row["state"] == "uploading" and row["progress"] == 1
     assert projection.torrent_info_record(alias, job) == row
     assert messages == []
 

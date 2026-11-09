@@ -29,7 +29,7 @@ def test_import_move_preserves_completion_and_explicit_retry(tmp_path):
     restarted.recover(NOW + 2, startup=True)
     assert restarted.get(job) == completed
     row = next(ClientJobs(restarted).views())
-    assert row["state"] == "missingFiles" and row["progress"] == 1
+    assert row["state"] == "pausedUP" and row["progress"] == 1
     assert row["content_path"] == ""
     assert row["anibridge_output_missing"] is True
     assert restarted.claim(NOW + 1000) is None
@@ -58,22 +58,32 @@ def test_historical_missing_output_is_visible_without_rewriting_ledger(tmp_path)
         )
     before = jobs.filename.read_bytes()
     row = jobs.projection(job)
-    assert row["state"] == "missingFiles" and row["content_path"] == ""
+    assert row["state"] == "pausedUP" and row["content_path"] == ""
     assert row["progress"] == 1
     assert jobs.filename.read_bytes() == before
 
 
-def test_other_failure_does_not_become_completed(tmp_path):
+@pytest.mark.parametrize("recorded_progress", [0, 100])
+def test_other_failure_does_not_become_completed(tmp_path, recorded_progress):
     jobs = setup_jobs(tmp_path)
     job = jobs.admit(grab(tmp_path), NOW)[0]
     claim = jobs.claim(NOW)
     jobs.finish(job, claim["generation"], "extraction_error", NOW + 1)
+    with sqlite3.connect(jobs.filename) as db:
+        # Even transferred bytes cannot prove successful remux/publication.
+        db.execute(
+            "UPDATE job SET progress=?,result_path=? WHERE id=?",
+            (recorded_progress, str(jobs.download_dir / "unpublished.mkv"), job),
+        )
     assert jobs.projection(job)["state"] == "error"
     assert jobs.projection(job)["progress"] < 1
 
 
 @pytest.mark.parametrize("durable", [False, True])
-def test_missing_outputs_stream_safely_and_do_not_return_files(tmp_path, durable):
+@pytest.mark.parametrize("historical", [False, True])
+def test_missing_outputs_stream_safely_and_do_not_return_files(
+    tmp_path, durable, historical
+):
     jobs = setup_jobs(tmp_path)
     job = jobs.admit(grab(tmp_path), NOW)[0]
     claim = jobs.claim(NOW)
@@ -84,6 +94,7 @@ def test_missing_outputs_stream_safely_and_do_not_return_files(tmp_path, durable
     with sqlite3.connect(jobs.filename) as db:
         if not durable:
             db.execute("DELETE FROM durable_request WHERE job_id=?", (job,))
+        if historical:
             db.execute(
                 "UPDATE job SET status='failed',message='missing_output' WHERE id=?",
                 (job,),
@@ -103,7 +114,8 @@ def test_missing_outputs_stream_safely_and_do_not_return_files(tmp_path, durable
         for endpoint in ("torrents/info", "sync/maindata"):
             body = http.get(f"/api/v2/{endpoint}").json()
             rows = body if isinstance(body, list) else list(body["torrents"].values())
-            assert rows[0]["state"] == "missingFiles"
+            assert rows[0]["state"] == ("pausedUP" if durable else "uploading")
+            assert rows[0]["progress"] == 1
             assert rows[0]["content_path"] == ""
             assert rows[0]["anibridge_output_missing"] is True
         assert (

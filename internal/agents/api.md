@@ -36,11 +36,14 @@
 - Query-mode transfer percentages use exact totals or labelled yt-dlp estimates
   (`anibridge_size_estimated`). Unknown future-track sizes stay unknown. Transfer
   completion remains gated on verified publication, with the final file size.
-- Missing previously published outputs return `missingFiles` and an empty
-  `content_path`, with `anibridge_output_missing=true`. This is availability,
-  not proof that a completed transfer failed or that Sonarr imported it. Reads
-  retain historical records and timestamps; repeating a transfer requires an
-  explicit retry/removal action. Legacy sync uses the shared info projection.
+- Verified publication stays completed after import moves or TTL cleanup.
+  Missing source files clear `content_path` and set `anibridge_output_missing=true`
+  without changing the completed qBittorrent state to `missingFiles`. Availability
+  is separate from transfer success and does not prove a client imported the file.
+  The same applies to historical `missing_output` failures written by old recovery
+  code; reads leave the ledger and timestamps untouched. Genuine transfer failures
+  still report `error`; repeating a transfer requires explicit retry/removal.
+  Legacy sync uses the shared info projection.
 
 ## Legacy Downloader (`/downloader/download`)
 
