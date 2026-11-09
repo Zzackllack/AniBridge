@@ -137,6 +137,8 @@ class VerifiedRH(RequestHandler):
                 headers.update(
                     {"Host": urlsplit(url).netloc, "Accept-Encoding": "identity"}
                 )
+                # TODO: reuse bounded, origin-isolated verified connections.
+                # A fresh TLS session per HLS fragment penalizes small audio segments.
                 client = httpx.Client(
                     trust_env=False,
                     follow_redirects=False,

@@ -84,7 +84,10 @@ class Runner:
                         result.evidence,
                     )
                     if settled:
-                        logger.info(
+                        log_outcome = (
+                            logger.info if result.code == "ok" else logger.warning
+                        )
+                        log_outcome(
                             "Catalog job attempt finished: job_id={}, "
                             "generation={}, outcome={}",
                             job_id,

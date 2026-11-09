@@ -4,6 +4,7 @@ import logging
 import os
 import signal
 import sys
+import traceback
 from pathlib import Path
 
 from catalog_core.files import atomic_write
@@ -46,14 +47,25 @@ def main() -> None:
             ),
         )
     except ResolutionError as exc:
-        atomic_write(result_file, dumps({"phase": "finished", "outcome": exc.code}))
-    except Exception:  # noqa: BLE001 -- no raw extractor/token errors cross the child boundary
-        atomic_write(
-            result_file, dumps({"phase": "finished", "outcome": "extraction_error"})
-        )
+        atomic_write(result_file, dumps(_failure_record(exc, exc.code)))
+    except Exception as exc:  # noqa: BLE001 -- no raw extractor/token errors cross the child boundary
+        atomic_write(result_file, dumps(_failure_record(exc, "extraction_error")))
     finally:
         signal.alarm(0)
         budget.close()
+
+
+def _failure_record(exc: Exception, code: str) -> dict:
+    """Match download diagnostics without retaining URLs or exception messages."""
+    return {
+        "phase": "finished",
+        "outcome": code,
+        "failed_stage": "resolution",
+        "error_type": type(exc).__name__,
+        "frames": [
+            frame.name for frame in traceback.extract_tb(exc.__traceback__)[-12:]
+        ],
+    }
 
 
 if __name__ == "__main__":

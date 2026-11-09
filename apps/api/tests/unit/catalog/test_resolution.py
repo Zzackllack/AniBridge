@@ -878,3 +878,21 @@ def test_megakino_bootstrap_uses_logical_cookie_and_one_retry():
         assert "cookie" not in wire[3].headers
     finally:
         budget.close()
+
+
+def test_strm_resolution_failure_receipt_omits_private_exception_details():
+    import json
+
+    from app.catalog.resolve_child import _failure_record
+
+    private_url = "https://media.example/video?token=private-test-secret"
+    try:
+        raise RuntimeError(private_url)
+    except RuntimeError as exc:
+        receipt = _failure_record(exc, "extraction_error")
+
+    assert receipt["error_type"] == "RuntimeError"
+    assert receipt["failed_stage"] == "resolution"
+    assert receipt["frames"]
+    assert private_url not in json.dumps(receipt)
+    assert "private-test-secret" not in json.dumps(receipt)
