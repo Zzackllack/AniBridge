@@ -109,7 +109,7 @@ Megakino defaults to `Deutsch`/`German Dub` language labels; adjust `PROVIDER_OR
 
 ## Scheduler
 
-- `MAX_CONCURRENCY` (thread pool size; default `3`)
+- `MAX_CONCURRENCY` (parallel downloads; default `3`, query mode caps at two jobs)
 
 ## Networking / VPN Policy
 

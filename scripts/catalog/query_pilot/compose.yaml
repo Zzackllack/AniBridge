@@ -36,11 +36,14 @@ services:
       dockerfile: apps/api/Dockerfile
       args: {PILOT_COMMIT: '${PILOT_COMMIT}'}
     depends_on: [catalog]
+    command:
+      - sh
+      - -c
+      - set -a; . /config/client.env; exec python -m app.main
     environment:
       DATA_DIR: /data
       DOWNLOAD_DIR: /downloads
       CATALOG_SITES: aniworld.to
-      CATALOG_CONFIG_FILE: /config/client.json
       ANIWORLD_BASE_URL: https://fixture.invalid
       ANIBRIDGE_TEST_MODE: '1'
       ANIBRIDGE_RELOAD: 'false'

@@ -65,7 +65,8 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 27. `PROVIDER_CHALLENGE_BACKOFF_SECONDS` — Suggested operator cool-down
     reported with verification-required failures (default `300`); workers do
     not sleep or launch a browser.
-28. `MAX_CONCURRENCY` — Thread pool size (default `3`).
+28. `MAX_CONCURRENCY` — Parallel downloads (default `3`); query mode uses at
+    most two concurrent jobs within the shared subprocess budget.
 29. `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC` — Per-download yt-dlp rate cap (`0` disables).
 30. `INDEXER_NAME` — Torznab display name (default `AniBridge Torznab`).
 31. `INDEXER_API_KEY` — Optional Torznab API key.
@@ -94,7 +95,8 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 54. `STRM_PROXY_UPSTREAM_ALLOWLIST` — Comma-separated upstream host allowlist.
 55. `STRM_PROXY_CACHE_TTL_SECONDS` — STRM URL cache TTL in seconds (default `0`).
 56. `STRM_PROXY_TOKEN_TTL_SECONDS` — STRM proxy token TTL in seconds (default `900`).
-57. `PROGRESS_FORCE_BAR` — Force progress bar (default `false`).
+57. `PROGRESS_FORCE_BAR` — Force the live progress bar (default `false`);
+    query downloads also retain stepped progress in saved logs.
 58. `PROGRESS_STEP_PERCENT` — Progress logging step (default `5`).
 59. `ANIBRIDGE_UPDATE_CHECK` — Enable release polling (default `true`).
 60. `ANIBRIDGE_GITHUB_TOKEN` — GitHub API token.
@@ -121,8 +123,6 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 78. `CATALOG_ALLOW_PRIVATE_HTTP` — Permit unencrypted HTTP to non-loopback
     hosts for trusted-network testing; no private-address enforcement (default
     `false`; loopback HTTP remains allowed).
-79. `CATALOG_CONFIG_FILE` — Compatibility JSON configuration; do not combine
-    it with nonempty environment catalog settings.
 
 ## Removed Legacy Proxy Variables
 
@@ -141,11 +141,11 @@ query-mode Torznab results, including STRM variants. Negative values report zero
 `peers` is the sum of the reported seeders and leechers. These are synthetic
 compatibility counts, not measured torrent availability.
 
-`CATALOG_MODE` defaults to `legacy`; blank preserves the prior JSON-file
-configuration path. Legacy query-time provider scraping is deprecated and may
-be removed in a future release. Query mode reads collected metadata instead of
-scraping providers per search. Collection freshness and mapping quality affect
-results; work moves to the collector, while media downloads remain local.
+`CATALOG_MODE` defaults to `legacy`; blank means legacy. Legacy query-time
+provider scraping is deprecated and may be removed in a future release. Query
+mode reads collected metadata instead of scraping providers per search.
+Collection freshness and mapping quality affect results; work moves to the
+collector, while media downloads remain local.
 
 Query mode requires `CATALOG_API_URL` (an HTTPS origin root),
 `CATALOG_SOURCE_ID`, and exactly one of `CATALOG_API_TOKEN` or
@@ -155,12 +155,10 @@ not a production default. `CATALOG_ALLOW_PRIVATE_HTTP` defaults to false. True
 permits unencrypted HTTP to non-loopback hosts; use it only on a trusted test
 network. This opt-in does not enforce private IP addresses. Loopback HTTP is
 allowed. Complete query configuration is required, and legacy mode rejects
-source settings instead of silently ignoring them.
+source settings instead of silently ignoring them. JSON file configuration is
+not supported: `CATALOG_CONFIG_FILE` fails startup instead of silently falling
+back to legacy, so migrate existing files to the environment variables above.
 
-Existing `CATALOG_CONFIG_FILE` JSON remains supported for compatibility. Do not
-mix it with nonempty environment catalog settings: URL, source and credential
-must come from one configuration source. The query JSON uses `mode=query`,
-`origin`, `source_id`, `token_file`, and optional `allow_private_http`.
 `CATALOG_SITES=aniworld.to,s.to` selects AniWorld + Serienstream; `s.to` is a
 stable provider key, not the current origin. Use
 `STO_BASE_URL=https://serienstream.to`. Megakino is optional; unlabelled

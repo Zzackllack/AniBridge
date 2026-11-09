@@ -5,6 +5,7 @@ import asyncio
 import json
 import os
 import secrets
+import shlex
 import time
 from pathlib import Path
 
@@ -47,16 +48,14 @@ def prepare(config_root: Path, provider: str = "aniworld.to") -> Path:
             ),
         )
         atomic_write(
-            config_root / "client.json",
-            dumps(
-                {
-                    "mode": "query",
-                    "origin": "http://catalog:8080",
-                    "source_id": "private-fixture",
-                    "token_file": str(config_root / "metadata-token"),
-                    "allow_private_http": True,
-                }
-            ),
+            config_root / "client.env",
+            (
+                "CATALOG_MODE=query\n"
+                "CATALOG_API_URL=http://catalog:8080\n"
+                "CATALOG_SOURCE_ID=private-fixture\n"
+                f"CATALOG_API_TOKEN_FILE={shlex.quote(str(config_root / 'metadata-token'))}\n"
+                "CATALOG_ALLOW_PRIVATE_HTTP=true\n"
+            ).encode(),
         )
         atomic_write(config_root / "metadata-token", secrets.token_urlsafe(32).encode())
         (config_root / "metadata-token").chmod(0o600)

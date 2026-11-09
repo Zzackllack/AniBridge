@@ -36,9 +36,17 @@ def fields(body: dict, values: dict) -> dict:
     return body
 
 
+def env_value(path: Path, name: str) -> str | None:
+    for line in path.read_text().splitlines():
+        key, separator, value = line.partition("=")
+        if separator and key.strip() == name:
+            return value.strip()
+    return None
+
+
 def main() -> None:
-    config = json.loads(Path("/config/client.json").read_text())
-    assert config["source_id"] == "private-fixture", "fresh generated project required"
+    source_id = env_value(Path("/config/client.env"), "CATALOG_SOURCE_ID")
+    assert source_id == "private-fixture", "fresh generated project required"
     assert Path("/generated/generated.mp4").is_file()
     assert not list(Path("/library").rglob("*.mkv")), "fresh library required"
     with httpx.Client(base_url="http://api:8000", trust_env=False, timeout=15) as api:

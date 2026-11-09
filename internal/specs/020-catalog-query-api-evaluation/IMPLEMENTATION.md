@@ -23,8 +23,8 @@ container). `CATALOG_ALLOW_PRIVATE_HTTP` defaults false; true permits unencrypte
 non-loopback HTTP for trusted-network testing and does not enforce private IP
 addresses. Loopback HTTP remains allowed.
 The complete query configuration is mandatory. Legacy mode must reject source
-settings rather than ignore them. Existing `CATALOG_CONFIG_FILE` JSON remains
-supported, but nonempty environment catalog settings cannot be mixed with it.
+settings rather than ignore them. JSON file configuration is removed; a
+nonempty `CATALOG_CONFIG_FILE` fails startup instead of falling back to legacy.
 No API endpoint is preset; the Oracle-hosted endpoint is private testing only.
 
 Filmo movie collection and grabs are an explicit query-mode extension, not a

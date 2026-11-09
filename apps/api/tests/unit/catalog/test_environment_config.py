@@ -1,6 +1,5 @@
 """Behavioral coverage for catalog configuration from environment variables."""
 
-import json
 from pathlib import Path
 
 import pytest
@@ -53,40 +52,14 @@ def test_query_configuration_accepts_inline_and_file_tokens(tmp_path: Path) -> N
     assert file_config.bearer_token() == "file-token-that-is-long-enough"
 
 
-def test_json_configuration_remains_compatible_and_cannot_mix_with_env(
+def test_removed_json_configuration_fails_instead_of_silently_using_legacy(
     tmp_path: Path,
 ) -> None:
-    token_file = tmp_path / "catalog-token"
-    token_file.write_text("json-token-that-is-long-enough", encoding="utf-8")
-    config_file = tmp_path / "catalog.json"
-    config_file.write_text(
-        json.dumps(
-            {
-                "mode": "query",
-                "origin": "https://catalog.example",
-                "source_id": "fixture-source",
-                "token_file": str(token_file),
-            }
-        ),
-        encoding="utf-8",
-    )
+    with pytest.raises(ValueError, match="CATALOG_CONFIG_FILE is no longer supported"):
+        from_env({"CATALOG_CONFIG_FILE": str(tmp_path / "catalog.json")})
 
-    config = from_env({"CATALOG_CONFIG_FILE": str(config_file)})
-    assert config.mode == "query"
-    assert config.bearer_token() == "json-token-that-is-long-enough"
-
-    # Blank environment values do not override or conflict with the JSON file.
-    blank = from_env(
-        {
-            "CATALOG_CONFIG_FILE": str(config_file),
-            "CATALOG_MODE": "",
-            "CATALOG_SOURCE_ID": " ",
-        }
-    )
-    assert blank.mode == "query"
-
-    with pytest.raises(ValueError):
-        from_env({"CATALOG_CONFIG_FILE": str(config_file), "CATALOG_MODE": "query"})
+    # A blank value keeps existing environments working while they migrate.
+    assert from_env({"CATALOG_CONFIG_FILE": " "}).mode == "legacy"
 
 
 @pytest.mark.parametrize(

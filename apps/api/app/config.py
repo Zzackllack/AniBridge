@@ -662,8 +662,8 @@ logger.debug(f"ANIBRIDGE_CORS_ALLOW_CREDENTIALS={ANIBRIDGE_CORS_ALLOW_CREDENTIAL
 CATALOG_CONFIG = load_catalog_config()
 if "filmo.to" in CATALOG_SITES_LIST and CATALOG_CONFIG.mode != "query":
     raise ValueError(
-        "Filmo requires catalog query mode; set CATALOG_MODE=query with collector "
-        "connection settings, or configure CATALOG_CONFIG_FILE"
+        "Filmo requires catalog query mode; set CATALOG_MODE=query with the "
+        "collector environment settings"
     )
 
 MANAGEMENT_API_TOKEN = os.getenv("MANAGEMENT_API_TOKEN") or None

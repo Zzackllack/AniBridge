@@ -15,7 +15,7 @@ from catalog_core.query_client import Cache, Client
 from catalog_core.json_codec import loads, require
 from catalog_core import schema
 
-from .config import Config, from_env, load
+from .config import Config, from_env
 from .overrides import Overrides
 from .query_local import materialize
 
@@ -40,10 +40,7 @@ class CorrectionStore:
             yield {"aniworld.to": (read, self.metadata)}, private
 
 
-async def apply(
-    config_file: str | Config, database: Path, directory: Path, body: dict
-) -> dict:
-    config = load(config_file) if isinstance(config_file, str) else config_file
+async def apply(config: Config, database: Path, directory: Path, body: dict) -> dict:
     require(config.mode == "query", "query configuration required")
     client = Client(
         config.origin,

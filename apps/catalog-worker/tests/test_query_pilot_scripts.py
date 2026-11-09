@@ -3,6 +3,7 @@
 import hashlib
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -81,6 +82,10 @@ def test_prepare_server_keeps_defaults_and_only_adds_filmo_when_requested(
         "s.to": "https://serienstream.to",
     }
     assert worker["canonical_sources"]["movie"] == "off"
+    client_env = (default_dir / "client.env").read_text()
+    assert "CATALOG_MODE=query" in client_env
+    assert "CATALOG_API_URL=https://metadata.example" in client_env
+    assert not (default_dir / "client.json").exists()
 
     filmo_dir = tmp_path / "with-filmo"
     worker = prepare(
@@ -100,6 +105,19 @@ def test_prepare_server_keeps_defaults_and_only_adds_filmo_when_requested(
     message = capsys.readouterr().out
     assert "canonical_sources.movie to radarr" in message
     assert "tmdb with a private token" in message
+
+
+def test_generated_client_environment_is_literal_shell_data(tmp_path, monkeypatch):
+    source = "literal source; printf injected"
+    prepare(monkeypatch, tmp_path / "quoted", "--source-id", source)
+    env_file = tmp_path / "quoted" / "client.env"
+    result = subprocess.run(
+        ["sh", "-ec", '. "$1"; printf "%s" "$CATALOG_SOURCE_ID"', "sh", str(env_file)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout == source
 
 
 def test_prepare_server_rejects_invalid_origin_and_never_replaces_credentials(

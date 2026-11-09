@@ -4,7 +4,7 @@ services:
     image: anibridge-query-api:${PILOT_COMMIT:?Set PILOT_COMMIT}
     user: root
     entrypoint: [sh, -ec]
-    command: ['mkdir -p /config; cp /operator/client.json /operator/metadata-token /config/; chmod 600 /config/*; chown -R 1000:1000 /config']
+    command: ['mkdir -p /config; cp /operator/client.env /operator/metadata-token /config/; chmod 600 /config/*; chown -R 1000:1000 /config']
     volumes: [config:/config, '${PILOT_CLIENT_CONFIG_DIR:?Select private client configuration}:/operator:ro']
     network_mode: none
     mem_limit: 128m
@@ -16,8 +16,11 @@ services:
       context: ../../..
       dockerfile: apps/api/Dockerfile
       args: {PILOT_COMMIT: '${PILOT_COMMIT}'}
+    command:
+      - sh
+      - -c
+      - set -a; . /config/client.env; exec python -m app.main
     environment:
-      CATALOG_CONFIG_FILE: /config/client.json
       CATALOG_SITES: ${PILOT_CATALOG_SITES:-aniworld.to,s.to}
       ANIWORLD_BASE_URL: ${PILOT_ANIWORLD_ORIGIN:-https://aniworld.to}
       STO_BASE_URL: ${PILOT_STO_ORIGIN:-https://serienstream.to}

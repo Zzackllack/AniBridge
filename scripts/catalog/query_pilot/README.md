@@ -39,7 +39,7 @@ exists. Never resume this synthetic grab against a real provider.
 
 AniBridge is at <http://127.0.0.1:18000>; metadata service port is loopback 18080.
 The metadata bearer is generated into the private `config` volume, not committed
-or printed. `client.json` explicitly selects `private-fixture` and HTTP on the
+or printed. `client.env` explicitly selects `private-fixture` and HTTP on the
 dedicated Docker bridge; normal external configuration requires verified HTTPS.
 The source identity, auth token fingerprint and complete request scope the cache.
 Ports and volumes use the fixed Compose project `anibridge-query-pilot`.
@@ -68,9 +68,9 @@ backups + logs + 1-GB runtime reserve fit the enforced 30,000,000,000-byte budge
 API container: 1 GiB/2 CPUs/no swap; one local download at a time. Metadata
 service: 512 MiB/2 CPUs. The smoke always accepts paused; restart preserves it.
 Do not point these mounts at `data/` or a real private DB. Default mainline
-routes remain available when `CATALOG_CONFIG_FILE` is absent. This compatible
-build still runs additive migrations and creates the preupgrade backup; the
-opt-in controls search routing, not whether the private schema upgrades.
+routes remain available when `CATALOG_MODE` is unset or `legacy`. This build
+still runs additive migrations and creates the preupgrade backup; the opt-in
+controls search routing, not whether the private schema upgrades.
 
 ## Optional real clients and bounded checks
 
@@ -197,9 +197,9 @@ and configured catalog source, so accepted jobs do not need the metadata API.
 
 ## Restoration and limits
 
-Stop writers and remove `CATALOG_CONFIG_FILE` to return this build to mainline
-search. Durable jobs/corrections/files stay retained; the query scheduler is off
-until re-enabled. Do not downgrade v2.6.0 against migrated private state: restore
+Stop writers and unset `CATALOG_MODE` (or set it to `legacy`) to return this
+build to mainline search. Durable jobs/corrections/files stay retained; the
+query scheduler is off until re-enabled. Do not downgrade v2.6.0 against migrated private state: restore
 the retained `anibridge_jobs.db.pre-catalog-v3.backup` and matching files while
 stopped. Restore loses post-backup changes; forward restoration is preferable.
 Pilot cleanup deletes only disposable volumes, never a production backup.

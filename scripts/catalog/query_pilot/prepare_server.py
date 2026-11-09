@@ -3,6 +3,7 @@
 import argparse
 import json
 import secrets
+import shlex
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -65,22 +66,24 @@ def main() -> None:
     }
     if args.megakino_sitemap_origin:
         worker["sitemap_origins"] = {"megakino": args.megakino_sitemap_origin}
-    client = {
-        "mode": "query",
-        "origin": args.metadata_origin,
-        "source_id": args.source_id,
-        "token_file": "/config/metadata-token",
-    }
+    client_env = "\n".join(
+        (
+            "CATALOG_MODE=query",
+            f"CATALOG_API_URL={shlex.quote(args.metadata_origin)}",
+            f"CATALOG_SOURCE_ID={shlex.quote(args.source_id)}",
+            "CATALOG_API_TOKEN_FILE=/config/metadata-token",
+        )
+    )
     for name, body in (
         ("worker.json", json.dumps(worker, indent=2)),
-        ("client.json", json.dumps(client, indent=2)),
+        ("client.env", client_env),
         ("metadata-token", secrets.token_urlsafe(32)),
     ):
         path = root / name
         path.write_text(body + "\n")
         path.chmod(0o600)
     print(
-        "Prepared worker.json, client.json and metadata-token. Compose initializes private container ownership separately."
+        "Prepared worker.json, client.env and metadata-token. Compose initializes private container ownership separately."
     )
     if args.filmo_origin:
         print(

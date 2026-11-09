@@ -8,9 +8,9 @@ import tempfile
 import time
 from pathlib import Path
 
-from catalog_core.query_client import Cache, Client
-from app.catalog.config import load
+from app.catalog.config import from_env
 from app.catalog.query_local import Search
+from catalog_core.query_client import Cache, Client
 
 
 def percentile(values: list[float], fraction: float) -> float:
@@ -18,13 +18,13 @@ def percentile(values: list[float], fraction: float) -> float:
 
 
 async def main() -> None:
-    config = load("/config/client.json")
+    config = from_env()
     with tempfile.TemporaryDirectory(prefix="query-benchmark-") as temporary:
         root = Path(temporary)
         client = Client(
             config.origin,
             config.source_id,
-            config.token_file.read_text().strip(),
+            config.bearer_token(),
             Cache(root / "cache.sqlite"),
             allow_private_http=config.allow_private_http,
         )

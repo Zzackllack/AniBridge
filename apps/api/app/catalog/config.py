@@ -1,4 +1,4 @@
-"""Explicit collector selection with a compatible legacy default."""
+"""Explicit collector selection from environment with a legacy default."""
 
 import os
 import re
@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from catalog_core.json_codec import fields, loads, require
+from catalog_core.json_codec import require
 
 
 @dataclass(frozen=True)
@@ -92,31 +92,8 @@ def _query(
     return config
 
 
-def load(filename: str | None) -> Config:
-    if not filename:
-        return Config()
-    raw = fields(
-        loads(Path(filename).read_bytes(), 65536),
-        {"mode"},
-        {"origin", "source_id", "token_file", "allow_private_http"},
-    )
-    require(raw["mode"] in {"legacy", "query"}, "invalid catalog mode")
-    if raw["mode"] == "legacy":
-        require(set(raw) == {"mode"}, "legacy takes no source configuration")
-        return Config()
-    require(
-        {"origin", "source_id", "token_file"} <= raw.keys(), "query source required"
-    )
-    return _query(
-        raw["origin"],
-        raw["source_id"],
-        raw["token_file"],
-        raw.get("allow_private_http", False),
-    )
-
-
 def from_env(environ: Mapping[str, str] | None = None) -> Config:
-    """Select one complete source; never combine a file's token with another URL."""
+    """Select one complete source from environment values only."""
     env = os.environ if environ is None else environ
     names = (
         "CATALOG_MODE",
@@ -127,13 +104,11 @@ def from_env(environ: Mapping[str, str] | None = None) -> Config:
         "CATALOG_ALLOW_PRIVATE_HTTP",
     )
     configured = {name for name in names if env.get(name, "").strip()}
-    filename = env.get("CATALOG_CONFIG_FILE", "").strip()
     require(
-        not (filename and configured),
-        "do not mix catalog environment and JSON configuration",
+        not env.get("CATALOG_CONFIG_FILE", "").strip(),
+        "CATALOG_CONFIG_FILE is no longer supported; use CATALOG_MODE and "
+        "the catalog environment settings",
     )
-    if filename:
-        return load(filename)
     mode = env.get("CATALOG_MODE", "").strip() or "legacy"
     require(mode in {"legacy", "query"}, "CATALOG_MODE must be legacy or query")
     if mode == "legacy":

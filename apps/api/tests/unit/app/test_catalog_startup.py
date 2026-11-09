@@ -22,7 +22,6 @@ def environment(tmp_path: Path, mode: str) -> dict[str, str]:
         ANIWORLD_INSTALL_FOLDER=str(tmp_path / "upstream"),
         CATALOG_SITES="filmo.to" if mode == "query" else "aniworld.to",
         CATALOG_MODE=mode,
-        CATALOG_CONFIG_FILE="",
         CATALOG_API_URL="https://catalog.example" if mode == "query" else "",
         CATALOG_SOURCE_ID="fixture" if mode == "query" else "",
         CATALOG_API_TOKEN="synthetic-catalog-token-for-startup"
