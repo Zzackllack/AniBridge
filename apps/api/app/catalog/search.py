@@ -6,6 +6,8 @@ from catalog_core import identity, magnet
 from catalog_core.query import LANGUAGES, TORZNAB, NEWZNAB
 from catalog_core.query import parse as parse
 
+from app.utils.naming import append_release_group
+
 _AUDIO_LANGUAGE_NAMES = {
     "deu": "German",
     "eng": "English",
@@ -106,6 +108,10 @@ def rss(
                 label += ".Estimated"
             elif row.get("codec"):
                 label += "." + row["codec"].upper()
+        # The provider suffix is display metadata and the durable output label.
+        # Keep it out of the magnet payload so existing infohashes and queued
+        # aliases remain valid after this naming change.
+        label = append_release_group(label, row["provider"])
         if row["mode"] == "strm":
             label += ".STRM"
         link = magnet.encode(payload, label)

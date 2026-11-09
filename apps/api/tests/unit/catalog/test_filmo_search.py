@@ -66,7 +66,7 @@ def test_filmo_rss_separates_audio_subtitles_and_uncertain_quality(
     attrs = [node.attrib for node in item if node.tag.endswith("attr")]
     language_attrs = [attr["value"] for attr in attrs if attr["name"] == "language"]
     assert "English" in title
-    assert title == "Example.2020.English" + expected_quality
+    assert title == "Example.2020.English" + expected_quality + "-FILMO"
     assert "German" not in title
     assert language_attrs == ["English"]
     assert "German" in description
