@@ -16,14 +16,23 @@ plan, not a release declaration or permission to redeploy the pilot.
 - Older worker/snapshot/evaluation branches are historical references, not a
   merge queue. The selected request API contract supersedes client snapshot
   distribution; do not merge abandoned distribution machinery back in.
-- Merging the draft into `v3`, changing the default branch, publishing a release
-  and redeploying Coolify are separate maintainer decisions.
+- Merging the draft into `v3`, changing the default branch, publishing a release,
+  redeploying Coolify and opening public traffic are separate maintainer
+  decisions. Public traffic additionally needs the public-service gates; it is
+  not created by a branch or pilot setting.
 
 The initial `V3 integration` ruleset mirrors the current `Main-Prot` review,
 required-status, CodeQL and bypass configuration with an explicit `v3` target.
-It is a starting policy, not proof that every desired CI check is enforced.
-In particular, the inherited required status is the conventional PR title check;
-unit tests and build checks still need deliberate enforcement below.
+Its effective rules now require both `Conventional Commit Title` and
+`Tests / Required Gate`, while review, CODEOWNER, conversation resolution,
+CodeQL and bypass actors are preserved. That is enforced configuration, not
+proof of a deployed service: re-read the ruleset and the selected head's run
+before relying on either, because rule IDs and check names can change.
+
+Public production is a separate decision and deployment from this transition.
+It is operational setup plus client auth/default changes, not flipping the pilot
+to public, and it is specified in
+[PUBLIC_SERVICE.md](../specs/020-catalog-query-api-evaluation/PUBLIC_SERVICE.md).
 
 ## Preview containers for Coolify
 
@@ -106,8 +115,12 @@ complete because the draft exists or one image build succeeds.
 - [ ] Review and retain explicit `v3` protection, CodeQL coverage, CODEOWNERS,
   required approvals, conversation resolution and bypass actors. Check that the
   release deploy key can bypass only the intended release branch rules.
-- [ ] Require meaningful CI status checks, not only `Conventional Commit Title`.
-  Verify an intentionally failing test/build blocks a normal merge.
+- [x] Require meaningful CI status checks. `Tests / Required Gate` and
+  `Conventional Commit Title` are now required on `v3`. The aggregate gate uses
+  `if: always()` and requires success from API, core/worker and native-image
+  test jobs, including their failure/cancellation/skip paths. Re-confirm the
+  effective check contexts before a default change; configuration enforcement
+  does not establish deployed behavior.
 - [ ] Confirm review behavior for drafts and later ready-for-review transitions;
   current Copilot settings exclude drafts and do not review every push.
 
@@ -141,9 +154,15 @@ complete because the draft exists or one image build succeeds.
   forward restoration and any breaking config/API/deployment contracts.
 - [ ] Add a genuine prerelease path (`3.0.0-alpha.N`, beta, RC): supported version
   parsing, GitHub prerelease status, notes, artifacts and distinct image tags.
-  Current release creation accepts only patch/minor/major and publishes `latest`.
+  Decision required before implementation: `cut-release.yml` still accepts only
+  patch/minor/major, allows real releases only from the default branch and
+  publishes `latest`, and the version parser has no prerelease grammar. Do not
+  expand release automation as part of catalog work; land the minimum change
+  when the release line is chosen.
 - [ ] Ensure v3 prereleases never overwrite stable `latest` or stable major tags.
   Build/promote the tested commit/digest; retain preflight's moving-tip guard.
+  The current workflow has no prerelease tag path, so this is a new release
+  contract, not a configuration tweak.
 - [ ] Rehearse dry runs, release deployment-key access, atomic commit/tag pushes,
   failure handling and asset generation without publishing an unintended release.
 - [ ] Decide v2 maintenance ownership, version source and support duration. If
@@ -181,9 +200,15 @@ complete because the draft exists or one image build succeeds.
   migration and capacity gaps using the [issue ledger](../specs/020-catalog-query-api-evaluation/ISSUES.md).
   Keep fixtures, live metadata, generated acquisition, live extraction, import
   and playback as distinct evidence; a short run is not an endurance/SLA proof.
-- [ ] Approve the public-facing product policy: opt-in versus default catalog,
-  service ownership/privacy/authentication, supported providers, quality profiles,
-  migration guide and operational support. A private pilot is not a hosted default.
+- [ ] Approve and implement the public-facing product policy: the normal product
+  uses one built-in official read-only metadata endpoint with no signup, API key,
+  endpoint URL or token configuration; advanced self-hosting and private
+  credentials remain optional. The contract, non-goals and ordered gates are in
+  [PUBLIC_SERVICE.md](../specs/020-catalog-query-api-evaluation/PUBLIC_SERVICE.md)
+  and [ISSUES.md](../specs/020-catalog-query-api-evaluation/ISSUES.md). This is a
+  separate release decision plus client default/auth changes — not the pilot
+  flag, the default-branch switch or an image promotion. A private pilot is not
+  a hosted default.
 
 ## Execution and rollback for a later default change
 

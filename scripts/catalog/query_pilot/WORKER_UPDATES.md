@@ -8,6 +8,16 @@ preparing a plan; preserve unrelated editor drafts.
 
 ## Routine private-pilot updates
 
+Before adopting the hardened server image, inspect `worker.json` for an explicit
+`bind_host`. Older images defaulted an omitted value to `0.0.0.0`; current images
+default to `127.0.0.1`. A metadata container reached through another container's
+TLS ingress needs an explicitly reviewed backend-network bind, normally
+`"bind_host": "0.0.0.0"`, with its port kept private and the query route
+authenticated. A host loopback port mapping does not make a container's loopback
+listener reachable from that ingress. This configuration change is separate
+from pulling an image; preserve the original config and review its rollback.
+Do not classify such an upgrade as code-only or silently broaden a bind.
+
 A maintainer may explicitly choose the moving `pr-170` preview tag for this
 disposable testing service. With `pull_policy: always` on all three components,
 Coolify's **Pull latest and restart** adopts the published image. Pushing alone

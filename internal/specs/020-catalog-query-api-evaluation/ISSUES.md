@@ -28,8 +28,59 @@ migration behavior changes. Publishing a preview does not deploy that image.
 | Resource pressure and reconciliation | Profile collector memory reclaim at its 2-GiB limit and overdue historical work under the existing reconciliation admission cap. Separate active parent refresh demand, unavailable episodes and persistent upstream errors before changing allocations or cadence. |
 | Request budgets and recovery | Short paced metadata trials do not establish upstream ceilings or safe daily volume. Validate full-path bootstrap/publication before raising budgets. Canonical 429/503 origin pauses now have an atomic restart receipt; retain it with backups and verify selected-image recovery. Five/second admission is an opt-in ceiling, with unchanged defaults; sustained VPS/bootstrap/publication capacity remains unverified. |
 | Client dependencies | Rebuild and verify selected images with the patched certifi bundle, Pylint and existing urllib3/Mako fixes. Installed native environments exclude the compromised emSign ECC G3 root and isolate AniWorld's HTTP fork from Requests; fresh candidate images and deployed services require their own verification. |
-| Merge policy | Verify final-head CI and manifests, enforce `Tests / Required Gate`, obtain eligible human/CODEOWNER approval and replace the stale PR description. The active `v3` ruleset requires the conventional-title check, review and CodeQL, but does not enforce the configured test gate. |
-| Public release | Decide public scope, all-router authentication/TLS/privacy/rights, destination OS/dependency exposure, external outage handling, release/retention policy and supported capacity before release. Optional qBittorrent credentials alone are insufficient. |
+| Merge policy | Verify final-head CI and manifests, obtain eligible human/CODEOWNER approval and replace the stale PR description. The active `v3` ruleset (24885997) now requires both `Conventional Commit Title` and `Tests / Required Gate`, with review, CODEOWNER, conversation resolution and CodeQL rules preserved. Re-read the ruleset and the selected head's run before relying on either; a historical passing run is not current-head or deployment proof. |
+| Public release | Implement the [public service gates](#public-service-gates-release) below. Optional qBittorrent credentials, a private pilot or a preview image are insufficient. |
+
+## Merge blockers
+
+Keep this list short; everything else is release or product work.
+
+- Final-head CI passes the enforced `Tests / Required Gate` and
+  `Conventional Commit Title` checks, and CodeQL reports no new blocking alert.
+- Eligible human/CODEOWNER approval exists and all review conversations are
+  resolved.
+- The PR description matches the actual scope and current head.
+- No P1/P2 finding from the security review remains unresolved or undocumented.
+- Record focused candidate Sonarr/Radarr acceptance for the supported paths,
+  including differing numbering, intermediate progress, file movement, cleanup
+  and restart without duplicate jobs. Separate fixture, generated-media and
+  live-provider results; list any remaining gap explicitly in the PR.
+
+## Public service gates (release)
+
+Target contract: [PUBLIC_SERVICE.md](PUBLIC_SERVICE.md). These gates apply to the
+normal public product: a built-in official read-only metadata endpoint with no
+signup, API key, endpoint URL or token configuration for end users. They do not
+block merging the existing private/catalog work, and unrelated product gaps
+(new providers, Filmo breadth, mapping precision, endurance) do not block a
+declared v1 scope unless they invalidate a published claim. Execute in order.
+
+1. Choose the official hostname, supported providers/client versions, operator,
+   privacy/retention policy and measured capacity target. Keep the pilot private.
+2. Verify the selected candidate on the retained pilot: actual digests, queries,
+   publication, retry preservation, resource/storage headroom and restore.
+3. Expose only anonymous read queries through trusted TLS ingress; keep the
+   backend bearer and all local job, management, qBittorrent and STRM boundaries.
+   Confirm spoofed forwarding headers cannot bypass admission.
+4. Measure and enforce per-identity request/work allowances and global active
+   limits. Check several identities, NAT sharing and saturation; return explicit
+   retryable errors and retain capacity for healthy clients. Size operation
+   weights from measurements. Validate any shared cache/coalescing policy and
+   bounded outage behavior against that workload.
+5. Ship official client defaults without user-entered catalog settings or a
+   bundled bearer. Test a fresh install, explicit legacy/private overrides,
+   unsupported versions/providers and a hosted outage.
+6. Complete focused real-client acceptance, including numbering, intermediate
+   progress, file movement, cleanup, restart and duplicate prevention. Keep
+   generated-media and live-provider evidence distinct.
+7. Establish the prerelease/image-channel path before promising a v3 beta.
+   The current stable-only release workflow is not that path. Promote the tested
+   digest through a bounded production canary with rollback thresholds and
+   operator instructions; publishing or merging alone must not deploy it.
+
+Each step's detailed contract and evidence boundary is in
+[PUBLIC_SERVICE.md](PUBLIC_SERVICE.md). No production URL, capacity number or
+successful restore is implied by this list.
 
 ## Working boundaries
 
@@ -44,6 +95,10 @@ default/stable and `v3` the integration target.
 
 Review, merge, private deployment and public production are separate decisions.
 The existing acceptance criteria remain open; archival of reports waives none.
-Use [generated acceptance](../../../scripts/catalog/query_pilot/ACCEPTANCE.md),
+Merge blockers are listed separately from the public-service gates; the latter
+describe the currently identified launch work and are not satisfied by private
+pilot acceptance. Measured failures may reveal additional work.
+Use the [public service contract](PUBLIC_SERVICE.md),
+[generated acceptance](../../../scripts/catalog/query_pilot/ACCEPTANCE.md),
 [worker updates](../../../scripts/catalog/query_pilot/WORKER_UPDATES.md) and
 [the v3 transition checklist](../../releases/v3-transition.md) for execution.

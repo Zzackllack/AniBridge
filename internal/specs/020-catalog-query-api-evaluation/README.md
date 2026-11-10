@@ -7,6 +7,7 @@ corrections, serves Torznab and runs accepted jobs.
 
 - [Implementation contract](IMPLEMENTATION.md): boundaries and failure behavior.
 - [Identities and magnets](identity.md): stable source identities and compatibility.
+- [Public service contract](PUBLIC_SERVICE.md): anonymous read-only endpoint target.
 - [Open acceptance work](ISSUES.md): remaining engineering and release gates.
 - [Server setup](../../../scripts/catalog/query_pilot/SERVER.md),
   [state-preserving updates](../../../scripts/catalog/query_pilot/WORKER_UPDATES.md)

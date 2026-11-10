@@ -61,6 +61,11 @@ private installation and [WORKER_UPDATES.md](../../scripts/catalog/query_pilot/W
 for an existing service. The generated Compose fixture is not a production
 collector. Collector minimum is 2 CPU/2 GiB; serving has a separate budget.
 
+Check an existing worker's explicit `bind_host` before upgrading: the hardened
+default is loopback, while older container configurations may omit the setting
+and depend on the former all-interface default. Review a private backend bind
+and ingress together; pulling a new image alone can make that service unreachable.
+
 Prefer tested immutable images; the worker guide also describes explicitly
 chosen moving tags for routine private-pilot updates. Preserve every configuration/volume/backup and
 use the private plan's version-guarded snapshot/verification/rollback commands.

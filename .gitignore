@@ -565,4 +565,5 @@ skills-lock.json
 !/internal/specs/020-catalog-query-api-evaluation/README.md
 !/internal/specs/020-catalog-query-api-evaluation/IMPLEMENTATION.md
 !/internal/specs/020-catalog-query-api-evaluation/ISSUES.md
+!/internal/specs/020-catalog-query-api-evaluation/PUBLIC_SERVICE.md
 !/internal/specs/020-catalog-query-api-evaluation/identity.md

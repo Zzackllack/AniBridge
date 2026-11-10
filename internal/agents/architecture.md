@@ -67,7 +67,10 @@ globals. The collector project's authenticated read command serves one compact
 server catalog; local AniBridge fetches native batches and applies corrections
 before policy, counts and pagination. Grabs retain source coordinates and run
 locally. Client whole-file snapshot distribution is omitted. Mainline remains
-the default until explicit query configuration. Public hosting is unapproved.
+the default until explicit query configuration. The intended public product
+uses an official anonymous read-only endpoint without user-entered catalog
+credentials; that client/service path is not implemented or deployed. See
+[the target boundary](../specs/020-catalog-query-api-evaluation/PUBLIC_SERVICE.md).
 
 The October 14 worker follow-up keeps acquisition and local correspondence
 separate: private v5 descriptors/IDs/fingerprints and durable admission support
