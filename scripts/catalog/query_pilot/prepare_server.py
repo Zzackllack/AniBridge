@@ -2,10 +2,13 @@
 
 import argparse
 import json
+import os
 import secrets
 import shlex
 from pathlib import Path
 from urllib.parse import urlsplit
+
+from catalog_core.files import fsync_directory
 
 
 def main() -> None:
@@ -63,6 +66,8 @@ def main() -> None:
         "source_id": args.source_id,
         "publication_sources": ["skyhook-v1"],
         "limits": {"publish_interval_s": 300},
+        "bind_host": "0.0.0.0",
+        "bind_port": 8080,
     }
     if args.megakino_sitemap_origin:
         worker["sitemap_origins"] = {"megakino": args.megakino_sitemap_origin}
@@ -80,8 +85,13 @@ def main() -> None:
         ("metadata-token", secrets.token_urlsafe(32)),
     ):
         path = root / name
-        path.write_text(body + "\n")
-        path.chmod(0o600)
+        # Credentials must never exist briefly under the caller's umask.
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(body + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+    fsync_directory(root)
     print(
         "Prepared worker.json, client.env and metadata-token. Compose initializes private container ownership separately."
     )

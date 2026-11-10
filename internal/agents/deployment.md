@@ -2,11 +2,19 @@
 
 ## `apps/api/Dockerfile` Highlights
 
-- Base image: `python:3.14-slim`.
+- Base image: `python:3.14.8-slim`, pinned by multi-platform manifest digest.
 - Multi-stage build (`base`, `deps`, `final`).
 - Installs `gosu` and build essentials for runtime compatibility.
 - Non-root user `appuser` (UID/GID configurable).
-- Healthcheck hits `/health` every 30s.
+- Healthcheck hits `/health` every 30s as `appuser` through `gosu`.
+- The image starts as root only to prepare mount ownership and configured
+  UID/GID; the entrypoint then replaces itself with `gosu appuser:appgroup`.
+  Overriding the entrypoint bypasses that drop: set `--user` explicitly when
+  running an alternate command. `USER appuser` would break supported PUID/PGID
+  bootstrap and is not a drop-in hardening change.
+- Python, uv and the BuildKit frontend are pinned by digest. Dependabot tracks
+  Dockerfiles in both app directories; update the tag and digest together and
+  validate both native architectures.
 - Entrypoint: `docker/entrypoint.sh` sets UID/GID and ensures directories.
 
 ## Entrypoint Script (`docker/entrypoint.sh`)

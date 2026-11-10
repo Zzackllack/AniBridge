@@ -2,7 +2,8 @@
 
 Migration/recovery plans require a tested full commit and an immutable manifest
 digest. Moving PR/source tags can change on rebuild. Publishing never authorizes a
-deployment. Re-read saved Compose and current worker configuration before
+deployment. A `sha-<commit>` tag can also move after a rebuild; use the resolved
+`image@sha256:...` in migration/rollback plans. Re-read saved Compose and current worker configuration before
 preparing a plan; preserve unrelated editor drafts.
 
 ## Routine private-pilot updates

@@ -216,3 +216,8 @@ public hosting/defaults, larger capacity/freshness remain
 release work. The old snapshot validator timeout remains failed evidence.
 
 Current acceptance gaps: [ISSUES.md](../../../internal/specs/020-catalog-query-api-evaluation/ISSUES.md).
+
+Worker collection and `--publish` are Linux-only resource-enforced operations;
+use the worker image on other hosts. Manual canonical cooldown recovery is
+documented in [SERVER.md](SERVER.md#explicit-canonical-cooldown-recovery) and
+requires the stopped collector's process lock.

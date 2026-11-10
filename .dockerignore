@@ -19,3 +19,4 @@ downloads/
 **/.venv/
 data/
 internal/
+scripts/

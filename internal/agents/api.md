@@ -25,6 +25,12 @@
   mapping so Sonarr numbering can differ from AniWorld `film-N`
   ordering.
 
+Provider outages preserve usable sibling search rows. When
+`X-AniBridge-Catalog-Partial=true` is present, `total` counts only successful
+providers and is a lower bound for the complete provider set. Clients that ignore
+these diagnostics can stop paging early; search does not turn one unavailable
+provider into an outage of every provider.
+
 ## qBittorrent Shim (`/api/v2/*`)
 
 - Auth: `/auth/login`, `/auth/logout` set `SID` cookie `anibridge`.

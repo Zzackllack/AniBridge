@@ -126,3 +126,9 @@ The draft PR still targets v3; main remains default.
 Ruff uses check-only lint and format jobs. Workflow permissions are contents:read,
 checkout persists no credentials, and main/v3 PRs run without path filtering.
 Local fixes remain explicit maintainer commits; CI never moves the reviewed SHA.
+
+Action references are pinned to verified upstream commit SHAs with version
+comments. Dependabot's GitHub Actions group maintains those pins. Image inputs
+(Python, uv and the Dockerfile frontend) are pinned by manifest digest; the API
+job has a 60-minute ceiling. Registry tags named after source commits are still
+mutable and cannot replace digest pins in reviewed migration/rollback plans.

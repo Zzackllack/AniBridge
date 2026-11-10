@@ -6,6 +6,33 @@ fixtures. This guide prepares a new explicitly authorized installation; use
 second collector against retained live volumes. Current acceptance gaps are in
 [the open-work list](../../../internal/specs/020-catalog-query-api-evaluation/ISSUES.md).
 
+## Metadata network and credentials
+
+The metadata server uses HTTP behind the operator's TLS ingress. An omitted
+`bind_host` now binds `127.0.0.1`; the container setup helper explicitly writes
+`0.0.0.0` so the private backend network can reach it. Keep that backend port
+private and expose only the authenticated query route through TLS. A configured
+non-loopback bind is an explicit network exposure choice, not automatic TLS.
+
+The pilot uses one shared bearer credential. To rotate it, generate a new private
+token file, update every client's inline token or mounted token file, and restart
+the metadata process with the new credential. Old tokens then stop working;
+there is no overlap or per-client revocation. For independently revocable clients,
+use separate authenticated ingress identities instead of sharing the pilot token.
+Never use the same token for another service.
+
+`ingress.yaml` restricts the route and enables TLS. For additional source-IP
+restriction, copy it to a private operator directory and attach a Traefik
+`ipAllowList` middleware with the intended NetBird/VPN CIDRs. Match the address
+Traefik actually receives; its default policy uses the immediate peer address.
+Do not blindly trust client-supplied forwarding headers or use an unverified
+VPN prefix. This optional policy requires a separately reviewed ingress change.
+
+Image references of the form `sha-<commit>` identify source revisions but remain
+mutable registry tags. Resolve and pin `image@sha256:...` for migration and
+rollback plans; the explicit moving-tag private-test workflow in
+[WORKER_UPDATES.md](WORKER_UPDATES.md) retains its own verification requirements.
+
 ## Prepare a new installation
 
 Work from the repository root on the selected Linux host. Obtain SSH parameters
@@ -205,3 +232,31 @@ reviewed private plan. A moving tag is not a rollback identity.
 
 Do not use `down -v` or clear failures/checkpoints on a retained installation.
 Generated acceptance has its own [disposable-volume procedure](ACCEPTANCE.md).
+
+## Explicit canonical cooldown recovery
+
+A persisted upstream pause is capped at 24 hours. After confirming that the
+source has recovered, an operator can stop the collector and run the worker
+with its same private config and state mount:
+
+```sh
+anibridge-catalog-worker --config /config/worker.json --clear-cooldown ORIGIN
+```
+
+Use an exact configured canonical origin (or `all`); the command acquires the
+worker process lock and rewrites only a valid cooldown receipt. It neither
+bypasses a running collector nor repairs corrupted receipts. Ordinary restart
+keeps cooldowns; manual clearing is an explicit recovery action, not automatic
+retry behavior.
+
+Collection and `--publish` require Linux because quota accounting includes
+open-but-unlinked SQLite files through `/proc`. Use the worker image for those
+commands on macOS/Windows; local inspection/tests do not establish that quota.
+
+## Query bounds
+
+The 500-row and 200-title bounds are cardinality ceilings, alongside an independent
+2-MiB serialized-response cap. Exceptionally large legal labels/aliases can exceed
+that cap; the server rejects the result as `503 response_too_large` without
+truncating it or pretending the total is smaller. Use smaller row windows or more
+specific title queries. The byte cap remains part of the private memory budget.
