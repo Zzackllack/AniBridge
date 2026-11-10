@@ -176,8 +176,10 @@ class Client:
             raise ValueError("invalid metadata origin")
         self.origin, self.source_id, self.cache = origin.rstrip("/"), source_id, cache
         self.ttl_s, self.stale_s, self.deadline_s = ttl_s, stale_s, deadline_s
-        # Stable cache/scope fingerprint, not password storage; the bearer
-        # token never leaves this process.
+        # Partition private cache/revision state by credential, not a password
+        # verifier. The credential is sent only in the Authorization header.
+        # CodeQL may still flag this: github/codeql#13637; triage that specific
+        # alert rather than disabling the password-hashing rule.
         self.auth_context = hashlib.sha256(
             token.encode(), usedforsecurity=False
         ).hexdigest()

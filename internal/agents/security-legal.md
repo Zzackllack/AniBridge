@@ -46,6 +46,22 @@ does not invoke the linter in production.
 
 - Follow `SECURITY.md` for vulnerability reporting.
 
+## Code scanning triage
+
+Keep CodeQL's `py/weak-sensitive-data-hashing` rule enabled. In
+`catalog_core.query_client.Client`, SHA-256 partitions private cache and revision
+state by bearer identity; the digest is not a password verifier or an
+authentication decision. The call declares `usedforsecurity=False`, which
+[CodeQL can still flag](https://github.com/github/codeql/issues/13637).
+
+For that exact data flow, inspect the selected-head alert and dismiss it as
+**false positive**, recording the cache-only purpose in the alert rationale.
+[GitHub retains the dismissal for the same finding](https://docs.github.com/en/code-security/how-tos/manage-security-alerts/manage-code-scanning-alerts/resolve-alerts#dismissing-alerts).
+A changed finding still needs review, especially if the digest gains an
+authentication role. Resolving a review thread or adding an unsupported inline
+suppression does not dismiss an alert. Do not change cryptography merely to
+silence this finding, or automatically dismiss all findings from this rule.
+
 ## Legal Considerations
 
 - Legal docs live under `docs/src/`.
