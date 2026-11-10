@@ -117,10 +117,10 @@ generated-media checks cannot silently skip merely because the runner lacks it.
 Both native worker image jobs also run full core/worker suites against installed
 packages with the same Linux-local scratch/resource boundaries. These image
 behavior checks are required dependencies of the aggregate gate, not deployments.
-The final gate must also be required by effective v3 protection:
-only the title check is a required status there. Require the aggregate
-`Tests / Required Gate` after hosted verification and an approved rule change;
-path-filtered publishing checks cannot replace that gate.
+Effective v3 protection requires both `Conventional Commit Title` and
+`Tests / Required Gate` from GitHub Actions. The aggregate gate rejects failed,
+cancelled or skipped dependencies; path-filtered publishing checks cannot replace
+it. Existing review, code-scanning and bypass rules remain separate constraints.
 The draft PR still targets v3; main remains default.
 
 Ruff uses check-only lint and format jobs. Workflow permissions are contents:read,
