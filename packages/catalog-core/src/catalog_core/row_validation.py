@@ -4,6 +4,7 @@ import sqlite3
 
 from . import identity
 from .json_codec import require
+from .magnet import MAX_COORDINATE
 
 
 def validate(
@@ -43,8 +44,8 @@ def validate(
                 row["kind"] == "episode"
                 and row["native_season"] is not None
                 and row["native_episode"] is not None
-                and row["native_season"] >= 0
-                and row["native_episode"] >= 1,
+                and 0 <= row["native_season"] <= MAX_COORDINATE
+                and 1 <= row["native_episode"] <= MAX_COORDINATE,
                 "invalid episode coordinates",
             )
     elif table == "release":
@@ -65,7 +66,9 @@ def validate(
         )
     elif table == "canonical_episode":
         require(
-            row["season"] >= 0 and row["episode"] >= 1, "invalid canonical coordinates"
+            0 <= row["season"] <= MAX_COORDINATE
+            and 1 <= row["episode"] <= MAX_COORDINATE,
+            "invalid canonical coordinates",
         )
         require(
             row["evidence"] in {"explicit_id", "exact_title", "reviewed"},

@@ -1,6 +1,7 @@
 """Generated structures only; observed pages are never committed fixtures."""
 
 import pytest
+
 from catalog_core.providers.recent import MAX_ENTRIES, parse
 
 EP = "/anime/stream/example/staffel-1/episode-1"

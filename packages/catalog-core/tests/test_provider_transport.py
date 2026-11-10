@@ -6,13 +6,15 @@ from email.utils import formatdate
 
 import httpx
 import pytest
+from test_megakino_session import Stream
+
 from catalog_core.providers.transport import (
     AdmissionDeferred,
     Session,
+    _global_address,
     fetch,
     retry_after,
 )
-from test_megakino_session import Stream
 
 
 def test_retry_after_seconds_dates_and_bounds():
@@ -241,6 +243,140 @@ def test_dns_every_hop_rejects_unsafe_answer(monkeypatch):
     )
     r = asyncio.run(fetch("https://provider.example", "/first"))
     assert r.outcome == "unexpected_structure" and len(calls) == 1
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "64:ff9b::7f00:1",
+        "64:ff9b::a00:1",
+        "224.0.0.1",
+        "ff02::1",
+        "0.0.0.0",
+        "192.0.0.1",
+        "2001:db8::1",
+        "100.64.0.1",
+    ],
+)
+def test_dns_rejects_transition_multicast_and_reserved_answers(monkeypatch, answer):
+    calls = []
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [(socket.AF_INET6, 1, 6, "", (answer, 443, 0, 0))],
+    )
+    monkeypatch.setattr(
+        httpx,
+        "AsyncHTTPTransport",
+        lambda **kwargs: httpx.MockTransport(lambda request: calls.append(request)),
+    )
+    result = asyncio.run(fetch("https://provider.example", "/episode"))
+    assert result.outcome == "unexpected_structure" and calls == []
+
+
+@pytest.mark.parametrize(
+    "answer,allowed",
+    [
+        ("8.8.8.8", True),
+        ("::ffff:8.8.8.8", True),
+        ("64:ff9b::808:808", True),
+        ("64:ff9b::7f00:1", False),
+        ("2002:7f00:1::", False),
+        ("127.0.0.1", False),
+    ],
+)
+def test_global_address_unwraps_embedded_ipv4(answer, allowed):
+    assert _global_address(answer) is allowed
+
+
+@pytest.mark.parametrize(
+    "origin,path,query,allowed",
+    [
+        (
+            "https://skyhook.sonarr.tv",
+            "/v2/tvdb/search",
+            {"term": "Example", "language": "eng"},
+            True,
+        ),
+        (
+            "https://skyhook.sonarr.tv",
+            "/v2/tvdb/search",
+            {"term": "Example", "language": "eng", "url": "https://other.example"},
+            False,
+        ),
+        (
+            "https://skyhook.sonarr.tv",
+            "/v1/tvdb/search/en/",
+            {"term": "Example"},
+            True,
+        ),
+        (
+            "https://skyhook.sonarr.tv",
+            "/v1/tvdb/search/en/",
+            {"term": "Example", "language": "eng"},
+            False,
+        ),
+        (
+            "https://api.themoviedb.org",
+            "/3/search/movie",
+            {"query": "Example", "year": "2020"},
+            True,
+        ),
+        (
+            "https://api.themoviedb.org",
+            "/3/search/movie",
+            {"query": "Example", "year": "20"},
+            False,
+        ),
+        (
+            "https://api.themoviedb.org",
+            "/3/find/tt1234567",
+            {"external_source": "imdb_id"},
+            True,
+        ),
+        (
+            "https://api.themoviedb.org",
+            "/3/find/tt1234567",
+            {"external_source": "other"},
+            False,
+        ),
+        (
+            "https://api.themoviedb.org",
+            "/3/search/movie",
+            {"query": "Example", "year": "2020", "api_key": "secret"},
+            False,
+        ),
+    ],
+)
+def test_canonical_query_shapes_are_enumerated(
+    monkeypatch, origin, path, query, allowed
+):
+    calls = []
+    monkeypatch.setattr(
+        httpx,
+        "AsyncHTTPTransport",
+        lambda **kwargs: httpx.MockTransport(
+            lambda request: (
+                calls.append(request) or httpx.Response(200, stream=Stream(b"[]"))
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [(2, 1, 6, "", ("93.184.216.34", 443))],
+    )
+
+    async def scenario():
+        if allowed:
+            result = await fetch(origin, path, query=query)
+            assert result.outcome == "ok"
+        else:
+            with pytest.raises(ValueError):
+                await fetch(origin, path, query=query)
+
+    asyncio.run(scenario())
+    assert len(calls) == int(allowed)
 
 
 def test_pool_timeout_is_a_local_resource_outcome(monkeypatch):

@@ -5,6 +5,7 @@ import socket
 
 import httpx
 import pytest
+
 from catalog_core.providers.megakino_session import bootstrap, fetch
 from catalog_core.providers.transport import fetch as ordinary_fetch
 

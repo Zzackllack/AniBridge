@@ -5,7 +5,8 @@ import sqlite3
 from contextlib import contextmanager
 
 import pytest
-from catalog_core import identity, magnet, query, release_metadata, schema
+
+from catalog_core import artifact, identity, magnet, query, release_metadata, schema
 from catalog_core.compact import Writer, release_summary
 from catalog_core.json_codec import ContractError, dumps
 from catalog_core.manifest import TABLE_LIMITS
@@ -100,7 +101,7 @@ def catalog(tmp_path, *, include_dual_audio=False, include_unusable_host=False):
         "counts": counts,
         "coverage": {"details": "complete", "mappings": "partial"},
         "release_summary": summary,
-        "artifact": {"sqlite_sha256": "0" * 64},
+        "artifact": {"sqlite_sha256": artifact.sha256(path)},
     }
     return path, payload
 
@@ -463,6 +464,48 @@ def test_unknown_subtitles_do_not_become_absent_and_web_stays_generic():
     dual = copy.deepcopy(checked)
     dual["audio_languages"] = ["eng", "deu"]
     assert release_metadata.language(dual) == "mul"
+
+
+def test_release_summary_is_deterministically_ordered(tmp_path):
+    path, _ = catalog(tmp_path)
+    db = schema.connect(path)
+    try:
+        summary = release_summary(db)
+    finally:
+        db.close()
+    assert summary == sorted(summary, key=lambda item: (item["kind"], item["language"]))
+
+
+def test_progress_abort_becomes_the_query_deadline_contract():
+    import sqlite3
+
+    interrupted = sqlite3.OperationalError("interrupted")
+    interrupted.sqlite_errorcode = sqlite3.SQLITE_INTERRUPT
+
+    class Connection:
+        def set_progress_handler(self, predicate, steps):
+            pass
+
+        def execute(self, *args):
+            raise interrupted
+
+    class Store:
+        providers = ("aniworld.to",)
+
+        @contextmanager
+        def acquire(self):
+            yield (
+                {
+                    "aniworld.to": (
+                        Connection(),
+                        {"catalog_schema_version": 1},
+                    )
+                },
+                None,
+            )
+
+    with pytest.raises(ContractError, match="query_deadline"):
+        query.query(Store(), query.parse({"t": "search", "q": "example"}), now=NOW)
 
 
 def test_filmo_wire_supports_all_languages_without_widening_legacy_requests():

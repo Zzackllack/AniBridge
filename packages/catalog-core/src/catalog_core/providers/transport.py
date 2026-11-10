@@ -3,6 +3,7 @@
 import asyncio
 import ipaddress
 import math
+import re
 import socket
 import time
 from dataclasses import dataclass
@@ -12,6 +13,8 @@ from urllib.parse import urlencode, urljoin, urlsplit
 import httpx
 
 from catalog_core.json_codec import require
+
+NAT64 = ipaddress.ip_network("64:ff9b::/96")
 
 
 @dataclass(frozen=True)
@@ -99,6 +102,105 @@ def challenge(body: bytes) -> bool:
     )
 
 
+def _global_address(value: str) -> bool:
+    """Reject transition addresses that hide a non-public embedded IPv4."""
+    try:
+        address = ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    if isinstance(address, ipaddress.IPv6Address):
+        if address.ipv4_mapped is not None:
+            address = address.ipv4_mapped
+        elif address.sixtofour is not None:
+            address = address.sixtofour
+        elif address.teredo is not None:
+            return all(_global_address(str(item)) for item in address.teredo)
+        elif address in NAT64:
+            address = ipaddress.IPv4Address(int(address) & 0xFFFFFFFF)
+    return (
+        address.is_global
+        and not address.is_multicast
+        and not address.is_reserved
+        and not address.is_unspecified
+        and not address.is_link_local
+        and not address.is_loopback
+        and not address.is_private
+    )
+
+
+def _text(value: object, maximum: int = 512) -> bool:
+    return type(value) is str and 0 < len(value.encode("utf-8")) <= maximum
+
+
+def _year(value: object) -> bool:
+    return (
+        type(value) is str
+        and len(value) == 4
+        and value.isascii()
+        and value.isdecimal()
+        and 1800 <= int(value) <= 2200
+    )
+
+
+def _canonical_query(origin: str, path: str, query: dict[str, str]) -> bool:
+    """Only the shapes the canonical adapters actually issue leave this process."""
+    if origin == "https://skyhook.sonarr.tv":
+        if path == "/v2/tvdb/search":
+            return (
+                set(query) == {"term", "language"}
+                and _text(query["term"])
+                and query["language"] == "eng"
+            )
+        return bool(
+            re.fullmatch(r"/v1/tvdb/search/[a-z]{2,3}/", path)
+            and set(query) == {"term"}
+            and _text(query["term"])
+        )
+    if origin == "https://api.themoviedb.org":
+        if path == "/3/search/movie":
+            return (
+                set(query) == {"query", "year"}
+                and _text(query["query"])
+                and _year(query["year"])
+            )
+        return bool(
+            re.fullmatch(r"/3/find/tt[0-9]{7,12}", path)
+            and query == {"external_source": "imdb_id"}
+        )
+    if origin == "https://api.radarr.video":
+        return bool(
+            path == "/v1/search"
+            and set(query) == {"q", "year"}
+            and _text(query["q"])
+            and _year(query["year"])
+        )
+    return False
+
+
+def _provider_query(path: str, query: dict[str, str]) -> bool:
+    if path == "/movies":
+        return bool(
+            set(query) == {"page"}
+            and type(query["page"]) is str
+            and query["page"].isascii()
+            and query["page"].isdecimal()
+            and 1 <= int(query["page"]) <= 10000
+        )
+    if path == "/serien":
+        return bool(
+            query.get("by") == "alpha"
+            and set(query) <= {"by", "page"}
+            and (
+                "page" not in query
+                or type(query["page"]) is str
+                and query["page"].isascii()
+                and query["page"].isdecimal()
+                and 0 < int(query["page"]) <= 9999
+            )
+        )
+    return False
+
+
 async def _fetch(
     origin: str,
     path: str,
@@ -126,29 +228,8 @@ async def _fetch(
             _token
             and path == "/index.php"
             and query == {"yg": "token"}
-            or origin in ("https://skyhook.sonarr.tv", "https://api.themoviedb.org")
-            or origin == "https://api.radarr.video"
-            and path == "/v1/search"
-            and set(query) == {"q", "year"}
-            and type(query["q"]) is str
-            and 0 < len(query["q"].encode()) <= 512
-            and type(query["year"]) is str
-            and query["year"].isascii()
-            and query["year"].isdecimal()
-            and len(query["year"]) == 4
-            and 1800 <= int(query["year"]) <= 2200
-            or path == "/movies"
-            and set(query) == {"page"}
-            and query["page"].isdecimal()
-            and 1 <= int(query["page"]) <= 10000
-            or path == "/serien"
-            and query.get("by") == "alpha"
-            and set(query) <= {"by", "page"}
-            and (
-                "page" not in query
-                or query["page"].isdecimal()
-                and 0 < int(query["page"]) <= 9999
-            ),
+            or _canonical_query(origin, path, query)
+            or _provider_query(path, query),
             "query only permitted for canonical adapter",
         )
         url += "?" + expected_query
@@ -186,7 +267,7 @@ async def _fetch(
                 )
                 require(
                     bool(addresses)
-                    and all(ipaddress.ip_address(a[4][0]).is_global for a in addresses),
+                    and all(_global_address(a[4][0]) for a in addresses),
                     "unsafe DNS",
                 )
                 logical = httpx.Request("GET", url)

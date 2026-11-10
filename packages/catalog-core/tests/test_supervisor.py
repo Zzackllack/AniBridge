@@ -4,6 +4,7 @@ import threading
 import time
 
 import pytest
+
 from catalog_core import supervisor
 
 
@@ -35,6 +36,53 @@ def test_cancellation_kills_and_reaps_child(monkeypatch):
     assert launched[0].poll() is not None
     with pytest.raises(ProcessLookupError):
         os.kill(launched[0].pid, 0)
+
+
+def test_child_environment_drops_parent_secrets_and_keeps_runtime_config(monkeypatch):
+    monkeypatch.setenv("PATH", "/usr/bin")
+    monkeypatch.setenv("ANIWORLD_INSTALL_FOLDER", "/tmp/aniworld")
+    monkeypatch.setenv("ANIBRIDGE_GITHUB_TOKEN", "do-not-forward")
+    monkeypatch.setenv("CATALOG_API_TOKEN", "do-not-forward")
+    env = supervisor.child_environment(ANIBRIDGE_SUPERVISOR_PID="123")
+    assert env["PATH"] == "/usr/bin"
+    assert env["ANIWORLD_INSTALL_FOLDER"] == "/tmp/aniworld"
+    assert env["ANIBRIDGE_SUPERVISOR_PID"] == "123"
+    assert "ANIBRIDGE_GITHUB_TOKEN" not in env
+    assert "CATALOG_API_TOKEN" not in env
+
+
+def test_diagnostics_only_write_the_supervisor_temp_report(tmp_path, monkeypatch):
+    from catalog_core import diagnostics
+
+    monkeypatch.setattr(diagnostics, "_records", [])
+    arbitrary = tmp_path / "arbitrary.json"
+    monkeypatch.setenv("ANIBRIDGE_CHILD_REPORT", str(arbitrary))
+    with diagnostics.phase("parse"):
+        pass
+    assert not arbitrary.exists()
+
+    directory = tmp_path / "catalog-diagnostic-test"
+    directory.mkdir()
+    report = directory / "report.json"
+    monkeypatch.setenv("ANIBRIDGE_CHILD_REPORT", str(report))
+    with diagnostics.phase("parse"):
+        pass
+    assert diagnostics.read_report(report)[-1]["phase"] == "parse"
+
+
+def test_diagnostics_refuse_a_symlinked_report(tmp_path, monkeypatch):
+    from catalog_core import diagnostics
+
+    monkeypatch.setattr(diagnostics, "_records", [])
+    directory = tmp_path / "catalog-diagnostic-test"
+    directory.mkdir()
+    target = tmp_path / "outside.json"
+    report = directory / "report.json"
+    report.symlink_to(target)
+    monkeypatch.setenv("ANIBRIDGE_CHILD_REPORT", str(report))
+    with diagnostics.phase("parse"):
+        pass
+    assert not target.exists()
 
 
 def test_typed_report_rejects_untrusted_text_and_is_bounded(tmp_path):

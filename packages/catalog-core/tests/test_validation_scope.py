@@ -3,6 +3,7 @@
 import sqlite3
 
 import pytest
+
 from catalog_core import fixtures, schema
 from catalog_core.json_codec import ContractError
 from catalog_core.validation_scope import Scope, capture, captured

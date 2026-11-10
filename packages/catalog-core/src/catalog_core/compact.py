@@ -171,7 +171,8 @@ def release_summary(db: sqlite3.Connection) -> list[dict]:
         dict(zip(("kind", "language", "count", "oldest"), row, strict=True))
         for row in db.execute(
             "SELECT e.kind,r.language,count(*),min(r.first_seen_at) "
-            "FROM release_data r JOIN entity_data e USING(entity_key) GROUP BY e.kind,r.language"
+            "FROM release_data r JOIN entity_data e USING(entity_key) "
+            "GROUP BY e.kind,r.language ORDER BY e.kind,r.language"
         )
     ]
 

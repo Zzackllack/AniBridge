@@ -1,5 +1,6 @@
 """Hard deadlines for untrusted parsing and validation, independent of threads."""
 
+import asyncio
 import os
 import signal
 import subprocess
@@ -11,6 +12,96 @@ from pathlib import Path
 
 from .diagnostics import read_report
 from .json_codec import ContractError
+
+# Child processes only need runtime, locale and AniWorld storage selection.
+# Never forward the parent's full environment: it may hold API/provider tokens.
+CHILD_ENV_KEYS = frozenset(
+    {
+        "PATH",
+        "LANG",
+        "LANGUAGE",
+        "LC_ALL",
+        "LC_CTYPE",
+        "LC_MESSAGES",
+        "TZ",
+        "TMPDIR",
+        "TEMP",
+        "TMP",
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "PYTHONIOENCODING",
+        "PYTHONUTF8",
+        "PYTHONDONTWRITEBYTECODE",
+        "PYTHONWARNINGS",
+        "SSL_CERT_FILE",
+        "SSL_CERT_DIR",
+        "LD_LIBRARY_PATH",
+        "DYLD_LIBRARY_PATH",
+        "DYLD_FALLBACK_LIBRARY_PATH",
+        "SYSTEMROOT",
+        "WINDIR",
+    }
+)
+CHILD_ENV_PREFIXES = ("ANIWORLD_",)
+
+
+def child_environment(**overrides: str) -> dict[str, str]:
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key in CHILD_ENV_KEYS or key.startswith(CHILD_ENV_PREFIXES)
+    }
+    env.update(overrides)
+    return env
+
+
+def _terminate(process: subprocess.Popen) -> None:
+    if process.poll() is not None:
+        return
+    try:
+        if os.name != "nt" and hasattr(os, "killpg"):
+            os.killpg(process.pid, signal.SIGKILL)
+        else:
+            process.kill()
+    except ProcessLookupError:
+        pass
+    except OSError:
+        try:
+            process.kill()
+        except ProcessLookupError:
+            pass
+    try:
+        process.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        try:
+            process.kill()
+        except ProcessLookupError:
+            pass
+        process.wait()
+
+
+async def _terminate_async(process) -> None:
+    if process.returncode is None:
+        try:
+            if os.name != "nt" and hasattr(os, "killpg"):
+                os.killpg(process.pid, signal.SIGKILL)
+            else:
+                process.kill()
+        except ProcessLookupError:
+            pass
+        except OSError:
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+    try:
+        await asyncio.wait_for(asyncio.shield(process.wait()), 2)
+    except TimeoutError:
+        try:
+            process.kill()
+        except ProcessLookupError:
+            pass
+        await process.wait()
 
 
 def limit_child(
@@ -70,7 +161,7 @@ def run_child(
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=os.name != "nt",
-        env={**os.environ, "ANIBRIDGE_SUPERVISOR_PID": str(os.getpid())},
+        env=child_environment(ANIBRIDGE_SUPERVISOR_PID=str(os.getpid())),
     )
     try:
         deadline = time.monotonic() + timeout
@@ -87,12 +178,7 @@ def run_child(
         if process.returncode:
             raise ChildFailure(process.returncode, [])
     except BaseException:
-        if process.poll() is None:
-            if os.name != "nt":
-                os.killpg(process.pid, signal.SIGKILL)
-            else:
-                process.kill()
-            process.wait(timeout=2)
+        _terminate(process)
         raise
 
 
@@ -100,8 +186,6 @@ async def run_child_async(
     module: str, arguments: list[str], timeout: float
 ) -> list[dict]:
     # A dedicated bounded file carries allowlisted fields, never raw stderr.
-    import asyncio
-
     with tempfile.TemporaryDirectory(prefix="catalog-diagnostic-") as directory:
         report = Path(directory) / "report.json"
         process = await asyncio.create_subprocess_exec(
@@ -113,11 +197,10 @@ async def run_child_async(
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=os.name != "nt",
-            env={
-                **os.environ,
-                "ANIBRIDGE_SUPERVISOR_PID": str(os.getpid()),
-                "ANIBRIDGE_CHILD_REPORT": str(report),
-            },
+            env=child_environment(
+                ANIBRIDGE_SUPERVISOR_PID=str(os.getpid()),
+                ANIBRIDGE_CHILD_REPORT=str(report),
+            ),
         )
         try:
             try:
@@ -130,9 +213,4 @@ async def run_child_async(
                 raise ChildFailure(code, records)
             return records
         finally:
-            if process.returncode is None:
-                if os.name != "nt":
-                    os.killpg(process.pid, signal.SIGKILL)
-                else:
-                    process.kill()
-                await asyncio.wait_for(asyncio.shield(process.wait()), 2)
+            await _terminate_async(process)

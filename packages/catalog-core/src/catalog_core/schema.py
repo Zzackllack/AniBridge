@@ -12,6 +12,7 @@ from importlib.resources import files
 from pathlib import Path
 
 from . import identity, release_metadata, row_validation
+from .artifact import sha256 as artifact_sha256
 from .diagnostics import phase
 from .json_codec import require
 from .manifest import TABLE_LIMITS, hex_digest
@@ -152,9 +153,53 @@ def row_count(db: sqlite3.Connection, table: str, version: int) -> int:
     return db.execute(f"SELECT count(*) FROM {physical}").fetchone()[0]
 
 
+def _validate_payload(payload: object) -> dict:
+    """Reject malformed metadata before it becomes an incidental KeyError."""
+    require(type(payload) is dict, "invalid payload")
+    version = payload.get("catalog_schema_version")
+    require(type(version) is int and version in SCHEMAS, "unsupported artifact schema")
+    provider = payload.get("provider")
+    require(
+        type(provider) is str and provider in identity.PROVIDERS, "unknown provider"
+    )
+    for name in ("published_at", "listing_checked_at"):
+        value = payload.get(name)
+        require(type(value) is int and value >= 0, "invalid payload timestamp")
+    counts = payload.get("counts")
+    require(
+        type(counts) is dict and set(counts) == set(TABLE_LIMITS),
+        "invalid payload counts",
+    )
+    for table, maximum in TABLE_LIMITS.items():
+        require(
+            type(counts[table]) is int and 0 <= counts[table] <= maximum,
+            "invalid payload counts",
+        )
+    coverage = payload.get("coverage")
+    require(
+        type(coverage) is dict
+        and {"details", "mappings"} <= coverage.keys()
+        and coverage.keys() <= {"titles", "details", "mappings"},
+        "invalid payload coverage",
+    )
+    require(
+        all(
+            type(coverage[name]) is str and coverage[name] in {"partial", "complete"}
+            for name in ("details", "mappings")
+        ),
+        "invalid payload coverage",
+    )
+    artifact = payload.get("artifact")
+    require(type(artifact) is dict, "invalid payload artifact")
+    require(type(artifact.get("sqlite_sha256")) is str, "invalid payload artifact")
+    hex_digest(artifact["sqlite_sha256"])
+    return payload
+
+
 def validate(
     path: Path, payload: dict, deadline_s: float = 120, *, scope: Scope | None = None
 ) -> dict[str, int]:
+    payload = _validate_payload(payload)
     started = time.monotonic()
     with path.open("rb") as stream:
         header = stream.read(100)
@@ -361,6 +406,12 @@ def validate(
                     version >= 2 and payload["release_summary"] == release_summary(db),
                     "invalid release summary",
                 )
+        # The pointer and artifact layer also hash these bytes, but admission
+        # must not bless a different file under the claimed signed digest.
+        require(
+            artifact_sha256(path) == payload["artifact"]["sqlite_sha256"],
+            "SQLite digest mismatch",
+        )
         return counts
     finally:
         db.close()

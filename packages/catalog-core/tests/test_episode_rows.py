@@ -1,6 +1,7 @@
 """Small sanitized provider row shapes, no playable URLs or live access."""
 
 import pytest
+
 from catalog_core.providers.aniworld import parse as ani_parse
 from catalog_core.providers.sto import parse as sto_parse
 

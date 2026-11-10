@@ -3,6 +3,7 @@
 import itertools
 
 import pytest
+
 from catalog_core import identity, schema
 
 

@@ -2,9 +2,8 @@
 
 import hashlib
 import os
-from pathlib import Path
-
 from compression import zstd
+from pathlib import Path
 
 from .json_codec import require
 

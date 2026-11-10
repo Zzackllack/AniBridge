@@ -21,6 +21,22 @@ def test_process_lock_rejects_another_open_handle_and_releases_on_close(tmp_path
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX flock exclusion")
+def test_process_lock_preserves_non_lock_os_errors(tmp_path, monkeypatch):
+    import errno
+    import fcntl
+
+    path = tmp_path / "owner.lock"
+    with monkeypatch.context() as patch:
+
+        def broken(*args):
+            raise OSError(errno.EIO, "broken volume")
+
+        patch.setattr(fcntl, "flock", broken)
+        with pytest.raises(OSError, match="broken volume"):
+            ProcessLock(path)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX flock exclusion")
 def test_process_lock_refuses_a_filesystem_that_ignores_exclusion(
     tmp_path, monkeypatch
 ):

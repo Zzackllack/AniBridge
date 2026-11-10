@@ -3,7 +3,8 @@
 import sqlite3
 
 import pytest
-from catalog_core import fixtures, manifest, schema
+
+from catalog_core import artifact, fixtures, manifest, schema
 from catalog_core.compact import Writer
 from catalog_core.json_codec import ContractError
 
@@ -29,6 +30,7 @@ def test_records_are_equal_between_layouts(tmp_path, provider, movie):
                     for table in manifest.TABLE_LIMITS
                 }
             )
+        payload["artifact"]["sqlite_sha256"] = artifact.sha256(root / "fixture.sqlite")
         assert schema.validate(root / "fixture.sqlite", payload) == payload["counts"]
     assert records[0] == records[1]
 
@@ -86,4 +88,5 @@ def test_renamed_paths_keep_the_original_identity(tmp_path):
             db.execute("SELECT path FROM title").fetchone()[0]
             == "/anime/stream/renamed"
         )
+    payload["artifact"]["sqlite_sha256"] = artifact.sha256(tmp_path / "fixture.sqlite")
     assert schema.validate(tmp_path / "fixture.sqlite", payload) == payload["counts"]

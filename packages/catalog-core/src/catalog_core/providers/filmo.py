@@ -292,6 +292,7 @@ class FilmoParser(HTMLParser):
         self.tag_depth = 0
         self.tag_text: list[str] = []
         self.offers: list[dict[str, Any]] = []
+        self.offer_index: dict[str, dict[str, Any]] = {}
         self.aliases: set[str] = set()
         self.imdb_ids: set[str] = set()
 
@@ -331,9 +332,7 @@ class FilmoParser(HTMLParser):
                 "duplicate Filmo document root",
             )
             self.document[tag] = True
-        if is_card:
-            self.card_depth += 1
-        elif self.card_depth and tag not in VOID_TAGS:
+        if is_card or self.card_depth and tag not in VOID_TAGS:
             self.card_depth += 1
         if is_row:
             self.row_depth += 1
@@ -364,8 +363,17 @@ class FilmoParser(HTMLParser):
             name = (values.get("name") or "").casefold()
             content = values.get("content") or ""
             if name in {"alternative-title", "alternate-name"} and content:
-                self.aliases.add(_valid_label(content))
+                alias = _valid_label(content)
+                require(
+                    alias in self.aliases or len(self.aliases) < 32,
+                    "too many Filmo aliases",
+                )
+                self.aliases.add(alias)
             if name == "imdb" and re.fullmatch(r"tt[0-9]{7,12}", content):
+                require(
+                    content in self.imdb_ids or len(self.imdb_ids) < 1,
+                    "conflicting Filmo IMDb IDs",
+                )
                 self.imdb_ids.add(content)
         if tag == "h1":
             self.heading_depth += 1
@@ -441,6 +449,7 @@ class FilmoParser(HTMLParser):
             self.heading_depth -= 1
             title = _valid_label("".join(self.heading_text))
             if title:
+                require(len(self.headings) < 2, "too many Filmo headings")
                 self.headings.append(title)
         if tag == "a" and self.anchor is not None:
             href = self.anchor.get("href") or ""
@@ -484,14 +493,12 @@ class FilmoParser(HTMLParser):
                     labels,
                 )
                 variant = offer["variant_anchor"]
-                prior = next(
-                    (item for item in self.offers if item["variant_anchor"] == variant),
-                    None,
-                )
+                prior = self.offer_index.get(variant)
                 require(
                     prior is None or prior == offer, "ambiguous duplicate Filmo variant"
                 )
                 if prior is None:
+                    self.offer_index[variant] = offer
                     self.offers.append(offer)
                 require(len(self.offers) <= 10000, "Filmo offers overflow")
                 self.chip = None

@@ -1,5 +1,6 @@
 """Durability primitives shared by publication and local activation."""
 
+import errno
 import os
 from pathlib import Path
 from uuid import uuid4
@@ -58,9 +59,19 @@ class ProcessLock:
                     else:
                         fcntl.flock(probe.fileno(), fcntl.LOCK_UN)
                         raise RuntimeError("data volume does not enforce process locks")
-        except OSError:
+        except BlockingIOError:
             self.file.close()
             raise RuntimeError("data volume already owned by another process") from None
+        except OSError as exc:
+            # Lock contention is the only ordinary-ownership answer. A broken
+            # volume, permission error or I/O failure must stay distinguishable.
+            if os.name == "nt" and exc.errno in (errno.EACCES, errno.EDEADLK):
+                self.file.close()
+                raise RuntimeError(
+                    "data volume already owned by another process"
+                ) from None
+            self.file.close()
+            raise
         except BaseException:
             self.file.close()
             raise

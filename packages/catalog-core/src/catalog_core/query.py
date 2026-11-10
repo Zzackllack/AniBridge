@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass
 
 from catalog_core import identity
-from catalog_core.json_codec import require
+from catalog_core.json_codec import ContractError, require
 
 LANGUAGES = {
     "de-dub": "German Dub",
@@ -18,14 +18,27 @@ TORZNAB = "http://torznab.com/schemas/2015/feed"
 NEWZNAB = "http://www.newznab.com/DTD/2010/feeds/attributes/"
 
 
+MAX_CATEGORIES = 64
+MAX_QUERY_BYTES = 4096
+
+
+def _bounded_digits(value: str, maximum: int) -> int:
+    """Convert without first feeding an unbounded digit string to int()."""
+    require(re.fullmatch(r"[0-9]+", value) is not None, "invalid_request")
+    normalized = value.lstrip("0") or "0"
+    require(len(normalized) <= len(str(maximum)), "invalid_request")
+    result = int(normalized)
+    require(result <= maximum, "invalid_request")
+    return result
+
+
 def number(
     params: dict[str, str], key: str, default: int | None, low: int, high: int
 ) -> int | None:
     value = params.get(key)
     if value is None:
         return default
-    require(re.fullmatch(r"[0-9]+", value) is not None, "invalid_request")
-    result = int(value)
+    result = _bounded_digits(value, high)
     require(low <= result <= high, "invalid_request")
     return result
 
@@ -74,7 +87,10 @@ def parse(params: dict[str, str]) -> Query:
             identity.validate_external_id(namespace, value)
             require(mode != "movie" or namespace != "tvdb", "unsupported_id")
             ids[namespace] = value
-    text = identity.search_key(params.get("q", ""))
+    raw_text = params.get("q", "")
+    # Normalize only after a raw cap: search_key itself walks every character.
+    require(len(raw_text.encode()) <= MAX_QUERY_BYTES, "invalid_request")
+    text = identity.search_key(raw_text)
     require(len(text.encode()) <= 512, "invalid_request")
     season = number(params, "season", None, 0, 2**31 - 1)
     episode = number(params, "ep", None, 0, 2**31 - 1)
@@ -85,11 +101,16 @@ def parse(params: dict[str, str]) -> Query:
     require(mode != "movie" or season is None and episode is None, "invalid_request")
     categories = None
     if "cat" in params:
+        raw_categories = params["cat"].split(",")
         require(
-            re.fullmatch(r"[0-9]+(?:,[0-9]+)*", params["cat"]) is not None,
+            len(raw_categories) <= MAX_CATEGORIES
+            and len(params["cat"].encode()) <= 512
+            and re.fullmatch(r"[0-9]+(?:,[0-9]+)*", params["cat"]) is not None,
             "invalid_request",
         )
-        categories = frozenset(int(value) for value in params["cat"].split(","))
+        categories = frozenset(
+            _bounded_digits(value, 2**31 - 1) for value in raw_categories
+        )
     return Query(
         mode,
         text,
@@ -115,7 +136,48 @@ def candidates(db: sqlite3.Connection, text: str) -> list[str]:
     return [r[0] for r in rows]
 
 
+def _is_interrupt(exc: sqlite3.OperationalError) -> bool:
+    return getattr(exc, "sqlite_errorcode", None) == sqlite3.SQLITE_INTERRUPT
+
+
 def query(
+    store,
+    request: Query,
+    *,
+    now: int,
+    modes: tuple[str, ...] = ("download",),
+    languages: dict[str, set[str]] | None = None,
+    offer_hosts: set[str] | frozenset[str] | None = None,
+    anime_category: int = 5070,
+    movie_category: int = 2000,
+    mapping_view=None,
+    title_ids: set[str] | None = None,
+    entity_ids: set[str] | None = None,
+    max_releases: int | None = None,
+) -> tuple[list[dict], int, dict[str, str]]:
+    """Translate SQLite's cooperative progress abort into the deadline contract."""
+    try:
+        return _query(
+            store,
+            request,
+            now=now,
+            modes=modes,
+            languages=languages,
+            offer_hosts=offer_hosts,
+            anime_category=anime_category,
+            movie_category=movie_category,
+            mapping_view=mapping_view,
+            title_ids=title_ids,
+            entity_ids=entity_ids,
+            max_releases=max_releases,
+        )
+    except sqlite3.OperationalError as exc:
+        if _is_interrupt(exc):
+            raise ContractError("query_deadline") from None
+        raise
+
+
+def _query(
     store,
     request: Query,
     *,

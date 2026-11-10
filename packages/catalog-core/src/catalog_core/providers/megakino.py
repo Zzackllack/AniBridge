@@ -20,6 +20,9 @@ from .aniworld import Link, Page
 
 TITLE = re.compile(r"/(films|serials)/[1-9][0-9]*-([^/]+)\.html$")
 SITEMAP = re.compile(r"/(?:uploads/)?sitemap[a-zA-Z0-9_-]*\.xml$")
+MAX_PLAYERS = 1000
+MAX_UNKNOWN_LANGUAGES = 64
+STRUCTURAL = frozenset({"div", "h1", "script"})
 LABELS = {
     "Deutsch": "de-dub",
     "German Dub": "de-dub",
@@ -86,6 +89,7 @@ class Detail(HTMLParser):
     def __init__(self, origin: str) -> None:
         super().__init__(convert_charrefs=True)
         self.roots, self.closed = set(), set()
+        self.elements: list[str] = []
         self.heading = None
         self.title = None
         self.script = None
@@ -101,6 +105,8 @@ class Detail(HTMLParser):
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
+        if tag in STRUCTURAL:
+            self.elements.append(tag)
         if tag in ("html", "body"):
             require(tag not in self.roots, "duplicate document root")
             self.roots.add(tag)
@@ -134,11 +140,20 @@ class Detail(HTMLParser):
             )
         ):
             self.players += 1
+            require(self.players <= MAX_PLAYERS, "movie player overflow")
             label = values.get("data-language-label")
+            require(
+                label is None or len(label.encode("utf-8")) <= 128,
+                "invalid language label",
+            )
             if label in LABELS:
                 self.languages.add(LABELS[label])
             else:
                 self.unknown.add(label or "unlabelled")
+                require(
+                    len(self.unknown) <= MAX_UNKNOWN_LANGUAGES,
+                    "movie language overflow",
+                )
 
     def handle_data(self, data: str) -> None:
         if self.year_text is not None:
@@ -156,6 +171,12 @@ class Detail(HTMLParser):
             self.script.append(data)
 
     def handle_endtag(self, tag: str) -> None:
+        if tag in STRUCTURAL:
+            require(
+                bool(self.elements) and self.elements[-1] == tag,
+                "misnested movie markup",
+            )
+            self.elements.pop()
         if tag in ("html", "body"):
             self.closed.add(tag)
         if tag == "a" and self.year_text is not None:
@@ -202,6 +223,7 @@ def parse(
     parser.close()
     require(
         parser.roots == parser.closed == {"html", "body"}
+        and not parser.elements
         and parser.heading is None
         and parser.script is None
         and parser.year_text is None

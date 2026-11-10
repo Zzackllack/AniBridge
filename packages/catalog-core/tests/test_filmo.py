@@ -37,10 +37,14 @@ def test_listing_accepts_complete_html_fragment_from_worker_fixtures() -> None:
     "body",
     [
         b'<div class="movie-poster-grid-card"><a href="/movies/film-one">Film</a>',
-        b'<html><body><div class="movie-poster-grid-card">'
-        b'<a href="/movies/film-one">Film</a></body></html>',
-        b'<div><article class="movie-poster-grid-card">'
-        b'<a href="/movies/film-one">Film</a></div>',
+        (
+            b'<html><body><div class="movie-poster-grid-card">'
+            b'<a href="/movies/film-one">Film</a></body></html>'
+        ),
+        (
+            b'<div><article class="movie-poster-grid-card">'
+            b'<a href="/movies/film-one">Film</a></div>'
+        ),
     ],
 )
 def test_listing_rejects_an_unclosed_movie_card_wrapper(body: bytes) -> None:
@@ -126,6 +130,38 @@ def test_declared_languages_are_not_inferred_from_movie_origin(
     from catalog_core.providers.filmo import _language_facts
 
     assert _language_facts(label) == (audio, subtitles, role)
+
+
+def test_offer_host_normalization_handles_observed_case_variants() -> None:
+    assert offer_metadata("1001", "voe", "Deutsch", [])["host"] == "VOE"
+    assert offer_metadata("1001", "BySe", "Deutsch", [])["host"] == "Byse"
+    assert offer_metadata("1001", "Filemoon", "Deutsch", [])["host"] == "Filemoon"
+
+
+@pytest.mark.parametrize(
+    ("insert", "reason"),
+    [
+        (
+            b"".join(
+                b'<meta name="alternative-title" content="Alias %d">' % index
+                for index in range(33)
+            ),
+            "too many Filmo aliases",
+        ),
+        (b"<h1>Third heading</h1>", "too many Filmo headings"),
+        (
+            (
+                b'<meta name="imdb" content="tt1234567">'
+                b'<meta name="imdb" content="tt7654321">'
+            ),
+            "conflicting Filmo IMDb IDs",
+        ),
+    ],
+)
+def test_detail_bounds_repeated_metadata_during_parse(insert, reason) -> None:
+    body = fixture("filmo-detail.html").replace(b"</body>", insert + b"</body>")
+    with pytest.raises(ContractError, match=reason):
+        parse(body, "detail", "/movies/example-film")
 
 
 def test_detail_rejects_conflicting_duplicate_identity() -> None:

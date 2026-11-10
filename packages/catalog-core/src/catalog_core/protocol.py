@@ -29,6 +29,29 @@ PARAMS = {
 class Model(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
+    @model_validator(mode="after")
+    def byte_bounded(self) -> Self:
+        # Field(max_length=...) counts characters. Stored schema limits are
+        # UTF-8 bytes, so a multibyte label could otherwise exceed the database
+        # contract while still validating on the wire.
+        for name, field in type(self).model_fields.items():
+            value = getattr(self, name)
+            maximum = next(
+                (
+                    bound
+                    for constraint in field.metadata
+                    if (bound := getattr(constraint, "max_length", None)) is not None
+                ),
+                None,
+            )
+            if (
+                isinstance(value, str)
+                and maximum is not None
+                and len(value.encode("utf-8")) > maximum
+            ):
+                raise ValueError(f"{name} exceeds its byte limit")
+        return self
+
 
 class Request(Model):
     operation: Literal["titles", "native", "recent"]
@@ -85,12 +108,18 @@ class Request(Model):
         query = parse(self.params)
         if len(set(self.title_ids)) != len(self.title_ids):
             raise ValueError("duplicate title IDs")
+        if len(set(self.include_entities)) != len(self.include_entities):
+            raise ValueError("duplicate entity IDs")
         if self.operation != "native" and (
             self.season is not None or self.episode is not None or self.include_entities
         ):
             raise ValueError("target selection requires native operation")
         if self.episode is not None and self.season is None:
             raise ValueError("episode requires season")
+        if self.operation == "titles" and self.offset:
+            # Candidate discovery is a single bounded set, not a page stream.
+            # Reject an offset instead of implying pagination that cannot exist.
+            raise ValueError("titles do not paginate")
         for value in [*self.title_ids, *self.include_entities]:
             if len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
                 raise ValueError("invalid title ID")
@@ -158,6 +187,8 @@ class Title(Model):
             or identity.search_key(self.display_title) != self.search_key
         ):
             raise ValueError("invalid title metadata")
+        if any(len(alias.encode("utf-8")) > 512 for alias in self.aliases):
+            raise ValueError("alias exceeds its byte limit")
         for item in self.mappings:
             identity.validate_external_id(item.namespace, item.external_id)
             if item.title_id != self.title_id or item.mapping_id != identity.mapping_id(
@@ -279,6 +310,7 @@ class Response(Model):
         titles = {title.title_id: title for title in self.titles}
         if len(titles) != len(self.titles):
             raise ValueError("duplicate titles")
+        included_entities = set(request.include_entities)
         seen = set()
         for row in self.rows:
             if (
@@ -324,6 +356,26 @@ class Response(Model):
                 primary is None or primary.external_id != row.external_id
             ):
                 raise ValueError("canonical title mismatch")
+            if (
+                request.operation == "native"
+                and request.season is not None
+                and row.entity_id not in included_entities
+            ):
+                # The requested coordinates select a superset; explicit local
+                # correction entities may legitimately carry another published
+                # mapping, so they are exempt from this page filter.
+                requested_maps = {
+                    m.mapping_id
+                    for m in title.mappings
+                    if m.namespace == request.coordinate_namespace
+                }
+                if not any(
+                    m.mapping_id in requested_maps
+                    and m.season == request.season
+                    and (request.episode is None or m.episode == request.episode)
+                    for m in row.mappings
+                ):
+                    raise ValueError("unexpected episode")
             mapped = next(
                 (
                     m

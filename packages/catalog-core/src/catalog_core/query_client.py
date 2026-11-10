@@ -46,8 +46,19 @@ class Cache:
         with closing(self.connect()) as db, db:
             db.execute("PRAGMA journal_mode=DELETE")
             db.execute(
-                "CREATE TABLE IF NOT EXISTS entry(key TEXT PRIMARY KEY,body BLOB NOT NULL,fetched REAL NOT NULL,used REAL NOT NULL)"
+                "CREATE TABLE IF NOT EXISTS entry(key TEXT PRIMARY KEY,body BLOB NOT NULL,fetched REAL NOT NULL,used REAL NOT NULL,scope TEXT NOT NULL DEFAULT '')"
             )
+            columns = {
+                row[1] for row in db.execute("PRAGMA table_info(entry)").fetchall()
+            }
+            if "scope" not in columns:
+                # Pre-scope caches cannot be invalidated per provider. They are
+                # local and disposable, so flush them once while adding the column.
+                db.execute(
+                    "ALTER TABLE entry ADD COLUMN scope TEXT NOT NULL DEFAULT ''"
+                )
+                db.execute("DELETE FROM entry")
+            db.execute("CREATE INDEX IF NOT EXISTS entry_scope ON entry(scope)")
             db.execute(
                 "CREATE TABLE IF NOT EXISTS revision_floor(scope TEXT PRIMARY KEY,revision INTEGER NOT NULL)"
             )
@@ -74,9 +85,11 @@ class Cache:
         finally:
             db.close()
 
-    def put(self, key: str, body: bytes, now: float) -> None:
+    def put(self, key: str, body: bytes, now: float, scope: str = "") -> None:
         if len(body) > self.payload_bytes:
             return
+        if type(scope) is not str or len(scope) > 128:
+            raise ValueError("invalid cache scope")
         db = self.connect()
         try:
             with db:
@@ -90,13 +103,23 @@ class Cache:
                     db.execute(
                         "DELETE FROM entry WHERE key=(SELECT key FROM entry ORDER BY used,key LIMIT 1)"
                     )
-                db.execute("INSERT INTO entry VALUES(?,?,?,?)", (key, body, now, now))
+                db.execute(
+                    "INSERT INTO entry VALUES(?,?,?,?,?)",
+                    (key, body, now, now, scope),
+                )
         finally:
             db.close()
 
     def clear(self) -> None:
         with closing(self.connect()) as db, db:
             db.execute("DELETE FROM entry")
+
+    def clear_scope(self, scope: str) -> None:
+        """Drop only one provider/context, leaving sibling provider pages cached."""
+        if type(scope) is not str or not scope or len(scope) > 128:
+            raise ValueError("invalid cache scope")
+        with closing(self.connect()) as db, db:
+            db.execute("DELETE FROM entry WHERE scope=?", (scope,))
 
     def floor(self, scope: str) -> int:
         with closing(self.connect()) as db:
@@ -153,7 +176,11 @@ class Client:
             raise ValueError("invalid metadata origin")
         self.origin, self.source_id, self.cache = origin.rstrip("/"), source_id, cache
         self.ttl_s, self.stale_s, self.deadline_s = ttl_s, stale_s, deadline_s
-        self.auth_context = hashlib.sha256(token.encode()).hexdigest()
+        # Stable cache/scope fingerprint, not password storage; the bearer
+        # token never leaves this process.
+        self.auth_context = hashlib.sha256(
+            token.encode(), usedforsecurity=False
+        ).hexdigest()
         self.revision_scope = hashlib.sha256(
             dumps([1, self.origin, self.source_id, self.auth_context, "aniworld.to"])
         ).hexdigest()
@@ -193,6 +220,10 @@ class Client:
         return hashlib.sha256(
             dumps([1, self.origin, self.source_id, self.auth_context, provider])
         ).hexdigest()
+
+    def invalidate(self, provider: str) -> None:
+        """Drop cached pages for one provider after a revision/digest drift."""
+        self.cache.clear_scope(self.scope(provider))
 
     def revision_floor(self, provider: str = "aniworld.to") -> int:
         # Retain the older private-pilot floor conservatively while using an
@@ -271,7 +302,7 @@ class Client:
                 except sqlite3.Error as exc:
                     raise Unavailable("revision_state_unavailable") from exc
                 try:
-                    self.cache.put(key, bytes(body), now)
+                    self.cache.put(key, bytes(body), now, scope)
                 except sqlite3.Error:
                     return Result(result, "miss", 0, "cache_unavailable")
                 return Result(result, "miss", 0)

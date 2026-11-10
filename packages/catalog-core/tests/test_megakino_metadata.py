@@ -69,3 +69,36 @@ def test_structured_and_observed_year_must_agree():
     assert parse(detail(field(), 2024), "detail", PATH, origin=ORIGIN).year == 2024
     with pytest.raises(ValueError, match="conflicting movie year"):
         parse(detail(field(), 2025), "detail", PATH, origin=ORIGIN)
+
+
+def test_unclosed_structural_tag_is_rejected():
+    body = detail("").replace(b"</body>", b"<div>orphan</body>")
+    with pytest.raises(ValueError, match="incomplete movie document"):
+        parse(body, "detail", PATH, origin=ORIGIN)
+
+
+def test_player_and_language_metadata_are_bounded():
+    players = b"".join(
+        b'<iframe src="https://host.invalid/%d"></iframe>' % index
+        for index in range(1000)
+    )
+    with pytest.raises(ValueError, match="movie player overflow"):
+        parse(
+            detail("").replace(b"</body>", players + b"</body>"),
+            "detail",
+            PATH,
+            origin=ORIGIN,
+        )
+
+    languages = b"".join(
+        b'<iframe src="https://host.invalid/%d" data-language-label="label-%d"></iframe>'
+        % (index, index)
+        for index in range(65)
+    )
+    with pytest.raises(ValueError, match="movie language overflow"):
+        parse(
+            detail("").replace(b"</body>", languages + b"</body>"),
+            "detail",
+            PATH,
+            origin=ORIGIN,
+        )

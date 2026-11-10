@@ -77,6 +77,31 @@ def episode_payload():
     }
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("native_season", 2**31),
+        ("native_episode", 2**31),
+        ("canonical.season", 2**31),
+        ("canonical.episode", 2**31),
+    ],
+)
+def test_grab_coordinates_match_the_wire_bounds(field, value):
+    payload = copy.deepcopy(episode_payload())
+    target = payload if "." not in field else payload[field.split(".")[0]]
+    target[field.split(".")[-1]] = value
+    with pytest.raises(ContractError):
+        magnet.validate(payload)
+
+
+@pytest.mark.parametrize("field", ["native_season", "canonical.season"])
+def test_grab_coordinate_maximum_is_still_accepted(field):
+    payload = copy.deepcopy(episode_payload())
+    target = payload if "." not in field else payload[field.split(".")[0]]
+    target[field.split(".")[-1]] = 2**31 - 1
+    magnet.validate(payload)
+
+
 @pytest.mark.parametrize("value", INVALID_VALUES)
 @pytest.mark.parametrize(
     "field", ["provider", "language", "mode", "kind", "canonical.namespace"]

@@ -8,6 +8,7 @@ from . import identity as ident
 from . import release_metadata
 from .json_codec import ContractError, dumps, fields, integer, loads, require
 
+MAX_COORDINATE = 2**31 - 1
 PAYLOAD_FIELDS = {
     "provider",
     "title_id",
@@ -78,8 +79,8 @@ def validate(payload: dict) -> dict:
             "movie coordinates",
         )
     else:
-        integer(p["native_season"])
-        integer(p["native_episode"], 1)
+        integer(p["native_season"], 0, MAX_COORDINATE)
+        integer(p["native_episode"], 1, MAX_COORDINATE)
     canonical = p["canonical"]
     if canonical is not None:
         fields(canonical, {"namespace", "external_id", "season", "episode"})
@@ -96,8 +97,8 @@ def validate(payload: dict) -> dict:
                 canonical["namespace"] in {"tvdb", "tmdb-tv"},
                 "invalid episode namespace",
             )
-            integer(canonical["season"])
-            integer(canonical["episode"], 1)
+            integer(canonical["season"], 0, MAX_COORDINATE)
+            integer(canonical["episode"], 1, MAX_COORDINATE)
     return p
 
 

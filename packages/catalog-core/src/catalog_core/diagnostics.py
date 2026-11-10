@@ -80,6 +80,38 @@ def reason(exc: BaseException) -> str:
 
 
 _records: list[dict] = []
+REPORT_PREFIX = "catalog-diagnostic-"
+
+
+def _report_target() -> str | None:
+    """Only the supervisor's private temp report is writable via environment."""
+    target = os.environ.get("ANIBRIDGE_CHILD_REPORT")
+    if not target:
+        return None
+    path = Path(target)
+    if path.name != "report.json" or not path.parent.name.startswith(REPORT_PREFIX):
+        return None
+    return target
+
+
+def _save_report() -> None:
+    target = _report_target()
+    if target is None:
+        return
+    data = json.dumps(_records[-16:], separators=(",", ":")).encode("utf-8")
+    try:
+        descriptor = os.open(
+            target,
+            os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+        )
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+    except OSError:
+        # Diagnostics must never turn a validation result into an I/O failure.
+        pass
 
 
 @contextmanager
@@ -91,12 +123,7 @@ def phase(name: str):
     _records.append(record)
     del _records[:-16]
 
-    def save():
-        target = os.environ.get("ANIBRIDGE_CHILD_REPORT")
-        if target:
-            Path(target).write_text(json.dumps(_records[-16:], separators=(",", ":")))
-
-    save()
+    _save_report()
     try:
         yield
     except BaseException as exc:
@@ -104,7 +131,7 @@ def phase(name: str):
         raise
     finally:
         record.update(duration_s=round(time.monotonic() - started, 4), complete=True)
-        save()
+        _save_report()
 
 
 def read_report(path: Path) -> list[dict]:
@@ -130,5 +157,5 @@ def read_report(path: Path) -> list[dict]:
                 return []
             result.append(row)
         return result
-    except (OSError, ValueError, TypeError):
+    except OSError, ValueError, TypeError:
         return []

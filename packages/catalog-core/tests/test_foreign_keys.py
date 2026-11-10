@@ -3,6 +3,7 @@
 import sqlite3
 
 import pytest
+
 from catalog_core import fixtures, schema
 from catalog_core.compact import FOREIGN_KEYS, validate_foreign_keys
 
