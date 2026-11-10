@@ -243,31 +243,52 @@ def html_source(host: str, html: str) -> str | None:
 
 
 def filemoon_api(embed_url: str) -> str | None:
+    """Build the observed HTTPS Filemoon/Byse API URL from a recognized embed."""
+    try:
+        parsed = urlsplit(embed_url)
+        port = parsed.port
+    except ValueError:
+        return None
+    if (
+        parsed.scheme != "https"
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+        or parsed.query
+        or parsed.fragment
+        or not parsed.hostname
+    ):
+        return None
     prepare_aniworld_home()
     from aniworld.extractors.provider.filemoon import _extract_file_code
 
     code = _extract_file_code(embed_url)
     if code is None:
         return None
-    parsed = urlsplit(embed_url)
-    return f"{parsed.scheme}://{parsed.netloc}/api/videos/{code}"
+    # Use hostname, not netloc: the netloc may retain mixed case or userinfo.
+    return f"{parsed.scheme}://{parsed.hostname}/api/videos/{code}"
 
 
 def byse_api(embed_url: str) -> str | None:
     """Return the API endpoint only for the observed HTTPS Byse embed shape."""
-    parsed = urlsplit(embed_url)
+    try:
+        parsed = urlsplit(embed_url)
+        port = parsed.port
+    except ValueError:
+        return None
     if (
         parsed.scheme != "https"
         or parsed.username is not None
         or parsed.password is not None
-        or parsed.port not in (None, 443)
+        or port not in (None, 443)
         or parsed.query
         or parsed.fragment
         or re.fullmatch(r"byse[a-z0-9-]*\.[a-z]{2,}", parsed.hostname or "") is None
         or (match := re.fullmatch(r"/[de]/([A-Za-z0-9]{6,64})", parsed.path)) is None
     ):
         return None
-    return f"{parsed.scheme}://{parsed.netloc}/api/videos/{match[1]}"
+    # hostname is normalized/lowercased and cannot include userinfo; netloc may.
+    return f"{parsed.scheme}://{parsed.hostname}/api/videos/{match[1]}"
 
 
 def filemoon_playback(

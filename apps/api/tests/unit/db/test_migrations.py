@@ -355,6 +355,88 @@ apply_migrations()
         models.dispose_engine()
 
 
+def test_killed_preservation_rolls_back_and_can_resume_without_pk_conflict(
+    tmp_path, monkeypatch
+):
+    """A kill while copying legacy rows must not leave committed partial state."""
+    import os
+    import signal
+    import sqlite3
+    import subprocess
+    import sys
+    from alembic import command
+
+    if os.name != "posix":
+        import pytest
+
+        pytest.skip("SIGKILL rehearsal requires POSIX")
+    models = _load_db(tmp_path, monkeypatch)
+    command.upgrade(models._get_alembic_config(), "20260204_0003")
+    with models.engine.begin() as connection:
+        connection.exec_driver_sql(
+            "INSERT INTO job(id,status,progress,downloaded_bytes,source_site,created_at,updated_at) VALUES ('paused','paused',37,123,'s.to','2026-01-01','2026-01-01')"
+        )
+    models.dispose_engine()
+    script = """
+import os, signal
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+from app.db.models import apply_migrations
+@event.listens_for(Engine, "after_cursor_execute")
+def kill_at_boundary(conn, cursor, statement, parameters, context, executemany):
+    if statement.lstrip().startswith("INSERT INTO durable_request"):
+        os.kill(os.getpid(), signal.SIGKILL)
+apply_migrations()
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=Path(__file__).resolve().parents[3],
+        env={**os.environ, "MIGRATION_KILL_STATEMENT": "unused"},
+        capture_output=True,
+        timeout=30,
+    )
+    assert result.returncode == -signal.SIGKILL, result.stderr.decode()
+    filename = tmp_path / "data/anibridge_jobs.db"
+    with sqlite3.connect(filename) as db:
+        assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert (
+            db.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+            == "20260204_0003"
+        )
+        assert not db.execute(
+            "SELECT name FROM sqlite_schema WHERE name='durable_request'"
+        ).fetchone()
+        assert (
+            db.execute("SELECT status FROM job WHERE id='paused'").fetchone()[0]
+            == "paused"
+        )
+    models.apply_migrations()
+    with models.engine.connect() as connection:
+        assert connection.exec_driver_sql(
+            "SELECT prior_state,error_code FROM durable_request WHERE job_id='paused'"
+        ).fetchone() == ("paused", "legacy_request_incomplete")
+    assert _get_version(models) == HEAD_REVISION
+    models.dispose_engine()
+
+
+def test_unversioned_pre_0003_layout_is_rejected_not_stamped(tmp_path, monkeypatch):
+    """Preflight classification must not skip 0002/0003 SQL on an old layout."""
+    from alembic import command
+    import pytest
+
+    models = _load_db(tmp_path, monkeypatch)
+    command.upgrade(models._get_alembic_config(), "20260203_0001")
+    with models.engine.begin() as connection:
+        connection.exec_driver_sql("DROP TABLE alembic_version")
+    models.dispose_engine()
+    filename = tmp_path / "data/anibridge_jobs.db"
+    original = filename.read_bytes()
+    with pytest.raises(RuntimeError, match="Unsupported private database"):
+        models.apply_migrations()
+    assert filename.read_bytes() == original
+    assert not filename.with_name(filename.name + ".pre-catalog-v3.backup").exists()
+
+
 def test_private_v5_upgrade_adds_indexes_without_rewriting_corrections(
     tmp_path, monkeypatch
 ):

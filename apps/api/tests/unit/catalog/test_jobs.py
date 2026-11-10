@@ -511,6 +511,60 @@ def test_alias_removal_waits_for_child_and_rechecks_output_containment(tmp_path)
     assert outside.read_text() == "preserve"
 
 
+@pytest.mark.parametrize("delete_files", [True, False])
+def test_alias_removal_honors_delete_files_for_cancelled_partials(
+    tmp_path, delete_files
+):
+    import json
+
+    from app.catalog.client import ClientJobs
+    from app.catalog.output_paths import output_paths
+
+    jobs = setup_jobs(tmp_path)
+    job = jobs.admit(grab(tmp_path), NOW)[0]
+    jobs.claim(NOW)
+    payload = json.loads(jobs.get(job)["payload"])
+    root, _ = output_paths(payload, job)
+    root.mkdir(parents=True)
+    partial = root / "attempt-1" / "partial-media"
+    partial.parent.mkdir()
+    partial.write_bytes(b"unverified partial")
+    client = ClientJobs(jobs)
+    alias = client.aliases()[0]
+    client.remove(alias["hash"], delete_files, NOW + 1)
+    # The child still owns the transfer until the executor confirms it stopped.
+    client.settle_removals({job}, NOW + 2)
+    assert root.exists()
+    client.settle_removals(set(), NOW + 3)
+    assert not client.aliases()
+    assert root.exists() is not delete_files
+
+
+def test_public_view_never_exposes_output_resolving_outside_download_root(tmp_path):
+    from app.catalog.client import ClientJobs
+
+    jobs = setup_jobs(tmp_path)
+    job = jobs.admit(grab(tmp_path), NOW)[0]
+    claim = jobs.claim(NOW)
+    output = jobs.download_dir / "generated.mkv"
+    output.write_bytes(b"verified local output")
+    assert jobs.finish(job, claim["generation"], "ok", NOW + 1, output)
+    library = tmp_path / "library"
+    library.mkdir()
+    imported = library / "imported.mkv"
+    imported.write_bytes(b"imported copy")
+    output.unlink()
+    # A replaced handoff path must not make /torrents/info raise or publish a
+    # path outside DOWNLOAD_DIR. The completed ledger state remains intact.
+    output.symlink_to(imported)
+    client = ClientJobs(jobs, "/client/downloads")
+    view = client.view(client.aliases()[0])
+    assert view["content_path"] == ""
+    assert view["save_path"] == "/client/downloads"
+    assert view["anibridge_output_missing"] is True
+    assert jobs.get(job)["status"] == "completed"
+
+
 @pytest.mark.parametrize(
     "value, expected",
     [
@@ -543,6 +597,18 @@ def test_ttl_retains_paused_blocked_cancelled_job_directories(tmp_path):
     assert root in jobs.retained_directories()
     jobs.action(job, "cancel", NOW + 4)
     assert root in jobs.retained_directories()
+
+
+def test_retention_spool_failure_does_not_yield_an_unprotected_guard(tmp_path):
+    from app.catalog.retention import directory_guard
+
+    def broken_ownership():
+        yield tmp_path
+        raise sqlite3.OperationalError("spool unavailable")
+
+    with pytest.raises(sqlite3.OperationalError):
+        with directory_guard(broken_ownership()):
+            pytest.fail("cleanup must not proceed without complete ownership")
 
 
 def test_admission_freezes_host_policy_across_duplicate_and_restart(tmp_path):

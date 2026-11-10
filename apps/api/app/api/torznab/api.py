@@ -377,7 +377,12 @@ def torznab_api(
     _ = (request, offset)
     # Match catalog mode's privacy boundary even when legacy routes are active.
     operation = t if t in {"caps", "tvsearch", "search", "movie"} else "unsupported"
-    logger.debug("Torznab request: operation={}", operation)
+    # Presence is enough to debug 401s; never write the secret or its length.
+    logger.debug(
+        "Torznab request: operation={}, apikey={}",
+        operation,
+        "set" if apikey else "none",
+    )
     _require_apikey(apikey)
 
     if t == "caps":

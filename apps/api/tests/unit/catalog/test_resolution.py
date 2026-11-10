@@ -399,6 +399,12 @@ def test_byse_is_recognized_only_on_https_byse_embed_shapes():
         byse_api("https://byseabc123.com/e/Abc123")
         == "https://byseabc123.com/api/videos/Abc123"
     )
+    # urlsplit().hostname already lowercases, so both helpers agree on case.
+    assert detect_host("https://BYSEABC123.COM/d/Abc123").name == "Byse"
+    assert (
+        byse_api("https://BYSEABC123.COM/d/Abc123")
+        == "https://byseabc123.com/api/videos/Abc123"
+    )
     for rejected in (
         "http://byseabc123.com/d/Abc123",
         "https://notbyse.example/d/Abc123",
@@ -408,6 +414,29 @@ def test_byse_is_recognized_only_on_https_byse_embed_shapes():
         "https://byseabc123.com/other/Abc123",
     ):
         assert byse_api(rejected) is None
+
+
+def test_filemoon_api_rejects_userinfo_redirection_and_non_https():
+    from app.hosts.catalog_sources import filemoon_api
+
+    assert (
+        filemoon_api("https://FILEMOON.sx/e/Abc123")
+        == "https://filemoon.sx/api/videos/Abc123"
+    )
+    for rejected in (
+        "http://filemoon.sx/e/Abc123",
+        "https://user@filemoon.sx/e/Abc123",
+        "https://filemoon.sx:8443/e/Abc123",
+        "https://filemoon.sx/e/Abc123?redirect=https://evil.test",
+        "https://filemoon.sx/e/Abc123#fragment",
+    ):
+        assert filemoon_api(rejected) is None
+    # Filemoon embeds are classified by provider metadata, so the helper does
+    # not impose a domain allowlist; it only refuses unsafe URL components.
+    assert (
+        filemoon_api("https://host.example/e/Abc123")
+        == "https://host.example/api/videos/Abc123"
+    )
 
 
 @pytest.mark.parametrize("version", [1, "1", " 1 ", 20, "20"])
@@ -896,3 +925,13 @@ def test_strm_resolution_failure_receipt_omits_private_exception_details():
     assert receipt["frames"]
     assert private_url not in json.dumps(receipt)
     assert "private-test-secret" not in json.dumps(receipt)
+
+
+@pytest.mark.parametrize(
+    "url", ["https://byse.example:bad/e/abc123", "https://[broken/e/abc123"]
+)
+def test_host_api_helpers_reject_malformed_ports_and_authorities(url):
+    from app.hosts.catalog_sources import byse_api, filemoon_api
+
+    assert byse_api(url) is None
+    assert filemoon_api(url) is None

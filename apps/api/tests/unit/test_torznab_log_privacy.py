@@ -26,6 +26,8 @@ def test_rejected_request_keeps_inputs_out_of_logs(monkeypatch, operation):
         logger.remove(sink)
     assert messages == [
         "Torznab request: operation="
-        + ("search" if operation == "search" else "unsupported"),
+        + ("search" if operation == "search" else "unsupported")
+        + ", apikey=set",
         "API key missing or invalid",
     ]
+    assert all("supplied-private-key" not in message for message in messages)

@@ -433,6 +433,9 @@ class Search:
                 mapping_view=view,
             )
         if parsed.recent:
+            # Recent pages fetch only the requested window (plus one row), so the
+            # projected set is not a global row set. The provider total is global
+            # for the same filters, and every release is projected once per mode.
             total = batches[0].total * len(modes)
             if parsed.categories is not None and not parsed.categories.intersection(
                 {
@@ -483,7 +486,7 @@ class Search:
                         )
                         != 1
                     ):
-                        self.client.cache.clear()
+                        self.client.invalidate(self.provider)
                         if attempt == 0:
                             continue
                         raise Unavailable("catalog_changed")

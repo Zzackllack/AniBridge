@@ -732,6 +732,14 @@ class Jobs:
         complete = published_output(row)
         missing = missing_output(row)
         progress = 1.0 if complete else min(0.999, max(0, (row["progress"] or 0) / 100))
+        if complete:
+            # Match the released projection: completion is not an endless
+            # download, even when the imported file was moved afterwards.
+            eta = 0
+        elif row["eta"] is not None and row["status"] == "downloading":
+            eta = int(row["eta"])
+        else:
+            eta = 8640000
         return {
             "state": QBIT["completed"]
             if complete
@@ -739,9 +747,7 @@ class Jobs:
             "progress": progress,
             "size": row["total_bytes"] or 0,
             "dlspeed": int(row["speed"] or 0) if row["status"] == "downloading" else 0,
-            "eta": int(row["eta"])
-            if row["eta"] is not None and row["status"] == "downloading"
-            else 8640000,
+            "eta": eta,
             "content_path": row["result_path"] if complete and not missing else "",
             "completion_on": row["updated_at"] if complete else None,
             "anibridge_size_estimated": row.get("message") == "estimated_size",

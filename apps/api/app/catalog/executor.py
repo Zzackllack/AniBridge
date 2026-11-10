@@ -24,6 +24,11 @@ from .media_tracks import validate_tracks_manifest
 
 logger = logging.getLogger(__name__)
 
+# Byte growth proves forward motion but not bounded progress: a pathological
+# remux can append one byte per poll forever. Keep an absolute phase cap so a
+# damaged input cannot hold a 256-MiB child slot indefinitely.
+REMUX_DEADLINE_S = 60 * 60
+
 
 class SubprocessExecutor:
     def __init__(
@@ -337,6 +342,7 @@ class SubprocessExecutor:
                 "app.catalog.local_media_child",
                 remux_args,
                 activity=remux,
+                deadline=REMUX_DEADLINE_S,
                 diagnostic=attempt / "failure.json",
             )
             if code:

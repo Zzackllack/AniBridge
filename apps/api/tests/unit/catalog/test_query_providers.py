@@ -7,9 +7,9 @@ from contextlib import closing
 
 import pytest
 from app.catalog.query_providers import ProviderSearch
-from catalog_core import artifact, fixtures, identity, schema
+from catalog_core import fixtures, identity, schema
 from catalog_core.compact import Writer
-from test_query_local import NOW, insert_override, setup
+from test_query_local import NOW, insert_override, publish_fixture, setup
 
 
 @pytest.mark.parametrize("schema_version", [1, 2])
@@ -49,8 +49,7 @@ def test_long_series_target_and_correction_before_pagination(tmp_path, schema_ve
                     ),
                 )
     metadata = json.loads((root / "current.json").read_text())
-    metadata["artifact"]["sqlite_sha256"] = artifact.sha256(root / "fixture.sqlite")
-    (root / "current.json").write_text(json.dumps(metadata))
+    publish_fixture(root, metadata)
     insert_override(database, root, "episode", ("123", 5, 101))
     if schema_version == 2:
         compact = root / "compact.sqlite"
@@ -75,9 +74,8 @@ def test_long_series_target_and_correction_before_pagination(tmp_path, schema_ve
                     if table == "catalog":
                         values[2] = 2
                     writer.insert(table, tuple(values))
-        metadata.update(database="compact.sqlite", catalog_schema_version=2)
-        metadata["artifact"]["sqlite_sha256"] = artifact.sha256(compact)
-        (root / "current.json").write_text(json.dumps(metadata))
+        metadata["catalog_schema_version"] = 2
+        publish_fixture(root, metadata, "compact.sqlite")
 
     async def run():
         rows, total, _ = await search.search(
@@ -113,8 +111,7 @@ def test_provider_discovery_movie_identity_and_independent_outage(tmp_path):
             now=NOW,
             revision=7 if movie else 2,
         )
-        metadata["database"] = "fixture.sqlite"
-        (root / provider / "current.json").write_text(json.dumps(metadata))
+        publish_fixture(root / provider, metadata)
     search = ProviderSearch(
         client, database, tmp_path, ("aniworld.to", "s.to", "megakino")
     )

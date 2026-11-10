@@ -175,7 +175,11 @@ engine = create_engine(
 )
 logger.debug("SQLModel engine created.")
 
-MIGRATION_BASE_REVISION = "20260203_0001"
+# Last released schema that predates the private catalog migration. An
+# unversioned database is stamped here only after preflight has validated its
+# exact table/column contract; older 0001/0002 layouts are rejected instead of
+# silently skipping their upgrade SQL.
+LEGACY_SCHEMA_REVISION = "20260204_0003"
 
 
 def _get_alembic_config() -> "Config":
@@ -242,7 +246,7 @@ def _apply_migrations() -> None:
             logger.info("Legacy database detected; stamping base revision.")
             # Preflight recognizes the exact unversioned mainline model schema,
             # which already includes site keys and STRM mappings (0003).
-            command.stamp(config, "20260204_0003")
+            command.stamp(config, LEGACY_SCHEMA_REVISION)
         else:
             with engine.begin() as conn:
                 rows = conn.exec_driver_sql(
@@ -255,7 +259,7 @@ def _apply_migrations() -> None:
                         "Alembic version table is empty; stamping base revision "
                         "for legacy database."
                     )
-                    command.stamp(config, "20260204_0003")
+                    command.stamp(config, LEGACY_SCHEMA_REVISION)
                 else:
                     logger.info(
                         "Alembic version table is empty with no data tables; "

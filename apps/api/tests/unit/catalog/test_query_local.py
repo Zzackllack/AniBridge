@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import shutil
 import sqlite3
 import sys
 import time
@@ -12,7 +13,7 @@ from uuid import uuid4
 from contextlib import closing
 import httpx
 import pytest
-from catalog_core import fixtures, magnet, schema
+from catalog_core import artifact, fixtures, magnet, schema
 from catalog_core.query_client import Cache, Client
 
 from app.catalog.jobs import Jobs
@@ -29,11 +30,19 @@ TOKEN = "disposable-query-fixture-token"
 NOW = int(time.time())
 
 
+def publish_fixture(root, metadata, source="fixture.sqlite"):
+    """Publish test bytes with the same immutable name as the worker."""
+    digest = artifact.sha256(root / source)
+    metadata["database"] = f"read-{digest}.sqlite"
+    metadata["artifact"]["sqlite_sha256"] = digest
+    shutil.copyfile(root / source, root / metadata["database"])
+    (root / "current.json").write_text(json.dumps(metadata))
+
+
 def setup(tmp_path):
     root = tmp_path / "read"
     _, metadata, _, _ = fixtures.build(root, now=NOW)
-    metadata["database"] = "fixture.sqlite"
-    (root / "current.json").write_text(json.dumps(metadata))
+    publish_fixture(root, metadata)
     database = tmp_path / "private.sqlite"
     with closing(sqlite3.connect(database)) as db, db:
         db.execute(
@@ -172,6 +181,20 @@ def test_recent_mode_variant_pagination(tmp_path):
         )
         assert total == 4 and len(rows) == 3
         assert rows[0]["mode"] == "strm"
+        # The provider total is global; the projected page is window-bounded.
+        tiny_rows, tiny_total, _ = await search.search(
+            {"t": "search", "limit": "1"},
+            now=NOW,
+            modes=("download", "strm"),
+            languages={"aniworld.to": {"de-dub", "en-sub"}},
+        )
+        assert tiny_total == 4 and len(tiny_rows) == 1
+        filtered_rows, filtered_total, _ = await search.search(
+            {"t": "search", "cat": "2000"},
+            now=NOW,
+            modes=("download", "strm"),
+        )
+        assert filtered_rows == [] and filtered_total == 0
         await client.close()
 
     asyncio.run(run())
@@ -275,7 +298,7 @@ def test_query_torznab_honors_configured_swarm_counts(
 
 
 def test_tmdb_request_uses_tmdb_episode_coordinates(tmp_path):
-    from catalog_core import identity, artifact
+    from catalog_core import identity
 
     client, search, _, root = setup(tmp_path)
     with closing(sqlite3.connect(root / "fixture.sqlite")) as db, db:
@@ -291,8 +314,7 @@ def test_tmdb_request_uses_tmdb_episode_coordinates(tmp_path):
             (mid, eid, 3, 9, None, "reviewed", NOW),
         )
     metadata = json.loads((root / "current.json").read_text())
-    metadata["artifact"]["sqlite_sha256"] = artifact.sha256(root / "fixture.sqlite")
-    (root / "current.json").write_text(json.dumps(metadata))
+    publish_fixture(root, metadata)
 
     async def run():
         rows, total, _ = await search.search(

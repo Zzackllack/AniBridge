@@ -44,6 +44,30 @@ def test_deadline_stops_stalled_child(tmp_path):
     asyncio.run(scenario())
 
 
+def test_absolute_deadline_overrides_continuous_activity_growth(tmp_path):
+    # Activity growth alone can keep a stuck remux alive forever (one byte per
+    # poll). The absolute deadline must win even though the artifact changes.
+    executor = SubprocessExecutor({}, (), tmp_path)
+    activity = tmp_path / "verified.mkv"
+    script = (
+        "import time;from pathlib import Path;"
+        f"p=Path({str(activity)!r});"
+        "[(p.write_bytes(b'x'*(n+1)),time.sleep(.05)) for n in range(100)]"
+    )
+
+    async def scenario():
+        with pytest.raises(TimeoutError):
+            await executor._run(
+                "timeit",
+                ["-n", "1", "-r", "1", script],
+                activity=activity,
+                deadline=0.8,
+            )
+
+    asyncio.run(scenario())
+    assert activity.stat().st_size > 1
+
+
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux child enforcement")
 def test_execution_rechecks_save_path_after_admission(tmp_path):
     download = tmp_path / "downloads"

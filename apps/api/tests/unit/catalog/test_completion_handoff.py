@@ -23,6 +23,7 @@ def test_import_move_preserves_completion_and_explicit_retry(tmp_path):
     jobs.finish(job, claim["generation"], "ok", NOW + 1, output)
     completed = jobs.get(job)
     assert jobs.projection(job)["size"] == output.stat().st_size
+    assert jobs.projection(job)["eta"] == 0
     library = tmp_path / "library.mkv"
     output.rename(library)
     restarted = Jobs(jobs.filename, jobs.download_dir, jobs.providers)
@@ -30,6 +31,7 @@ def test_import_move_preserves_completion_and_explicit_retry(tmp_path):
     assert restarted.get(job) == completed
     row = next(ClientJobs(restarted).views())
     assert row["state"] == "pausedUP" and row["progress"] == 1
+    assert row["eta"] == 0
     assert row["content_path"] == ""
     assert row["anibridge_output_missing"] is True
     assert restarted.claim(NOW + 1000) is None

@@ -1,6 +1,7 @@
 """One qBittorrent projection and durable alias-removal intents for catalog jobs."""
 
 import json
+import shutil
 from collections.abc import Iterator
 from contextlib import closing
 from datetime import datetime, timezone
@@ -9,6 +10,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 from .jobs import JobError, Jobs
+from .output_paths import output_paths
 
 
 def epoch(value: str | None) -> int:
@@ -138,6 +140,19 @@ class ClientJobs:
             for job in batch:
                 self.jobs.action(job, action, now, include_hashes=False)
 
+    def _public_path(self, path: str) -> str | None:
+        """Map one owned path into the published root, or nothing.
+
+        A completed result may be moved by an importer or replaced by a symlink
+        during the handoff. Never resurrect an arbitrary external path as a
+        public download path: clients could then follow, import, or delete it.
+        """
+        try:
+            relative = Path(path).resolve().relative_to(self.jobs.download_dir)
+        except OSError, ValueError:
+            return None
+        return str(Path(self.public_root) / relative)
+
     def view(self, alias: dict, row: dict | None = None) -> dict:
         if row is None:
             row = self.jobs.get(alias["job_id"], include_hashes=False)
@@ -146,14 +161,22 @@ class ClientJobs:
         save = alias["save_path"] or str(self.jobs.download_dir)
         if content:
             save = str(Path(content).parent)
+        outside_root = False
         if self.public_root:
-
-            def public(path):
-                relative = Path(path).resolve().relative_to(self.jobs.download_dir)
-                return str(Path(self.public_root) / relative)
-
-            save = public(save)
-            content = public(content) if content else ""
+            mapped_save = self._public_path(save)
+            mapped_content = self._public_path(content) if content else None
+            if content and mapped_content is None:
+                # Keep completion state and progress, but expose no stale or
+                # external content path. Only the alias save path (validated at
+                # admission) or the published root may reappear as a fallback.
+                outside_root = True
+                content = ""
+                mapped_save = self._public_path(
+                    alias["save_path"] or str(self.jobs.download_dir)
+                )
+            else:
+                content = mapped_content or ""
+            save = mapped_save or str(self.public_root)
         view = {
             **projection,
             "hash": alias["hash"],
@@ -167,8 +190,41 @@ class ClientJobs:
             "upspeed": 0,
             "num_seeds": 0,
             "num_leechs": 0,
+            "anibridge_output_missing": projection["anibridge_output_missing"]
+            or outside_root,
         }
         return view
+
+    def discard_output(self, job: dict) -> None:
+        """Delete a published result and AniBridge-owned partials for one job.
+
+        Callers only use this after `deleteFiles=true` and after no other alias
+        still references the job. Root containment is rechecked here because a
+        mutable database or a replaced symlink is not ownership proof.
+        """
+        result = job.get("result_path")
+        if result:
+            target = Path(result)
+            try:
+                if not target.is_symlink() and target.resolve().is_relative_to(
+                    self.jobs.download_dir
+                ):
+                    target.unlink(missing_ok=True)
+            except OSError:
+                pass
+        try:
+            payload = json.loads(job.get("payload") or "{}")
+            root, _ = output_paths(payload, job["id"])
+        except KeyError, TypeError, ValueError:
+            return
+        try:
+            if root.is_symlink() or not root.resolve().is_relative_to(
+                self.jobs.download_dir
+            ):
+                return
+        except OSError:
+            return
+        shutil.rmtree(root, ignore_errors=True)
 
     def remove(self, hashes: str, delete_files: bool, now: int) -> None:
         for aliases in self.alias_batches(hashes):
@@ -222,12 +278,11 @@ class ClientJobs:
                     + ") LIMIT 1",
                     [job_id, *requested],
                 ).fetchone()
-                if not other and body["delete_files"] and job["result_path"]:
-                    target = Path(job["result_path"])
-                    if not target.is_symlink() and target.resolve().is_relative_to(
-                        self.jobs.download_dir
-                    ):
-                        target.unlink(missing_ok=True)
+                if not other and body["delete_files"]:
+                    # A cancelled transfer has no published result, only bounded
+                    # attempt partials. Deleting the owned root also frees those;
+                    # result cleanup alone would leak them for the job lifetime.
+                    self.discard_output(job)
                 for value in requested:
                     db.execute(
                         "DELETE FROM grab_alias WHERE hash=? AND job_id=?",
