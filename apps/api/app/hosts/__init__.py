@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .base import VideoHost
+from .byse import HOST as BYSE
 from .doodstream import HOST as DOODSTREAM
 from .filemoon import HOST as FILEMOON
 from .gxplayer import HOST as GXPLAYER
@@ -13,6 +14,7 @@ from .voe import HOST as VOE
 
 VIDEO_HOSTS: tuple[VideoHost, ...] = (
     VOE,
+    BYSE,
     DOODSTREAM,
     FILEMOON,
     STREAMTAPE,

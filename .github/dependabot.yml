@@ -52,7 +52,7 @@ updates:
           - "*"
 
   - package-ecosystem: "docker"
-    directory: "/"
+    directories: ["/apps/api", "/apps/catalog-worker"]
     schedule:
       interval: "weekly"
       day: "monday"

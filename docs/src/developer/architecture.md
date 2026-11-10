@@ -12,11 +12,26 @@ This page documents the runtime architecture and algorithms that power AniBridge
 - qBittorrent-compatible API
 - Downloader
 - Database/cache layers
-- Providers (AniWorld, s.to, Megakino)
+- Providers (AniWorld, s.to, Megakino, Filmo movies in query mode)
 - Slug resolution and best-match logic
-- Prowlarr/Sonarr integration lifecycle
+- Prowlarr/Sonarr/Radarr integration lifecycle
 
 [[toc]]
+
+## Search Routing Modes
+
+`CATALOG_MODE` selects the search implementation at startup:
+
+- `legacy` (default, deprecated): the Torznab router performs live provider
+  resolution, availability probing, and magnet generation. The diagrams below
+  describe this pipeline unless stated otherwise.
+- `query`: `app.catalog` replaces the Torznab router with bounded metadata
+  queries against a configured collector, and `/api/v2` gains durable local jobs.
+  Media resolution and downloads remain local. See
+  [Catalog Query Mode](/guide/catalog-query).
+
+Query mode does not expose the collector or its token through the local API. The
+collector supplies metadata only; it is never in the media path.
 
 ## System Topology
 
@@ -45,6 +60,8 @@ flowchart LR
     Ani["AniWorld"]
     Sto["s.to"]
     Mega["Megakino"]
+    Filmo["Filmo (movies, query mode)"]
+    Catalog["Metadata collector (query mode)"]
     Sky["SkyHook (Sonarr metadata)"]
   end
 
@@ -66,10 +83,16 @@ flowchart LR
   Resolver --> Ani
   Resolver --> Sto
   Resolver --> Mega
+  Torznab -.-> Catalog
+  Catalog -.-> Ani
+  Catalog -.-> Sto
+  Catalog -.-> Mega
+  Catalog -.-> Filmo
   Specials --> Sky
   DL --> Ani
   DL --> Sto
   DL --> Mega
+  DL --> Filmo
 ```
 
 ## Module Boundaries

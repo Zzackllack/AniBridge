@@ -24,6 +24,7 @@ from app.core.scheduler import schedule_download, cancel_job
 
 from . import router
 from .common import public_save_path
+from .projection import matches_filter, torrent_info_record
 
 
 @router.post("/torrents/add")
@@ -52,13 +53,13 @@ def torrents_add(
     Raises:
         HTTPException: Raised with status 400 when `urls` is empty/missing or magnet parameters are malformed.
     """
-    logger.info(f"Received request to add torrent(s): {urls}")
+    logger.info("Received torrent add request")
     if not urls:
         logger.warning("No URLs provided in torrents_add.")
         raise HTTPException(status_code=400, detail="missing urls")
 
     magnet = urls.splitlines()[0].strip()
-    logger.debug(f"Parsing magnet: {magnet}")
+    logger.debug("Parsing torrent magnet")
     try:
         payload = parse_magnet(magnet)
         prefix = "aw" if "aw_slug" in payload else "sto"
@@ -75,18 +76,14 @@ def torrents_add(
         name = payload.get("dn", f"{slug}.S{season:02d}E{episode:02d}.{language}")
         xt = payload["xt"]
     except (KeyError, ValueError) as exc:
-        logger.warning(f"Malformed magnet parameters: {exc}")
+        logger.warning("Malformed torrent magnet")
         raise HTTPException(
             status_code=400, detail="malformed magnet parameters"
         ) from exc
 
     btih = xt.split(":")[-1].lower()
 
-    logger.info(
-        "Scheduling download for {} (slug={}, season={}, episode={}, lang={}, site={})".format(
-            name, slug, season, episode, language, site
-        )
-    )
+    logger.info("Scheduling torrent download")
 
     req = {
         "slug": slug,
@@ -140,7 +137,6 @@ def torrents_info(
     logger.trace("Fetching torrents info.")
     from sqlmodel import select
     from app.db import ClientTask
-    import os
 
     rows = session.exec(select(ClientTask)).all()
     logger.trace(f"Found {len(rows)} client tasks in database.")
@@ -149,70 +145,9 @@ def torrents_info(
         if category and (r.category or "") != category:
             continue
         job = get_job(session, r.job_id) if r.job_id else None
-        state = r.state
-        progress = 0.0
-        dlspeed = 0
-        eta = 0
-        size = job.total_bytes if job and job.total_bytes else 0
-        if job:
-            progress = (job.progress or 0.0) / 100.0
-            dlspeed = int(job.speed or 0)
-            eta = int(job.eta or 0)
-            logger.trace(
-                f"Job {job.id}: status={job.status}, progress={progress}, speed={dlspeed}, eta={eta}"
-            )
-            if job.status == "completed":
-                state = "uploading"
-                dlspeed = 0
-                if job.result_path and os.path.exists(job.result_path):
-                    try:
-                        size = int(os.path.getsize(job.result_path))
-                    except Exception:
-                        pass
-            elif job.status == "failed":
-                state = "error"
-            elif job.status == "cancelled":
-                state = "pausedDL"
-            else:
-                state = "downloading"
-
-        content_path = None
-        save_path_val = r.save_path or (QBIT_PUBLIC_SAVE_PATH or str(DOWNLOAD_DIR))
-        if job and job.result_path:
-            try:
-                import os
-
-                content_abs = os.path.abspath(job.result_path)
-                if QBIT_PUBLIC_SAVE_PATH:
-                    content_path = os.path.join(
-                        QBIT_PUBLIC_SAVE_PATH, os.path.basename(content_abs)
-                    )
-                    save_path_val = QBIT_PUBLIC_SAVE_PATH
-                else:
-                    content_path = content_abs
-                    save_path_val = os.path.abspath(os.path.dirname(content_abs))
-            except Exception:
-                content_path = job.result_path
-
-        out.append(
-            {
-                "hash": r.hash,
-                "name": r.name,
-                "state": state,
-                "progress": progress,
-                "dlspeed": dlspeed,
-                "upspeed": 0,
-                "eta": eta,
-                "category": r.category or "",
-                "save_path": save_path_val,
-                "content_path": content_path or "",
-                "added_on": int(r.added_on.timestamp()),
-                "completion_on": int((r.completion_on or r.added_on).timestamp()),
-                "size": int(size or 0),
-                "num_seeds": 0,
-                "num_leechs": 0,
-            }
-        )
+        record = torrent_info_record(r, job)
+        if matches_filter(record, filter):
+            out.append(record)
     logger.trace("Torrent info response generated.")
     return JSONResponse(out)
 
@@ -230,6 +165,16 @@ def torrents_files(session: Session = Depends(get_session), hash: str = ""):
         raise HTTPException(status_code=404, detail="not found")
 
     job = get_job(session, rec.job_id) if rec.job_id else None
+    if job:
+        from app.catalog.output_state import missing_output
+
+        if missing_output(
+            {
+                key: getattr(job, key, None)
+                for key in ("status", "progress", "message", "result_path")
+            }
+        ):
+            return JSONResponse([])
     file_name = rec.name
     size = 0
     prog = 0.0

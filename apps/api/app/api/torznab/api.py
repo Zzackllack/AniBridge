@@ -375,25 +375,13 @@ def torznab_api(
 ) -> Response:
     """Handle Torznab API requests and return XML or RSS responses."""
     _ = (request, offset)
-    logger.info(
-        (
-            "Torznab request: t={}, q={}, season={}, ep={}, tvdbid={}, tmdbid={}, "
-            "imdbid={}, rid={}, tvmazeid={}, cat={}, offset={}, limit={}, apikey={}"
-        ).format(
-            t,
-            q,
-            season,
-            ep,
-            tvdbid,
-            tmdbid,
-            imdbid,
-            rid,
-            tvmazeid,
-            cat,
-            offset,
-            limit,
-            "<set>" if apikey else "<none>",
-        )
+    # Match catalog mode's privacy boundary even when legacy routes are active.
+    operation = t if t in {"caps", "tvsearch", "search", "movie"} else "unsupported"
+    # Presence is enough to debug 401s; never write the secret or its length.
+    logger.debug(
+        "Torznab request: operation={}, apikey={}",
+        operation,
+        "set" if apikey else "none",
     )
     _require_apikey(apikey)
 

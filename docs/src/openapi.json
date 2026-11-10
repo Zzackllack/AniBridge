@@ -878,7 +878,8 @@
         "tags": [
           "qBittorrent Auth"
         ],
-        "summary": "Login (stubbed)",
+        "summary": "Login",
+        "description": "Optional credentials. When qBittorrent authentication is configured, returns a signed session cookie; otherwise keeps trusted-private-network compatibility.",
         "operationId": "qbittorrentLogin",
         "requestBody": {
           "required": true,

@@ -1,0 +1,4 @@
+# Optional generated HLS scenario; preserves the base MP4 Filmo acceptance.
+services:
+  generate:
+    command: [--hls]

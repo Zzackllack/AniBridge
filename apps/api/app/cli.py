@@ -4,7 +4,7 @@ import os
 import sys
 from loguru import logger
 
-from app.config import ANIBRIDGE_HOST, ANIBRIDGE_PORT, ANIBRIDGE_RELOAD
+from app.config import ANIBRIDGE_HOST, ANIBRIDGE_PORT, ANIBRIDGE_RELOAD, CATALOG_CONFIG
 from app.utils.logger import config as configure_logger
 
 configure_logger()
@@ -37,6 +37,7 @@ def run_server(app_obj):
             reload=True,
             log_config=None,
             log_level=log_level,
+            access_log=CATALOG_CONFIG.mode != "query",
         )
     else:
         logger.info("Uvicorn reload disabled (packaged/production mode).")
@@ -47,4 +48,5 @@ def run_server(app_obj):
             reload=False,
             log_config=None,
             log_level=log_level,
+            access_log=CATALOG_CONFIG.mode != "query",
         )

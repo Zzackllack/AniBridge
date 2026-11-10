@@ -1,0 +1,164 @@
+{
+  "frozen_at": 1792437891,
+  "provider": "aniworld.to",
+  "scope": "Six metadata cases selected and labelled before code changes. Held-out is a fixed regression split, not an independently blind population precision trial. Coordinates reviewed from cached canonical names; announcements are not coordinate evidence.",
+  "cases": [
+    {
+      "title_id": "98233ae33917e1e1c7ba4201cbd48018e5a9167cc56bccbe5a7696f587173fbc",
+      "entity_id": "6038fcb8633a378084e8dfc43cb3f51c12085ebf0b662f8a735dca7c49ed4b92",
+      "split": "development",
+      "native_season": 4,
+      "native_episode": 16,
+      "source_names": [
+        "For a Desired Future [Final Episode | Season 5 confirmed - Start: tba]",
+        "Für eine gewisse Zukunft [Letzte Folge | 5.Staffel bestätigt - Start: tba]"
+      ],
+      "canonical_names": [
+        {
+          "season": 4,
+          "episode": 16,
+          "title_key": "for a desired future"
+        },
+        {
+          "season": 4,
+          "episode": 16,
+          "title_key": "für eine gewisse zukunft"
+        }
+      ],
+      "expected": "accepted",
+      "coordinate": [
+        4,
+        16
+      ],
+      "before_reason": "no_name_candidate"
+    },
+    {
+      "title_id": "04d1893559b317ff4547c087fad2325e0087b26d6b2c8cea9fdf24c5d8d68e41",
+      "entity_id": "12dee8ed4e7ce700bfae29e35a979e77972d4eeb392eb5d1b739aaf639202b25",
+      "split": "development",
+      "native_season": 1,
+      "native_episode": 12,
+      "source_names": [
+        "The Cat and the Royal Capital Festival [Final Episode | Season 2 confirmed - Start: 2027]"
+      ],
+      "canonical_names": [
+        {
+          "season": 1,
+          "episode": 12,
+          "title_key": "the cat and the royal capital festival"
+        }
+      ],
+      "expected": "accepted",
+      "coordinate": [
+        1,
+        12
+      ],
+      "before_reason": "no_name_candidate"
+    },
+    {
+      "title_id": "3ff1e8486bc0c85400c30be366142196f7781f9a8b2c6f93f9ac68b049c5cc3a",
+      "entity_id": "167296409c616808a052785d0c82adeae575d0350b18ed431fb880a2aa494bc3",
+      "split": "development",
+      "native_season": 1,
+      "native_episode": 13,
+      "source_names": [
+        "Forbidden Magic [Final Episode | Season 2 confirmed - Start: tba]",
+        "Der Schatten von Romonohn [Letzte Folge | Staffel 2 bestätigt - Start: tba]"
+      ],
+      "canonical_names": [
+        {
+          "season": 1,
+          "episode": 12,
+          "title_key": "der schatten von romonohn"
+        },
+        {
+          "season": 1,
+          "episode": 13,
+          "title_key": "forbidden magic"
+        }
+      ],
+      "expected": "alias_conflict",
+      "coordinate": null,
+      "before_reason": "no_name_candidate"
+    },
+    {
+      "title_id": "0b21d4366b0d025ba453e71acd7b0d83e2a4b85607f551e57ba7509772a87910",
+      "entity_id": "74923cf4cc472b4c67dbea3e2af646031b7f57597c5328dfe0301589aecd42ca",
+      "split": "held_out",
+      "native_season": 2,
+      "native_episode": 12,
+      "source_names": [
+        "A Story of a Dream with No End [Final Episode | Season 3 confirmed - Start: tba]",
+        "Der endlose Traum [Letzte Folge | 3. Staffel bestätigt | Start: tba]"
+      ],
+      "canonical_names": [
+        {
+          "season": 2,
+          "episode": 12,
+          "title_key": "a story of a dream with no end"
+        },
+        {
+          "season": 2,
+          "episode": 12,
+          "title_key": "der endlose traum"
+        }
+      ],
+      "expected": "accepted",
+      "coordinate": [
+        2,
+        12
+      ],
+      "before_reason": "no_name_candidate"
+    },
+    {
+      "title_id": "0c971b56f364fb1c814e88948c1c21562f1da2b01d0b3e54cb906f2e9a8c22f9",
+      "entity_id": "0205e58bb930be7526c101d29a858c2b3ee4d52e4c57f84fc573f16974623bb9",
+      "split": "held_out",
+      "native_season": 2,
+      "native_episode": 10,
+      "source_names": [
+        "A Beautiful Sight [Final Episode | Season 3 confirmed - Start: October 2027]",
+        "Ein herrlicher Anblick [Letzte Folge | 3.Staffel bestätigt - Start: Oktober 2027]"
+      ],
+      "canonical_names": [
+        {
+          "season": 2,
+          "episode": 10,
+          "title_key": "a beautiful sight"
+        },
+        {
+          "season": 2,
+          "episode": 10,
+          "title_key": "ein herrlicher anblick"
+        }
+      ],
+      "expected": "accepted",
+      "coordinate": [
+        2,
+        10
+      ],
+      "before_reason": "no_name_candidate"
+    },
+    {
+      "title_id": "01bbfc5c146aadcfb0407fb9400044b3fcdb7fd55bc927de73c918fb2d3ad0ee",
+      "entity_id": "7a26458f00cb43eed07c8edfcffac88de9c45eaf27d48d630166d00a8dc3f5a8",
+      "split": "held_out",
+      "native_season": 8,
+      "native_episode": 11,
+      "source_names": [
+        "My Hero Academia [Final Episode | Series Finale | Bonus Episode announced for May 2026]",
+        "My Hero Academia [Letzte Folge | Serienfinale | Bonusfolge für Mai 2026 angekündigt]"
+      ],
+      "canonical_names": [
+        {
+          "season": 8,
+          "episode": 11,
+          "title_key": "my hero academia"
+        }
+      ],
+      "expected": "no_name_candidate",
+      "coordinate": null,
+      "before_reason": "no_name_candidate"
+    }
+  ]
+}

@@ -1,0 +1,412 @@
+"""Finite metadata wire model. Jobs, URLs and local quality are excluded."""
+
+import hashlib
+from typing import Literal, Self
+
+from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
+
+from catalog_core import identity, magnet
+from catalog_core.json_codec import dumps
+from catalog_core.query import parse
+
+MAX_RESPONSE = 2 * 1024**2
+PARAMS = {
+    "t",
+    "q",
+    "tvdbid",
+    "tmdbid",
+    "imdbid",
+    "season",
+    "ep",
+    "year",
+    "limit",
+    "offset",
+    "maxage",
+    "cat",
+}
+
+
+class Model(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    @model_validator(mode="after")
+    def byte_bounded(self) -> Self:
+        # Field(max_length=...) counts characters. Stored schema limits are
+        # UTF-8 bytes, so a multibyte label could otherwise exceed the database
+        # contract while still validating on the wire.
+        for name, field in type(self).model_fields.items():
+            value = getattr(self, name)
+            maximum = next(
+                (
+                    bound
+                    for constraint in field.metadata
+                    if (bound := getattr(constraint, "max_length", None)) is not None
+                ),
+                None,
+            )
+            if (
+                isinstance(value, str)
+                and maximum is not None
+                and len(value.encode("utf-8")) > maximum
+            ):
+                raise ValueError(f"{name} exceeds its byte limit")
+        return self
+
+
+class Request(Model):
+    operation: Literal["titles", "native", "recent"]
+    provider: Literal["aniworld.to", "s.to", "megakino", "filmo.to"] = "aniworld.to"
+    params: dict[str, str] = Field(default_factory=dict)
+    title_ids: list[str] = Field(default_factory=list, max_length=200)
+    limit: int = Field(default=500, ge=1, le=500)
+    offset: int = Field(default=0, ge=0, le=10000)
+    # Requested canonical coordinates select a superset; local overrides still
+    # win. Include their entity IDs even when the published map is elsewhere.
+    coordinate_namespace: Literal["tvdb", "tmdb-tv"] = "tvdb"
+    season: int | None = Field(default=None, ge=0, le=2**31 - 1)
+    episode: int | None = Field(default=None, ge=1, le=2**31 - 1)
+    include_entities: list[str] = Field(default_factory=list, max_length=1000)
+    languages: list[str] = Field(
+        default_factory=lambda: sorted(identity.LANGUAGES), max_length=64
+    )
+    offer_hosts: list[Literal["VOE", "Byse"]] = Field(
+        default_factory=list, max_length=2
+    )
+
+    def wire(self) -> dict:
+        body = self.model_dump()
+        if self.season is None and self.episode is None and not self.include_entities:
+            for key in (
+                "coordinate_namespace",
+                "season",
+                "episode",
+                "include_entities",
+            ):
+                body.pop(key)
+        if self.provider != "filmo.to" or not self.offer_hosts:
+            body.pop("offer_hosts", None)
+        return body
+
+    @model_validator(mode="after")
+    def bounded(self) -> Self:
+        from .release_metadata import valid_language
+
+        if self.provider == "filmo.to" and "languages" not in self.model_fields_set:
+            self.languages = []
+        if len(set(self.languages)) != len(self.languages) or any(
+            item not in identity.LANGUAGES
+            and not (self.provider == "filmo.to" and valid_language(item))
+            for item in self.languages
+        ):
+            raise ValueError("invalid requested languages")
+        if len(set(self.offer_hosts)) != len(self.offer_hosts):
+            raise ValueError("duplicate requested offer hosts")
+        if self.provider != "filmo.to" and self.offer_hosts:
+            raise ValueError("offer hosts only apply to Filmo")
+        if self.params.keys() - PARAMS:
+            raise ValueError("unsupported parameters")
+        query = parse(self.params)
+        if len(set(self.title_ids)) != len(self.title_ids):
+            raise ValueError("duplicate title IDs")
+        if len(set(self.include_entities)) != len(self.include_entities):
+            raise ValueError("duplicate entity IDs")
+        if self.operation != "native" and (
+            self.season is not None or self.episode is not None or self.include_entities
+        ):
+            raise ValueError("target selection requires native operation")
+        if self.episode is not None and self.season is None:
+            raise ValueError("episode requires season")
+        if self.operation == "titles" and self.offset:
+            # Candidate discovery is a single bounded set, not a page stream.
+            # Reject an offset instead of implying pagination that cannot exist.
+            raise ValueError("titles do not paginate")
+        for value in [*self.title_ids, *self.include_entities]:
+            if len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
+                raise ValueError("invalid title ID")
+        if self.operation == "native" and (not self.title_ids or not query.recent):
+            raise ValueError("native requires stable title IDs only")
+        if self.operation == "titles" and (query.recent or self.title_ids):
+            raise ValueError("title discovery requires text or IDs")
+        if self.operation == "recent" and (
+            not query.recent or self.title_ids or self.limit > 100
+        ):
+            raise ValueError("invalid recent page")
+        return self
+
+
+class TitleMap(Model):
+    mapping_id: str = Field(pattern=r"^[0-9a-f]{64}$")
+    title_id: str = Field(pattern=r"^[0-9a-f]{64}$")
+    namespace: Literal["tvdb", "tmdb-tv", "tmdb-movie", "imdb"]
+    external_id: str = Field(max_length=128)
+    source: str = Field(max_length=64)
+    evidence: Literal["explicit_id", "exact_title_year", "reviewed"]
+    checked_at: int = Field(ge=0)
+
+
+class EpisodeMap(Model):
+    mapping_id: str = Field(pattern=r"^[0-9a-f]{64}$")
+    entity_id: str = Field(pattern=r"^[0-9a-f]{64}$")
+    season: int = Field(ge=0, le=2**31 - 1)
+    episode: int = Field(ge=1, le=2**31 - 1)
+    external_episode_id: str | None = Field(max_length=128)
+    evidence: Literal["explicit_id", "exact_title", "reviewed"]
+    checked_at: int = Field(ge=0)
+
+
+class Title(Model):
+    provider: Literal["aniworld.to", "s.to", "megakino", "filmo.to"] = "aniworld.to"
+    title_id: str = Field(pattern=r"^[0-9a-f]{64}$")
+    identity_anchor: str = Field(max_length=1024)
+    slug: str = Field(max_length=256)
+    display_title: str = Field(max_length=512)
+    search_key: str = Field(max_length=512)
+    media_type: Literal["series", "movie", "unknown"]
+    year: int | None = Field(ge=1800, le=2200)
+    path: str = Field(max_length=1024)
+    observed_at: int = Field(ge=0)
+    detail_status: Literal["pending", "partial", "complete", "stale"]
+    aliases: list[str] = Field(default_factory=list, max_length=32)
+    mappings: list[TitleMap] = Field(default_factory=list, max_length=4)
+
+    @model_serializer(mode="wrap")
+    def serialize(self, handler):
+        body = handler(self)
+        # Existing AniWorld-only v1 consumers reject unknown fields. Expanded
+        # providers need the field; the historical AniWorld default does not.
+        if self.provider == "aniworld.to":
+            body.pop("provider")
+        return body
+
+    @model_validator(mode="after")
+    def identities(self) -> Self:
+        if identity.title_id(self.provider, self.identity_anchor) != self.title_id:
+            raise ValueError("title identity mismatch")
+        if (
+            identity.path(self.path) != self.path
+            or identity.search_key(self.display_title) != self.search_key
+        ):
+            raise ValueError("invalid title metadata")
+        if any(len(alias.encode("utf-8")) > 512 for alias in self.aliases):
+            raise ValueError("alias exceeds its byte limit")
+        for item in self.mappings:
+            identity.validate_external_id(item.namespace, item.external_id)
+            if item.title_id != self.title_id or item.mapping_id != identity.mapping_id(
+                self.provider, self.title_id, item.namespace, item.external_id
+            ):
+                raise ValueError("mapping identity mismatch")
+        return self
+
+
+class Row(Model):
+    provider: Literal["aniworld.to", "s.to", "megakino", "filmo.to"]
+    title_id: str = Field(pattern=r"^[0-9a-f]{64}$")
+    entity_id: str = Field(pattern=r"^[0-9a-f]{64}$")
+    release_id: str = Field(pattern=r"^[0-9a-f]{64}$")
+    snapshot_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    title_anchor: str = Field(max_length=1024)
+    entity_anchor: str = Field(max_length=1024)
+    path: str = Field(max_length=1024)
+    slug: str = Field(max_length=256)
+    display_title: str = Field(max_length=512)
+    year: int | None = Field(ge=1800, le=2200)
+    kind: Literal["episode", "movie"]
+    language: str = Field(max_length=64)
+    variant_anchor: str | None = Field(default=None, max_length=256)
+    release_metadata: dict | None = None
+    native_season: int | None = Field(ge=0, le=2**31 - 1)
+    native_episode: int | None = Field(ge=1, le=2**31 - 1)
+    namespace: str | None = Field(max_length=16)
+    external_id: str | None = Field(max_length=128)
+    season: int | None = Field(ge=0, le=2**31 - 1)
+    episode: int | None = Field(ge=1, le=2**31 - 1)
+    first_seen_at: int = Field(ge=0)
+    observed_at: int = Field(ge=0)
+
+    mappings: list[EpisodeMap] = Field(default_factory=list, max_length=4)
+
+    @model_serializer(mode="wrap")
+    def serialize(self, handler):
+        body = handler(self)
+        if self.provider != "filmo.to":
+            body.pop("variant_anchor", None)
+            body.pop("release_metadata", None)
+        return body
+
+    @model_validator(mode="after")
+    def identities(self) -> Self:
+        record = self.model_dump()
+        canonical = None
+        if self.namespace is not None:
+            identity.validate_external_id(self.namespace, self.external_id)
+            if self.kind == "movie" or self.season is not None:
+                canonical = {
+                    key: record[key]
+                    for key in ("namespace", "external_id", "season", "episode")
+                }
+        elif (
+            self.external_id is not None
+            or self.season is not None
+            or self.episode is not None
+        ):
+            raise ValueError("incomplete canonical map")
+        if (self.season is None) != (self.episode is None):
+            raise ValueError("incomplete episode map")
+        grab = {
+            **{
+                key: record[key]
+                for key in magnet.PAYLOAD_FIELDS - {"mode", "canonical"}
+            },
+            "mode": "download",
+            "canonical": canonical,
+        }
+        if self.provider == "filmo.to":
+            grab.update(
+                variant_anchor=self.variant_anchor,
+                release_metadata=self.release_metadata,
+            )
+        elif self.variant_anchor is not None or self.release_metadata is not None:
+            raise ValueError("unexpected variant metadata")
+        magnet.validate(grab)
+        if self.first_seen_at > self.observed_at:
+            raise ValueError("discovery after observation")
+        return self
+
+
+def request_digest(request: Request) -> str:
+    return hashlib.sha256(dumps(request.wire())).hexdigest()
+
+
+class Response(Model):
+    version: Literal[1] = 1
+    query_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_id: str = Field(pattern=r"^[a-z0-9._-]{1,64}$")
+    provider: Literal["aniworld.to", "s.to", "megakino", "filmo.to"]
+    revision: int = Field(ge=1)
+    snapshot_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    listing_checked_at: int = Field(ge=0)
+    total: int = Field(ge=0, le=8000000)
+    offset: int = Field(ge=0, le=10000)
+    mapping: Literal["resolved", "partial", "unresolved"]
+    rows: list[Row] = Field(max_length=500)
+    titles: list[Title] = Field(default_factory=list, max_length=200)
+
+    def check_request(self, request: Request, source_id: str) -> None:
+        if self.query_digest != request_digest(request):
+            raise ValueError("response query mismatch")
+        if (
+            self.source_id != source_id
+            or self.provider != request.provider
+            or self.offset != request.offset
+        ):
+            raise ValueError("response context mismatch")
+        if request.operation == "titles":
+            if self.rows or self.total != len(self.titles):
+                raise ValueError("invalid candidates")
+        elif len(self.rows) != min(request.limit, max(0, self.total - self.offset)):
+            raise ValueError("response page mismatch")
+        if any(title.provider != self.provider for title in self.titles):
+            raise ValueError("title provider mismatch")
+        titles = {title.title_id: title for title in self.titles}
+        if len(titles) != len(self.titles):
+            raise ValueError("duplicate titles")
+        included_entities = set(request.include_entities)
+        seen = set()
+        for row in self.rows:
+            if (
+                row.provider != self.provider
+                or row.snapshot_digest != self.snapshot_digest
+                or row.release_id in seen
+            ):
+                raise ValueError("response identity mismatch")
+            seen.add(row.release_id)
+            if row.title_id not in titles:
+                raise ValueError("missing title")
+            title = titles[row.title_id]
+            if (row.title_anchor, row.slug, row.display_title, row.year) != (
+                title.identity_anchor,
+                title.slug,
+                title.display_title,
+                title.year,
+            ):
+                raise ValueError("row/title mismatch")
+            if request.operation == "native" and row.title_id not in request.title_ids:
+                raise ValueError("unexpected title")
+            check_languages = request.operation == "recent" or (
+                request.provider == "filmo.to" and request.operation == "native"
+            )
+            if check_languages and request.languages:
+                matches_language = row.language in request.languages
+                if request.provider == "filmo.to" and row.release_metadata is not None:
+                    matches_language |= bool(
+                        set(row.release_metadata["audio_languages"])
+                        & set(request.languages)
+                    )
+                if not matches_language:
+                    raise ValueError("unexpected language")
+            if request.offer_hosts and (
+                row.release_metadata is None
+                or row.release_metadata["host"] not in request.offer_hosts
+            ):
+                raise ValueError("unexpected offer host")
+            primary = next(
+                (m for m in title.mappings if m.namespace == row.namespace), None
+            )
+            if row.namespace is not None and (
+                primary is None or primary.external_id != row.external_id
+            ):
+                raise ValueError("canonical title mismatch")
+            if (
+                request.operation == "native"
+                and request.season is not None
+                and row.entity_id not in included_entities
+            ):
+                # The requested coordinates select a superset; explicit local
+                # correction entities may legitimately carry another published
+                # mapping, so they are exempt from this page filter.
+                requested_maps = {
+                    m.mapping_id
+                    for m in title.mappings
+                    if m.namespace == request.coordinate_namespace
+                }
+                if not any(
+                    m.mapping_id in requested_maps
+                    and m.season == request.season
+                    and (request.episode is None or m.episode == request.episode)
+                    for m in row.mappings
+                ):
+                    raise ValueError("unexpected episode")
+            mapped = next(
+                (
+                    m
+                    for m in row.mappings
+                    if primary is not None and m.mapping_id == primary.mapping_id
+                ),
+                None,
+            )
+            if (row.season, row.episode) != (
+                (mapped.season, mapped.episode) if mapped else (None, None)
+            ):
+                raise ValueError("canonical episode mismatch")
+            maps = {item.mapping_id for item in title.mappings}
+            if any(
+                m.entity_id != row.entity_id or m.mapping_id not in maps
+                for m in row.mappings
+            ):
+                raise ValueError("invalid episode mapping")
+
+
+def local_rows(response: Response) -> list[dict]:
+    """Only the consumer chooses a mode/category and formats magnets."""
+    return [
+        dict(
+            row.model_dump(),
+            mode="download",
+            category=2000
+            if row.kind == "movie"
+            else 5070
+            if row.provider == "aniworld.to"
+            else 5000,
+        )
+        for row in response.rows
+    ]

@@ -21,7 +21,7 @@ dependencies = [
     "anyio>=4.10.0",
     "beautifulsoup4>=4.13.5",
     "bs4>=0.0.2",
-    "certifi>=2025.8.3",
+    "certifi>=2026.10.18",
     "charset-normalizer>=3.4.3",
     "click>=8.2.1",
     "defusedxml>=0.7.1",
@@ -32,6 +32,7 @@ dependencies = [
     "httptools>=0.6.4",
     "httpx>=0.28.1",
     "idna>=3.15",
+    "itsdangerous>=2.2.0",
     "jsbeautifier>=1.15.4",
     "loguru>=0.7.3",
     "mypy-extensions>=1.1.0",
@@ -60,13 +61,15 @@ dependencies = [
     "tqdm>=4.67.1",
     "typing-extensions>=4.15.0",
     "typing-inspection>=0.4.1",
-    "urllib3>=2.7.0",
+    "urllib3>=2.8.0",
+    "urllib3-future>=2.25.900",
     "uvicorn[standard]>=0.35.0",
     "uvloop>=0.21.0; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'",
     "watchfiles>=1.1.0",
     "websockets>=15.0.1",
     "yt-dlp>=2026.7.4",
-    "pylint>=4.0.5",
+    "pylint>=4.0.9",
+    "anibridge-catalog-core",
 ]
 
 [project.urls]
@@ -76,3 +79,12 @@ Tracker = "https://github.com/Zzackllack/AniBridge/issues"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["app*"]
+
+[tool.uv]
+# AniWorld uses Niquests; its default fork wheel replaces upstream urllib3.
+# Build only the fork's separate namespace so Requests keeps the patched wheel.
+no-binary-package = ["urllib3-future"]
+extra-build-variables = { "urllib3-future" = { URLLIB3_NO_OVERRIDE = "1" } }
+
+[tool.uv.sources]
+anibridge-catalog-core = { path = "../../packages/catalog-core", editable = true }

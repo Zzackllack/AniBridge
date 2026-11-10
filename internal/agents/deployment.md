@@ -2,11 +2,19 @@
 
 ## `apps/api/Dockerfile` Highlights
 
-- Base image: `python:3.14-slim`.
+- Base image: `python:3.14.8-slim`, pinned by multi-platform manifest digest.
 - Multi-stage build (`base`, `deps`, `final`).
 - Installs `gosu` and build essentials for runtime compatibility.
 - Non-root user `appuser` (UID/GID configurable).
-- Healthcheck hits `/health` every 30s.
+- Healthcheck hits `/health` every 30s as `appuser` through `gosu`.
+- The image starts as root only to prepare mount ownership and configured
+  UID/GID; the entrypoint then replaces itself with `gosu appuser:appgroup`.
+  Overriding the entrypoint bypasses that drop: set `--user` explicitly when
+  running an alternate command. `USER appuser` would break supported PUID/PGID
+  bootstrap and is not a drop-in hardening change.
+- Python, uv and the BuildKit frontend are pinned by digest. Dependabot tracks
+  Dockerfiles in both app directories; update the tag and digest together and
+  validate both native architectures.
 - Entrypoint: `docker/entrypoint.sh` sets UID/GID and ensures directories.
 
 ## Entrypoint Script (`docker/entrypoint.sh`)
@@ -39,9 +47,34 @@
 - Healthcheck uses curl to `/health`.
 - Migrations run at app startup when `DB_MIGRATE_ON_STARTUP=true` (default).
 
-### `docker-compose.dev.yaml`
+### `docker/compose.dev.yaml`
 
 - Optional Sonarr/Prowlarr containers for end-to-end testing.
 - Shared network `anibridge-dev-net`.
 - `anibridge` enables `ANIBRIDGE_RELOAD=true` for containerized development.
 - Compose `develop.watch` syncs `apps/api/app/` into `/app/app` and rebuilds the image when build inputs change.
+
+## Catalog services
+
+Use [SERVER.md](../../scripts/catalog/query_pilot/SERVER.md) for a new authorized
+private installation and [WORKER_UPDATES.md](../../scripts/catalog/query_pilot/WORKER_UPDATES.md)
+for an existing service. The generated Compose fixture is not a production
+collector. Collector minimum is 2 CPU/2 GiB; serving has a separate budget.
+
+Check an existing worker's explicit `bind_host` before upgrading: the hardened
+default is loopback, while older container configurations may omit the setting
+and depend on the former all-interface default. Review a private backend bind
+and ingress together; pulling a new image alone can make that service unreachable.
+
+Prefer tested immutable images; the worker guide also describes explicitly
+chosen moving tags for routine private-pilot updates. Preserve every configuration/volume/backup and
+use the private plan's version-guarded snapshot/verification/rollback commands.
+No image build or documentation change authorizes a deployment, restart,
+resource/routing change or state reset. Coolify writes use authenticated Zen
+after approval; its read-only token is not broadened. Keep NetBird routes and
+Docker/backend subnet allocations intact.
+
+Writable state must enforce process-lock exclusion; move unsafe Mac binds through
+a reviewed consistent backup plan instead of bypassing the guard. Maintain a
+WAL-inclusive backup and retain newer observations during code rollback. Current
+acceptance/release gaps are in [ISSUES.md](../specs/020-catalog-query-api-evaluation/ISSUES.md).

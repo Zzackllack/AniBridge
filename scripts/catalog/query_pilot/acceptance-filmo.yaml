@@ -1,0 +1,42 @@
+# Generated Filmo metadata and media only; never use real provider downloads.
+services:
+  init:
+    entrypoint: [python, /pilot/acceptance/seed_filmo.py]
+    command: [/config]
+    volumes: [config:/config, worker-state:/state, read-catalog:/read, './:/pilot:ro']
+  generate:
+    entrypoint: [python, /pilot/acceptance/generate_filmo.py]
+  api:
+    env_file:
+      - ${FILMO_ACCEPTANCE_ENV_FILE:?Set FILMO_ACCEPTANCE_ENV_FILE to a private runtime env file}
+    environment:
+      CATALOG_SITES: filmo.to
+      FILMO_BASE_URL: https://fixture.invalid
+      PYTHONPATH: /pilot/acceptance/filmo_hooks:/app
+      PROVIDER_ORDER: Byse
+      QBIT_COOKIE_SECURE: 'false'
+      DB_MIGRATE_ON_STARTUP: 'true'
+    volumes:
+      - config:/config:ro
+      - local-state:/data
+      - downloads:/downloads
+      - './:/pilot:ro'
+      - generated-media:/generated:ro
+      - radarr-state:/radarr-config:ro
+      - ${FILMO_ACCEPTANCE_AUTH_FILE:?Set FILMO_ACCEPTANCE_AUTH_FILE to a private qBittorrent auth JSON}:/auth/qbit.json:ro
+    mem_limit: 2g
+    memswap_limit: 2g
+    cpus: 2
+  prowlarr:
+    volumes: [prowlarr-state:/config]
+  radarr:
+    image: lscr.io/linuxserver/radarr@sha256:ade5937813c6ae415b29db729386e53fea3ecf067a019849bafbe2d2a6ec02ba
+    environment: {PUID: '1000', PGID: '1000', TZ: Etc/UTC}
+    volumes: [radarr-state:/config, downloads:/downloads, library:/library]
+    networks: [private]
+    mem_limit: 512m
+    cpus: 1
+    logging: {driver: json-file, options: {max-size: 10m, max-file: '2'}}
+volumes:
+  radarr-state:
+  generated-media:

@@ -149,6 +149,9 @@ def test_sto_voe_redirect_resolver_follows_nested_redirects(monkeypatch):
     original_episode_module = sys.modules.get("app.core.downloader.episode")
     sys.modules.pop("app.core.downloader.episode", None)
     episode_module = importlib.import_module("app.core.downloader.episode")
+    monkeypatch.setattr(
+        episode_module.voe_extractor, "host_is_public", lambda _host: True
+    )
     if original_episode_module is not None:
         monkeypatch.setitem(
             sys.modules, "app.core.downloader.episode", original_episode_module
@@ -270,6 +273,8 @@ def test_voe_direct_link_fallback_follows_nested_redirects(monkeypatch):
     original_voe_module = sys.modules.get("app.core.downloader.extractors.voe")
     sys.modules.pop("app.core.downloader.extractors.voe", None)
     voe_module = importlib.import_module("app.core.downloader.extractors.voe")
+    # Redirect targets belong to this fixture; live DNS is outside this test.
+    monkeypatch.setattr(voe_module, "host_is_public", lambda _host: True)
     if original_voe_module is not None:
         monkeypatch.setitem(
             sys.modules, "app.core.downloader.extractors.voe", original_voe_module

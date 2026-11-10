@@ -54,6 +54,8 @@ def _default_route_ip() -> Optional[str]:
 
 def _mask_env_value(key: str, val: str) -> str:
     k = (key or "").lower()
+    if k in {"catalog_api_token", "strm_proxy_secret"}:
+        return "[redacted]" if val else val
     # Use network mask for proxy URLs if available
     try:
         if any(k.endswith(s) for s in ("_url",)) or "proxy" in k:

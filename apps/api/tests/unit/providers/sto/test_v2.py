@@ -1,14 +1,15 @@
 from pathlib import Path
 
-import pytest
-
-from app.core.downloader.errors import UnsupportedProviderResponseError
-from app.core.downloader.errors import ProviderVerificationRequiredError
 import app.providers.sto.v2 as sto_v2
+import pytest
+from app.core.downloader.errors import (
+    ProviderVerificationRequiredError,
+    UnsupportedProviderResponseError,
+)
 from app.providers.sto.v2 import (
     build_episode_url,
-    parse_episode_providers,
     parse_episode_provider_data,
+    parse_episode_providers,
     parse_language_id,
 )
 
@@ -108,3 +109,12 @@ def test_fetch_episode_html_reports_bounded_verification_error(monkeypatch) -> N
             base_url="https://configured.example",
         )
     assert exc_info.value.retry_after_seconds == 45
+
+
+def test_observed_gersub_label_without_numeric_key():
+    assert parse_language_id(None, "Ger-Sub") == 3
+    data = parse_episode_provider_data(
+        '<button data-play-url="/discarded-redirect" data-provider-name="VOE" data-language-label="Ger-Sub"></button>',
+        "https://configured.example",
+    )
+    assert set(data) == {"German Sub"}

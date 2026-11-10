@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup  # type: ignore
@@ -33,6 +32,7 @@ _LANG_LABEL_TO_ID = {
     "englisch": 2,
     "english": 2,
     # German subtitles
+    "ger-sub": 3,
     "deutsch sub": 3,
     "german sub": 3,
     "deutsch untertitel": 3,
@@ -87,7 +87,7 @@ def fetch_episode_html(url: str, *, base_url: str | None = None) -> str:
     return resp.text
 
 
-def parse_language_id(raw_id: str | None, label: str | None) -> Optional[int]:
+def parse_language_id(raw_id: str | None, label: str | None) -> int | None:
     """Resolve a numeric language id from HTML attributes or label text.
 
     Parameters:
@@ -107,7 +107,7 @@ def parse_language_id(raw_id: str | None, label: str | None) -> Optional[int]:
 
 def parse_episode_providers(
     html_text: str, base_url: str
-) -> Tuple[Dict[str, Dict[int, str]], List[int], List[str]]:
+) -> tuple[dict[str, dict[int, str]], list[int], list[str]]:
     """Parse providers and languages from S.to v2 episode HTML.
 
     Uses BeautifulSoup to locate provider buttons and builds a provider mapping
@@ -122,8 +122,8 @@ def parse_episode_providers(
         Tuple of (providers, language_ids, language_names).
     """
     soup = BeautifulSoup(html_text, "html.parser")
-    providers: Dict[str, Dict[int, str]] = {}
-    languages: List[int] = []
+    providers: dict[str, dict[int, str]] = {}
+    languages: list[int] = []
 
     def _attr_text(value: object) -> str:
         return str(value or "").strip()

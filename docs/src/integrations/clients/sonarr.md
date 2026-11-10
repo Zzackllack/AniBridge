@@ -18,18 +18,31 @@ Point Sonarr at AniBridge’s qBittorrent-compatible API.
 2. Set Host and Port to AniBridge:
    - Host: `anibridge` (or `localhost`)
    - Port: `8000`
-3. Username/Password: any (auth is stubbed)
+3. Username/Password: any when `QBIT_USERNAME`, `QBIT_PASSWORD`, and
+   `QBIT_SESSION_SECRET` are unset. Otherwise use the configured credentials.
 4. Category: `prowlarr` (or a custom one you create via API)
 5. Test and Save
 
 ## Completed Download Handling
 
-AniBridge reports progress, save path, and final `content_path` so Sonarr can import the file when the job completes.
+AniBridge reports progress, save path, and final `content_path` so Sonarr can import the file when the job completes. Query mode reports the same handoff from durable local jobs; media is still downloaded inside your AniBridge instance.
+
+When Sonarr imports and moves or deletes the source file, AniBridge keeps the
+torrent completed: progress remains `1`, query mode reports `pausedUP` (legacy
+rows keep their completed projection), and `anibridge_output_missing` becomes
+`true`. `content_path` and the file list are empty because the source no longer
+exists at the original path. AniBridge does not report `missingFiles` and does not
+rewrite the completed job to `failed` or `error`.
 
 For AniWorld specials/extras, AniBridge keeps Sonarr alias numbering
 in the final filename/content path (for example `S00E05`) even if
 AniWorld source ordering differs internally (for example `film-4`).
 This avoids Sonarr import failures from season/episode mismatches.
+
+AniBridge does not translate Sonarr "Anime/Absolute" requests into provider
+seasons/episodes. Sonarr must send coordinates that match the source or a
+published query-mode mapping. See
+[Catalog Query Mode](/guide/catalog-query#numbering-and-id-matching).
 
 If Sonarr runs in a different container with a different mount, set `QBIT_PUBLIC_SAVE_PATH` to the path Sonarr sees (inside the Sonarr container), and ensure both containers mount the same host folder to that path.
 

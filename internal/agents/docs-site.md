@@ -3,7 +3,8 @@
 ## VitePress
 
 - Location: `docs/`.
-- Tooling: VitePress 2.0.0-alpha.12, Vue 3.5, Vite 7.
+- Tooling: VitePress, Vue and Vite; use `docs/package.json` and the frozen
+  pnpm lockfile for current versions.
 - Scripts:
   - `pnpm --prefix docs run dev`
   - `pnpm --prefix docs run build`
