@@ -66,6 +66,18 @@ curl -sS http://localhost:8000/health
 
 - Torznab: `http://anibridge:8000/torznab/api`
 - qBittorrent base: `http://anibridge:8000/`
+- If `QBIT_USERNAME` / `QBIT_PASSWORD` / `QBIT_SESSION_SECRET` are set, use those
+  credentials in the qBittorrent download client. Otherwise any credentials work
+  on a trusted private network.
+:::
+
+::: warning Stable vs preview
+Stable release images (`ghcr.io/zzackllack/anibridge:latest` and version tags) are
+cut from the default branch and keep legacy search as the default. Catalog query
+mode is developed on the `v3` branch and published through separate preview image
+packages. Preview images are not
+stable releases; pin them by digest. Do not assume a stable image already contains
+the query work.
 :::
 
 ### With Gluetun (VPN sidecar)
@@ -144,6 +156,8 @@ The API listens on `http://localhost:8000`.
 ## Next Steps
 
 - Configure Prowlarr (Torznab): `http://localhost:8000/torznab/api`
-- Configure Sonarr (qBittorrent): `http://localhost:8000/`
+- Configure Sonarr/Radarr (qBittorrent): `http://localhost:8000/`
 - Browse [Environment](/api/environment) for available settings
 - See [Integrations → Sonarr](/integrations/clients/sonarr), [Integrations → Radarr](/integrations/clients/radarr ) and [Integrations → Prowlarr](/integrations/clients/prowlarr) for setup guides
+- Advanced operators can review [Catalog Query Mode](/guide/catalog-query) and
+  optional [Filmo movies](/integrations/providers/filmo)

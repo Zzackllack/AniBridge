@@ -2,12 +2,12 @@
 layout: home
 title: AniBridge Docs for FastAPI Anime Automation
 titleTemplate: false
-description: Deploy AniBridge as a FastAPI bridge for Prowlarr, Sonarr, and qBittorrent-compatible anime automation with AniWorld, Serienstream, and megakino providers.
+description: Deploy AniBridge as a FastAPI bridge for Prowlarr, Sonarr, Radarr, and qBittorrent-compatible anime automation with AniWorld, Serienstream, megakino, and optional Filmo movies.
 
 hero:
   name: AniBridge
   text: FastAPI bridge for anime automation
-  tagline: Torznab index + qBittorrent-compatible API that lets Prowlarr/Sonarr discover and download episodes from AniWorld, Serienstream (s.to), and megakino.
+  tagline: Torznab index + qBittorrent-compatible API that lets Prowlarr/Sonarr/Radarr discover and download releases from AniWorld, Serienstream (s.to), megakino, and optional Filmo movies. Legacy or collector-backed query search; media downloads stay local.
   image:
     src: /logo-384.png
     alt: AniBridge logo
@@ -32,9 +32,14 @@ features:
     linkText: Explore client integrations
   - icon: 🧵
     title: Background Scheduler
-    details: Threaded job executor with progress, cancelation, and SSE event stream.
+    details: Durable local jobs with progress, cancelation, retry, and completed-import handoff.
     link: /api/jobs
     linkText: Review jobs and events
+  - icon: 🔀
+    title: Two Search Modes
+    details: Legacy live provider scraping, or bounded collector-backed query search with canonical mappings and optional Filmo movies.
+    link: /guide/catalog-query
+    linkText: Compare search modes
   - icon: 📦
     title: Docker‑Ready
     details: Ship the server with Compose, mount data and logs, and configure the runtime with environment variables.
@@ -77,7 +82,7 @@ features:
     linkText: Browse the API reference
   - icon: 🧩
     title: Provider Guides
-    details: Compare AniWorld, S.to, and Megakino behavior for slugs, episodes, language mapping, and provider-controlled limitations.
+    details: Compare AniWorld, S.to, Megakino, and optional Filmo behavior for slugs, episodes, movies, language mapping, and provider-controlled limitations.
     link: /integrations/providers/sto
     linkText: Read provider guides
   - icon: 🏗️

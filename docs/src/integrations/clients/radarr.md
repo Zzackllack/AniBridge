@@ -18,7 +18,8 @@ Point Radarr at AniBridge’s qBittorrent-compatible API.
 2. Set Host and Port to AniBridge:
    - Host: `anibridge` (or `localhost`)
    - Port: `8000`
-3. Username/Password: any (auth is stubbed)
+3. Username/Password: any when `QBIT_USERNAME`, `QBIT_PASSWORD`, and
+   `QBIT_SESSION_SECRET` are unset. Otherwise use the configured credentials.
 4. Category: `prowlarr` or none (or a custom one you create via API)
 5. Test and Save
 
@@ -26,9 +27,30 @@ Point Radarr at AniBridge’s qBittorrent-compatible API.
 
 1. Radarr → Settings → Indexers → [your Indexer Name (Prowlarr)] → Make sure the hidden/advanced settings are shown (gear icon bottom right) → Downloader → Select `AniBridge` (or whatever you named the qBittorrent client above)
 
+## Filmo Movies (Query Mode)
+
+Filmo movie support requires `CATALOG_MODE=query`, `filmo.to` in
+`CATALOG_SITES`, and a collector that publishes Filmo metadata. Movie releases use
+category `2000`.
+
+Filmo exposes each native offer as an explicit variant. ID searches need a
+published `tmdb-movie` or `imdb` mapping; text searches work without one but
+automatic matching can be unreliable. Only VOE and Byse offers are selectable.
+Declared quality labels may be omitted from the title when Radarr cannot represent
+them without guessing; they remain in Torznab attributes and the description.
+See [Filmo](/integrations/providers/filmo) and
+[Catalog Query Mode](/guide/catalog-query#filmo-movies-optional).
+
 ## Completed Download Handling
 
 AniBridge reports progress, save path, and final `content_path` so Radarr can import the file when the job completes.
+
+When Radarr imports and moves or deletes the source file, AniBridge keeps the
+torrent completed: progress remains `1`, query mode reports `pausedUP` (legacy
+rows keep their completed projection), and `anibridge_output_missing` becomes
+`true`. No `content_path` or file list is reported for the missing source.
+AniBridge does not report `missingFiles` and does not rewrite the completed job to
+`failed` or `error`.
 
 If Radarr runs in a different container with a different mount, set `QBIT_PUBLIC_SAVE_PATH` to the path Radarr sees (inside the Radarr container), and ensure both containers mount the same host folder to that path.
 

@@ -46,6 +46,12 @@ download workflows.
 - [AniWorld](/integrations/providers/aniworld)
 - [S.to](/integrations/providers/sto)
 - [Megakino](/integrations/providers/megakino)
+- [Filmo](/integrations/providers/filmo) — optional movies, catalog query mode only
+
+Search behavior depends on the selected mode. Legacy mode scrapes providers
+during each search. Query mode reads metadata previously published by a collector
+and is advanced/operator-configured; there is no hosted zero-config catalog yet.
+See [Catalog Query Mode](/guide/catalog-query).
 
 ## Operational Caveat
 

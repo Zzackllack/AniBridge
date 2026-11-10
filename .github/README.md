@@ -4,7 +4,7 @@
   <img src="img/logo.png" width="164" height="164" alt="AniBridge Logo" align="right" />
 </a>
 
-AniBridge is a minimal FastAPI service that bridges anime and series streaming catalogues (AniWorld, Serienstream/s.to, megakino) to automation tools. It exposes a fake Torznab feed and a fake qBittorrent-compatible API so that applications like Prowlarr/Sonarr can discover and download episodes automatically.
+AniBridge is a minimal FastAPI service that bridges anime, series, and movie streaming catalogues (AniWorld, Serienstream/s.to, megakino, and optionally Filmo) to automation tools. It exposes a fake Torznab feed and a fake qBittorrent-compatible API so that applications like Prowlarr/Sonarr/Radarr can discover and download releases automatically. Media is downloaded by your local AniBridge instance.
 
 > [!CAUTION]
 > ⚖️ Before using this software, please read the  
@@ -14,9 +14,10 @@ AniBridge is a minimal FastAPI service that bridges anime and series streaming c
 
 ## Features
 
-- **Torznab endpoint** that indexes available episodes from AniWorld, Serienstream (s.to), and megakino.
-- **qBittorrent API shim** allowing Prowlarr/Sonarr to enqueue downloads.
-- **Background scheduler** with progress tracking for downloads.
+- **Torznab endpoint** that indexes available releases from AniWorld, Serienstream (s.to), and megakino, plus optional Filmo movies in catalog query mode.
+- **Two search paths:** legacy query-time provider scraping (the default) and opt-in collector-backed catalog query mode. Legacy mode is deprecated but still available; query mode reads previously collected metadata and keeps media downloads local.
+- **qBittorrent API shim** allowing Prowlarr/Sonarr/Radarr to enqueue durable local downloads.
+- **Background scheduler** with progress tracking, cancellation, and completed-import handoff.
 - **STRM files and STRM proxy** support for stable streaming URLs.
 - Simple `/health` endpoint for container or orchestration checks.
 - Docker Image for easy deployment
@@ -26,16 +27,24 @@ AniBridge is a minimal FastAPI service that bridges anime and series streaming c
 > Jellyfin. If this happens, use manual import or disable “Analyze video files” in Sonarr. See
 > [Issue #50](https://github.com/zzackllack/anibridge/issues/50).
 
-## Currently work-in-progress / TODO
+## Current Status
 
-- Better code structure and organization (refactoring, modularization, right now the code is a bit messy with comments in multiple languages, redundant code, etc. 😅)
-- Converting absolute episode numbers to relative ones (e.g., "001" to "S01E01"). If the series type is set to "Anime/Absolute", AniBridge currently will not find any episodes. This is because of the way AniWorld numbers episodes.
-- Documentation, configuration instructions, and examples...
-- Interactive user search via Prowlarr (currently a bit buggy)
+- Stable release images are cut from the default branch and keep legacy search as the default. They do not automatically include the catalog query work.
+- Catalog query mode is advanced, operator-configured preview functionality. It requires a collector you run or otherwise control. There is no hosted, token-free catalog endpoint yet; a zero-config public metadata catalog is planned and is not shipped yet.
+- Filmo is optional and requires catalog query mode and an explicitly enabled `filmo.to` source. Text discovery works without mappings; canonical ID searches and Radarr grabs need published movie mappings.
+- AniBridge does not translate Sonarr's "Anime/Absolute" numbering into provider seasons/episodes. Requests use the season/episode coordinates Sonarr sends; query mode can only use canonical episode mappings that the configured metadata service publishes.
+
+## Known Limitations
+
+- Anime specials/extras rely on metadata-backed AniWorld mapping and can still depend on provider layout changes.
+- Provider sites control availability, language offers, and hosters. AniBridge cannot guarantee uptime, regional access, or a particular quality.
+- Query mode is bounded: broad or deeply paged searches are rejected rather than truncated. See the [catalog query guide](https://anibridge-docs.zacklack.de/guide/catalog-query).
+- Interactive search behavior in Prowlarr remains dependent on the client and provider results.
 
 ## Planned Features
 
-- Full support for RSS Sync
+- A zero-config official public metadata catalog (no user-entered URL or token)
+- Broader RSS Sync support
 - Toggleable WebUI
 
 ## Installation
@@ -59,12 +68,21 @@ uv run python -m app.main
 
 ## Endpoints
 
-- Torznab feed: `http://localhost:8000/torznab`
+- Torznab feed: `http://localhost:8000/torznab/api`
 - qBittorrent API: `http://localhost:8000/api/v2`
 - Health check: `http://localhost:8000/health`
 
 Configure Prowlarr/Sonarr/Radarr to point at the Torznab feed. Downloads are placed in
 `DOWNLOAD_DIR` as defined in the configuration. For further details see the [quickstart guide in the documentation.](https://anibridge-docs.zacklack.de/guide/quickstart)
+
+### Search modes
+
+| Mode | Search source | Default | Notes |
+| --- | --- | --- | --- |
+| `legacy` | Live provider scraping per search | Yes | Deprecated; still functional. AniWorld, s.to, megakino. |
+| `query` | A collector's previously published metadata | No | Advanced/operator-configured. Bounded queries, canonical mappings, optional Filmo movies. |
+
+Set `CATALOG_MODE=query` plus a collector origin, source ID, and exactly one bearer token source to opt in. JSON catalog config files are no longer supported; `CATALOG_CONFIG_FILE` fails startup. See [Catalog query mode](https://anibridge-docs.zacklack.de/guide/catalog-query) and [Environment](https://anibridge-docs.zacklack.de/api/environment).
 
 ## Networking Policy (Important)
 
@@ -76,7 +94,8 @@ Configure Prowlarr/Sonarr/Radarr to point at the Torznab feed. Downloads are pla
   AniBridge to the same network namespace so all requests and downloads egress
   through the VPN.
 - Alternative: Use a system-level VPN on the host where AniBridge runs.
-- STRM proxy functionality (`/strm/*`) is unchanged and still supported.
+- Legacy STRM proxy endpoints (`/strm/stream`, `/strm/proxy`) remain supported;
+  query jobs use `/strm/catalog`.
 
 ## Contributing
 

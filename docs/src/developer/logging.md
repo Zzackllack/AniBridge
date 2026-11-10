@@ -25,6 +25,11 @@ Implementation notes:
 - The `TerminalLogger` tees stdout/stderr to `data/terminal-*.log`.
 - When a progress bar is active, its output is sent directly to the real terminal (not the tee), so the `.log` file is not flooded with redraw lines.
 - Non‑TTY runs never create a bar; only stepped log lines are written.
+- Query jobs use one reporter per job and keep stepped lines in saved logs even
+  when the bar is forced. They only announce 100% after publication.
+- Query mode disables Uvicorn access logs so local search terms and IDs are not
+  written to the access log. The collector operator can still observe the outbound
+  query.
 
 ## Controlling output
 
