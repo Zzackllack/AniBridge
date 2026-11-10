@@ -19,6 +19,9 @@ TTL = 604800
 # An unresolved wording mismatch is not a reason to redownload in 30 minutes.
 MISSING_RECHECK = TTL
 EPISODE_MATCHER = "unique-name-context-7"
+# canonical_hint_identity.external_id is NOT NULL, so a conflicting pair uses a
+# non-numeric sentinel. apply() never exports it as an external episode ID.
+IDENTITY_CONFLICT = "conflict"
 
 
 def store(
@@ -46,8 +49,17 @@ def store(
             )
         if episode.external_id:
             db.execute(
-                "INSERT INTO canonical_hint_identity VALUES(?,?,?,?) ON CONFLICT(title_id,season,episode) DO NOTHING",
-                (tid, episode.season, episode.episode, episode.external_id),
+                "INSERT INTO canonical_hint_identity VALUES(?,?,?,?) "
+                "ON CONFLICT(title_id,season,episode) DO UPDATE SET "
+                "external_id=CASE WHEN canonical_hint_identity.external_id=excluded.external_id "
+                "THEN excluded.external_id ELSE ? END",
+                (
+                    tid,
+                    episode.season,
+                    episode.episode,
+                    episode.external_id,
+                    IDENTITY_CONFLICT,
+                ),
             )
 
 
@@ -163,7 +175,7 @@ def apply(
                 decision.entity_id,
                 season,
                 episode,
-                identity[0] if identity else None,
+                identity[0] if identity and identity[0].isdecimal() else None,
                 checked_at,
             ),
         )

@@ -85,3 +85,54 @@ def test_invalid_shared_descriptor_falls_back_to_remote_without_state_loss(
     finally:
         state.close()
         other.close()
+
+
+def test_descriptor_growth_checks_budget_and_keeps_referenced_evidence(tmp_path):
+    from test_matching_followup import seed
+
+    state, _ = seed(tmp_path)
+    try:
+        with state.db:
+            descriptors.save(
+                state,
+                "123",
+                {"tvdbId": 123, "title": "Example", "year": 2020, "episodes": []},
+                [],
+                NOW,
+                600,
+            )
+            descriptors.save(
+                state,
+                "222",
+                {"tvdbId": 222, "title": "Example", "year": 2020, "episodes": []},
+                [],
+                NOW - 10,
+                600,
+            )
+        calls = []
+
+        def guard(reserve):
+            calls.append(reserve)
+
+        budget = state.db.execute(
+            "SELECT coalesce(sum(length(CAST(payload AS BLOB))),0) "
+            "FROM canonical_descriptor"
+        ).fetchone()[0]
+        with state.db:
+            descriptors.save(
+                state,
+                "333",
+                {"tvdbId": 333, "title": "Example", "year": 2020, "episodes": []},
+                [],
+                NOW,
+                600,
+                guard=guard,
+                budget=budget,
+            )
+        assert calls and calls[0] > 0
+        assert {
+            row[0]
+            for row in state.db.execute("SELECT external_id FROM canonical_descriptor")
+        } == {"123", "333"}
+    finally:
+        state.close()

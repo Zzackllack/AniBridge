@@ -3,15 +3,16 @@
 import sqlite3
 import threading
 import time
+from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 
 from catalog_core import query, schema
-from catalog_core.json_codec import loads, require
+from catalog_core.json_codec import ContractError, loads, require
 from catalog_core.protocol import Request, Response, Row, Title, request_digest
 
-from .read_catalog import lease, provider_root
+from .read_catalog import database_file, lease, provider_root
 
 
 class CancelConnection:
@@ -44,28 +45,41 @@ def titles(db: sqlite3.Connection, ids: set[str], provider: str) -> list[Title]:
         return []
     placeholders = ",".join("?" for _ in ids)
     values = sorted(ids)
-    result = []
-    for row in db.execute(
-        f"SELECT * FROM title WHERE title_id IN ({placeholders}) ORDER BY title_id",
+    rows = list(
+        db.execute(
+            f"SELECT * FROM title WHERE title_id IN ({placeholders}) ORDER BY title_id",
+            values,
+        )
+    )
+    if not rows:
+        return []
+    aliases: dict[str, list[str]] = defaultdict(list)
+    # One grouped query replaces two lookups per title (400 round trips for a
+    # 200-title discovery page). row_number keeps the existing 33-alias bound.
+    for title_id, alias in db.execute(
+        "SELECT title_id,display_alias FROM ("
+        "SELECT title_id,display_alias,row_number() OVER "
+        "(PARTITION BY title_id ORDER BY search_key) AS rank "
+        f"FROM alias WHERE title_id IN ({placeholders})"
+        ") WHERE rank<=33 ORDER BY title_id,rank",
         values,
     ):
-        aliases = [
-            r[0]
-            for r in db.execute(
-                "SELECT display_alias FROM alias WHERE title_id=? LIMIT 33",
-                (row["title_id"],),
-            )
-        ]
-        maps = [
-            dict(r)
-            for r in db.execute(
-                "SELECT * FROM canonical_title WHERE title_id=?", (row["title_id"],)
-            )
-        ]
-        result.append(
-            Title(**dict(row), provider=provider, aliases=aliases, mappings=maps)
+        aliases[title_id].append(alias)
+    mappings: dict[str, list[dict]] = defaultdict(list)
+    for mapping in db.execute(
+        f"SELECT * FROM canonical_title WHERE title_id IN ({placeholders}) ORDER BY title_id",
+        values,
+    ):
+        mappings[mapping["title_id"]].append(dict(mapping))
+    return [
+        Title(
+            **dict(row),
+            provider=provider,
+            aliases=aliases[row["title_id"]],
+            mappings=mappings[row["title_id"]],
         )
-    return result
+        for row in rows
+    ]
 
 
 def execute(
@@ -77,7 +91,7 @@ def execute(
     with lease(root):
         metadata = loads((root / "current.json").read_bytes(), 65536)
         require(metadata["provider"] == request.provider, "provider_unavailable")
-        db = schema.connect(root / metadata["database"])
+        db = schema.connect(database_file(root, metadata))
         try:
 
             def interrupted() -> int:
@@ -136,22 +150,30 @@ def execute(
                     entities.update(request.include_entities)
                     require(len(entities) <= 2000, "query_too_broad")
                 parsed = replace(parsed, limit=request.limit, offset=request.offset)
-                rows, total, headers = query.query(
-                    ReadStore(CancelConnection(db, interrupted), metadata),
-                    parsed,
-                    now=now,
-                    title_ids=selected,
-                    entity_ids=entities,
-                    max_releases=2000 if request.operation == "native" else None,
-                    languages=(
-                        None
-                        if request.provider == "filmo.to" and not request.languages
-                        else {request.provider: set(request.languages)}
+                try:
+                    rows, total, headers = query.query(
+                        ReadStore(CancelConnection(db, interrupted), metadata),
+                        parsed,
+                        now=now,
+                        title_ids=selected,
+                        entity_ids=entities,
+                        max_releases=2000 if request.operation == "native" else None,
+                        languages=(
+                            None
+                            if request.provider == "filmo.to" and not request.languages
+                            else {request.provider: set(request.languages)}
+                        )
+                        if request.operation in {"recent", "native"}
+                        else None,
+                        offer_hosts=set(request.offer_hosts) or None,
                     )
-                    if request.operation in {"recent", "native"}
-                    else None,
-                    offer_hosts=set(request.offer_hosts) or None,
-                )
+                except sqlite3.OperationalError:
+                    # A progress-handler abort is surfaced by SQLite as
+                    # OperationalError; report the cooperative budget instead of
+                    # a generic catalog outage.
+                    if interrupted():
+                        raise ContractError("query_deadline") from None
+                    raise
                 if (
                     request.operation == "native"
                     and request.season is not None
@@ -166,27 +188,32 @@ def execute(
                     selected if selected is not None else {r["title_id"] for r in rows},
                     request.provider,
                 )
-            records = []
-            for row in rows:
-                maps = [
-                    dict(r)
-                    for r in db.execute(
-                        "SELECT * FROM canonical_episode WHERE entity_id=?",
-                        (row["entity_id"],),
-                    )
-                ]
-                records.append(
-                    Row(
-                        **{
-                            key: row.get(key)
-                            if key in {"variant_anchor", "release_metadata"}
-                            else row[key]
-                            for key in Row.model_fields
-                            if key != "mappings"
-                        },
-                        mappings=maps,
-                    )
+            # Batch episode mappings too: a 500-row response previously issued
+            # up to 500 tiny queries inside the 2-second SQL budget.
+            episode_maps: dict[str, list[dict]] = defaultdict(list)
+            entity_ids = {row["entity_id"] for row in rows}
+            if entity_ids:
+                marks = ",".join("?" for _ in entity_ids)
+                for mapping in db.execute(
+                    "SELECT * FROM canonical_episode "
+                    f"WHERE entity_id IN ({marks}) "
+                    "ORDER BY entity_id,season,episode",
+                    sorted(entity_ids),
+                ):
+                    episode_maps[mapping["entity_id"]].append(dict(mapping))
+            records = [
+                Row(
+                    **{
+                        key: row.get(key)
+                        if key in {"variant_anchor", "release_metadata"}
+                        else row[key]
+                        for key in Row.model_fields
+                        if key != "mappings"
+                    },
+                    mappings=episode_maps[row["entity_id"]],
                 )
+                for row in rows
+            ]
             require(not interrupted(), "query_deadline")
             response = Response(
                 query_digest=request_digest(request),

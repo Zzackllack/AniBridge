@@ -5,10 +5,11 @@ import json
 from itertools import pairwise
 
 import pytest
+from test_pipeline import NOW, collectors
+
 from catalog_worker.config import load
 from catalog_worker.pipeline import Pipeline
 from catalog_worker.state import State
-from test_pipeline import NOW, collectors
 
 
 def test_millisecond_profile_keeps_legacy_provider_override(tmp_path):
@@ -150,3 +151,24 @@ def test_admission_read_failure_keeps_producer_error_isolation(tmp_path, monkeyp
     finally:
         for collector in group:
             collector.state.close()
+
+
+def test_bind_host_defaults_to_loopback_and_explicit_container_bind_wins(tmp_path):
+    path = tmp_path / "config.json"
+
+    def write(host=None):
+        data = {
+            "providers": {"aniworld.to": "https://aniworld.to"},
+            "canonical_sources": {},
+            "state_dir": str(tmp_path / "state"),
+            "output_dir": str(tmp_path / "read"),
+            "source_id": "test",
+        }
+        if host is not None:
+            data["bind_host"] = host
+        path.write_text(json.dumps(data))
+
+    write()
+    assert load(path).bind_host == "127.0.0.1"
+    write("0.0.0.0")
+    assert load(path).bind_host == "0.0.0.0"

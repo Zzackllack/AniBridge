@@ -6,10 +6,11 @@ from pathlib import Path
 
 import pytest
 from catalog_core.providers.transport import Fetch
+from test_matching_followup import NOW, episode, seed
+
 from catalog_worker import descriptors
 from catalog_worker.canonical import Enricher
 from catalog_worker.canonical_failures import EvidenceError
-from test_matching_followup import NOW, episode, seed
 
 FIXTURE = json.loads(
     (Path(__file__).parent / "fixtures/skyhook_legacy_episode_ids.json").read_text()
@@ -242,3 +243,22 @@ def test_untagged_named_or_wrong_identity_translations_still_reject(mutation):
     with pytest.raises(EvidenceError) as failure:
         descriptors.translation(payload, "123", "deu")
     assert failure.value.reason == "translation_identity_conflict"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"episodes": [{"seasonNumber": 1, "episodeNumber": 1, "title": "A story"}]},
+        {
+            "tvdbId": "123",
+            "metadataSource": "tvdb",
+            "episodes": [{"seasonNumber": 1, "episodeNumber": 1, "title": "A story"}],
+        },
+    ],
+)
+def test_episode_parser_rejects_missing_or_noninteger_parent_identity(payload):
+    # Callers normally verify the descriptor first; the parser must still fail
+    # with a typed evidence reason instead of an uncaught KeyError.
+    with pytest.raises(EvidenceError) as failure:
+        descriptors.episodes(payload)
+    assert failure.value.reason == "episode_identity_missing"

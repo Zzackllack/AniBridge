@@ -3,6 +3,7 @@
 import fcntl
 import hashlib
 import os
+import re
 import sqlite3
 import time
 from collections.abc import Iterator
@@ -48,6 +49,27 @@ def lease(root: Path, *, write: bool = False, deadline_s: float = 2) -> Iterator
 
 def provider_root(root: Path, provider: str) -> Path:
     return root if provider == "aniworld.to" else root / provider
+
+
+DATABASE_NAME = re.compile(r"read-[0-9a-f]{64}\.sqlite")
+
+
+def database_file(root: Path, metadata: dict) -> Path:
+    """Resolve only the immutable artifact the publisher itself can name.
+
+    current.json is operator-owned, but a tampered or accidentally copied
+    pointer must not let the read path open private worker state (or follow a
+    symlink) under a read-only SQLite connection.
+    """
+    require(isinstance(metadata, dict), "invalid read database")
+    name = metadata.get("database")
+    require(
+        isinstance(name, str) and DATABASE_NAME.fullmatch(name) is not None,
+        "invalid read database",
+    )
+    path = root / name
+    require(not path.is_symlink() and path.is_file(), "unsafe read database")
+    return path
 
 
 def publish(config: Config, state: State, now: int, *, full: bool = False) -> dict:
@@ -200,7 +222,7 @@ def verify(root: Path) -> dict:
     """One startup digest check, never a full file read per search."""
     with lease(root):
         metadata = loads((root / "current.json").read_bytes(), 65536)
-        with (root / metadata["database"]).open("rb") as stream:
+        with database_file(root, metadata).open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
         if digest != metadata["artifact"]["sqlite_sha256"]:
             raise ValueError("catalog_pair_mismatch")

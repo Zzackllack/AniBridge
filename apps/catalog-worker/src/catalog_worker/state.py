@@ -22,7 +22,11 @@ class State:
     def __init__(self, filename: Path, provider: str) -> None:
         filename.parent.mkdir(parents=True, exist_ok=True)
         initialize(filename, provider)
-        self.db = sqlite3.connect(filename)
+        # CPython's implicit 5 s busy timeout is too tight for a publication
+        # child acknowledging while the collector keeps writing WAL pages. Use
+        # 10 s explicitly so a transient writer overlap cannot strand
+        # published_generation and trigger another full republish.
+        self.db = sqlite3.connect(filename, timeout=10)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.execute("PRAGMA journal_mode=WAL")

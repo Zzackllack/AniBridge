@@ -8,6 +8,7 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
+from typing import ClassVar
 
 from catalog_core.diagnostics import reason
 from catalog_core.json_codec import ContractError, loads
@@ -21,23 +22,89 @@ from .query_reader import execute
 
 
 class Admission:
-    """Single-process global budget; deliberately no per-IP identity/logging."""
+    """Global budget plus bounded per-source and per-operation sub-budgets.
+
+    Per-token fairness is impossible with the pilot's single shared bearer
+    token, so that is intentionally not attempted. Remote address is used only
+    for fairness, never logging; behind a proxy every request shares the proxy
+    address and therefore falls back to the global and per-operation caps.
+    A per-source active cap prevents one address from occupying all eight
+    global slots across operations; operation caps still keep a native flood
+    from starving title discovery.
+    """
+
+    OPERATIONS: ClassVar[dict[str, int]] = {
+        "titles": 2,
+        "native": 4,
+        "recent": 4,
+    }
+    CLIENTS = 64
+    CLIENT_ACTIVE = 4
+    CLIENT_RATE = 100.0
+    CLIENT_BURST = 128
 
     def __init__(self, rate: float = 200, burst: int = 256) -> None:
         self.rate, self.burst = rate, burst
         self.tokens = float(burst)
         self.at = time.monotonic()
         self.active = 0
+        self.clients: dict[str, tuple[float, float]] = {}
+        self.client_active: dict[str, int] = {}
+        self.operations = dict.fromkeys(self.OPERATIONS, 0)
 
-    def enter(self) -> bool:
+    def _client_tokens(self, client: str, now: float) -> tuple[float, float]:
+        tokens, at = self.clients.get(client, (float(self.CLIENT_BURST), now))
+        tokens = min(self.CLIENT_BURST, tokens + (now - at) * self.CLIENT_RATE)
+        return tokens, now
+
+    def enter(self, client: str, operation: str) -> bool:
         now = time.monotonic()
         self.tokens = min(self.burst, self.tokens + (now - self.at) * self.rate)
         self.at = now
-        if self.active >= 8 or self.tokens < 1:
+        client_tokens, at = self._client_tokens(client, now)
+        limit = self.OPERATIONS.get(operation)
+        if (
+            limit is None
+            or self.active >= 8
+            or self.operations[operation] >= limit
+            or self.client_active.get(client, 0) >= self.CLIENT_ACTIVE
+            or self.tokens < 1
+            or client_tokens < 1
+        ):
+            # Age a denied client bucket without consuming a global token.
+            self.clients[client] = (client_tokens, at)
+            self._trim_clients()
             return False
         self.tokens -= 1
+        self.clients[client] = (client_tokens - 1, at)
+        self.client_active[client] = self.client_active.get(client, 0) + 1
+        self.operations[operation] += 1
         self.active += 1
+        self._trim_clients()
         return True
+
+    def _trim_clients(self) -> None:
+        if len(self.clients) <= self.CLIENTS:
+            return
+        # Never drop an active counter: leave() is keyed by the same address and
+        # must release exactly the slot that enter() reserved.
+        for client in sorted(self.clients, key=lambda key: self.clients[key][1]):
+            if self.client_active.get(client, 0):
+                continue
+            del self.clients[client]
+            if len(self.clients) <= self.CLIENTS:
+                break
+
+    def leave(self, client: str, operation: str) -> None:
+        self.active = max(0, self.active - 1)
+        if operation in self.operations:
+            self.operations[operation] = max(0, self.operations[operation] - 1)
+        active = self.client_active.get(client, 0)
+        if active:
+            if active == 1:
+                del self.client_active[client]
+            else:
+                self.client_active[client] = active - 1
 
 
 def create_app(
@@ -70,12 +137,13 @@ def create_app(
             http.headers.get("authorization", "").encode(), ("Bearer " + token).encode()
         ):
             return error(401, "unauthorized")
-        if not admission.enter():
-            return error(429, "admission_busy")
         cancel = threading.Event()
         work = None
         validated = False
+        admitted = False
         request = None
+        client = "unknown"
+        operation = "titles"
         started = time.monotonic()
 
         def diagnostic(exc: BaseException):
@@ -112,6 +180,11 @@ def create_app(
                         return error(413, "request_too_large")
                 request = Request.model_validate(loads(bytes(body), 16384))
                 validated = True
+                operation = request.operation
+                client = http.client.host if http.client else "unknown"
+                if not admission.enter(client, operation):
+                    return error(429, "admission_busy")
+                admitted = True
                 # to_thread prevents SQLite from blocking unrelated HTTP. On
                 # timeout/disconnect the progress handler stops SQL, and the slot
                 # remains owned until the thread has actually settled.
@@ -156,8 +229,9 @@ def create_app(
             if work is not None:
                 try:
                     await asyncio.shield(work)
-                except (Exception, asyncio.CancelledError):  # noqa: BLE001,S110 -- cancellation settles SQL; no raw query diagnostics
+                except Exception, asyncio.CancelledError:  # noqa: BLE001,S110 -- cancellation settles SQL; no raw query diagnostics
                     pass
-            admission.active -= 1
+            if admitted:
+                admission.leave(client, operation)
 
     return app

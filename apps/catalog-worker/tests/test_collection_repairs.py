@@ -5,13 +5,14 @@ import asyncio
 from catalog_core.identity import mapping_id
 from catalog_core.providers.aniworld import EpisodeRow, Link, Page
 from catalog_core.providers.sto import parse
+from test_pipeline import NOW, collectors
+
 from catalog_worker.canonical_cache import apply, store
 from catalog_worker.collector import Plan
 from catalog_worker.mapping import CanonicalEpisode
 from catalog_worker.pipeline import Pipeline
 from catalog_worker.progress import measure
 from catalog_worker.state import State
-from test_pipeline import NOW, collectors
 
 
 def test_exhausted_admission_defers_without_failure_across_restart(tmp_path):
@@ -318,6 +319,7 @@ def test_short_redirect_spacing_releases_slot_and_resumes_chain(tmp_path, monkey
 
     import httpx
     from catalog_core.providers.transport import Session
+
     from catalog_worker.fetch_slot import FetchSlot
 
     class Stream(httpx.AsyncByteStream):
@@ -569,3 +571,65 @@ def test_inflight_hop_cannot_ignore_another_pages_new_cooldown(tmp_path):
     finally:
         for collector in group:
             collector.state.close()
+
+
+def test_admission_race_cannot_spin_while_holding_slots(tmp_path):
+    import pytest
+    from catalog_core.providers.transport import AdmissionDeferred
+
+    group = collectors(tmp_path)
+    collector = group[0]
+    original_meta = collector.state.meta
+    reads = []
+
+    def bounded_meta():
+        reads.append(1)
+        if len(reads) > 100:
+            raise RuntimeError("admission loop did not terminate")
+        return original_meta()
+
+    try:
+        collector.state.request_delay = lambda *args, **kwargs: 0
+        collector.state.allow_request = lambda *args, **kwargs: False
+        collector.state.meta = bounded_meta
+        with pytest.raises(AdmissionDeferred):
+            asyncio.run(collector.before_request())
+    finally:
+        for item in group:
+            item.state.close()
+
+
+def test_oversized_child_records_are_rejected_before_json_load(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from catalog_core.providers.transport import Fetch
+
+    group = collectors(tmp_path)
+    collector = group[0]
+
+    async def fetch(*args, **kwargs):
+        return Fetch("ok", b"<html></html>")
+
+    async def oversized(module, arguments, timeout):
+        Path(arguments[1]).write_bytes(
+            b"x" * (collector.config.limits["body_bytes"] * 2 + 1)
+        )
+        return []
+
+    loaded = []
+
+    def forbidden_json(*args, **kwargs):
+        loaded.append(1)
+        raise AssertionError("oversized child records were loaded")
+
+    collector.fetcher = fetch
+    monkeypatch.setattr("catalog_worker.collector.run_child_async", oversized)
+    monkeypatch.setattr("catalog_worker.collector.json.loads", forbidden_json)
+    try:
+        work = collector.state.claim(NOW)
+        ready = asyncio.run(collector.collect(Plan(NOW, False, work, work["path"])))
+        assert ready.outcome == "unexpected_structure" and ready.page is None
+        assert not loaded
+    finally:
+        for item in group:
+            item.state.close()

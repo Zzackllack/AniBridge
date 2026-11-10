@@ -9,7 +9,7 @@ import shlex
 import time
 from pathlib import Path
 
-from catalog_core.files import ProcessLock, atomic_write
+from catalog_core.files import ProcessLock, atomic_write, fsync_directory
 from catalog_core.identity import entity_id, mapping_id, title_id
 from catalog_core.json_codec import dumps
 from catalog_core.providers.transport import Fetch
@@ -22,6 +22,21 @@ from .state import State
 TITLE = "/anime/stream/generated-client-fixture"
 NAME = "Breaking Bad"
 TVDB = "81189"
+
+
+def _private_write(path: Path, data: bytes) -> None:
+    """Create a new secret file with its final mode, never a chmod window."""
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        fsync_directory(path.parent)
+    except BaseException:
+        # A partial credential must not survive as an unusable O_EXCL target.
+        path.unlink(missing_ok=True)
+        raise
 
 
 def prepare(config_root: Path, provider: str = "aniworld.to") -> Path:
@@ -57,11 +72,14 @@ def prepare(config_root: Path, provider: str = "aniworld.to") -> Path:
                 "CATALOG_ALLOW_PRIVATE_HTTP=true\n"
             ).encode(),
         )
-        atomic_write(config_root / "metadata-token", secrets.token_urlsafe(32).encode())
-        (config_root / "metadata-token").chmod(0o600)
-        for path in config_root.iterdir():
-            if os.geteuid() == 0:
-                os.chown(path, 1000, 1000)
+    # A previous interrupted initialization must not leave serving without a
+    # credential. O_EXCL also refuses to replace an operator-provided token.
+    token = config_root / "metadata-token"
+    if not token.exists():
+        _private_write(token, secrets.token_urlsafe(32).encode())
+    for path in config_root.iterdir():
+        if os.geteuid() == 0:
+            os.chown(path, 1000, 1000)
     return worker
 
 

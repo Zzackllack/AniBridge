@@ -1,6 +1,12 @@
+import sqlite3
+
 import pytest
+from catalog_core.identity import mapping_id
+
+from catalog_worker import review
 from catalog_worker.aniworld import Link, Page, parse
 from catalog_worker.state import State
+from catalog_worker.transactions import atomic
 
 NOW = 1800000000
 TITLE = "/anime/stream/example"
@@ -269,5 +275,73 @@ def test_inflight_positive_pages_preserve_provider_block_and_last_good(tmp_path)
         assert state.meta()["state"] == "blocked"
         state.detail(work, Page((), ("de-dub", "en-sub"), 0, "Second"), blocked + 1)
         assert state.meta()["state"] == "partial"
+    finally:
+        state.close()
+
+
+def test_state_sets_explicit_busy_timeout_for_publication_ack(tmp_path):
+    state = State(tmp_path / "worker.sqlite", "aniworld.to")
+    try:
+        assert state.db.execute("PRAGMA busy_timeout").fetchone()[0] == 10000
+    finally:
+        state.close()
+
+
+def test_atomic_recovers_after_sqlite_full_rolls_back_the_savepoint(tmp_path):
+    db = sqlite3.connect(tmp_path / "transaction.sqlite")
+    try:
+        db.execute("CREATE TABLE row(value BLOB)")
+        db.commit()
+        db.execute("PRAGMA max_page_count=3")
+        with pytest.raises(sqlite3.OperationalError, match="full"), atomic(db):
+            db.execute("INSERT INTO row VALUES(?)", (b"x" * 10000,))
+        # SQLite already discarded the savepoint with the whole transaction.
+        # A later checkpoint must still be able to start and commit cleanly.
+        assert not db.in_transaction
+        with atomic(db):
+            db.execute("INSERT INTO row VALUES(?)", (b"ok",))
+        assert db.execute("SELECT value FROM row").fetchall() == [(b"ok",)]
+    finally:
+        db.close()
+
+
+def test_review_season_rolls_back_insert_when_followup_delete_fails(tmp_path):
+    state = seed(tmp_path / "worker.sqlite")
+    try:
+        tid, entity = state.db.execute(
+            "SELECT title_id,entity_id FROM entity WHERE kind='episode' LIMIT 1"
+        ).fetchone()
+        mapping = mapping_id(state.provider, tid, "tvdb", "123")
+        with state.db:
+            state.db.execute(
+                "INSERT INTO canonical_title VALUES(?,?,?,?,?,?,?)",
+                (mapping, tid, "tvdb", "123", "synthetic-v1", "reviewed", NOW),
+            )
+            state.db.execute(
+                "INSERT INTO canonical_episode VALUES(?,?,?,?,?,?,?)",
+                (mapping, entity, 1, 1, None, "reviewed", NOW),
+            )
+            state.db.execute(
+                "CREATE TRIGGER block_mapping_delete BEFORE DELETE ON canonical_episode "
+                "BEGIN SELECT RAISE(ABORT,'injected delete failure'); END"
+            )
+        body = {
+            "title_id": tid,
+            "namespace": "tvdb",
+            "external_id": "123",
+            "native_season": 1,
+            "canonical_season": 2,
+            "expected_old": None,
+        }
+        with pytest.raises(sqlite3.IntegrityError, match="injected delete failure"):
+            review.season(state, body)
+        assert (
+            state.db.execute("SELECT count(*) FROM season_correspondence").fetchone()[0]
+            == 0
+        )
+        assert (
+            state.db.execute("SELECT count(*) FROM canonical_episode").fetchone()[0]
+            == 1
+        )
     finally:
         state.close()

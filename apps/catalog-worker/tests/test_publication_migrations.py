@@ -4,9 +4,10 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+from test_query import NOW, seed
+
 from catalog_worker.state import State
 from catalog_worker.state_migrations import initialize, preflight, rollback_publication
-from test_query import NOW, seed
 
 
 @pytest.mark.parametrize(
@@ -63,3 +64,35 @@ def test_v6_migration_reserve_includes_committed_wal_pages(tmp_path):
         size = writer.execute("PRAGMA page_size").fetchone()[0]
         assert pages * size > filename.stat().st_size
         assert migration_reserve(config) == STATE_HEADROOM + pages * size
+
+
+@pytest.mark.parametrize(
+    "provider,reserves_new_backup", [("filmo.to", True), ("aniworld.to", False)]
+)
+def test_v7_reserve_counts_only_a_pending_upgrade_backup(
+    tmp_path, provider, reserves_new_backup
+):
+    from catalog_worker.config import LIMITS, Config
+    from catalog_worker.storage import STATE_HEADROOM, migration_reserve
+
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    filename = state_dir / f"{provider}.sqlite"
+    with sqlite3.connect(filename) as db:
+        db.execute("CREATE TABLE worker_schema(version INTEGER)")
+        db.execute("INSERT INTO worker_schema VALUES(7)")
+        pages = db.execute("PRAGMA page_count").fetchone()[0]
+        size = db.execute("PRAGMA page_size").fetchone()[0]
+    config = Config(
+        {provider: "https://fixture.invalid"},
+        {"tv": "off"},
+        state_dir,
+        tmp_path / "output",
+        tmp_path / "key",
+        "fixture",
+        "127.0.0.1",
+        1,
+        {key: bounds[0] for key, bounds in LIMITS.items()},
+    )
+    expected = STATE_HEADROOM + pages * size if reserves_new_backup else STATE_HEADROOM
+    assert migration_reserve(config) == expected

@@ -251,7 +251,10 @@ def load(path: Path) -> Config:
                     value == providers[provider].rstrip("/") + "/",
                     "invalid referer origin",
                 )
-    host = raw.get("bind_host", "0.0.0.0")
+    # Metadata serving is cleartext HTTP with one shared bearer token. Default to
+    # loopback; an exposed container/overlay bind must be an explicit operator
+    # choice in worker.json (never inferred from an absent field).
+    host = raw.get("bind_host", "127.0.0.1")
     require(type(host) is str and bool(host), "invalid bind host")
     return Config(
         providers,

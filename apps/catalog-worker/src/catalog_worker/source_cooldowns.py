@@ -56,3 +56,25 @@ class SourceCooldowns:
                 raise CooldownWriteError(
                     "cannot persist canonical source cooldown"
                 ) from exc
+
+
+def clear(filename: Path, origins: list[str]) -> int:
+    """Operator override for a source wedged by a persisted Retry-After.
+
+    A valid receipt is rewritten atomically; a corrupt receipt keeps refusing
+    startup instead of being silently discarded.
+    """
+    require(
+        bool(origins) and all(origin in ORIGINS for origin in origins),
+        "unexpected canonical cooldown origin",
+    )
+    if not filename.exists():
+        return 0
+    receipt = SourceCooldowns(filename)
+    removed = [origin for origin in origins if origin in receipt.until]
+    if not removed:
+        return 0
+    for origin in removed:
+        del receipt.until[origin]
+    atomic_write(filename, dumps({"version": 1, "until": receipt.until}))
+    return len(removed)

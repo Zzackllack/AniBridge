@@ -8,6 +8,7 @@ import pytest
 from catalog_core import identity
 from catalog_core.protocol import Request
 from catalog_core.query_client import Cache, Client, Unavailable
+
 from catalog_worker.aniworld import Link, Page
 from catalog_worker.config import LIMITS, Config
 from catalog_worker.query_server import create_app
@@ -379,9 +380,11 @@ def test_sql_cancellation_settles_before_releasing_admission(tmp_path, monkeypat
             while not started.is_set():
                 await asyncio.sleep(0.005)
             assert app.state.admission.active == 1
+            assert sum(app.state.admission.client_active.values()) == 1
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
             assert settled.is_set() and app.state.admission.active == 0
+            assert not app.state.admission.client_active
 
     asyncio.run(run())
 
@@ -548,6 +551,7 @@ def test_summary_totals_match_sql_for_language_and_cutoff(tmp_path):
     import json
 
     from catalog_core import schema
+
     from catalog_worker.query_reader import execute
 
     state, config = seed(tmp_path)
@@ -601,3 +605,251 @@ def test_empty_targeted_map_is_explicitly_unresolved(tmp_path):
         assert result.total == 0 and result.mapping == "unresolved"
     finally:
         state.close()
+
+
+def test_admission_caps_operations_clients_and_client_map(tmp_path):
+    from catalog_worker.query_server import Admission
+
+    admission = Admission(rate=10_000, burst=10_000)
+    for _ in range(4):
+        assert admission.enter("10.0.0.1", "native")
+    assert admission.client_active["10.0.0.1"] == 4
+    assert not admission.enter("10.0.0.2", "native")
+    assert admission.enter("10.0.0.2", "titles")
+    admission.leave("10.0.0.2", "titles")
+    for _ in range(4):
+        admission.leave("10.0.0.1", "native")
+    assert admission.active == 0 and not admission.client_active
+
+    # A per-source cap applies across operations even when the operation and
+    # global caps still have room.
+    for operation in ("titles", "titles", "recent", "recent"):
+        assert admission.enter("198.51.100.1", operation)
+    assert admission.client_active["198.51.100.1"] == Admission.CLIENT_ACTIVE
+    assert not admission.enter("198.51.100.1", "native")
+    assert admission.enter("198.51.100.2", "native")
+    for operation in ("titles", "titles", "recent", "recent"):
+        admission.leave("198.51.100.1", operation)
+    admission.leave("198.51.100.2", "native")
+    assert not admission.client_active
+
+    for index in range(100):
+        client = f"192.0.2.{index}"
+        assert admission.enter(client, "titles")
+        admission.leave(client, "titles")
+    assert len(admission.clients) <= Admission.CLIENTS
+
+
+def test_tampered_pointer_and_symlinked_read_database_are_rejected(tmp_path):
+    import json
+    import os
+
+    from catalog_worker.query_reader import execute
+    from catalog_worker.read_catalog import verify
+
+    state, config = seed(tmp_path)
+    root = config.output_dir
+    request = Request(operation="recent", params={"t": "search"}, limit=100)
+    original = (root / "current.json").read_bytes()
+    metadata = json.loads(original)
+    try:
+        metadata["database"] = "../state/aniworld.to.sqlite"
+        (root / "current.json").write_text(json.dumps(metadata))
+        with pytest.raises(ValueError, match="invalid read database"):
+            execute(root, request, NOW)
+        with pytest.raises(ValueError, match="invalid read database"):
+            verify(root)
+
+        (root / "current.json").write_bytes(original)
+        database = root / json.loads(original)["database"]
+        state_file = Path(state.db.execute("PRAGMA database_list").fetchone()[2])
+        database.unlink()
+        os.symlink(state_file, database)
+        with pytest.raises(ValueError, match="unsafe read database"):
+            execute(root, request, NOW)
+        with pytest.raises(ValueError, match="unsafe read database"):
+            verify(root)
+    finally:
+        state.close()
+
+
+def test_titles_aliases_and_mappings_use_batched_queries(tmp_path):
+    from catalog_worker.query_reader import titles
+
+    state, _config = seed(tmp_path)
+    try:
+        tid = state.db.execute("SELECT title_id FROM title").fetchone()[0]
+        other = identity.title_id("aniworld.to", "/anime/stream/second")
+        with state.db:
+            state.db.execute(
+                "INSERT INTO title VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    other,
+                    "/anime/stream/second",
+                    "second",
+                    "Second",
+                    "second",
+                    "series",
+                    2020,
+                    "/anime/stream/second",
+                    NOW,
+                    "complete",
+                ),
+            )
+        statements = []
+        state.db.set_trace_callback(statements.append)
+        assert len(titles(state.db, {tid, other}, "aniworld.to")) == 2
+        selects = [
+            statement
+            for statement in statements
+            if statement.lstrip().upper().startswith("SELECT")
+        ]
+        # One title lookup, one alias batch and one mapping batch. The old
+        # implementation issued 1 + 2 * len(ids) queries.
+        assert len(selects) == 3
+    finally:
+        state.db.set_trace_callback(None)
+        state.close()
+
+
+def test_empty_targeted_ids_never_reach_sql(tmp_path):
+    from catalog_worker.query_reader import titles
+
+    with pytest.raises(ValueError):
+        Request(operation="native", params={"t": "search"}, title_ids=[])
+    state, _config = seed(tmp_path)
+    try:
+        statements = []
+        state.db.set_trace_callback(statements.append)
+        assert titles(state.db, set(), "aniworld.to") == []
+        assert not [
+            statement
+            for statement in statements
+            if statement.lstrip().upper().startswith("SELECT")
+        ]
+    finally:
+        state.close()
+
+
+def test_progress_abort_maps_to_query_deadline(tmp_path, monkeypatch):
+    import sqlite3
+    import threading
+
+    from catalog_core.json_codec import ContractError
+
+    from catalog_worker.query_reader import execute
+
+    state, config = seed(tmp_path)
+
+    def aborted(*args, **kwargs):
+        raise sqlite3.OperationalError("interrupted")
+
+    monkeypatch.setattr("catalog_worker.query_reader.query.query", aborted)
+    cancel = threading.Event()
+    cancel.set()
+    try:
+        with pytest.raises(ContractError, match="query_deadline"):
+            execute(
+                config.output_dir,
+                Request(operation="recent", params={"t": "search"}, limit=100),
+                NOW,
+                cancel,
+            )
+    finally:
+        state.close()
+
+
+def test_export_index_names_are_quoted():
+    from catalog_worker.export import quote_identifier
+
+    assert quote_identifier('odd"index') == '"odd""index"'
+
+
+def test_maximum_row_page_still_obeys_independent_response_byte_cap(
+    tmp_path, monkeypatch
+):
+    from catalog_core.protocol import MAX_RESPONSE, Response, Row, Title, request_digest
+
+    from catalog_worker import query_server
+
+    # Every field and row is legal on its own; the combined page is deliberately
+    # larger than the independent byte budget. It must fail without truncation.
+    anchor = "/anime/stream/" + "a" * 940
+    title_id = identity.title_id("aniworld.to", anchor)
+    title = Title(
+        title_id=title_id,
+        identity_anchor=anchor,
+        slug="a" * 240,
+        display_title="A" * 512,
+        search_key="a" * 512,
+        media_type="series",
+        year=2020,
+        path=anchor,
+        observed_at=NOW,
+        detail_status="complete",
+    )
+    rows = []
+    for episode in range(1, 501):
+        path = f"{anchor}/staffel-1/episode-{episode}"
+        entity_id = identity.entity_id("aniworld.to", path)
+        rows.append(
+            Row(
+                provider="aniworld.to",
+                title_id=title_id,
+                entity_id=entity_id,
+                release_id=identity.release_id("aniworld.to", entity_id, "de-dub"),
+                snapshot_digest="0" * 64,
+                title_anchor=anchor,
+                entity_anchor=path,
+                path=path,
+                slug=title.slug,
+                display_title=title.display_title,
+                year=2020,
+                kind="episode",
+                language="de-dub",
+                native_season=1,
+                native_episode=episode,
+                namespace=None,
+                external_id=None,
+                season=None,
+                episode=None,
+                first_seen_at=NOW,
+                observed_at=NOW,
+            )
+        )
+    request = Request(
+        operation="native", params={"t": "search"}, title_ids=[title_id], limit=500
+    )
+    response = Response(
+        query_digest=request_digest(request),
+        source_id="synthetic",
+        provider="aniworld.to",
+        revision=1,
+        snapshot_digest="0" * 64,
+        listing_checked_at=NOW,
+        offset=0,
+        mapping="unresolved",
+        titles=[title],
+        rows=rows,
+        total=500,
+    )
+    response.check_request(request, "synthetic")
+    assert len(response.model_dump_json().encode()) > MAX_RESPONSE
+    monkeypatch.setattr(query_server, "execute", lambda *args: response)
+    app = create_app(tmp_path, TOKEN, now=NOW)
+
+    async def run():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as http:
+            result = await http.post(
+                "/catalog/v1/query",
+                json=request.model_dump(),
+                headers={"Authorization": "Bearer " + TOKEN},
+            )
+        assert result.status_code == 503
+        assert result.json() == {"error": "response_too_large"}
+        assert app.state.admission.active == 0
+        assert app.state.completed == 0
+
+    asyncio.run(run())

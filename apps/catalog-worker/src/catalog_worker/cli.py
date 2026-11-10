@@ -61,6 +61,10 @@ async def collect(path: Path, once: bool) -> None:
             requests_per_minute=config.limits["canonical_requests_per_minute"],
             on_fetch=events.canonical,
             on_failure=events.canonical_failure,
+            storage_guard=lambda reserve: check(config, state_reserve=reserve),
+            descriptor_budget=max(
+                64 * 1024**2, config.limits["state_disk_bytes"] // 16
+            ),
         )
         loop = asyncio.get_running_loop()
         loop.add_signal_handler(signal.SIGTERM, asyncio.current_task().cancel)
@@ -179,6 +183,10 @@ async def collect_title(
             config.canonical_sources,
             cooldown_file=config.state_dir / "canonical-cooldowns.json",
             requests_per_minute=config.limits["canonical_requests_per_minute"],
+            storage_guard=lambda reserve: check(config, state_reserve=reserve),
+            descriptor_budget=max(
+                64 * 1024**2, config.limits["state_disk_bytes"] // 16
+            ),
         )
         async with asyncio.timeout(120):
             for _ in range(30):
@@ -230,9 +238,25 @@ def main() -> None:
     parser.add_argument("--publish", action="store_true")
     parser.add_argument("--collect-title", metavar="NATIVE_PATH")
     parser.add_argument("--review-season", type=Path)
+    parser.add_argument(
+        "--clear-cooldown",
+        action="append",
+        default=[],
+        metavar="ORIGIN",
+        help="clear one canonical source cooldown; repeatable, or use 'all'",
+    )
     args = parser.parse_args()
     config = load(args.config)
-    if args.status:
+    if args.clear_cooldown:
+        from .source_cooldowns import FILENAME, ORIGINS, clear
+
+        origins = (
+            sorted(ORIGINS) if "all" in args.clear_cooldown else args.clear_cooldown
+        )
+        with closing(ProcessLock(config.state_dir / "worker.lock")):
+            removed = clear(config.state_dir / FILENAME, origins)
+        print(f"cleared {removed} canonical cooldown(s)")
+    elif args.status:
         import json
 
         from .operator_status import report
@@ -282,6 +306,11 @@ def main() -> None:
     elif args.publish:
         from .query_publish import publish_config
 
+        # Storage accounting includes descriptors held open by deleted SQLite
+        # temp files, which only Linux /proc exposes. Refuse an unchecked export
+        # on other platforms rather than claim the quota was enforced.
+        if sys.platform != "linux":
+            raise ValueError("publication storage accounting requires Linux")
         with closing(ProcessLock(config.state_dir / "worker.lock")):
             publish_config(args.config)
     else:

@@ -1,6 +1,7 @@
 """Automatic correspondence needs independent unique episode names."""
 
 from catalog_core.identity import mapping_id, title_id
+
 from catalog_worker.aniworld import Link, Page
 from catalog_worker.canonical_cache import apply, store
 from catalog_worker.mapping import CanonicalEpisode
@@ -147,5 +148,58 @@ def test_observed_episode_annotation_is_source_specific_and_keeps_ambiguity(tmp_
         assert (
             state.db.execute("SELECT count(*) FROM canonical_episode").fetchone()[0]
             == 0
+        )
+    state.close()
+
+
+def test_conflicting_episode_ids_are_marked_and_never_exported(tmp_path):
+    state = State(tmp_path / "state.sqlite", "aniworld.to")
+    title = "/anime/stream/example"
+    tid = title_id(state.provider, title)
+    mid = mapping_id(state.provider, tid, "tvdb", "123")
+    path = title + "/staffel-2/episode-9"
+    state.listing(Page((Link(title, "Example"),), (), 0, None), 1800000000)
+    state.detail(
+        state.claim(1800000000),
+        Page((Link(path, "First unique story"),), (), 0, "Example"),
+        1800000000,
+    )
+    state.detail(
+        state.claim(1800000000),
+        Page(
+            (), ("de-dub",), 0, "First unique story", episode_title="First unique story"
+        ),
+        1800000000,
+    )
+    with state.db:
+        state.db.execute(
+            "INSERT INTO canonical_title VALUES(?,?,?,?,?,?,?)",
+            (mid, tid, "tvdb", "123", "synthetic-v1", "reviewed", 1800000000),
+        )
+        # The descriptor contract normally rejects this before storage; keep the
+        # write path safe if a caller ever supplies duplicate coordinates.
+        store(
+            state,
+            tid,
+            "digest",
+            "matcher",
+            1800000000,
+            [
+                CanonicalEpisode(2, 9, "First unique story", "111"),
+                CanonicalEpisode(2, 9, "First unique story", "222"),
+            ],
+        )
+        assert apply(state, tid, 1800000000) == "matched"
+        assert (
+            state.db.execute(
+                "SELECT external_id FROM canonical_hint_identity"
+            ).fetchone()[0]
+            == "conflict"
+        )
+        assert (
+            state.db.execute(
+                "SELECT external_episode_id FROM canonical_episode"
+            ).fetchone()[0]
+            is None
         )
     state.close()

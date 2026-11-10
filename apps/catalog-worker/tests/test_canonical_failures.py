@@ -5,10 +5,11 @@ import json
 
 import pytest
 from catalog_core.providers.transport import AdmissionDeferred, Fetch
+from test_canonical import NOW, ready
+
 from catalog_worker.canonical import Enricher
 from catalog_worker.canonical_failures import CanonicalUnavailable, Failure
 from catalog_worker.events import Events
-from test_canonical import NOW, ready
 
 
 @pytest.mark.parametrize(
@@ -290,3 +291,31 @@ def test_failure_log_rejects_untrusted_fields(tmp_path):
     assert second["title_id"] is None and second["phase"] == "unknown"
     assert second["reason"] == "invalid_payload" and second["http_status"] is None
     assert not any(value in text for value in ("private", "secret", "HTML", "URL"))
+
+
+def test_unexpected_key_error_becomes_a_bounded_source_failure(tmp_path, monkeypatch):
+    state = ready(tmp_path)
+    item = {
+        "tvdbId": 123,
+        "title": "Example",
+        "year": 2020,
+        "episodes": [],
+    }
+
+    async def fetch(origin, path, **kwargs):
+        return Fetch("ok", json.dumps([item] if "search" in path else item).encode())
+
+    def broken(*args, **kwargs):
+        raise KeyError("private payload field")
+
+    monkeypatch.setattr("catalog_worker.canonical.descriptors.episodes", broken)
+    reports = []
+    enricher = Enricher(
+        {},
+        fetcher=fetch,
+        on_failure=lambda provider, tid, failure: reports.append(failure),
+    )
+    assert asyncio.run(enricher.tick(state, NOW))
+    assert reports == [Failure("descriptor", "invalid_payload")]
+    assert state.db.execute("SELECT failures FROM mapping_input").fetchone()[0] == 1
+    state.close()

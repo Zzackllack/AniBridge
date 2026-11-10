@@ -82,6 +82,8 @@ def test_prepare_server_keeps_defaults_and_only_adds_filmo_when_requested(
         "s.to": "https://serienstream.to",
     }
     assert worker["canonical_sources"]["movie"] == "off"
+    assert worker["bind_host"] == "0.0.0.0"
+    assert (default_dir / "metadata-token").stat().st_mode & 0o777 == 0o600
     client_env = (default_dir / "client.env").read_text()
     assert "CATALOG_MODE=query" in client_env
     assert "CATALOG_API_URL=https://metadata.example" in client_env

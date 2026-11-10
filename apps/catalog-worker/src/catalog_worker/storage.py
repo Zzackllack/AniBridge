@@ -3,6 +3,7 @@
 import os
 import shutil
 import stat as file_stat
+import sys
 from pathlib import Path
 
 from catalog_core.json_codec import require
@@ -21,7 +22,9 @@ def inventory_error(error: OSError) -> None:
     if not isinstance(error, FileNotFoundError):
         # Permission/I/O failures are unknown usage, not empty directories.
         # Atomic retirement during traversal may legitimately remove a path.
-        raise ValueError("storage_inventory_unavailable") from None
+        # Unavailable inventory is not a caller type error; keep the contract
+        # reason used by storage admission and tests.
+        raise ValueError("storage_inventory_unavailable") from None  # noqa: TRY004
 
 
 def used(directory: Path) -> int:
@@ -49,16 +52,21 @@ def used(directory: Path) -> int:
                 seen.add(key)
     # SQLite unlinks temporary sort files while keeping descriptors open. Linux
     # /proc metadata keeps those allocated bytes visible to quota accounting.
-    # Inspect only descriptor metadata under this owned root, never file content.
+    # Other platforms have no equivalent walk; --publish refuses to claim the
+    # quota was enforced there. Inspect descriptor metadata only, never content.
     proc = Path("/proc")
-    if proc.is_dir():
-        for process in proc.iterdir():
+    if sys.platform.startswith("linux") and proc.is_dir():
+        try:
+            processes = list(proc.iterdir())
+        except OSError:
+            raise ValueError("storage_inventory_unavailable") from None
+        for process in processes:
             if not process.name.isdecimal():
                 continue
             try:
                 descriptors = list((process / "fd").iterdir())
-            except PermissionError, FileNotFoundError:
-                continue
+            except PermissionError, FileNotFoundError, ProcessLookupError:
+                continue  # Exited process or hidden descriptor table.
             for descriptor in descriptors:
                 try:
                     target = os.readlink(descriptor)
@@ -73,7 +81,7 @@ def used(directory: Path) -> int:
                         total += max(stat.st_size, getattr(stat, "st_blocks", 0) * 512)
                         seen.add(key)
                 except PermissionError, FileNotFoundError, ProcessLookupError:
-                    continue
+                    continue  # Descriptor/process raced with the walk.
     return total
 
 
@@ -156,8 +164,13 @@ def migration_reserve(config: Config) -> int:
                 db.execute("PRAGMA page_count").fetchone()[0]
                 * db.execute("PRAGMA page_size").fetchone()[0]
             )
+        # An interrupted Filmo v6->v8 chain can leave a valid v7 database plus
+        # the earlier .pre-v7 backup. The next run adds .pre-v8, so version 7
+        # also needs a reserve; older code stopped at v6 and under-counted the
+        # second backup. Existing backups are already charged by used().
+        target = 8 if provider == "filmo.to" else 7
         if (
-            version in (1, 2, 3, 4, 5, 6)
+            version < target
             and not filename.with_name(
                 filename.name + f".pre-v{version + 1}.backup"
             ).exists()

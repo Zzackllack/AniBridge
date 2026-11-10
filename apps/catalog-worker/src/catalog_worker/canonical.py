@@ -87,6 +87,8 @@ class Enricher:
         on_fetch: Callable[[str, Fetch], None] | None = None,
         on_failure: Callable[[str, str, Failure], None] | None = None,
         cooldown_file: Path | None = None,
+        storage_guard: Callable[[int], object] | None = None,
+        descriptor_budget: int = descriptors.DESCRIPTOR_BUDGET,
     ) -> None:
         self.sources, self.fetcher, self.clock = sources, fetcher, clock
         self.sessions = {}
@@ -108,6 +110,11 @@ class Enricher:
         self.starts = deque(maxlen=self.requests_per_minute)
         self.on_fetch = on_fetch
         self.on_failure = on_failure
+        # Descriptor writes are the only ledger growth outside collection.
+        # Production passes storage.check so a single large cache entry cannot
+        # creep past the state quota between page admissions.
+        self.storage_guard = storage_guard
+        self.descriptor_budget = descriptor_budget
         self.failure_phase = "search"
         self.last_failure: Failure | None = None
         self.lock = asyncio.Lock()
@@ -478,6 +485,8 @@ class Enricher:
                                     canonical_episodes,
                                     acquired_at,
                                     canonical_cache.TTL,
+                                    guard=self.storage_guard,
+                                    budget=self.descriptor_budget,
                                 )
                             mapped, outcome = None, "conflict"
                 if mapped:
@@ -489,7 +498,10 @@ class Enricher:
             except AdmissionDeferred:
                 self.last_work = "admission_deferred"
                 return False
-            except (ValueError, OSError, TimeoutError) as exc:
+            # KeyError is defense in depth for a malformed provider payload that
+            # slipped past a typed check; it must not kill the per-provider
+            # maintain task for every later title.
+            except (ValueError, OSError, TimeoutError, KeyError) as exc:
                 mapped, outcome, failures = None, "source_failure", failures + 1
                 retry_after = getattr(exc, "retry_after", None)
                 self.last_failure = Failure.from_error(self.failure_phase, exc)
@@ -555,6 +567,8 @@ class Enricher:
                                 canonical_cache.refresh_delay(
                                     state, row["title_id"], now
                                 ),
+                                guard=self.storage_guard,
+                                budget=self.descriptor_budget,
                             )
                             canonical_cache.store(
                                 state,

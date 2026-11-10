@@ -8,6 +8,7 @@ import time
 import pytest
 from catalog_core.protocol import Request
 from catalog_core.providers.transport import Fetch
+
 from catalog_worker import cli
 from catalog_worker.backup import backup
 from catalog_worker.collector import Collector
@@ -138,3 +139,17 @@ def test_failed_backup_set_cannot_be_restored(tmp_path):
     assert (config.state_dir / "backup/INCOMPLETE").is_file()
     with pytest.raises(ValueError, match="already exists"):
         backup(config)
+
+
+def test_generated_token_file_is_private_from_creation(tmp_path):
+    import stat
+
+    from catalog_worker.pilot_seed import _private_write
+
+    path = tmp_path / "metadata-token"
+    _private_write(path, b"secret")
+    assert path.read_bytes() == b"secret"
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    with pytest.raises(FileExistsError):
+        _private_write(path, b"replacement")
+    assert path.read_bytes() == b"secret"

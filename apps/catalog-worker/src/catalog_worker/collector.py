@@ -84,7 +84,14 @@ class Collector:
         circuit_lease: int | None = None,
     ) -> None:
         limits = self.config.provider_limits(self.state.provider)
+        attempts = 0
         while True:
+            # Every iteration either reserves a request, waits for a positive
+            # delay or defers. A zero delay with a lost admission race must not
+            # spin forever while a producer keeps its fetch/ready slots.
+            attempts += 1
+            if attempts > 64:
+                raise AdmissionDeferred(1)
             now = self.clock()
             blocked = self.state.meta()["blocked_until"]
             if blocked > now and blocked != circuit_lease:
@@ -296,6 +303,13 @@ class Collector:
                         json.dumps(config.sitemap_origins.get(state.provider, [])),
                     ],
                     config.limits["request_deadline_s"],
+                )
+                # The child's RLIMIT_FSIZE is only a 64-MiB backstop. Bound the
+                # in-process JSON load first so a parser flood cannot exhaust the
+                # worker's own 512-MiB budget.
+                require(
+                    destination.stat().st_size <= config.limits["body_bytes"] * 2,
+                    "child_records_too_large",
                 )
                 data = json.loads(destination.read_bytes())
                 if plan.signal:

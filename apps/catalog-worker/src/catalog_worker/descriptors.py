@@ -1,9 +1,10 @@
 """Compact multilingual episode evidence, joined by canonical IDs, never positions."""
 
 import hashlib
+from collections.abc import Callable
 from dataclasses import asdict
 
-from catalog_core.json_codec import dumps, require
+from catalog_core.json_codec import ContractError, dumps, require
 
 from .canonical_failures import verify
 from .descriptor_codec import decode
@@ -12,6 +13,9 @@ from .parent_evidence import compact
 from .state import State
 
 CODEC = 1
+# Logical descriptor cache budget (payload bytes, not file pages). Config
+# scales this below the state quota; the default keeps direct callers bounded.
+DESCRIPTOR_BUDGET = 256 * 1024**2
 
 
 def episode_identity(row: dict, parent: int) -> int:
@@ -51,6 +55,15 @@ def episodes(payload: dict) -> list[CanonicalEpisode]:
     require(
         isinstance(rows, list) and len(rows) <= 100000, "invalid canonical episode list"
     )
+    # Validate the parent here rather than relying on every caller. An absent or
+    # malformed tvdbId must become a typed evidence failure, not a KeyError that
+    # escapes the maintain loop's canonical error handling.
+    parent = payload.get("tvdbId")
+    verify(
+        type(parent) is int and parent > 0,
+        "episode_identity_missing",
+        "missing canonical parent identity",
+    )
     result = []
     coordinates, identities = {}, {}
     for row in rows:
@@ -59,7 +72,7 @@ def episodes(payload: dict) -> list[CanonicalEpisode]:
             row.get(key) for key in ("seasonNumber", "episodeNumber", "title", "tvdbId")
         )
         if payload.get("metadataSource") == "tvdb":
-            eid = episode_identity(row, payload["tvdbId"])
+            eid = episode_identity(row, parent)
         else:
             verify(
                 eid is None or type(eid) is int and eid > 0,
@@ -90,7 +103,7 @@ def episodes(payload: dict) -> list[CanonicalEpisode]:
         ):
             continue
         verify(
-            row.get("tvdbShowId", payload["tvdbId"]) == payload["tvdbId"],
+            row.get("tvdbShowId", parent) == parent,
             "episode_parent_conflict",
             "canonical parent mismatch",
         )
@@ -181,6 +194,41 @@ def translation(
     return rows, False
 
 
+def _make_room(
+    db,
+    keep: str,
+    required: int,
+    guard: Callable[[int], object] | None,
+    budget: int,
+) -> None:
+    """Enforce the descriptor byte budget, evicting unreferenced cache only.
+
+    Descriptors referenced by an accepted canonical title are last-good evidence
+    for verification and rollback; a budget or quota failure must never delete
+    them. Cache entries for other titles are recoverable by the normal retry
+    path and are evicted oldest-first, one row at a time, so the loop holds no
+    payloads in memory.
+    """
+    total = db.execute(
+        "SELECT coalesce(sum(length(CAST(payload AS BLOB))),0) "
+        "FROM canonical_descriptor"
+    ).fetchone()[0]
+    while total + required > budget:
+        victim = db.execute(
+            "SELECT external_id,length(CAST(payload AS BLOB)) "
+            "FROM canonical_descriptor WHERE external_id<>? "
+            "AND external_id NOT IN (SELECT external_id FROM canonical_title WHERE namespace='tvdb') "
+            "ORDER BY acquired_at,next_due LIMIT 1",
+            (keep,),
+        ).fetchone()
+        if victim is None:
+            raise ContractError("descriptor_budget")
+        db.execute("DELETE FROM canonical_descriptor WHERE external_id=?", (victim[0],))
+        total -= victim[1]
+    if guard is not None:
+        guard(required)
+
+
 def save(
     state: State,
     external: str,
@@ -188,6 +236,9 @@ def save(
     rows: list[CanonicalEpisode],
     now: int,
     delay: int,
+    *,
+    guard: Callable[[int], object] | None = None,
+    budget: int = DESCRIPTOR_BUDGET,
 ) -> None:
     payload = dumps(
         {
@@ -212,6 +263,14 @@ def save(
         }
     )
     require(len(payload) <= 8 * 1024**2, "compact descriptor limit")
+    previous = state.db.execute(
+        "SELECT length(CAST(payload AS BLOB)) FROM canonical_descriptor "
+        "WHERE external_id=?",
+        (external,),
+    ).fetchone()
+    required = max(0, len(payload) - (previous[0] if previous else 0))
+    if required:
+        _make_room(state.db, external, required, guard, budget)
     state.db.execute(
         "INSERT INTO canonical_descriptor VALUES(?,?,?,?,?) ON CONFLICT(external_id) DO UPDATE SET content_hash=excluded.content_hash,payload=excluded.payload,acquired_at=excluded.acquired_at,next_due=excluded.next_due",
         (

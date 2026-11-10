@@ -5,9 +5,10 @@ import json
 
 import pytest
 from catalog_core.providers.transport import AdmissionDeferred, Fetch
+from test_canonical import NOW
+
 from catalog_worker.canonical import Enricher
 from catalog_worker.canonical_failures import CanonicalUnavailable
-from test_canonical import NOW
 
 
 @pytest.mark.parametrize(
@@ -83,10 +84,11 @@ def test_failed_pause_write_is_fatal_and_keeps_last_complete_file(
 
 
 def test_worker_backup_retains_origin_pause_and_fractional_admission(tmp_path):
+    from test_pipeline import collectors
+
     from catalog_worker.backup import backup
     from catalog_worker.source_cooldowns import FILENAME, SourceCooldowns
     from catalog_worker.state import State
-    from test_pipeline import collectors
 
     group = collectors(tmp_path)
     try:
@@ -197,3 +199,17 @@ def test_mixed_queue_skips_paused_source_without_deferring_its_titles(
         )
     finally:
         state.close()
+
+
+def test_operator_override_clears_a_persisted_origin_cooldown(tmp_path):
+    from catalog_worker.source_cooldowns import FILENAME, SourceCooldowns, clear
+
+    path = tmp_path / FILENAME
+    origin = "https://skyhook.sonarr.tv"
+    SourceCooldowns(path).pause(origin, 86400, NOW)
+    assert SourceCooldowns(path).delay(origin, NOW) == 86400
+    assert clear(path, [origin]) == 1
+    assert SourceCooldowns(path).delay(origin, NOW) == 0
+    assert clear(path, [origin]) == 0
+    with pytest.raises(ValueError, match="unexpected canonical cooldown origin"):
+        clear(path, ["https://unexpected.invalid"])

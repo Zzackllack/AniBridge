@@ -60,6 +60,11 @@ class RebuildRequired(ValueError):
     """A broad or unclassified change needs the independently validated full path."""
 
 
+def quote_identifier(name: str) -> str:
+    """Quote an internal schema name; SQLite has no parameter binding for DDL."""
+    return '"' + name.replace('"', '""') + '"'
+
+
 def copy(
     db: sqlite3.Connection,
     filename: str,
@@ -91,7 +96,7 @@ def copy(
     # restored before full independent validation of the complete artifact.
     if not incremental:
         for name, _ in indexes:
-            db.execute(f"DROP INDEX main.{name}")
+            db.execute(f"DROP INDEX main.{quote_identifier(name)}")
     db.execute("PRAGMA cache_size=-32768")
     if not incremental:
         db.execute("PRAGMA temp_store=FILE")
