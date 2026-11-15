@@ -1,7 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: "uv"
-    directory: "/apps/api"
+    directories: ["/apps/api", "/apps/catalog-worker", "/packages/catalog-core"]
     schedule:
       interval: "weekly"
       day: "monday"

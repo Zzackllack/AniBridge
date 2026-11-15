@@ -154,7 +154,20 @@ jobs:
             --pids-limit 96 --entrypoint python \
             -e DATA_DIR=/tmp/anibridge-ci -e ANIBRIDGE_UPDATE_CHECK=false \
             anibridge-ci:smoke -c \
-            'import importlib, importlib.util, sys; import catalog_core; importlib.import_module(sys.argv[1]); assert importlib.util.find_spec("sitecustomize") is None' "$MODULE"
+            'import importlib, importlib.util, sys; import catalog_core; importlib.import_module(sys.argv[1]); assert importlib.util.find_spec("sitecustomize") is None; assert sys.argv[1] != "catalog_worker.cli" or all(importlib.util.find_spec(name) is None for name in ("pytest", "ruff"))' "$MODULE"
+      - name: Build worker test-tools overlay on the same runtime
+        if: matrix.component.name == 'catalog-worker'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: apps/catalog-worker/Dockerfile
+          target: test
+          platforms: linux/${{ matrix.platform.arch }}
+          build-args: PILOT_COMMIT=${{ github.sha }}
+          tags: anibridge-ci:test
+          load: true
+          push: false
+          provenance: false
       - name: Run API behavior with native image dependencies and generated media
         if: matrix.component.name == 'api'
         run: |
@@ -181,7 +194,7 @@ jobs:
             docker run --rm --log-driver none --network none --cpus 2 --memory 2g --memory-swap 2g \
               --pids-limit 128 --user 1000:1000 --entrypoint python \
               -v "$GITHUB_WORKSPACE:/source:ro" --workdir "/source/$project" \
-              anibridge-ci:smoke -m pytest tests -q -rs -o cache_dir=/tmp/pytest-cache --basetemp=/tmp/pytest-data
+              anibridge-ci:test -m pytest tests -q -rs -o cache_dir=/tmp/pytest-cache --basetemp=/tmp/pytest-data
           done
 
   gate:

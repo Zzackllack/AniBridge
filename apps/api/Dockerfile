@@ -6,7 +6,6 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
     curl \
     ffmpeg \
     gosu \
@@ -14,6 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # --- Stage 2: Install Python dependencies ---
 FROM base AS deps
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /build/apps/api
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 COPY --from=ghcr.io/astral-sh/uv:0.12.23@sha256:61d393e44e249f2e4b526b6c7ddcecce245946826e608e11c93ad4f5bba55b21 /uv /usr/local/bin/uv

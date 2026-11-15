@@ -8,11 +8,15 @@ WORKDIR /build/apps/catalog-worker
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 COPY apps/catalog-worker/pyproject.toml apps/catalog-worker/uv.lock ./
 COPY apps/catalog-worker/src ./src
-RUN uv sync --frozen --no-editable --no-install-package anibridge-catalog-core \
+RUN uv sync --frozen --no-dev --no-editable --no-install-package anibridge-catalog-core \
     && uv pip install --python /app/.venv/bin/python --no-deps /wheels/anibridge_catalog_core-*.whl \
     && sha256sum /wheels/*.whl > /app/catalog-core-wheel.sha256
 
-FROM python:3.14.8-slim@sha256:fbecd461fc72d21b2143c6eaba25143738079154a6d0ea3da3aec724f50eed4a AS final
+FROM build AS test-dependencies
+# Keep the frozen test tools separate from the installed production packages.
+RUN UV_PROJECT_ENVIRONMENT=/test-deps uv sync --frozen --only-dev --no-install-project
+
+FROM python:3.14.8-slim@sha256:fbecd461fc72d21b2143c6eaba25143738079154a6d0ea3da3aec724f50eed4a AS runtime
 WORKDIR /app
 ARG PILOT_COMMIT=unknown
 LABEL org.opencontainers.image.revision=$PILOT_COMMIT
@@ -20,8 +24,15 @@ ENV PATH="/app/.venv/bin:${PATH}"
 COPY --from=build /app/.venv /app/.venv
 COPY --from=build /app/catalog-core-wheel.sha256 /app/catalog-core-wheel.sha256
 RUN useradd --uid 1000 --create-home worker \
-    && install -d -o worker -g worker /state /public
+    && install -d -o worker -g worker /state /read
 USER worker
 EXPOSE 8080
 ENTRYPOINT ["anibridge-catalog-worker"]
 CMD ["--config", "/config/worker.json"]
+
+FROM runtime AS test
+COPY --from=test-dependencies /test-deps/lib/python3.14/site-packages /opt/test-deps
+ENV PYTHONPATH=/opt/test-deps
+
+# The default/published target always excludes the test overlay.
+FROM runtime AS final
