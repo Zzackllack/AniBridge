@@ -14,18 +14,28 @@ STAGE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(STAGE)
 
 
+SERVICE = "test-pilot-service"
+OLD_WORKER = "ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:" + "0" * 64
+
+
+def prepare(service, worker, image, **options):
+    options.setdefault("expected_old_image", OLD_WORKER)
+    options.setdefault("service_id", SERVICE)
+    return STAGE.prepare(service, worker, image, **options)
+
+
 def fixture():
     before = yaml.safe_load(
         (ROOT / "scripts/catalog/query_pilot/server.yaml").read_text()
     )
-    before["x-worker"]["image"] = STAGE.OLD_WORKER
+    before["x-worker"]["image"] = OLD_WORKER
     for service in before["services"].values():
-        service["image"] = STAGE.OLD_WORKER
+        service["image"] = OLD_WORKER
         service["pull_policy"] = "missing"
     before["services"]["collector"]["mem_limit"] = "2g"
     before["services"]["collector"]["memswap_limit"] = "2g"
     return {
-        "uuid": STAGE.SERVICE,
+        "uuid": SERVICE,
         "docker_compose_raw": yaml.safe_dump(before, sort_keys=False),
     }
 
@@ -38,14 +48,14 @@ def test_registry_stage_preserves_original_bytes_and_all_unrelated_fields():
         "limits": {"total_disk_bytes": 30000000000},
     }
     image = "ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:" + "a" * 64
-    candidate, rollback, new_worker, old_worker = STAGE.prepare(service, worker, image)
+    candidate, rollback, new_worker, old_worker = prepare(service, worker, image)
     before = yaml.safe_load(rollback)
     after = yaml.safe_load(candidate)
     assert rollback == service["docker_compose_raw"] and old_worker == worker
     for name in ("initialize", "collector", "metadata"):
         assert after["services"][name]["image"] == image
-        after["services"][name]["image"] = STAGE.OLD_WORKER
-    after["x-worker"]["image"] = STAGE.OLD_WORKER
+        after["services"][name]["image"] = OLD_WORKER
+    after["x-worker"]["image"] = OLD_WORKER
     assert after == before
     assert new_worker["canonical_sources"].pop("episode_languages") == ["deu"]
     assert new_worker == worker
@@ -53,7 +63,7 @@ def test_registry_stage_preserves_original_bytes_and_all_unrelated_fields():
 
 def test_registry_stage_refuses_new_config_on_old_worker():
     with pytest.raises(ValueError, match="tested new worker"):
-        STAGE.prepare(fixture(), {"canonical_sources": {}}, STAGE.OLD_WORKER)
+        prepare(fixture(), {"canonical_sources": {}}, OLD_WORKER)
 
 
 def test_repeatable_image_only_update_preserves_configuration():
@@ -61,7 +71,7 @@ def test_repeatable_image_only_update_preserves_configuration():
         "canonical_sources": {"tv": "skyhook"},
         "limits": {"publish_interval_s": 300},
     }
-    _, _, candidate, original = STAGE.prepare(
+    _, _, candidate, original = prepare(
         fixture(),
         worker,
         "ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:" + "a" * 64,
@@ -75,13 +85,13 @@ def test_registry_stage_can_upgrade_a_verified_current_manifest_with_new_budget(
     old = "ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:" + "b" * 64
     new = "ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:" + "c" * 64
     service["docker_compose_raw"] = service["docker_compose_raw"].replace(
-        STAGE.OLD_WORKER, old
+        OLD_WORKER, old
     )
     worker = {
         "canonical_sources": {"episode_languages": ["deu"]},
         "limits": {"publish_interval_s": 300},
     }
-    candidate, rollback, config, original = STAGE.prepare(
+    candidate, rollback, config, original = prepare(
         service, worker, new, expected_old_image=old, canonical_requests_per_minute=60
     )
     assert rollback == service["docker_compose_raw"] and original == worker
@@ -94,7 +104,7 @@ def test_registry_stage_can_upgrade_a_verified_current_manifest_with_new_budget(
         row["image"] == new for row in yaml.safe_load(candidate)["services"].values()
     )
     with pytest.raises(ValueError, match="live image"):
-        STAGE.prepare(service, worker, new)
+        prepare(service, worker, new)
 
 
 @pytest.mark.parametrize("change", ["image", "memory", "policy", "service"])
@@ -111,13 +121,13 @@ def test_registry_stage_refuses_drift_or_mutable_refs(change):
         service["uuid"] = "unrelated"
     service["docker_compose_raw"] = yaml.safe_dump(raw)
     with pytest.raises(ValueError):
-        STAGE.prepare(
+        prepare(
             service,
             {"canonical_sources": {}},
             "ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:" + "a" * 64,
         )
     with pytest.raises(ValueError):
-        STAGE.prepare(
+        prepare(
             fixture(),
             {"canonical_sources": {}},
             "ghcr.io/zzackllack/anibridge-catalog-worker-preview:pr-170",

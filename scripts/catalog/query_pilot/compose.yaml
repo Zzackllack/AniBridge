@@ -23,7 +23,7 @@ services:
     build: *worker-build
     command: [--config, /config/worker.json, --serve, --token-file, /config/metadata-token]
     depends_on: {init: {condition: service_completed_successfully}}
-    volumes: [config:/config:ro, worker-state:/state, read-catalog:/read]
+    volumes: [config:/config:ro, read-catalog:/read]
     ports: ['127.0.0.1:18080:8080']
     networks: [private]
     mem_limit: 512m

@@ -38,12 +38,15 @@ Use a new private directory outside Git. Obtain the complete saved Compose from
 the existing service through authenticated Zen and the worker JSON through the
 current XPipe-generated SSH connection. Keep credentials private; do not use a
 historical socket/host assumption or disable host-key checks. The Coolify token
-is read-only. The existing pilot's service UUID is `ev7cds2lpqyvqfxpcm4wp4tc`.
+is read-only. Record the selected service UUID and current image digest in the
+private plan directory; obtain them from the saved service and live inventory,
+not a checked-in operator default.
 
 ```sh
 uv run --project apps/api --frozen python \
   scripts/catalog/query_pilot/prepare_worker_update.py \
   --revision FULL_40_CHARACTER_COMMIT \
+  --service-id "$REVIEWED_SERVICE_ID" \
   --compose "$UPDATE_DIR/current-compose.yaml" \
   --worker-config "$UPDATE_DIR/worker.json" \
   --expected-old-image ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:CURRENT_DIGEST \

@@ -115,15 +115,18 @@ def test_generated_commands_refuse_an_active_project_before_any_run(update, tmp_
     docker.chmod(0o700)
     script = tmp_path / "stopped-state.sh"
     script.write_text(
-        update.stopped_commands(update.PACKAGE + "@sha256:" + "a" * 64, "b" * 40)
+        update.stopped_commands(
+            update.PACKAGE + "@sha256:" + "a" * 64, "b" * 40, "test-pilot-service"
+        )
     )
-    subprocess.run(["bash", "-n", str(script)], check=True)
+    subprocess.run(["bash", "-n", str(script)], check=True, timeout=10)
     result = subprocess.run(
         ["/bin/bash", str(script), "snapshot"],
         env={"PATH": str(tmp_path) + ":/usr/bin:/bin"},
         capture_output=True,
         text=True,
         check=False,
+        timeout=10,
     )
     assert result.returncode == 1
     assert "Stop the existing Coolify service" in result.stderr
@@ -146,7 +149,9 @@ def test_rollback_can_read_the_private_operator_receipt(update, tmp_path, target
     docker.chmod(0o700)
     script = tmp_path / "stopped-state.sh"
     script.write_text(
-        update.stopped_commands(update.PACKAGE + "@sha256:" + "a" * 64, revision)
+        update.stopped_commands(
+            update.PACKAGE + "@sha256:" + "a" * 64, revision, "test-pilot-service"
+        )
     )
     (tmp_path / "baseline.json").write_text("{}")
     result = subprocess.run(
@@ -155,6 +160,7 @@ def test_rollback_can_read_the_private_operator_receipt(update, tmp_path, target
         capture_output=True,
         text=True,
         check=False,
+        timeout=10,
     )
     assert result.returncode == 0, result.stderr
     args = json.loads(invocation.read_text())

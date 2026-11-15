@@ -100,6 +100,7 @@ selected for `down -v --remove-orphans` to delete these client volumes too.
 # Short generated-data measurement, eight concurrent requests, 136 queries.
 docker compose exec -T api python /pilot/benchmark.py
 # Expire only this disposable cache by 61 seconds, then check outage handling.
+# The hook refuses real-provider catalogs even with ANIBRIDGE_TEST_MODE set.
 docker compose exec -T api python /pilot/smoke.py
 docker compose stop catalog
 docker compose exec -T api python /pilot/outage.py

@@ -3,13 +3,21 @@
 import argparse
 import copy
 import json
+import os
 import re
+import tempfile
 from pathlib import Path
 
 import yaml
 
-SERVICE = "ev7cds2lpqyvqfxpcm4wp4tc"
-OLD_WORKER = "ghcr.io/zzackllack/anibridge-catalog-worker-preview@sha256:1277d1fd6ec7130a53c5ed4a694dd8efada7e95db6c86bd897e3e446f2149e0a"
+from catalog_core.files import fsync_directory
+
+
+def require_service_id(service_id: str) -> str:
+    # Also embedded in generated Docker shell arguments: allow only project IDs.
+    if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", service_id):
+        raise ValueError("invalid service ID")
+    return service_id
 
 
 def prepare(
@@ -17,7 +25,8 @@ def prepare(
     worker: dict,
     image: str,
     *,
-    expected_old_image: str = OLD_WORKER,
+    expected_old_image: str,
+    service_id: str,
     canonical_requests_per_minute: int | None = None,
     preserve_worker_config: bool = False,
 ) -> tuple[str, str, dict, dict]:
@@ -29,7 +38,7 @@ def prepare(
     if image == expected_old_image:
         raise ValueError("configuration requires the tested new worker")
     record = service.get("data", service)
-    if record.get("uuid") != SERVICE:
+    if record.get("uuid") != require_service_id(service_id):
         raise ValueError("wrong service")
     source = record["docker_compose_raw"]
     before = yaml.safe_load(source)
@@ -85,17 +94,27 @@ def prepare(
 
 
 def write_private(path: Path, text: str) -> None:
-    with path.open("x") as stream:
-        path.chmod(0o600)
-        stream.write(text)
+    """Publish a complete private recovery file, refusing to replace old plans."""
+    descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    temporary = Path(name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(text)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.link(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+        fsync_directory(path.parent)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--service", type=Path, required=True)
+    parser.add_argument("--service-id", required=True)
     parser.add_argument("--worker-config", type=Path, required=True)
     parser.add_argument("--worker-image", required=True)
-    parser.add_argument("--expected-old-image", default=OLD_WORKER)
+    parser.add_argument("--expected-old-image", required=True)
     parser.add_argument("--preserve-worker-config", action="store_true")
     parser.add_argument(
         "--canonical-requests-per-minute", type=int, choices=range(4, 121)
@@ -107,6 +126,7 @@ def main() -> None:
         json.loads(args.worker_config.read_text()),
         args.worker_image,
         expected_old_image=args.expected_old_image,
+        service_id=args.service_id,
         canonical_requests_per_minute=args.canonical_requests_per_minute,
         preserve_worker_config=args.preserve_worker_config,
     )

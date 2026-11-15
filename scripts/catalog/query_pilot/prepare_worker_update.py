@@ -7,7 +7,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from stage_registry_upgrade import SERVICE, prepare, write_private
+from stage_registry_upgrade import prepare, require_service_id, write_private
 
 PACKAGE = "ghcr.io/zzackllack/anibridge-catalog-worker-preview"
 REPOSITORY = "Zzackllack/AniBridge"
@@ -68,20 +68,21 @@ def output(argv: list[str]) -> str:
     ).stdout
 
 
-def stopped_commands(image: str, revision: str) -> str:
+def stopped_commands(image: str, revision: str, service_id: str) -> str:
+    service_id = require_service_id(service_id)
     return f"""#!/usr/bin/env bash
 set -euo pipefail
 cd -- "$(dirname -- "$0")"
-test -z "$(docker ps --filter label=com.docker.compose.project={SERVICE} -q)" || {{
+test -z "$(docker ps --filter label=com.docker.compose.project={service_id} -q)" || {{
   echo 'Stop the existing Coolify service in Zen first, without Docker Cleanup.' >&2
   exit 1
 }}
 IMAGE={image}
 test "$(docker image inspect "$IMAGE" --format '{{{{index .Config.Labels "org.opencontainers.image.revision"}}}}')" = {revision}
 COMMON=(--rm --log-driver none --network none --cpus 2 --memory 2g --memory-swap 2g --pids-limit 96
-  -v {SERVICE}_config:/config:ro
-  -v {SERVICE}_worker-state:/state
-  -v {SERVICE}_read-catalog:/read
+  -v {service_id}_config:/config:ro
+  -v {service_id}_worker-state:/state
+  -v {service_id}_read-catalog:/read
   -v "$PWD:/plan")
 case "${{1:-}}" in
   snapshot|verify)
@@ -120,6 +121,7 @@ esac
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--revision", required=True)
+    parser.add_argument("--service-id", required=True)
     parser.add_argument("--compose", type=Path, required=True)
     parser.add_argument("--worker-config", type=Path, required=True)
     parser.add_argument("--expected-old-image", required=True)
@@ -160,10 +162,11 @@ def main() -> None:
     original = args.compose.read_text()
     original_worker = args.worker_config.read_bytes()
     candidate, rollback, worker, _ = prepare(
-        {"uuid": SERVICE, "docker_compose_raw": original},
+        {"uuid": args.service_id, "docker_compose_raw": original},
         json.loads(original_worker),
         image,
         expected_old_image=args.expected_old_image,
+        service_id=args.service_id,
         preserve_worker_config=True,
     )
     assert worker == json.loads(original_worker)
@@ -176,14 +179,14 @@ def main() -> None:
             "verify_worker_update.py",
             Path(__file__).with_name("verify_worker_update.py").read_text(),
         ),
-        ("stopped-state.sh", stopped_commands(image, args.revision)),
+        ("stopped-state.sh", stopped_commands(image, args.revision, args.service_id)),
     ):
         write_private(args.directory / filename, body)
     receipt = {
         "revision": args.revision,
         "image": image,
         "old_image": args.expected_old_image,
-        "service": SERVICE,
+        "service": args.service_id,
         "checks": checks,
         "original_compose_sha256": hashlib.sha256(original.encode()).hexdigest(),
         "original_worker_sha256": hashlib.sha256(original_worker).hexdigest(),

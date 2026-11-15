@@ -9,12 +9,14 @@ from pathlib import Path
 
 import yaml
 
+from stage_registry_upgrade import require_service_id, write_private
 
-def prepare(service: dict, revision: str) -> tuple[dict, dict]:
+
+def prepare(service: dict, revision: str, *, service_id: str) -> tuple[dict, dict]:
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError("full candidate commit required")
     record = service.get("data", service)
-    if record.get("uuid") != "ev7cds2lpqyvqfxpcm4wp4tc":
+    if record.get("uuid") != require_service_id(service_id):
         raise ValueError("wrong private-pilot service")
     source = record["docker_compose_raw"]
     before = yaml.safe_load(source)
@@ -55,12 +57,14 @@ def prepare(service: dict, revision: str) -> tuple[dict, dict]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--service", type=Path, required=True)
+    parser.add_argument("--service-id", required=True)
     parser.add_argument("--revision", required=True)
     parser.add_argument("--directory", type=Path, required=True)
     args = parser.parse_args()
-    candidate, rollback = prepare(json.loads(args.service.read_text()), args.revision)
-    args.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    candidate, rollback = prepare(
+        json.loads(args.service.read_text()), args.revision, service_id=args.service_id
+    )
+    args.directory.mkdir(mode=0o700, parents=True, exist_ok=False)
     for name, body in [("candidate.json", candidate), ("rollback.json", rollback)]:
         path = args.directory / name
-        path.touch(mode=0o600, exist_ok=False)
-        path.write_text(json.dumps(body, indent=2) + "\n")
+        write_private(path, json.dumps(body, indent=2) + "\n")
