@@ -295,7 +295,14 @@ def _query(
                     f"json_extract(r.metadata,'$.host') IN ({','.join('?' for _ in selected_hosts)})"
                 )
                 args.extend(sorted(selected_hosts))
-            category_expr = f"CASE WHEN e.kind='movie' THEN {int(movie_category)} WHEN '{provider}'='aniworld.to' THEN {int(anime_category)} ELSE 5000 END"
+            # Only the validated provider name selects the episode category; the
+            # closed PROVIDERS enum is compared here rather than interpolated
+            # into SQL, so no provider text ever reaches a statement template.
+            episode_category = anime_category if provider == "aniworld.to" else 5000
+            category_expr = (
+                f"CASE WHEN e.kind='movie' THEN {int(movie_category)} "
+                f"ELSE {int(episode_category)} END"
+            )
             if request.categories is not None:
                 where.append(
                     f"({category_expr}) IN ({','.join('?' for _ in request.categories)})"
@@ -414,22 +421,21 @@ def _query(
             if request.recent and title_ids is None and entity_ids is None:
                 # Force the release-order index so SQLite does not sort/join the
                 # entire recent catalog before returning its first 100 rows.
-                join = (
-                    join.replace(
+                # `release` is a base table only in schema 1. A compact artifact
+                # exposes it as a view, and an attached reader (MappingView)
+                # exposes whatever relation it owns; naming an index there raises
+                # "no such index" instead of falling back to a scan. Readers that
+                # attach their own catalog apply their own physical hint.
+                if compact:
+                    join = join.replace(
                         "FROM release_data r",
                         "FROM release_data r INDEXED BY release_recent",
                     )
-                    if compact
-                    else join.replace(
+                elif not hasattr(db, "alias"):
+                    join = join.replace(
                         "FROM release r",
-                        release_from(
-                            1
-                            if hasattr(db, "alias")
-                            else metadata["catalog_schema_version"],
-                            ordered=True,
-                        ),
+                        release_from(metadata["catalog_schema_version"], ordered=True),
                     )
-                )
             select = """SELECT r.*, e.title_id,e.kind,e.native_season,e.native_episode,e.path,
                 e.identity_anchor AS entity_anchor,t.identity_anchor AS title_anchor,t.slug,t.display_title,t.year,
                 ct.namespace,ct.external_id,ce.season,ce.episode """

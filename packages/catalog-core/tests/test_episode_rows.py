@@ -87,3 +87,73 @@ def test_observed_serienstream_combined_flag_is_subtitle_evidence_only():
     unknown = body.replace("svg-flag-english-german", "svg-flag-other")
     row = sto_parse(unknown.encode(), "detail", path.rsplit("/", 1)[0]).episodes[0]
     assert row.languages == () and row.unknown_languages == 1
+
+
+EPISODE_ROW = (
+    '<tr class="episode-row" onclick="window.location=\'{ep}\'">'
+    '<td><strong class="episode-title-ger">Erste Geschichte</strong></td></tr>'
+)
+
+
+def row_body(episode: str) -> bytes:
+    return (
+        "<html><body><table>"
+        + EPISODE_ROW.format(ep=episode)
+        + "</table></body></html>"
+    ).encode()
+
+
+@pytest.mark.parametrize("page_path", [None, "", "/serie/example/staffel-1/"])
+def test_episode_rows_require_a_real_parent_path(page_path):
+    from catalog_core.json_codec import ContractError
+    from catalog_core.providers.episode_rows import parse_rows
+    from catalog_core.providers.sto import EPISODE
+
+    with pytest.raises(ContractError, match="page path"):
+        parse_rows(
+            row_body("/serie/example/staffel-1/episode-9"),
+            "s.to",
+            EPISODE,
+            page_path,
+        )
+
+
+def test_detail_parse_without_a_path_never_fabricates_an_empty_row_set():
+    from catalog_core.json_codec import ContractError
+
+    body = row_body("/serie/example/staffel-1/episode-9")
+    with pytest.raises(ContractError, match="page path"):
+        sto_parse(body, "detail")
+    # The same page with its parent path is a positive observation.
+    page = sto_parse(body, "detail", "/serie/example/staffel-1")
+    assert [row.path for row in page.episodes] == ["/serie/example/staffel-1/episode-9"]
+
+
+def test_nested_anchors_are_rejected_instead_of_dropping_the_outer_link():
+    from catalog_core.json_codec import ContractError
+
+    body = (
+        b"<html><body><h1>Example</h1>"
+        b'<a href="/anime/stream/example/staffel-1">'
+        b'<a href="/anime/stream/example/staffel-1/episode-1">Episode</a>'
+        b"</a></body></html>"
+    )
+    with pytest.raises(ContractError, match="nested anchor"):
+        ani_parse(body, "detail", "/anime/stream/example")
+
+
+def alias_anchor(count):
+    alternatives = ",".join(f"Alias {index}" for index in range(count))
+    return (
+        f'<html><body><h1>Example</h1><a href="/anime/stream/example/staffel-1" '
+        f'data-alternative-title="{alternatives}">Season 1</a></body></html>'
+    ).encode()
+
+
+def test_per_link_aliases_share_the_h1_count_and_byte_bounds():
+    from catalog_core.json_codec import ContractError
+
+    page = ani_parse(alias_anchor(100), "detail", "/anime/stream/example")
+    assert len(page.links[0].aliases) == 100
+    with pytest.raises(ContractError, match="invalid aliases"):
+        ani_parse(alias_anchor(101), "detail", "/anime/stream/example")

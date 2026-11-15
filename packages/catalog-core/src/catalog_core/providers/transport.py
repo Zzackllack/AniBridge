@@ -15,6 +15,10 @@ import httpx
 from catalog_core.json_codec import require
 
 NAT64 = ipaddress.ip_network("64:ff9b::/96")
+# Deprecated IPv4-compatible space (::/96). Some stacks still route it to the
+# embedded IPv4 address, while ipaddress reports the enclosing IPv6 literal as
+# global. Reject the whole class rather than trust the literal's own flags.
+IPV4_COMPATIBLE = ipaddress.ip_network("::/96")
 
 
 @dataclass(frozen=True)
@@ -117,6 +121,8 @@ def _global_address(value: str) -> bool:
             return all(_global_address(str(item)) for item in address.teredo)
         elif address in NAT64:
             address = ipaddress.IPv4Address(int(address) & 0xFFFFFFFF)
+        elif address in IPV4_COMPATIBLE:
+            return False
     return (
         address.is_global
         and not address.is_multicast

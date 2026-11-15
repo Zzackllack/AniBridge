@@ -43,26 +43,45 @@ class Cache:
             entries,
             payload_bytes,
         )
-        with closing(self.connect()) as db, db:
+        with closing(self.connect()) as db:
             db.execute("PRAGMA journal_mode=DELETE")
-            db.execute(
-                "CREATE TABLE IF NOT EXISTS entry(key TEXT PRIMARY KEY,body BLOB NOT NULL,fetched REAL NOT NULL,used REAL NOT NULL,scope TEXT NOT NULL DEFAULT '')"
-            )
-            columns = {
-                row[1] for row in db.execute("PRAGMA table_info(entry)").fetchall()
-            }
-            if "scope" not in columns:
-                # Pre-scope caches cannot be invalidated per provider. They are
-                # local and disposable, so flush them once while adding the column.
-                db.execute(
-                    "ALTER TABLE entry ADD COLUMN scope TEXT NOT NULL DEFAULT ''"
-                )
-                db.execute("DELETE FROM entry")
-            db.execute("CREATE INDEX IF NOT EXISTS entry_scope ON entry(scope)")
-            db.execute(
-                "CREATE TABLE IF NOT EXISTS revision_floor(scope TEXT PRIMARY KEY,revision INTEGER NOT NULL)"
-            )
+            # Two processes may start on the same pre-scope cache file. A
+            # deferred check-then-ALTER lets both observe the missing column,
+            # and the loser then starts with "duplicate column name". Take the
+            # write lock before inspecting the schema and migrate inside it.
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                self._migrate(db)
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
         filename.chmod(0o600)
+
+    @staticmethod
+    def _migrate(db: sqlite3.Connection) -> None:
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS entry(key TEXT PRIMARY KEY,body BLOB NOT NULL,fetched REAL NOT NULL,used REAL NOT NULL,scope TEXT NOT NULL DEFAULT '')"
+        )
+        columns = {row[1] for row in db.execute("PRAGMA table_info(entry)").fetchall()}
+        if "scope" not in columns:
+            # Pre-scope caches cannot be invalidated per provider. They are
+            # local and disposable, so flush them once while adding the column.
+            db.execute("ALTER TABLE entry ADD COLUMN scope TEXT NOT NULL DEFAULT ''")
+            db.execute("DELETE FROM entry")
+        db.execute("CREATE INDEX IF NOT EXISTS entry_scope ON entry(scope)")
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS revision_floor(scope TEXT PRIMARY KEY,revision INTEGER NOT NULL,used REAL NOT NULL DEFAULT 0)"
+        )
+        floor_columns = {
+            row[1] for row in db.execute("PRAGMA table_info(revision_floor)").fetchall()
+        }
+        if "used" not in floor_columns:
+            # Existing floors stay authoritative; they only sort as least
+            # recently used until their scope accepts another revision.
+            db.execute(
+                "ALTER TABLE revision_floor ADD COLUMN used REAL NOT NULL DEFAULT 0"
+            )
 
     def connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.filename, timeout=0.2)
@@ -122,10 +141,16 @@ class Cache:
             db.execute("DELETE FROM entry WHERE scope=?", (scope,))
 
     def floor(self, scope: str) -> int:
-        with closing(self.connect()) as db:
+        with closing(self.connect()) as db, db:
             row = db.execute(
                 "SELECT revision FROM revision_floor WHERE scope=?", (scope,)
             ).fetchone()
+            if row is not None:
+                # Refresh recency so an actively read scope survives pruning.
+                db.execute(
+                    "UPDATE revision_floor SET used=? WHERE scope=?",
+                    (time.time(), scope),
+                )
             return row[0] if row else 0
 
     def accept(self, scope: str, revision: int) -> None:
@@ -136,12 +161,17 @@ class Cache:
             if row and row[0] > revision:
                 raise ValueError("response revision regressed")
             db.execute(
-                "INSERT INTO revision_floor VALUES(?,?) ON CONFLICT(scope) DO UPDATE SET revision=max(revision,excluded.revision)",
-                (scope, revision),
+                "INSERT INTO revision_floor(scope,revision,used) VALUES(?,?,?) "
+                "ON CONFLICT(scope) DO UPDATE SET revision=max(revision,excluded.revision),used=excluded.used",
+                (scope, revision, time.time()),
             )
             # Source/auth switches cannot grow private cache state indefinitely.
+            # Keep the most recently accepted scopes: pruning by insertion rowid
+            # would evict a long-lived active provider and silently reset its
+            # regression floor to zero.
             db.execute(
-                "DELETE FROM revision_floor WHERE scope IN (SELECT scope FROM revision_floor ORDER BY rowid DESC LIMIT -1 OFFSET 128)"
+                "DELETE FROM revision_floor WHERE scope NOT IN "
+                "(SELECT scope FROM revision_floor ORDER BY used DESC,rowid DESC LIMIT 128)"
             )
 
 

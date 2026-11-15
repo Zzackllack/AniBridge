@@ -33,6 +33,9 @@ LABELS = {
 
 
 def local_path(value: str, origin: str, aliases: tuple[str, ...] = ()) -> str:
+    # ld+json scalars are provider-controlled and may be non-strings. urlsplit
+    # would raise AttributeError/TypeError outside the typed contract.
+    require(type(value) is str, "invalid sitemap target")
     parsed, expected = urlsplit(value), urlsplit(origin)
     require(
         not parsed.query and not parsed.fragment and not parsed.username,
@@ -216,7 +219,7 @@ def parse(
     require(len(body) <= 16 * 1024**2, "body overflow")
     if kind == "listing":
         return listing(body, origin, sitemap_origins)
-    match = TITLE.fullmatch(page_path or "")
+    match = TITLE.fullmatch(page_path) if type(page_path) is str else None
     require(match is not None and match[1] == "films", "unsupported movie structure")
     parser = Detail(origin)
     parser.feed(body.decode("utf-8", errors="strict"))

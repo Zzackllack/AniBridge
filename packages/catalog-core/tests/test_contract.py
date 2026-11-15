@@ -177,6 +177,18 @@ def test_signature_trust_floor_and_expiry(tmp_path):
 
 
 @pytest.mark.parametrize(
+    "key",
+    [b"short", b"x" * 33, b"", "not-bytes"],
+)
+def test_malformed_configured_keys_are_contract_errors(tmp_path, key):
+    _, payload, envelope, _ = fixtures.build(tmp_path)
+    with pytest.raises(ContractError, match="trusted key"):
+        manifest.verify(
+            envelope, [key], "synthetic", "aniworld.to", payload["published_at"]
+        )
+
+
+@pytest.mark.parametrize(
     "mutation",
     [
         "CREATE TABLE secret (value TEXT)",

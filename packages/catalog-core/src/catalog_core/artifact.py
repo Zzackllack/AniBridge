@@ -4,7 +4,9 @@ import hashlib
 import os
 from compression import zstd
 from pathlib import Path
+from uuid import uuid4
 
+from .files import fsync_directory
 from .json_codec import require
 
 CHUNK = 65536
@@ -15,6 +17,20 @@ def sha256(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def _temporary(destination: Path) -> Path:
+    """Same-directory spool so the final publish is a single link, never a copy."""
+    return destination.with_name(f".{destination.name}.{uuid4().hex}.tmp")
+
+
+def _publish(temporary: Path, destination: Path) -> None:
+    """Publish exclusively: never overwrite an existing artifact target."""
+    # link(2) fails with FileExistsError instead of replacing the target, which
+    # keeps "xb" semantics now that the bytes were staged in a temporary file.
+    os.link(temporary, destination)
+    temporary.unlink()
+    fsync_directory(destination.parent)
+
+
 def compress(source: Path, destination: Path) -> dict:
     encoder = zstd.ZstdCompressor(
         options={
@@ -22,18 +38,24 @@ def compress(source: Path, destination: Path) -> dict:
             zstd.CompressionParameter.compression_level: 3,
         }
     )
-    with source.open("rb") as src, destination.open("xb") as dst:
-        while chunk := src.read(CHUNK):
-            dst.write(encoder.compress(chunk))
-        dst.write(encoder.flush())
-        dst.flush()
-        os.fsync(dst.fileno())
-    return {
-        "sha256": sha256(destination),
-        "sqlite_sha256": sha256(source),
-        "size_bytes": destination.stat().st_size,
-        "uncompressed_size_bytes": source.stat().st_size,
-    }
+    temporary = _temporary(destination)
+    try:
+        with source.open("rb") as src, temporary.open("xb") as dst:
+            while chunk := src.read(CHUNK):
+                dst.write(encoder.compress(chunk))
+            dst.write(encoder.flush())
+            dst.flush()
+            os.fsync(dst.fileno())
+        metadata = {
+            "sha256": sha256(temporary),
+            "sqlite_sha256": sha256(source),
+            "size_bytes": temporary.stat().st_size,
+            "uncompressed_size_bytes": source.stat().st_size,
+        }
+        _publish(temporary, destination)
+        return metadata
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def decompress(
@@ -52,23 +74,33 @@ def decompress(
     decoder = zstd.ZstdDecompressor(
         options={zstd.DecompressionParameter.window_log_max: 26}
     )
-    written = 0
-    with source.open("rb") as src, destination.open("xb") as dst:
-        while not decoder.eof:
-            chunk = src.read(CHUNK) if decoder.needs_input else b""
-            require(chunk or not decoder.needs_input, "truncated zstd")
-            output = decoder.decompress(chunk, max_length=CHUNK)
-            written += len(output)
+    temporary = _temporary(destination)
+    try:
+        written = 0
+        with source.open("rb") as src, temporary.open("xb") as dst:
+            while not decoder.eof:
+                chunk = src.read(CHUNK) if decoder.needs_input else b""
+                require(chunk or not decoder.needs_input, "truncated zstd")
+                output = decoder.decompress(chunk, max_length=CHUNK)
+                written += len(output)
+                require(
+                    written <= metadata["uncompressed_size_bytes"],
+                    "decompression overflow",
+                )
+                dst.write(output)
             require(
-                written <= metadata["uncompressed_size_bytes"], "decompression overflow"
+                not decoder.unused_data and not src.read(1),
+                "multiple frames/trailing data",
             )
-            dst.write(output)
+            require(
+                written == metadata["uncompressed_size_bytes"],
+                "decompressed size mismatch",
+            )
+            dst.flush()
+            os.fsync(dst.fileno())
         require(
-            not decoder.unused_data and not src.read(1), "multiple frames/trailing data"
+            sha256(temporary) == metadata["sqlite_sha256"], "SQLite digest mismatch"
         )
-        require(
-            written == metadata["uncompressed_size_bytes"], "decompressed size mismatch"
-        )
-        dst.flush()
-        os.fsync(dst.fileno())
-    require(sha256(destination) == metadata["sqlite_sha256"], "SQLite digest mismatch")
+        _publish(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)

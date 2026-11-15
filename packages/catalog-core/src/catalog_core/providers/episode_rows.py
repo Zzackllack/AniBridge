@@ -110,13 +110,24 @@ class Rows(HTMLParser):
         require(len(self.rows) <= 10000, "episode row overflow")
 
 
-def parse_rows(body: bytes, provider: str, episode_pattern, page_path: str | None):
+def parse_rows(body: bytes, provider: str, episode_pattern, page_path: str) -> tuple:
+    """Rows only exist relative to a real parent page.
+
+    Absence of a page path is a caller bug, not evidence that the page lists no
+    episodes: returning an empty tuple here would fabricate a complete listing.
+    """
+    require(
+        type(page_path) is str
+        and 0 < len(page_path.encode()) <= 1024
+        and page_path.startswith("/")
+        and not page_path.endswith("/")
+        and not any(character in page_path for character in "\\?#"),
+        "episode rows require a page path",
+    )
     parser = Rows(provider, episode_pattern)
     parser.feed(body.decode("utf-8"))
     parser.close()
     require(parser.row is None, "incomplete episode row")
     return tuple(
-        row
-        for row in parser.rows.values()
-        if page_path and row.path.startswith(page_path + "/")
+        row for row in parser.rows.values() if row.path.startswith(page_path + "/")
     )

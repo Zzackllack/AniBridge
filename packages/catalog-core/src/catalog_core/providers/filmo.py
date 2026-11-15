@@ -344,10 +344,16 @@ class FilmoParser(HTMLParser):
         if is_provider_container:
             self.provider_container_seen = True
         if is_chip:
+            # A chip inside an open chip would reset the depth and silently drop
+            # the outer offer; the strict parser must reject the malformation.
+            require(self.chip_depth == 0, "nested Filmo provider chip")
             self.chip_depth = 1
         elif self.chip_depth and tag not in VOID_TAGS:
             self.chip_depth += 1
         if tag == "a":
+            # Anchors cannot nest; overwriting the open one would drop its card
+            # or next-page link without any visible error.
+            require(self.anchor is None, "nested Filmo anchor")
             href = values.get("href") or ""
             relation = (values.get("rel") or "").casefold().split()
             if self.listing and "next" in relation:
@@ -401,7 +407,10 @@ class FilmoParser(HTMLParser):
             self.tag_depth += 1
             self.tag_text = []
         if tag == "dt":
+            # Any stray text between the previous definition and this label must
+            # not become part of a release-date label and disable year parsing.
             self.release_label = ""
+            self.release_label_text = []
             self.release_depth = 1
         if tag == "dd" and self.release_label is not None:
             self.release_value_text = []

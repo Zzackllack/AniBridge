@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from catalog_core.json_codec import ContractError
 from catalog_core.providers.megakino import parse
 
 ORIGIN = "https://movies.invalid"
@@ -69,6 +70,17 @@ def test_structured_and_observed_year_must_agree():
     assert parse(detail(field(), 2024), "detail", PATH, origin=ORIGIN).year == 2024
     with pytest.raises(ValueError, match="conflicting movie year"):
         parse(detail(field(), 2025), "detail", PATH, origin=ORIGIN)
+
+
+def test_structured_movie_url_must_be_a_string():
+    body = detail("").replace(
+        b"</body>",
+        b'<script type="application/ld+json">'
+        + json.dumps({"@type": "Movie", "url": 123}).encode()
+        + b"</script></body>",
+    )
+    with pytest.raises(ContractError, match="invalid sitemap target"):
+        parse(body, "detail", PATH, origin=ORIGIN)
 
 
 def test_unclosed_structural_tag_is_rejected():

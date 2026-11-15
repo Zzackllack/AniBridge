@@ -105,6 +105,9 @@ class Parser(HTMLParser):
         if "episodeEnglishTitle" in (attrs.get("class") or "").split():
             self.episode_tag, self.episode_text = tag, []
         if tag == "a":
+            # HTML anchors do not nest. Silently overwriting the open anchor
+            # would drop the outer link and hide the malformation entirely.
+            require(self.anchor is None, "nested anchor")
             self.anchor, self.text = attrs, []
         if tag == "h1":
             self.heading, self.heading_text = True, []
@@ -193,7 +196,12 @@ class Parser(HTMLParser):
             for piece in (attrs.get("data-alternative-title") or "").split(",")
             if piece.strip()
         )
-        require(all(len(a.encode()) <= 512 for a in aliases), "alias too large")
+        # Same designed bound as the h1 aliases: per-link lists are bounded by
+        # count as well as by bytes, so one anchor cannot amplify a page.
+        require(
+            len(aliases) <= 100 and all(len(a.encode()) <= 512 for a in aliases),
+            "invalid aliases",
+        )
         self.links[href] = Link(href, name, aliases)
         require(len(self.links) <= 100000, "listing overflow")
 

@@ -158,10 +158,19 @@ def verify(
     require(
         type(signatures) is list and 1 <= len(signatures) <= 4, "invalid signatures"
     )
-    trusted = {
-        hashlib.sha256(k).hexdigest(): Ed25519PublicKey.from_public_bytes(k)
-        for k in keys
-    }
+    trusted = {}
+    for key in keys:
+        # Operator configuration is still an input boundary: a non-key blob must
+        # raise the typed contract error, not cryptography's raw ValueError.
+        require(isinstance(key, (bytes, bytearray, memoryview)), "invalid trusted key")
+        raw_key = bytes(key)
+        require(len(raw_key) == 32, "invalid trusted key")
+        try:
+            trusted[hashlib.sha256(raw_key).hexdigest()] = (
+                Ed25519PublicKey.from_public_bytes(raw_key)
+            )
+        except ValueError:
+            raise ContractError("invalid trusted key") from None
     seen, valid = set(), False
     for signature in signatures:
         fields(signature, {"key_id", "sig"})

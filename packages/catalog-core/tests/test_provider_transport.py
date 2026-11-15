@@ -250,6 +250,8 @@ def test_dns_every_hop_rejects_unsafe_answer(monkeypatch):
     [
         "64:ff9b::7f00:1",
         "64:ff9b::a00:1",
+        "::127.0.0.1",
+        "::10.0.0.1",
         "224.0.0.1",
         "ff02::1",
         "0.0.0.0",
@@ -282,10 +284,41 @@ def test_dns_rejects_transition_multicast_and_reserved_answers(monkeypatch, answ
         ("64:ff9b::808:808", True),
         ("64:ff9b::7f00:1", False),
         ("2002:7f00:1::", False),
+        ("2002:808:808::", True),
         ("127.0.0.1", False),
     ],
 )
 def test_global_address_unwraps_embedded_ipv4(answer, allowed):
+    assert _global_address(answer) is allowed
+
+
+@pytest.mark.parametrize(
+    "answer",
+    ["::", "::1", "::127.0.0.1", "::10.0.0.1", "::8.8.8.8", "::ffff:0.0.0.1"],
+)
+def test_ipv4_compatible_ipv6_space_is_rejected_as_a_class(answer):
+    # ipaddress reports ::8.8.8.8 as global on this interpreter and unwrapping
+    # would allow a public address, yet the ::/96 class is deprecated and some
+    # stacks still route it to the embedded IPv4. Reject the class outright.
+    #
+    # ::ffff:0.0.0.1 is IPv4-mapped, not IPv4-compatible: it is unwrapped and
+    # then rejected by the loopback/private checks for its IPv4 value.
+    assert _global_address(answer) is False
+    assert _global_address("::ffff:8.8.8.8") is True
+
+
+@pytest.mark.parametrize(
+    "answer,allowed",
+    [
+        # Teredo embeds the client as the bitwise-inverted last 32 bits.
+        ("2001:0:4136:e378:8000:63bf:f5ff:fffe", False),  # -> 10.0.0.1
+        ("2001:0:4136:e378:8000:63bf:80ff:fffe", False),  # -> 127.0.0.1
+        ("2001:0:4136:e378:8000:63bf:f7f7:f7f7", True),  # -> 8.8.8.8
+    ],
+)
+def test_every_embedded_ipv4_transition_class_is_unwrapped(answer, allowed):
+    # 6to4 and NAT64 are covered above; Teredo carries two embedded addresses
+    # and must require both to be public.
     assert _global_address(answer) is allowed
 
 

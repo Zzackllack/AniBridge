@@ -333,3 +333,35 @@ def test_empty_provider_rows_are_a_parse_gap() -> None:
 
     with pytest.raises(ContractError, match="missing provider rows"):
         parse(missing_providers, "detail", "/movies/example-film")
+
+
+def test_nested_anchors_do_not_silently_replace_a_poster_card():
+    body = (
+        b'<div class="movie-poster-grid-card"><a href="/movies/film-one">Film'
+        b'<a href="/movies/film-two">Other</a></a></div>'
+    )
+    with pytest.raises(ContractError, match="nested Filmo anchor"):
+        parse(body, "listing", "/movies")
+
+
+def test_stray_label_text_cannot_disable_release_year_extraction():
+    # The stray text follows a date label, so it used to leak into the next
+    # <dt> and turn "Release year" into an unrecognized label. A missing year is
+    # a silent metadata gap, so the parser must keep the two labels separate.
+    body = fixture("filmo-detail.html").replace(
+        b'</dt>\n      <dd class="entry-description">',
+        b'</dt>JUNK<dt class="entry-title">Release year</dt>'
+        b'<dd class="entry-description">',
+    )
+    page = parse(body, "detail", "/movies/example-film")
+    assert page.year == 2022
+
+
+def test_nested_provider_chip_cannot_drop_the_outer_offer():
+    body = fixture("filmo-detail.html").replace(
+        b'<span class="provider-chip__metadata-tag">WEB</span>',
+        b'<span data-provider-chip data-movie-link-id="1002" aria-label="Byse"></span>',
+        1,
+    )
+    with pytest.raises(ContractError, match="nested Filmo provider chip"):
+        parse(body, "detail", "/movies/example-film")
