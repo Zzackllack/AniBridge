@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import List, Optional, Tuple
+import hmac
 import re
 import xml.etree.ElementTree as ET
 import threading
@@ -37,8 +38,13 @@ def _require_apikey(apikey: Optional[str]) -> None:
         HTTPException: Raised with status code 401 and detail "invalid apikey" when a configured API key is missing or does not match.
     """
     if INDEXER_API_KEY:
-        if not apikey or apikey != INDEXER_API_KEY:
-            logger.warning(f"API key missing or invalid: received '{apikey}'")
+        supplied = (
+            apikey.encode("utf-8", "surrogatepass") if isinstance(apikey, str) else b""
+        )
+        if not supplied or not hmac.compare_digest(
+            supplied, INDEXER_API_KEY.encode("utf-8")
+        ):
+            logger.warning("API key missing or invalid")
             raise HTTPException(status_code=401, detail="invalid apikey")
     else:
         logger.debug("No API key required for this instance.")

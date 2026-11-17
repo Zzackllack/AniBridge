@@ -37,6 +37,15 @@ services:
       retries: 3
 ```
 
+## Catalog Query Mode Egress
+
+Query mode adds outbound HTTPS requests to the configured collector origin.
+Those requests disclose search terms, IDs, and your service-visible IP to the
+collector operator. The collector is not a proxy: media downloads still egress
+from AniBridge to the provider/host. Route both paths through the same external
+VPN policy if that is your requirement. See
+[Catalog Query Mode](/guide/catalog-query#security-boundaries).
+
 ## Public IP Monitor
 
 AniBridge can periodically log the active public IP so you can verify egress.
@@ -69,8 +78,9 @@ The following are removed and ignored when set:
 - `PROXY_IP_CHECK_INTERVAL_MIN`
 - `PROXY_SCOPE`
 
-## STRM Proxy Is Unchanged
+## STRM Proxy Remains Supported
 
-This removal does not affect STRM proxy endpoints (`/strm/*`).
+Removing the in-app proxy did not remove STRM proxying. Legacy endpoints remain at
+`/strm/stream` and `/strm/proxy`; query jobs use `/strm/catalog`.
 
 See [STRM Proxy](/api/strm-proxy).

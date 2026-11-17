@@ -1,3 +1,22 @@
+def test_rejected_magnet_does_not_log_private_input(client):
+    from loguru import logger
+
+    secret = "private-title-token-DO-NOT-LOG"
+    messages = []
+    sink = logger.add(messages.append, level="DEBUG")
+    try:
+        response = client.post(
+            "/api/v2/torrents/add",
+            data={"urls": "https://invalid.example/?token=" + secret},
+        )
+        assert response.status_code == 400
+    finally:
+        logger.remove(sink)
+    captured = "".join(str(message) for message in messages)
+    assert "Received torrent add request" in captured
+    assert secret not in captured
+
+
 def test_torrent_lifecycle(client):
     from app.utils.magnet import build_magnet
 

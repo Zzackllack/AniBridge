@@ -15,3 +15,8 @@ build
 dist
 downloads/
 .env*
+
+**/.venv/
+data/
+internal/
+scripts/

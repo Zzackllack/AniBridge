@@ -33,10 +33,15 @@ For users, this history is useful context: domain changes, blocks, or infrastruc
 
 ## What You Can Expect In AniBridge
 
-- AniBridge can resolve S.to slugs from your queries.
+- Legacy mode resolves S.to slugs from your queries.
+- Query mode searches previously collected S.to metadata and uses canonical
+  episode mappings when the collector publishes them.
 - It can target episodes by `(slug, season, episode)`.
 - It parses available hosters and language variants from episode pages.
 - It uses this data to build Torznab items and download jobs.
+
+Query mode is advanced and operator-configured; it keeps media downloads local.
+See [Catalog Query Mode](/guide/catalog-query).
 
 ## Practical Notes For Setup
 
@@ -71,6 +76,7 @@ Common environment variables:
 - `STO_ALPHABET_URL`
 - `STO_ALPHABET_HTML`
 - `STO_TITLES_REFRESH_HOURS`
+- Query mode: `CATALOG_MODE=query` plus collector settings
 
 See [Environment](/api/environment) for full definitions.
 

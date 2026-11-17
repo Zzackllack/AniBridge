@@ -1,0 +1,23 @@
+# Test-only generated HTTP inputs. Application/job implementations stay unchanged.
+services:
+  generate:
+    image: anibridge-query-api:${PILOT_COMMIT}
+    user: root
+    entrypoint: [python, /pilot/acceptance/generate.py]
+    volumes: ['./:/pilot:ro', generated-media:/generated, library:/library]
+    network_mode: none
+    mem_limit: 512m
+    cpus: 2
+    logging: {driver: json-file, options: {max-size: 10m, max-file: '1'}}
+  api:
+    depends_on:
+      generate: {condition: service_completed_successfully}
+    environment:
+      PYTHONPATH: /pilot/acceptance/hooks:/app
+      PROVIDER_ORDER: Vidoza
+    volumes: [generated-media:/generated:ro, library:/library:ro]
+  sonarr:
+    volumes: [library:/library]
+volumes:
+  generated-media:
+  library:

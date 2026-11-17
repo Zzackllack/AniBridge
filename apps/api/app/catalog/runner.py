@@ -1,0 +1,202 @@
+"""Durable job scheduling and cancellation, independent of HTTP request lifetimes."""
+
+import asyncio
+import json
+import sqlite3
+import time
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from pathlib import Path
+
+from loguru import logger
+
+from .async_database import call as database_call
+from .child_budget import CONSUMER_CHILDREN, ChildBudget, Lease
+from .jobs import Jobs
+from .progress_log import JobProgressLog
+
+
+@dataclass(frozen=True)
+class Outcome:
+    code: str
+    output: Path | None = None
+    evidence: dict | None = None
+
+
+# An executor owns/reaps its subprocess before cancellation is allowed to finish.
+Executor = Callable[[dict, Callable[[dict], None]], Awaitable[Outcome]]
+
+
+class Runner:
+    def __init__(
+        self,
+        jobs: Jobs,
+        execute: Executor,
+        concurrency: int = 2,
+        clock=time.time,
+        children: ChildBudget = CONSUMER_CHILDREN,
+        progress_log: JobProgressLog | None = None,
+    ) -> None:
+        if not 1 <= concurrency <= 2:
+            raise ValueError("private profile permits at most two downloads")
+        self.jobs, self.execute, self.concurrency, self.clock = (
+            jobs,
+            execute,
+            concurrency,
+            clock,
+        )
+        self.children = children
+        self.progress_log = progress_log or JobProgressLog()
+        self.running: dict[str, tuple[dict, asyncio.Task, Lease]] = {}
+        self.stopping = False
+
+    async def tick(self) -> None:
+        now = int(self.clock())
+        for job_id, (claim, task, lease) in list(self.running.items()):
+            current = await database_call(self.jobs.get, job_id)
+            if current["generation"] != claim["generation"] or current[
+                "status"
+            ] not in ("resolving", "downloading"):
+                task.cancel()
+            if task.done():
+                lease.close()
+                try:
+                    result = task.result()
+                except asyncio.CancelledError:
+                    result = None
+                except Exception as exc:  # noqa: BLE001 -- isolate one executor's failure from other jobs
+                    # One executor failure must not stop unrelated durable jobs.
+                    logger.error(
+                        "Catalog job executor raised: job_id={}, error_class={}",
+                        job_id,
+                        type(exc).__name__,
+                    )
+                    result = Outcome("extraction_error")
+                settled = False
+                if result:
+                    settled = await database_call(
+                        self.jobs.finish,
+                        job_id,
+                        claim["generation"],
+                        result.code,
+                        now,
+                        result.output,
+                        result.evidence,
+                    )
+                    if settled:
+                        log_outcome = (
+                            logger.info if result.code == "ok" else logger.warning
+                        )
+                        log_outcome(
+                            "Catalog job attempt finished: job_id={}, "
+                            "generation={}, outcome={}",
+                            job_id,
+                            claim["generation"],
+                            result.code,
+                        )
+                # Publish the final bar only after the completion transaction
+                # settled; a pause or failed attempt must not look finished.
+                self.progress_log.finish(
+                    job_id,
+                    published=bool(result and settled and result.code == "ok"),
+                    size=_output_size(result),
+                )
+                await database_call(self.jobs.settle_cancel, job_id, now)
+                del self.running[job_id]
+            else:
+                await database_call(
+                    self.jobs.heartbeat, job_id, claim["generation"], now
+                )
+        while not self.stopping and len(self.running) < self.concurrency:
+            lease = self.children.try_acquire("download")
+            if lease is None:
+                break
+            try:
+                claim = await database_call(self.jobs.claim, now)
+            except BaseException:
+                lease.close()
+                raise
+            if claim is None:
+                lease.close()
+                break
+            logger.info(
+                "Catalog job attempt started: job_id={}, provider={}, "
+                "generation={}, attempt={}",
+                claim["job_id"],
+                claim["source_site"],
+                claim["generation"],
+                claim["attempts"] + 1,
+            )
+            self.progress_log.start(claim["job_id"])
+            try:
+                payload = json.loads(claim["payload"])
+                payload.update(job_id=claim["job_id"], generation=claim["generation"])
+
+                def progress(update: dict, claim=claim) -> None:
+                    self.progress_log.update(claim["job_id"], update)
+                    self.jobs.heartbeat(
+                        claim["job_id"], claim["generation"], int(self.clock()), update
+                    )
+
+                task = asyncio.create_task(self.execute(payload, progress))
+            except Exception:  # noqa: BLE001 -- release admission if executor construction fails
+                self.progress_log.finish(claim["job_id"])
+                lease.close()
+                await database_call(
+                    self.jobs.finish,
+                    claim["job_id"],
+                    claim["generation"],
+                    "extraction_error",
+                    now,
+                )
+                continue
+            except BaseException:
+                lease.close()
+                raise
+            self.running[claim["job_id"]] = (claim, task, lease)
+
+    async def run(self) -> None:
+        needs_recovery = True
+        try:
+            while not self.stopping:
+                try:
+                    if needs_recovery:
+                        await database_call(
+                            self.jobs.recover, int(self.clock()), startup=True
+                        )
+                        needs_recovery = False
+                    await self.tick()
+                except sqlite3.Error, OSError:
+                    # Ownership and completed executor results stay in memory;
+                    # retry their durable transactions when storage recovers.
+                    # Startup recovery must succeed before claiming any job.
+                    await asyncio.sleep(1)
+                    continue
+                await asyncio.sleep(0.1)
+        finally:
+            await self.close()
+
+    async def close(self) -> None:
+        self.stopping = True
+        tasks = [task for _, task, _ in self.running.values()]
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), 5)
+        for _, _, lease in self.running.values():
+            lease.close()
+        self.progress_log.close()
+        # Actual state is already durable. Shutdown consumes an interrupted
+        # attempt, while pause/block/cancel desired states stay untouched.
+        await database_call(self.jobs.recover, int(self.clock()), startup=True)
+        self.running.clear()
+
+
+def _output_size(result: Outcome | None) -> int | None:
+    """Only a published output can size the final bar; never invent one."""
+    if result is None or result.output is None:
+        return None
+    try:
+        return result.output.stat().st_size
+    except OSError:
+        return None

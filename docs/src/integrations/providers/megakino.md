@@ -33,10 +33,16 @@ Because source reliability in this area is inconsistent, this page focuses on wh
 
 ## What You Can Expect In AniBridge
 
-- AniBridge can load title/slug data from Megakino sitemaps.
-- It can resolve slugs for movie and serial pages.
-- Search uses a Megakino-native strategy.
+- Legacy mode loads title/slug data from Megakino sitemaps and resolves slugs for
+  movie and serial pages.
+- Legacy Megakino is search-only: queries must provide a slug or a Megakino URL
+  containing one.
+- Query mode searches previously collected Megakino metadata, so the legacy
+  slug-only requirement does not apply.
 - AniBridge attempts direct provider URL resolution and uses fallback behavior when needed.
+
+Query mode is advanced and operator-configured; media downloads remain local. See
+[Catalog Query Mode](/guide/catalog-query).
 
 ## Practical Notes For Setup
 
@@ -64,6 +70,7 @@ Common environment variables:
 - `MEGAKINO_BASE_URL`
 - `MEGAKINO_TITLES_REFRESH_HOURS`
 - `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN`
+- Query mode: `CATALOG_MODE=query` plus collector settings
 
 See [Environment](/api/environment) for full definitions.
 

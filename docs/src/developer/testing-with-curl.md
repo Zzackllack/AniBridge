@@ -4,6 +4,14 @@ This short guide shows how to emulate Sonarr's behavior using curl: perform a To
 
 Use these examples from macOS/zsh. Adjust HOST, port, and API key values for your environment.
 
+::: tip Search-mode differences
+Legacy mode returns a synthetic item for `t=search` with empty `q` when
+`TORZNAB_RETURN_TEST_RESULT=true`. Query mode treats empty `q` as a bounded recent
+page, so use `t=caps` for a connectivity check. Query magnets use the opaque
+`ab_v` payload and query items report `size="0"`. Completed query jobs stay
+`pausedUP` with `anibridge_output_missing: true` if the imported source is moved.
+:::
+
 ## Quick environment variables
 
 ```zsh

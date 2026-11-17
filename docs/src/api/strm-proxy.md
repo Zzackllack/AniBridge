@@ -7,6 +7,14 @@ outline: deep
 
 AniBridge can generate `.strm` files that point to a stable AniBridge URL instead of a provider/CDN URL. The STRM proxy endpoints stream bytes, support HTTP Range, and rewrite HLS playlists so every segment/key request routes back through AniBridge.
 
+Legacy jobs use `/strm/stream`. Catalog query jobs use `/strm/catalog`, which is
+bound to a completed local request and resolves playback locally. In proxy mode,
+imported query `.strm` files remain playable after the download client removes its
+alias because playback registration is tied to the completed request, not the
+torrent entry.
+
+`STRM_PROXY_MODE=redirect` is not implemented and is treated as `proxy` streaming.
+
 ## When To Use
 
 - You need stable `.strm` files that keep working even when provider URLs change.
@@ -23,6 +31,15 @@ Auth mode is controlled by `STRM_PROXY_AUTH`:
 - `token` (default): HMAC signature in `sig`
 - `apikey`: shared key in `apikey`
 - `none`: no auth (LAN only)
+
+STRM auth is independent of `INDEXER_API_KEY`, the qBittorrent credentials, the
+collector bearer token, and `MANAGEMENT_API_TOKEN`. Protecting one does not
+protect the others.
+
+For query jobs, the top-level `.strm` URL is stable. Nested HLS resources carry
+their own expiring signature and are never written to the catalog or sent to the
+metadata service. In `direct` mode the `.strm` contains the resolved provider URL
+and AniBridge is not in the playback path.
 
 ## Direct Play Requirements
 
@@ -62,6 +79,15 @@ If upstream returns `403/404/410/451/429` or times out, AniBridge re-resolves th
 ```text
 https://anibridge.example/strm/stream?site=s.to&slug=9-1-1&s=1&e=3&lang=German+Dub&sig=...
 ```
+
+### Query STRM URL
+
+```text
+https://anibridge.example/strm/catalog?job=<job-id>&ab_scope=catalog-playback-1&sig=...
+```
+
+The top-level URL is stable and does not carry the upstream URL. Nested HLS
+resources use an expiring signature and an encoded upstream `u` parameter.
 
 ### Rewritten HLS Playlist
 

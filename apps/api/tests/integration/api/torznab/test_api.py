@@ -1,5 +1,7 @@
 import xml.etree.ElementTree as ET
 
+import pytest
+
 
 def test_caps(client):
     resp = client.get("/torznab/api", params={"t": "caps"})
@@ -12,6 +14,25 @@ def test_search(client):
     assert resp.status_code == 200
     root = ET.fromstring(resp.text)
     assert root.find("channel") is not None
+
+
+@pytest.mark.parametrize(("apikey", "flag"), [(None, "none"), ("secret", "set")])
+def test_request_log_records_only_apikey_presence(client, monkeypatch, apikey, flag):
+    import app.api.torznab.api as torznab_api_mod
+
+    messages = []
+    monkeypatch.setattr(
+        torznab_api_mod.logger,
+        "debug",
+        lambda message, *args: messages.append(message.format(*args)),
+    )
+    params = {"t": "caps"}
+    if apikey is not None:
+        params["apikey"] = apikey
+    assert client.get("/torznab/api", params=params).status_code == 200
+    request_lines = [line for line in messages if line.startswith("Torznab request:")]
+    assert request_lines == [f"Torznab request: operation=caps, apikey={flag}"]
+    assert all("secret" not in line for line in messages)
 
 
 def test_tvsearch_happy_path(client, monkeypatch):

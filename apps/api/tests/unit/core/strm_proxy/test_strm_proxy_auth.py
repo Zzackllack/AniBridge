@@ -54,6 +54,25 @@ def test_apikey_auth_valid(monkeypatch):
     auth.require_auth({"apikey": "key123"})
 
 
+def test_apikey_auth_uses_constant_time_compare_for_unicode_input(monkeypatch):
+    auth = _load_auth(monkeypatch, mode="apikey", secret="schöne-key")
+    auth.require_auth({"apikey": "schöne-key"})
+    for supplied in ("schöne-keyx", "日本語", "", None):
+        with pytest.raises(HTTPException):
+            auth.require_auth({"apikey": supplied})
+    calls = []
+    monkeypatch.setattr(
+        auth.hmac,
+        "compare_digest",
+        lambda left, right: calls.append((left, right)) or False,
+    )
+    with pytest.raises(HTTPException):
+        auth.require_auth({"apikey": "schöne-key"})
+    assert calls == [
+        ("schöne-key".encode(), "schöne-key".encode()),
+    ]
+
+
 def test_apikey_auth_invalid(monkeypatch):
     """
     Verifies that require_auth raises HTTPException when an invalid API key is provided.
@@ -64,3 +83,20 @@ def test_apikey_auth_invalid(monkeypatch):
     auth = _load_auth(monkeypatch, mode="apikey", secret="key123")
     with pytest.raises(HTTPException):
         auth.require_auth({"apikey": "nope"})
+
+
+def test_none_mode_keeps_legacy_and_catalog_scopes_separate(monkeypatch):
+    auth = _load_auth(monkeypatch, mode="none", secret="")
+
+    # Legacy routes call without a scope; catalog playback always carries one.
+    auth.require_auth({})
+    auth.require_auth(
+        {"ab_scope": "catalog-playback-1", "job": "a" * 32},
+        scope="catalog-playback-1",
+    )
+    with pytest.raises(HTTPException) as error:
+        auth.require_auth({"ab_scope": "catalog-playback-1"})
+    assert error.value.status_code == 401
+    with pytest.raises(HTTPException) as error:
+        auth.require_auth({"job": "a" * 32}, scope="catalog-playback-1")
+    assert error.value.status_code == 401

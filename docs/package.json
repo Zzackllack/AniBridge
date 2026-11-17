@@ -15,7 +15,8 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260918.1",
-    "vite": "^8.3.0",
+    "esbuild": "^0.28.2",
+    "vite": "^8.3.5",
     "vitepress": "2.0.0-alpha.20",
     "vitepress-openapi": "^0.2.5"
   }

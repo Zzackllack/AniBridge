@@ -289,6 +289,10 @@ export default defineConfig({
             { text: "Overview", link: "/guide/overview" },
             { text: "Quickstart", link: "/guide/quickstart" },
             { text: "Configuration", link: "/guide/configuration" },
+            {
+              text: "Catalog Query Mode (Advanced)",
+              link: "/guide/catalog-query",
+            },
             { text: "Networking & VPN", link: "/guide/networking" },
             { text: "Running", link: "/guide/running" },
             { text: "Troubleshooting", link: "/guide/troubleshooting" },
@@ -334,6 +338,7 @@ export default defineConfig({
             { text: "AniWorld", link: "/integrations/providers/aniworld" },
             { text: "S.to", link: "/integrations/providers/sto" },
             { text: "Megakino", link: "/integrations/providers/megakino" },
+            { text: "Filmo (Movies)", link: "/integrations/providers/filmo" },
           ],
         },
       ],

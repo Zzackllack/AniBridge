@@ -28,7 +28,7 @@ def test_edit_and_remove_categories(client):
     assert "temp" not in cats
 
 
-def test_sync_maindata_state_mapping(client):
+def test_sync_maindata_state_mapping(client, tmp_path):
     # Prepare jobs and client tasks directly in DB
     from sqlmodel import Session
     from app.db import engine, create_job, update_job, upsert_client_task
@@ -36,7 +36,16 @@ def test_sync_maindata_state_mapping(client):
     with Session(engine) as s:
         # completed
         j1 = create_job(s)
-        update_job(s, j1.id, status="completed", progress=100.0, total_bytes=123)
+        output = tmp_path / "completed.mkv"
+        output.write_bytes(b"x" * 123)
+        update_job(
+            s,
+            j1.id,
+            status="completed",
+            progress=100.0,
+            total_bytes=123,
+            result_path=str(output),
+        )
         upsert_client_task(
             s,
             hash="h1",

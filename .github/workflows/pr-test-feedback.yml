@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Resolve workflow run context
         id: context
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const pullRequest = context.payload.workflow_run.pull_requests?.[0];
@@ -121,7 +121,7 @@ jobs:
 
       - name: Sync pull request feedback comment
         if: steps.context.outputs.pr_number != ''
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           COMMENT_MARKER: ${{ steps.context.outputs.marker }}
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}

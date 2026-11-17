@@ -41,8 +41,9 @@ class ProgressReporter:
     - Non-interactive: print an info line every PROGRESS_STEP_PERCENT.
     """
 
-    def __init__(self, label: str) -> None:
+    def __init__(self, label: str, *, log_steps: bool = False) -> None:
         self.label = label
+        self._log_steps = log_steps
         self._bar = None
         self._last_step_pct = -1  # last printed step percentage (integer)
         self._interactive = is_interactive_terminal()
@@ -81,6 +82,8 @@ class ProgressReporter:
         # Render
         if self._bar is not None:
             # TTY progress bar
+            # HLS estimates change as fragments arrive; refresh the denominator too.
+            self._bar.total = int(total) if total else None
             self._bar.n = downloaded
             postfix = {}
             if snap.speed is not None:
@@ -90,8 +93,8 @@ class ProgressReporter:
             if postfix:
                 self._bar.set_postfix(postfix)
             self._bar.refresh()
-        else:
-            # Non-interactive: print every N percent
+        if self._bar is None or self._log_steps:
+            # Step lines also preserve progress in saved logs when requested.
             if total:
                 try:
                     pct = int(max(0.0, min(100.0, downloaded / float(total) * 100.0)))

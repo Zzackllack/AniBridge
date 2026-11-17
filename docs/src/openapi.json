@@ -878,7 +878,8 @@
         "tags": [
           "qBittorrent Auth"
         ],
-        "summary": "Login (stubbed)",
+        "summary": "Login",
+        "description": "Optional credentials. When qBittorrent authentication is configured, returns a signed session cookie; otherwise keeps trusted-private-network compatibility.",
         "operationId": "qbittorrentLogin",
         "requestBody": {
           "required": true,
@@ -900,7 +901,7 @@
         },
         "responses": {
           "200": {
-            "description": "Always succeeds and sets a SID cookie.",
+            "description": "Login accepted; sets a signed SID session when authentication is configured, or a compatibility cookie when it is disabled.",
             "content": {
               "text/plain": {
                 "schema": {
@@ -914,6 +915,36 @@
           },
           "500": {
             "$ref": "#/components/responses/ServerError"
+          },
+          "403": {
+            "description": "Configured credentials did not match.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "Fails."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Login admission limit reached.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until a login may be retried.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }

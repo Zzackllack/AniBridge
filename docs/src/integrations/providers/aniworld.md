@@ -33,10 +33,18 @@ Because branding and domains in this ecosystem can change quickly, treat these d
 
 ## What You Can Expect In AniBridge
 
-- AniBridge can resolve AniWorld series slugs from your Sonarr/Prowlarr queries.
+- Legacy mode resolves AniWorld series slugs from your Sonarr/Prowlarr queries
+  during each search.
+- Query mode searches previously collected AniWorld metadata. It uses canonical
+  episode mappings when the collector publishes them and native AniWorld
+  numbering otherwise.
 - Episode checks are performed per season/episode and language.
 - Release names are generated so *arr tools can parse episodes more reliably.
 - AniWorld specials (`/filme`) are handled with metadata-based mapping to reduce import mismatches.
+
+AniBridge does not convert Sonarr "Anime/Absolute" requests into AniWorld
+seasons/episodes. Sonarr must send coordinates that match the source or a
+published mapping. See [Catalog Query Mode](/guide/catalog-query#numbering-and-id-matching).
 
 ## Practical Notes For Setup
 
@@ -69,6 +77,7 @@ Common environment variables:
 - `ANIWORLD_TITLES_REFRESH_HOURS`
 - `ANIWORLD_INSTALL_FOLDER` (defaults to `DATA_DIR/aniworld` for isolated
   upstream configuration)
+- `CATALOG_MODE=query` plus collector settings for metadata-backed search
 
 Related specials-mapping controls are documented in:
 

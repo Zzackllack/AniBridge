@@ -22,9 +22,16 @@ Configure AniBridge as a Torznab indexer in Prowlarr.
 
 ## Test
 
-- Use “Test” in Prowlarr; AniBridge returns a synthetic result when `t=search` with empty `q` and `TORZNAB_RETURN_TEST_RESULT=true`.
+- Legacy mode: AniBridge returns a synthetic result when `t=search` has an empty
+  `q` and `TORZNAB_RETURN_TEST_RESULT=true`.
+- Query mode: an empty `q` is a bounded recent page, not a synthetic test item.
+  Use `t=caps`, which remains available during a metadata outage.
+- If `INDEXER_API_KEY` is set, enter the same key as the Prowlarr API key.
 
 ## Tips
 
 - Map Prowlarr’s network to reach AniBridge (`docker compose` service name or host IP)
 - Ensure clean URLs aren’t required; Torznab is plain `/torznab/api` with query params
+- Query mode is advanced/operator-configured and bounded. Broad searches can
+  return HTTP 400 `query_too_broad`; partial provider outages are flagged in
+  response headers. See [Catalog Query Mode](/guide/catalog-query).

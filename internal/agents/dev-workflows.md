@@ -20,6 +20,21 @@
 - `apps/api/app/cli.py` provides the CLI entrypoint for `run_server`.
 - Shared helpers live in `apps/api/app/utils` and are used across CLI and API.
 
+## Specifications and local investigation output
+
+Keep specifications focused on contracts, architecture decisions and current
+open work. Update existing summaries instead of appending dated work logs or
+duplicating audit matrices across files. General project knowledge belongs in
+tracked Markdown; executable regression inputs belong beside their tests.
+
+Use ignored `internal/local/` for audit reports, PR-description drafts, historical
+reviews and generated measurements, including Markdown. The existing archive is
+`internal/local/catalog-history/`, preserving its original relative paths. Catalog
+spec directories allow only their current contracts/overview/open-work documents;
+the complete evidence folder and new report files are ignored. Do not force-add
+outputs or recreate archived journals. Keep any needed private archive outside
+the checkout before cleaning it.
+
 ## Docs Development (Local)
 
 - Node 20+ required.

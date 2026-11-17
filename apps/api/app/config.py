@@ -5,6 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
 
+from app.catalog.config import from_env as load_catalog_config
 from app.utils.logger import config as configure_logger
 
 # Load .env as early as possible so all downstream imports see the intended env
@@ -140,6 +141,13 @@ QBIT_PUBLIC_SAVE_PATH = os.getenv("QBIT_PUBLIC_SAVE_PATH", "").strip()
 if QBIT_PUBLIC_SAVE_PATH:
     QBIT_PUBLIC_SAVE_PATH = str(Path(QBIT_PUBLIC_SAVE_PATH).expanduser())
 logger.debug(f"QBIT_PUBLIC_SAVE_PATH={QBIT_PUBLIC_SAVE_PATH or '<none>'}")
+QBIT_USERNAME = os.getenv("QBIT_USERNAME", "")
+QBIT_PASSWORD = os.getenv("QBIT_PASSWORD", "")
+QBIT_SESSION_SECRET = os.getenv("QBIT_SESSION_SECRET", "")
+_qbit_secure = os.getenv("QBIT_COOKIE_SECURE", "true").strip().lower()
+if _qbit_secure not in {"", "true", "1", "yes", "on", "false", "0", "no", "off"}:
+    raise ValueError("QBIT_COOKIE_SECURE must be a boolean")
+QBIT_COOKIE_SECURE = _as_bool(_qbit_secure or None, True)
 
 # Resolve configured paths (treat empty env as unset)
 env_download = os.getenv("DOWNLOAD_DIR")
@@ -198,7 +206,7 @@ if QBIT_PUBLIC_SAVE_PATH:
         pass
 
 # ---- Multi-Site Catalogue Configuration ----
-# Comma-separated list of enabled catalogues (aniworld.to, s.to, megakino)
+# Comma-separated list of enabled catalogues (aniworld.to, s.to, megakino, filmo.to)
 CATALOG_SITES = os.getenv("CATALOG_SITES", "aniworld.to,s.to,megakino").strip()
 CATALOG_SITES_LIST = list(
     dict.fromkeys(s.strip() for s in CATALOG_SITES.split(",") if s.strip())
@@ -216,7 +224,7 @@ ANIWORLD_ALPHABET_URL = os.getenv(
 ).strip()
 
 # S.to (series)
-STO_BASE_URL = os.getenv("STO_BASE_URL", "https://s.to").strip()
+STO_BASE_URL = os.getenv("STO_BASE_URL", "https://serienstream.to").strip()
 STO_ALPHABET_HTML = Path(
     os.getenv("STO_ALPHABET_HTML", DATA_DIR / "sto-alphabeth.html")
 )
@@ -229,6 +237,7 @@ MEGAKINO_TITLES_REFRESH_HOURS = float(os.getenv("MEGAKINO_TITLES_REFRESH_HOURS",
 MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN = int(
     os.getenv("MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN", "100")
 )
+FILMO_BASE_URL = os.getenv("FILMO_BASE_URL", "https://filmo.to").strip()
 
 logger.debug(
     f"ANIWORLD_ALPHABET_HTML={ANIWORLD_ALPHABET_HTML}, ANIWORLD_ALPHABET_URL={ANIWORLD_ALPHABET_URL}"
@@ -285,6 +294,16 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "default_languages": ["Deutsch", "German Dub"],
         "release_group": "megakino",
     },
+    "filmo.to": {
+        "base_url": FILMO_BASE_URL,
+        "alphabet_html": None,
+        "alphabet_url": None,
+        "titles_refresh_hours": 24,
+        # Filmo's movie offers carry independent audio/subtitle metadata.
+        # The query client requests all declared ISO language values.
+        "default_languages": [],
+        "release_group": "filmo",
+    },
 }
 
 CATALOG_SITE_CONFIGS: dict[str, dict[str, Any]] = {}
@@ -301,11 +320,12 @@ for site in CATALOG_SITES_LIST:
 # Comma-separated list of direct video hosts, for example:
 # "VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza"
 # Order = priority.
-_default_order = "VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza"
+_default_order = "VOE,Byse,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza"
 _raw = os.getenv("PROVIDER_ORDER", _default_order)
 logger.debug(f"PROVIDER_ORDER raw string: {_raw}")
 _VALID_VIDEO_HOSTS = {
     "VOE",
+    "Byse",
     "Vidoza",
     "Doodstream",
     "Filemoon",
@@ -637,3 +657,13 @@ ANIBRIDGE_CORS_ALLOW_CREDENTIALS = _as_bool(
     os.getenv("ANIBRIDGE_CORS_ALLOW_CREDENTIALS", "true"), True
 )
 logger.debug(f"ANIBRIDGE_CORS_ALLOW_CREDENTIALS={ANIBRIDGE_CORS_ALLOW_CREDENTIALS}")
+
+# No file means released mainline behavior. Source disclosure requires explicit opt-in.
+CATALOG_CONFIG = load_catalog_config()
+if "filmo.to" in CATALOG_SITES_LIST and CATALOG_CONFIG.mode != "query":
+    raise ValueError(
+        "Filmo requires catalog query mode; set CATALOG_MODE=query with the "
+        "collector environment settings"
+    )
+
+MANAGEMENT_API_TOKEN = os.getenv("MANAGEMENT_API_TOKEN") or None

@@ -6,6 +6,14 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 
 - Paths: `DATA_DIR`, `DOWNLOAD_DIR`, `QBIT_PUBLIC_SAVE_PATH`,
   `ANIWORLD_INSTALL_FOLDER`
+- qBittorrent authentication: configure `QBIT_USERNAME`, `QBIT_PASSWORD` (16+
+  bytes) and an independent random `QBIT_SESSION_SECRET` (32+ bytes) together.
+  Partial configuration refuses startup. `QBIT_COOKIE_SECURE` defaults true for
+  HTTPS ingress; explicit false opts into trusted private HTTP. A TLS proxy must
+  preserve Host. Empty credentials retain trusted-private-network compatibility.
+  Signed `SID` sessions last one hour and survive application restarts; rotating
+  credentials or the secret invalidates them. These settings cover `/api/v2`,
+  not the other application routers.
 - Migrations: `DB_MIGRATE_ON_STARTUP`
 - Torznab: `INDEXER_NAME`, `INDEXER_API_KEY`, `TORZNAB_*`
 - Downloader: `PROVIDER_ORDER` (input env var, mapped at runtime to `VIDEO_HOST_ORDER`), `PROVIDER_REDIRECT_TIMEOUT_SECONDS`,
@@ -14,7 +22,7 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
   `DOWNLOADS_TTL_HOURS`, `CLEANUP_SCAN_INTERVAL_MIN`
 - STRM: `STRM_FILES_MODE`, `STRM_PROXY_*`
 - Networking policy: external VPN/VPN-sidecar routing only + `PUBLIC_IP_CHECK_*`
-- Video-host order default: `VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza` via `PROVIDER_ORDER`, mapped at runtime to `VIDEO_HOST_ORDER`
+- Video-host order default: `VOE,Byse,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza` via `PROVIDER_ORDER`, mapped at runtime to `VIDEO_HOST_ORDER`
 - s.to/VOE note: if Sonarr shows `qBittorrent is reporting an error` for items
   that never started downloading, inspect logs for provider redirect timeouts and
   tune `PROVIDER_REDIRECT_TIMEOUT_SECONDS` / `PROVIDER_REDIRECT_RETRIES`
@@ -41,7 +49,8 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 11. `ANIWORLD_ALPHABET_URL` — AniWorld alphabet page (default `https://aniworld.to/animes-alphabet`).
 12. `ANIWORLD_TITLES_REFRESH_HOURS` — Title refresh interval (default `24`).
 13. `STO_ALPHABET_HTML` — Override local s.to HTML.
-14. `STO_ALPHABET_URL` — s.to alphabet page.
+14. `STO_ALPHABET_URL` — Serienstream alphabet page (default
+    `https://serienstream.to/serien?by=alpha`).
 15. `STO_TITLES_REFRESH_HOURS` — Title refresh interval for s.to (default `24`).
 16. `MEGAKINO_BASE_URL` — Megakino base URL override.
 17. `MEGAKINO_TITLES_REFRESH_HOURS` — Megakino refresh interval.
@@ -57,7 +66,8 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 27. `PROVIDER_CHALLENGE_BACKOFF_SECONDS` — Suggested operator cool-down
     reported with verification-required failures (default `300`); workers do
     not sleep or launch a browser.
-28. `MAX_CONCURRENCY` — Thread pool size (default `3`).
+28. `MAX_CONCURRENCY` — Parallel downloads (default `3`); query mode uses at
+    most two concurrent jobs within the shared subprocess budget.
 29. `DOWNLOAD_RATE_LIMIT_BYTES_PER_SEC` — Per-download yt-dlp rate cap (`0` disables).
 30. `INDEXER_NAME` — Torznab display name (default `AniBridge Torznab`).
 31. `INDEXER_API_KEY` — Optional Torznab API key.
@@ -86,7 +96,8 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 54. `STRM_PROXY_UPSTREAM_ALLOWLIST` — Comma-separated upstream host allowlist.
 55. `STRM_PROXY_CACHE_TTL_SECONDS` — STRM URL cache TTL in seconds (default `0`).
 56. `STRM_PROXY_TOKEN_TTL_SECONDS` — STRM proxy token TTL in seconds (default `900`).
-57. `PROGRESS_FORCE_BAR` — Force progress bar (default `false`).
+57. `PROGRESS_FORCE_BAR` — Force the live progress bar (default `false`);
+    query downloads also retain stepped progress in saved logs.
 58. `PROGRESS_STEP_PERCENT` — Progress logging step (default `5`).
 59. `ANIBRIDGE_UPDATE_CHECK` — Enable release polling (default `true`).
 60. `ANIBRIDGE_GITHUB_TOKEN` — GitHub API token.
@@ -104,6 +115,15 @@ AniBridge centralizes configuration in `apps/api/app/config.py`. Values are deri
 72. `SONARR_*`, `PROWLARR_*` — Integration values documented in `docs/src/integrations/clients`.
 73. `ANIWORLD_INSTALL_FOLDER` — Writable upstream configuration/session folder
     (default `${DATA_DIR}/aniworld`; does not change process `HOME`).
+74. `CATALOG_MODE` — Search routing (`legacy` by default; `query` opts into the
+    metadata API).
+75. `CATALOG_API_URL` — Query API HTTPS origin root; no endpoint path.
+76. `CATALOG_SOURCE_ID` — Configured metadata source identifier.
+77. `CATALOG_API_TOKEN` / `CATALOG_API_TOKEN_FILE` — Set exactly one in query
+    mode; file paths are resolved inside the API container.
+78. `CATALOG_ALLOW_PRIVATE_HTTP` — Permit unencrypted HTTP to non-loopback
+    hosts for trusted-network testing; no private-address enforcement (default
+    `false`; loopback HTTP remains allowed).
 
 ## Removed Legacy Proxy Variables
 
@@ -114,3 +134,103 @@ unsupported and ignored if still present in runtime env:
 - `PROXY_HOST`, `PROXY_PORT`, `PROXY_SCHEME`, `PROXY_USERNAME`, `PROXY_PASSWORD`
 - `NO_PROXY`, `PROXY_FORCE_REMOTE_DNS`, `PROXY_DISABLE_CERT_VERIFY`, `PROXY_APPLY_ENV`
 - `PROXY_IP_CHECK_INTERVAL_MIN`, `PROXY_SCOPE`
+
+## Query pilot configuration
+
+`TORZNAB_FAKE_SEEDERS` and `TORZNAB_FAKE_LEECHERS` apply to both legacy and
+query-mode Torznab results, including STRM variants. Negative values report zero;
+`peers` is the sum of the reported seeders and leechers. These are synthetic
+compatibility counts, not measured torrent availability.
+
+`CATALOG_MODE` defaults to `legacy`; blank means legacy. Legacy query-time
+provider scraping is deprecated and may be removed in a future release. Query
+mode reads collected metadata instead of scraping providers per search.
+Collection freshness and mapping quality affect results; work moves to the
+collector, while media downloads remain local.
+
+Query mode requires `CATALOG_API_URL` (an HTTPS origin root),
+`CATALOG_SOURCE_ID`, and exactly one of `CATALOG_API_TOKEN` or
+`CATALOG_API_TOKEN_FILE`. The token-file path is inside the API container. No
+endpoint is preset; the Oracle-hosted endpoint is private testing infrastructure,
+not a production default. `CATALOG_ALLOW_PRIVATE_HTTP` defaults to false. True
+permits unencrypted HTTP to non-loopback hosts; use it only on a trusted test
+network. This opt-in does not enforce private IP addresses. Loopback HTTP is
+allowed. Complete query configuration is required, and legacy mode rejects
+source settings instead of silently ignoring them. JSON file configuration is
+not supported: `CATALOG_CONFIG_FILE` fails startup instead of silently falling
+back to legacy, so migrate existing files to the environment variables above.
+
+`CATALOG_SITES=aniworld.to,s.to` selects AniWorld + Serienstream; `s.to` is a
+stable provider key, not the current origin. Use
+`STO_BASE_URL=https://serienstream.to`. Megakino is optional; unlabelled
+languages remain gaps. Normal collection and server/client setup are in
+[SERVER.md](../../scripts/catalog/query_pilot/SERVER.md).
+
+Filmo is optional via worker provider key `filmo.to` and local
+`CATALOG_SITES=aniworld.to,s.to,filmo.to`. The client also requires explicit query
+configuration; legacy-mode Filmo configuration fails at startup. `FILMO_BASE_URL`
+defaults to `https://filmo.to` and must match the verified provider origin used
+for local grabs. Movie mappings require an explicitly configured canonical
+source and publication provenance; merely enabling Filmo does not establish
+movie IDs. The credential and matching requirements for each source are below.
+Filmo translates page titles according to `Accept-Language`; the provider's
+`headers` profile can select English with `"Accept-Language": "en"`. This is a
+catalog-title preference, not an audio-language filter. Collection currently
+uses one locale; it does not automatically fetch and join translated aliases.
+Audio language claims and subtitle claims are separate; unknown audio stays in
+the metadata catalog and is not advertised as a known spoken language to *arr.
+`MANAGEMENT_API_TOKEN` optionally enables authenticated local job retry/cancel; it must encode 32 random bytes as base64url. Query requests
+disclose terms/IDs and service-visible IPs. No proxy/log privacy guarantees.
+See the [pilot guide](../../scripts/catalog/query_pilot/README.md).
+
+
+Collector tuning belongs in `apps/catalog-worker/config.example.json`.
+`provider_settings[provider]` can override concurrency, start spacing, hourly
+budget and User-Agent/Accept/Accept-Language/Referer. Referer is restricted to
+that configured origin's root; encoding remains identity. Defaults retain four
+total slots, two/provider and 2-second spacing; 1,800/hour matches that spacing
+without the old 1,200/hour idle period. Optional
+`provider_request_interval_ms` is an integer 200–60000; zero retains seconds.
+A positive millisecond setting wins over seconds. A provider-specific seconds
+setting resets inherited milliseconds unless that provider also sets milliseconds.
+The hourly ceiling is 18000; defaults remain 1800 and 2-second spacing. For a
+five/second trial use 200 ms and 18000/hour on the selected provider. Collection
+retains fractional admission times without a ledger schema migration. Shared
+canonical source pauses persist atomically in `state_dir/canonical-cooldowns.json`;
+retain that recovery receipt with backups. Downgrades must restore an old-compatible
+config and respect active canonical pause deadlines before starting old code. This is a bounded measured setting, not
+a full-bootstrap or sustained provider-capacity guarantee. API env is unchanged.
+
+Collector/index worker sizing: minimum 2 vCPU/2 GiB; recommended 4 vCPU/4 GiB,
+with 6 GiB optional after measured benefit. Metadata serving has its own budget.
+The deployed 512-MiB worker is a constrained test profile. Local client target
+is 1 vCPU/512 MiB for metadata/search; extraction/job peaks need separate proof.
+These profiles are independent of provider request-rate limits and the retained
+30,000,000,000-byte aggregate storage budget. See the selected 020 contract.
+
+Worker JSON supports `canonical_sources.movie` values `off`, `tmdb`, and
+`radarr`. `tmdb` retains the existing TMDb v3 flow and requires
+`tmdb_token_file`. `radarr` uses Radarr SkyHook without a credential. An explicit
+IMDb ID uses the exact-ID route; otherwise up to two distinct names and the year
+are searched, using the same unique exact-title/year rule as TV. The selected
+TMDb movie detail must independently confirm that evidence. Ambiguous results
+remain unresolved. Search lists are not proof of exhaustive worldwide uniqueness;
+measure accepted mappings against independent labels before claiming accuracy.
+The resulting TMDb movie ID is tagged `radarr-skyhook-v1`; add that exact value
+to `publication_sources` before those mappings may be published. `off` remains
+the default.
+
+Worker JSON optionally supports `canonical_sources.episode_languages: ["deu"]`
+for ID-joined Skyhook v2 German episode metadata. This is a canonical background
+evidence setting, not an API environment variable or guessed audio language.
+Existing configurations without it retain the legacy English endpoint. New
+prepared pilot configuration enables it only with the matching tested worker;
+rollout still requires approval.
+
+Worker JSON `limits.publish_freshness_interval_s` defaults to 3600 and accepts
+300–86400. Timestamp-only observations publish after at least this interval and
+`publish_interval_s`; names, releases, removals and maps keep the normal content
+cadence. This can delay the published observation age, never invents a newer
+observation timestamp, and is not a provider freshness SLA. Older worker images
+reject the new key: remove it from both initializer and volume configs before
+rolling back. No API environment variable changes.

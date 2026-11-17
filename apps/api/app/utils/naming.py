@@ -13,6 +13,8 @@ from app.utils.logger import config as configure_logger
 from app.config import (
     SOURCE_TAG,
     RELEASE_GROUP,
+    RELEASE_GROUP_ANIWORLD,
+    RELEASE_GROUP_STO,
 )
 from app.utils.title_resolver import resolve_series_title
 
@@ -25,6 +27,41 @@ LANG_TAG_MAP = {
     "English Dub": "ENG",
     "Deutsch": "GER",
 }
+
+# Query results can name a provider that is not enabled locally for scraping
+# (for example a Filmo row in a fixture). Keep the established suffixes
+# available even when CATALOG_SITE_CONFIGS has no entry for the site.
+_DEFAULT_RELEASE_GROUPS = {
+    "aniworld.to": RELEASE_GROUP_ANIWORLD,
+    "s.to": RELEASE_GROUP_STO,
+    "megakino": "megakino",
+    "filmo.to": "filmo",
+}
+
+
+def release_group_for_site(site: str, release_group: str = RELEASE_GROUP) -> str:
+    """Return the configured release group for a catalogue site."""
+    try:
+        from app.config import CATALOG_SITE_CONFIGS  # local import to avoid cycles
+    except ImportError:
+        selected = None
+    else:
+        selected = CATALOG_SITE_CONFIGS.get(site, {}).get("release_group")
+    return selected or _DEFAULT_RELEASE_GROUPS.get(site, release_group)
+
+
+def release_group_suffix(site: str) -> str:
+    """Return the uppercase ``-GROUP`` suffix used by release labels."""
+    group = release_group_for_site(site).strip()
+    return f"-{group.upper()}" if group else ""
+
+
+def append_release_group(label: str, site: str) -> str:
+    """Append a provider release group once, without changing source identity."""
+    suffix = release_group_suffix(site)
+    if not suffix or label.upper().endswith(suffix):
+        return label
+    return f"{label}{suffix}"
 
 
 def _safe_component(s: str) -> str:
@@ -197,17 +234,7 @@ def build_release_name(
     )
 
     # Use site-specific release group if available
-    try:
-        from app.config import CATALOG_SITE_CONFIGS  # local import to avoid cycles
-    except ImportError:
-        pass
-    else:
-        try:
-            release_group = CATALOG_SITE_CONFIGS.get(site, {}).get(
-                "release_group", release_group
-            )
-        except Exception as e:
-            logger.debug(f"Error accessing CATALOG_SITE_CONFIGS for site {site}: {e}")
+    release_group = release_group_for_site(site, release_group)
 
     series_part = _series_component(series_title)
     se_part = (

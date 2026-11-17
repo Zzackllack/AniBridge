@@ -58,6 +58,24 @@ docker compose -f docker/compose.dev.yaml up --watch
 - Compose watch syncs `apps/api/app/` changes into the AniBridge container for fast iteration.
 - Build-affecting file changes still trigger a rebuild automatically.
 
+## Catalog Query Mode
+
+Legacy search is the default. To run collector-backed search, set
+`CATALOG_MODE=query`, the collector origin/source/token, and keep
+`DB_MIGRATE_ON_STARTUP=true`. Query mode applies additive SQLite migrations and
+retains `anibridge_jobs.db.pre-catalog-v3.backup` before upgrading. Stop writers
+and back up `DATA_DIR` (including WAL data) before changing storage or rolling
+back.
+
+Preview deployments need a reviewed collector configuration before upgrade.
+Container ingress, bind addresses, and secrets are deployment-specific; do not
+assume that a blind pull/restart is compatible. See
+[Catalog Query Mode](/guide/catalog-query).
+
+Stable release images are cut from the default branch and do not automatically
+include the catalog query work. Preview image packages are separate from stable
+`:latest`/version releases and must be pinned by digest.
+
 ## Behind a VPN (Docker + Gluetun)
 
 When using `network_mode: service:gluetun`, multiple containers share the same network namespace. They cannot bind the same internal port. Configure a unique port per service and expose it via the VPN container’s port mappings.

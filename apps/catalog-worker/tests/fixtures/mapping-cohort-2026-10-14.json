@@ -1,0 +1,5160 @@
+{
+  "selection_seed": "mapping-2026-10-14-v1",
+  "episode_seed": "episode-label-v1",
+  "review": "Literal source/canonical names, bounded provider annotations and canonical episode IDs; native coordinate equality excluded. Parent names/years/IMDb independently reviewed. Insufficient labels describe current evidence, not absence of a true correspondence.",
+  "cases": [
+    {
+      "provider": "aniworld.to",
+      "case": 0,
+      "title_id": "813c6ac254280594da3fb968b50b5b0011ef896c98bc6ca7a070ca7582dd7285",
+      "entity_id": "15fdc31b5f68a6118eeb668b8d34d975626a6b68379aa505d118d75e52d0f5db",
+      "split": "development",
+      "source_name": "The Significant Music Box (2) [JP Episode 195]",
+      "source_aliases": [
+        "Die geheimnisvolle Spieluhr (2)[DE Episode 210]"
+      ],
+      "native": [
+        8,
+        2
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "86241",
+        "season": 8,
+        "episode": 2
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "86241",
+          "season": 8,
+          "episode": 2,
+          "language": "deu",
+          "name": "Die geheimnisvolle Spieluhr (2)"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 1,
+      "title_id": "813c6ac254280594da3fb968b50b5b0011ef896c98bc6ca7a070ca7582dd7285",
+      "entity_id": "ebbb9e7b63a34c6f101e88d82f5c92a01cf869f6bfdee8b49ac1a44169782e67",
+      "split": "development",
+      "source_name": "The Whereabouts of the Embarrassing Charm (2) [JP Episode 574]",
+      "source_aliases": [],
+      "native": [
+        19,
+        9
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 2,
+      "title_id": "813c6ac254280594da3fb968b50b5b0011ef896c98bc6ca7a070ca7582dd7285",
+      "entity_id": "8b15f6ad5601e40371e7d7ec1da647a2add3302b8c1bad9a74d5dd99b188a49a",
+      "split": "development",
+      "source_name": "Conan Cornered in the Darkness (2) [JP Episode 846]",
+      "source_aliases": [],
+      "native": [
+        25,
+        43
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 3,
+      "title_id": "813c6ac254280594da3fb968b50b5b0011ef896c98bc6ca7a070ca7582dd7285",
+      "entity_id": "c1fe6f4225f89dd308dc3a1ee4a451e5d70c0594d853f35b1705caef3bdb3d73",
+      "split": "development",
+      "source_name": "Deduction Showdown! Shinichi vs. Subaru Okiya [JP Episode 511]",
+      "source_aliases": [],
+      "native": [
+        17,
+        21
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "443301",
+        "season": 17,
+        "episode": 21
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "443301",
+          "season": 17,
+          "episode": 21,
+          "language": "eng",
+          "name": "Deduction Showdown! Shinichi vs. Subaru Okiya"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 4,
+      "title_id": "813c6ac254280594da3fb968b50b5b0011ef896c98bc6ca7a070ca7582dd7285",
+      "entity_id": "690b73599d2fb58d944b58007602226adda753610c4911638c5f0d6b32791e61",
+      "split": "development",
+      "source_name": "The Deduction That Was Too Good [JP Episode 207]",
+      "source_aliases": [
+        "Umgekehrte falsche Fährte[DE Episode 222]"
+      ],
+      "native": [
+        8,
+        14
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "86253",
+        "season": 8,
+        "episode": 14
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "86253",
+          "season": 8,
+          "episode": 14,
+          "language": "deu",
+          "name": "Umgekehrte falsche Fährte"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 5,
+      "title_id": "fbdfd506dde6df77c7437a459d7aa4994aff554372cd18782ebdce312e2f03c7",
+      "entity_id": "32a98e8a96c461ec1540a11696dc10c6682bc8d629058604966076790ff1be10",
+      "split": "held_out",
+      "source_name": "Clutch! A Demon Incarnate, Robin! [Episode 1044]",
+      "source_aliases": [
+        "Clutch! - Robin, die Verkörperung eines Teufels!"
+      ],
+      "native": [
+        21,
+        153
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9488267",
+        "season": 21,
+        "episode": 153
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9488267",
+          "season": 21,
+          "episode": 153,
+          "language": "deu",
+          "name": "Clutch! Robin, die Verkörperung eines Teufels!"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 6,
+      "title_id": "fbdfd506dde6df77c7437a459d7aa4994aff554372cd18782ebdce312e2f03c7",
+      "entity_id": "492771f3bdf08722991232d78a98a68753602f1603c56aea04bf3b5c10a95b1c",
+      "split": "held_out",
+      "source_name": "Nami's Soul Cries Out! Straw Hat Luffy Makes a Comeback! [Episode 254]",
+      "source_aliases": [
+        "Die Aqua Laguna bricht herein"
+      ],
+      "native": [
+        8,
+        26
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "362172",
+        "season": 11,
+        "episode": 28
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "362172",
+          "season": 11,
+          "episode": 28,
+          "language": "deu",
+          "name": "Die Aqua Laguna bricht herein"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 7,
+      "title_id": "fbdfd506dde6df77c7437a459d7aa4994aff554372cd18782ebdce312e2f03c7",
+      "entity_id": "72ce39b69410790238afb884043f01710f77f35bd5df6ade71127c6190637335",
+      "split": "held_out",
+      "source_name": "A Blow of Anger! A Giant vs. Lucy! [Episode 644]",
+      "source_aliases": [
+        "Ein Treffer voller Wut – Der Riese gegen Lucy"
+      ],
+      "native": [
+        16,
+        2
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4879820",
+        "season": 17,
+        "episode": 16
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4879820",
+          "season": 17,
+          "episode": 16,
+          "language": "deu",
+          "name": "Ein Treffer voller Wut! Der Riese gegen Lucy!"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 8,
+      "title_id": "fbdfd506dde6df77c7437a459d7aa4994aff554372cd18782ebdce312e2f03c7",
+      "entity_id": "dbd07ca55b4b1191a89657bae744a72ecfb9a958c7a04447c354c0c9bfc29b79",
+      "split": "held_out",
+      "source_name": "Raid! An Assassin from Dressrosa! [Episode 618]",
+      "source_aliases": [
+        "Angriff! Dress Rosas Attentäter fallen ein!"
+      ],
+      "native": [
+        15,
+        38
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4686657",
+        "season": 16,
+        "episode": 39
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4686657",
+          "season": 16,
+          "episode": 39,
+          "language": "deu",
+          "name": "Angriff! – Dress Rosas Attentäter fallen ein"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 9,
+      "title_id": "fbdfd506dde6df77c7437a459d7aa4994aff554372cd18782ebdce312e2f03c7",
+      "entity_id": "5501ce3a1a0d2ad605385546e5b675c59a0038342ded8a32da523f0c28c8b2f8",
+      "split": "held_out",
+      "source_name": "The Unleashed Swan! A Reunion with Bon Clay [Episode 432]",
+      "source_aliases": [
+        "Der befreite Schwan! Wiedersehen mit Bon Curry"
+      ],
+      "native": [
+        13,
+        11
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "1703051",
+        "season": 13,
+        "episode": 51
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "1703051",
+          "season": 13,
+          "episode": 51,
+          "language": "deu",
+          "name": "Der befreite Schwan! Wiedersehen mit Bon Curry."
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 10,
+      "title_id": "57a86f5048a57c349e760727ee254fa65fd7fc3f486cf3effc0f90633a8337a3",
+      "entity_id": "05bc448fc03b277716cba8d97620ec168be68ed01365ace5285d1a2216b15560",
+      "split": "development",
+      "source_name": "Riding the Train [Episode 43]",
+      "source_aliases": [
+        "Bis die Fetzen fliegen!"
+      ],
+      "native": [
+        1,
+        43
+      ],
+      "label": "parent_conflict",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 11,
+      "title_id": "57a86f5048a57c349e760727ee254fa65fd7fc3f486cf3effc0f90633a8337a3",
+      "entity_id": "c9b1f75abf78820eb28d1707c3487d865590cee8aba0cdf6294d50618efa8b09",
+      "split": "development",
+      "source_name": "Episode 40 [Episode 240]",
+      "source_aliases": [
+        "Aus der Art geschlagen"
+      ],
+      "native": [
+        5,
+        40
+      ],
+      "label": "parent_conflict",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 12,
+      "title_id": "57a86f5048a57c349e760727ee254fa65fd7fc3f486cf3effc0f90633a8337a3",
+      "entity_id": "ff98a9218b74c4a135fee1581d1dc0e9c95e7c1d31c21a4ef632784b09c121cf",
+      "split": "development",
+      "source_name": "Episode 26 [Episode 326]",
+      "source_aliases": [
+        "Fiebermessen-Donuts essen"
+      ],
+      "native": [
+        7,
+        26
+      ],
+      "label": "parent_conflict",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 13,
+      "title_id": "57a86f5048a57c349e760727ee254fa65fd7fc3f486cf3effc0f90633a8337a3",
+      "entity_id": "d21c5e9635ab738b39ba3975abd59750c2f5f1f8f9c456aeedf2bce6c878068c",
+      "split": "development",
+      "source_name": "Episode 19 [Episode 369]",
+      "source_aliases": [
+        "Kein Saft im Haus"
+      ],
+      "native": [
+        8,
+        19
+      ],
+      "label": "parent_conflict",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 14,
+      "title_id": "57a86f5048a57c349e760727ee254fa65fd7fc3f486cf3effc0f90633a8337a3",
+      "entity_id": "df79d3699b88a79d6ee4f900d3795f6a93bb65c4ee50deeb7d39e353d3bd282f",
+      "split": "development",
+      "source_name": "Episode 23 [Episode 323]",
+      "source_aliases": [
+        "Ein Antrag zum Dessert"
+      ],
+      "native": [
+        7,
+        23
+      ],
+      "label": "parent_conflict",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 15,
+      "title_id": "7788363ce4a10c01770f43200cf3cf0905b2d0b6334d17e0765b6c5c4f116985",
+      "entity_id": "06b5c1302bc2e5c635f6515f84d434a9947af81aca588f71433dc8615a9e261c",
+      "split": "held_out",
+      "source_name": "Déjà vu [Episode 081]",
+      "source_aliases": [
+        "Piccolo gegen Freezer"
+      ],
+      "native": [
+        3,
+        7
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 16,
+      "title_id": "7788363ce4a10c01770f43200cf3cf0905b2d0b6334d17e0765b6c5c4f116985",
+      "entity_id": "69aed6e053ba1dd2200a53691b3d3f297297effbbfe1bba88084fceebbdb6004",
+      "split": "held_out",
+      "source_name": "The Warrior's Decision [Episode 236]",
+      "source_aliases": [
+        "Vegeta gegen Boo"
+      ],
+      "native": [
+        8,
+        17
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 17,
+      "title_id": "7788363ce4a10c01770f43200cf3cf0905b2d0b6334d17e0765b6c5c4f116985",
+      "entity_id": "62b26a7d24aa582b673d2466df2b818263c9653462a2443d91568135e48d5e75",
+      "split": "held_out",
+      "source_name": "Vegeta's Pride [Episode 229]",
+      "source_aliases": [
+        "Der lang ersehnte Kampf"
+      ],
+      "native": [
+        8,
+        10
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 18,
+      "title_id": "7788363ce4a10c01770f43200cf3cf0905b2d0b6334d17e0765b6c5c4f116985",
+      "entity_id": "318c762faff5359c8a39e8cf061f741baf14a47659a0274c8c410c9ea5f3d471",
+      "split": "held_out",
+      "source_name": "Krillin's Offensive [Episode 034]",
+      "source_aliases": [
+        "Falsche Hoffnung"
+      ],
+      "native": [
+        1,
+        34
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 19,
+      "title_id": "7788363ce4a10c01770f43200cf3cf0905b2d0b6334d17e0765b6c5c4f116985",
+      "entity_id": "80b3e1b75f8c9d231305d8fab748e7e5a7f0e33b903eb8a08b0f891f068bf254",
+      "split": "held_out",
+      "source_name": "Cell's Bag of Tricks [Episode 178]",
+      "source_aliases": [
+        "Ohne Rücksicht auf Verluste"
+      ],
+      "native": [
+        6,
+        13
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 20,
+      "title_id": "6c3475c80afe232ac4a75d440abe4d4536bd0f3d0642a87e1087feab7375ad53",
+      "entity_id": "12524f80edd6b36eb96588698955846a2e66d404fa0d7798713a017f60d36e5e",
+      "split": "development",
+      "source_name": "Black Magic of the Soul [Episode 061]",
+      "source_aliases": [
+        "Der Meister unter den Zauberern (2)"
+      ],
+      "native": [
+        2,
+        12
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 21,
+      "title_id": "6c3475c80afe232ac4a75d440abe4d4536bd0f3d0642a87e1087feab7375ad53",
+      "entity_id": "b63e72925c2af7da87257574a5deb58004cbd21d683da7106e611452d7175b6a",
+      "split": "development",
+      "source_name": "Destiny Board Brings Death [Episode 083]",
+      "source_aliases": [
+        "Der Geist der Finsternis: Yugi gegen Bakura (2)"
+      ],
+      "native": [
+        2,
+        34
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 22,
+      "title_id": "6c3475c80afe232ac4a75d440abe4d4536bd0f3d0642a87e1087feab7375ad53",
+      "entity_id": "fc16059c8b673e7c9659e62b1f63e48a7691420c926895106dbb96c6755f8ea3",
+      "split": "development",
+      "source_name": "To the Final Battle! Dartz vs Yugi & Kaiba [Episode 177]",
+      "source_aliases": [
+        "Ganz nah dran"
+      ],
+      "native": [
+        4,
+        33
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 23,
+      "title_id": "6c3475c80afe232ac4a75d440abe4d4536bd0f3d0642a87e1087feab7375ad53",
+      "entity_id": "3bc8530057a86bf009fc66a4a321d65685b79ca7c0d58c14b763da1a3bba0d13",
+      "split": "development",
+      "source_name": "Attack Me! Last Turn of Destiny [Episode 078]",
+      "source_aliases": [
+        "Gegen den eigenen Freund (4)"
+      ],
+      "native": [
+        2,
+        29
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 24,
+      "title_id": "6c3475c80afe232ac4a75d440abe4d4536bd0f3d0642a87e1087feab7375ad53",
+      "entity_id": "953c0eeaca3ce5ddd7084d7fb8e4767f10b09194178e20dd2d4f40ce0c1577e1",
+      "split": "development",
+      "source_name": "Resonating Souls [Episode 171]",
+      "source_aliases": [
+        "Echte Freunde (3)"
+      ],
+      "native": [
+        4,
+        27
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 25,
+      "title_id": "a4739560ec9033407e52680477c97061d08e93210d5fe1a533577fe8e54ce161",
+      "entity_id": "59fdb67fb9054a23cd07a9e9238a9caf6a2f9ea31513b689ee55c59792b3dfa4",
+      "split": "held_out",
+      "source_name": "Karupin's Adventure [Episode 27]",
+      "source_aliases": [],
+      "native": [
+        2,
+        1
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 26,
+      "title_id": "a4739560ec9033407e52680477c97061d08e93210d5fe1a533577fe8e54ce161",
+      "entity_id": "ac573e333898d061667e92a92f26e59bd17f8fffd81dd1e2f39009097766a169",
+      "split": "held_out",
+      "source_name": "Jump, Kabaji! [Episode 110]",
+      "source_aliases": [],
+      "native": [
+        5,
+        9
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 27,
+      "title_id": "a4739560ec9033407e52680477c97061d08e93210d5fe1a533577fe8e54ce161",
+      "entity_id": "d648cb947611bf74375f1fc7956692b2b69f9e8603f9857aec89ed968f887785",
+      "split": "held_out",
+      "source_name": "A Battle to the Limits [Episode 153]",
+      "source_aliases": [],
+      "native": [
+        6,
+        25
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 28,
+      "title_id": "a4739560ec9033407e52680477c97061d08e93210d5fe1a533577fe8e54ce161",
+      "entity_id": "fb748a3672b67432e344cd49d11912215c9a2b3ae54ed5570e2a0e3e311e3bb8",
+      "split": "held_out",
+      "source_name": "Burn, Echizen! [Episode 170]",
+      "source_aliases": [],
+      "native": [
+        7,
+        5
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 29,
+      "title_id": "a4739560ec9033407e52680477c97061d08e93210d5fe1a533577fe8e54ce161",
+      "entity_id": "2edde32e1ebb91d9eb3c70851371a940a59541f7d26060a393a12ff0b065dd59",
+      "split": "held_out",
+      "source_name": "The Best Sushi Chef in Japan [Episode 133]",
+      "source_aliases": [],
+      "native": [
+        6,
+        5
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 30,
+      "title_id": "9245445ff0305f9dc9b31b5fc93f6496c123b7c650f02d6b7bacb1aeb07b6e9a",
+      "entity_id": "f8e3937e82888b272c5900dbd5691aae6dd3387290e99c9af0478b7dabdf9e65",
+      "split": "development",
+      "source_name": "Rhythm`s Confession. Words of Love",
+      "source_aliases": [],
+      "native": [
+        2,
+        28
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 31,
+      "title_id": "9245445ff0305f9dc9b31b5fc93f6496c123b7c650f02d6b7bacb1aeb07b6e9a",
+      "entity_id": "8f76e4a7135a3ea150cc0360433a0e060cd033fbb03bb58eb2c4692cefc9b50e",
+      "split": "development",
+      "source_name": "A Southern Island-Venus the Dolphin",
+      "source_aliases": [],
+      "native": [
+        1,
+        27
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 32,
+      "title_id": "9245445ff0305f9dc9b31b5fc93f6496c123b7c650f02d6b7bacb1aeb07b6e9a",
+      "entity_id": "6eea9e4d3818b454720d281408ba5c3550f126a315e351848ddf3b0e78232cac",
+      "split": "development",
+      "source_name": "Shuffling Duos and This Just Ain`t Working!",
+      "source_aliases": [],
+      "native": [
+        3,
+        35
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4858207",
+        "season": 3,
+        "episode": 35
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4858207",
+          "season": 3,
+          "episode": 35,
+          "language": "eng",
+          "name": "Shuffling Duos and This Just Ain`t Working!"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 33,
+      "title_id": "9245445ff0305f9dc9b31b5fc93f6496c123b7c650f02d6b7bacb1aeb07b6e9a",
+      "entity_id": "da83312904b968a7e4f045a928c41ed610d763ee394cadad42506df44b67f292",
+      "split": "development",
+      "source_name": "Prism Live Is a Storm after Sunshine",
+      "source_aliases": [],
+      "native": [
+        3,
+        9
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4674124",
+        "season": 3,
+        "episode": 9
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4674124",
+          "season": 3,
+          "episode": 9,
+          "language": "eng",
+          "name": "Prism Live Is a Storm after Sunshine"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 34,
+      "title_id": "9245445ff0305f9dc9b31b5fc93f6496c123b7c650f02d6b7bacb1aeb07b6e9a",
+      "entity_id": "07bd3d5f845056bf97e90634318e7edee3778036eef853e0d7d473bb9ef07d00",
+      "split": "development",
+      "source_name": "Showdown! Aira vs Rhythm!",
+      "source_aliases": [],
+      "native": [
+        1,
+        46
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4552188",
+        "season": 1,
+        "episode": 46
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4552188",
+          "season": 1,
+          "episode": 46,
+          "language": "deu",
+          "name": "Showdown! Aira VS Rhythm"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 35,
+      "title_id": "f3303a62990e17ab5682f4acc107cda243e1129efeae16e5cb2a2e29c6064c68",
+      "entity_id": "fc7e02e00ffcecb91485ffae58f21a952406fce310cf13bfa3af7916296aecdc",
+      "split": "held_out",
+      "source_name": "Special Training - Program Advance!",
+      "source_aliases": [],
+      "native": [
+        1,
+        15
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 36,
+      "title_id": "f3303a62990e17ab5682f4acc107cda243e1129efeae16e5cb2a2e29c6064c68",
+      "entity_id": "25dcee39c8da8313314f58e16248b8fe7ab44c21699db2ca4fa3ed9f7b54ce22",
+      "split": "held_out",
+      "source_name": "Exceeding Light",
+      "source_aliases": [],
+      "native": [
+        4,
+        25
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4859070",
+        "season": 4,
+        "episode": 25
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4859070",
+          "season": 4,
+          "episode": 25,
+          "language": "eng",
+          "name": "Exceeding Light"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 37,
+      "title_id": "f3303a62990e17ab5682f4acc107cda243e1129efeae16e5cb2a2e29c6064c68",
+      "entity_id": "e786d3b4f9f30311280b3482a13ede918a98d94004fb4a92496154b611640927",
+      "split": "held_out",
+      "source_name": "Nebula`s Great Invasion!",
+      "source_aliases": [],
+      "native": [
+        2,
+        35
+      ],
+      "label": "ambiguous_source",
+      "expected": null,
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4858985",
+          "season": 2,
+          "episode": 35,
+          "language": "eng",
+          "name": "Nebula's Great Invasion!"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 38,
+      "title_id": "f3303a62990e17ab5682f4acc107cda243e1129efeae16e5cb2a2e29c6064c68",
+      "entity_id": "a6f4487809418d388703963af07df3361b93b388de1d962afad0363ce1daad68",
+      "split": "held_out",
+      "source_name": "Cross Fusion Terminated!",
+      "source_aliases": [],
+      "native": [
+        2,
+        13
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 39,
+      "title_id": "f3303a62990e17ab5682f4acc107cda243e1129efeae16e5cb2a2e29c6064c68",
+      "entity_id": "51f2e3b180d97d4352b8feade2eebb389387f77dd161486f98837a6617b7cbd6",
+      "split": "held_out",
+      "source_name": "Rockman Revival Strategy!",
+      "source_aliases": [],
+      "native": [
+        1,
+        24
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 40,
+      "title_id": "cc8820d5c644ce773e1e0768e26c90593840a37521ccc4fdf5a2ba7e3a6c30b6",
+      "entity_id": "491eb912bb95c6704694d6afe830781c80804f541c35d0abf14ddaf81d295631",
+      "split": "development",
+      "source_name": "Win or Lose in 0.1 Seconds",
+      "source_aliases": [
+        "Auf eine Zentelsekunde setzen"
+      ],
+      "native": [
+        6,
+        17
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "8973829",
+        "season": 6,
+        "episode": 17
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "8973829",
+          "season": 6,
+          "episode": 17,
+          "language": "eng",
+          "name": "Win or Lose in 0.1 Seconds"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 41,
+      "title_id": "cc8820d5c644ce773e1e0768e26c90593840a37521ccc4fdf5a2ba7e3a6c30b6",
+      "entity_id": "c4de27566366fca786683afd3d4b5cd4137c4142c312d4e7471d099c0503310c",
+      "split": "development",
+      "source_name": "Face the Midnight Sun and Fire",
+      "source_aliases": [],
+      "native": [
+        2,
+        31
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 42,
+      "title_id": "cc8820d5c644ce773e1e0768e26c90593840a37521ccc4fdf5a2ba7e3a6c30b6",
+      "entity_id": "1a8e66d17355264423621230f89da29a5735de903ff8a6d864f3be4008272b00",
+      "split": "development",
+      "source_name": "Operation Jewel Snatch",
+      "source_aliases": [
+        "Operation Juwelenklau"
+      ],
+      "native": [
+        1,
+        16
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4301155",
+        "season": 1,
+        "episode": 16
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4301155",
+          "season": 1,
+          "episode": 16,
+          "language": "deu",
+          "name": "Operation „Juwelenklau“"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 43,
+      "title_id": "cc8820d5c644ce773e1e0768e26c90593840a37521ccc4fdf5a2ba7e3a6c30b6",
+      "entity_id": "6c1c1a87dad527ae2c6b75724ddf555587497bde491d0e277172e0dcade52216",
+      "split": "development",
+      "source_name": "The Terrifying Chameleon Man",
+      "source_aliases": [],
+      "native": [
+        2,
+        74
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "1846841",
+        "season": 2,
+        "episode": 74
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "1846841",
+          "season": 2,
+          "episode": 74,
+          "language": "eng",
+          "name": "The Terrifying Chameleon Man"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 44,
+      "title_id": "cc8820d5c644ce773e1e0768e26c90593840a37521ccc4fdf5a2ba7e3a6c30b6",
+      "entity_id": "cbfff6335996ed9ecfdbdd5e2f2dcc53218cfe82828ddc1cf85bc6adeee15538",
+      "split": "development",
+      "source_name": "Zenigata, Gentleman Thief",
+      "source_aliases": [],
+      "native": [
+        5,
+        20
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "6770231",
+        "season": 5,
+        "episode": 20
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "6770231",
+          "season": 5,
+          "episode": 20,
+          "language": "eng",
+          "name": "Zenigata, Gentleman Thief"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 45,
+      "title_id": "e02fd7815f8d8702f29005c255f5e5010f7b02c063ee502e2b097ec343ab1927",
+      "entity_id": "811dd7e09d5db1bcd9802e5609ab3d17d76bb82cb192a7238afd98ea8aa7997d",
+      "split": "held_out",
+      "source_name": "Toki! Are You Angel or Devil?!",
+      "source_aliases": [],
+      "native": [
+        2,
+        12
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 46,
+      "title_id": "e02fd7815f8d8702f29005c255f5e5010f7b02c063ee502e2b097ec343ab1927",
+      "entity_id": "6a43ecff4a96196eeb9c93fe92c92507d7ded92a391c82ffb52b63564aad89b1",
+      "split": "held_out",
+      "source_name": "Tearful Reunion of the Brothers! Kenshiro, I've Been Waiting for You!!",
+      "source_aliases": [],
+      "native": [
+        6,
+        23
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 47,
+      "title_id": "e02fd7815f8d8702f29005c255f5e5010f7b02c063ee502e2b097ec343ab1927",
+      "entity_id": "4ef14955bc11e7af69dd8a85513f62e47e9dceea57b3e64d75f8452f5a9ed026",
+      "split": "held_out",
+      "source_name": "Ryuga of Sirius! I'll Seize the Rainbow in Troubled Times!!",
+      "source_aliases": [],
+      "native": [
+        3,
+        16
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 48,
+      "title_id": "e02fd7815f8d8702f29005c255f5e5010f7b02c063ee502e2b097ec343ab1927",
+      "entity_id": "1e9e6b14f571385bd9e77d7c1e23617685d9e97a6af8237f7e33ac83b3f2c97d",
+      "split": "held_out",
+      "source_name": "The Celestial Emperor is Finally Revealed",
+      "source_aliases": [],
+      "native": [
+        5,
+        11
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 49,
+      "title_id": "e02fd7815f8d8702f29005c255f5e5010f7b02c063ee502e2b097ec343ab1927",
+      "entity_id": "5e4e9cdf480987e48fed1b2858efc956d4326d783ba0a57d3b6c80317e895855",
+      "split": "held_out",
+      "source_name": "The Mysterious Bounty Hunter, Ein! Kenshiro's Head is Mine!!",
+      "source_aliases": [],
+      "native": [
+        5,
+        4
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 50,
+      "title_id": "3c9835dab424f88182be4a87fac236474d50a51c0b04349340ef3fa367704059",
+      "entity_id": "a347e21d77c213aee6d94c81d2f6ff144e6ea14c1f77ba4f6f7cf035b8b4a2bc",
+      "split": "development",
+      "source_name": "[Start: October 20th]",
+      "source_aliases": [],
+      "native": [
+        1,
+        1
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 51,
+      "title_id": "942be46ad03026479b074e40dd479ea7145241707f1906018051c0ce0a9099f5",
+      "entity_id": "fafb17338fb39c7558ef58af5fd65375491db676b1bf46f332d40e0623d90741",
+      "split": "held_out",
+      "source_name": "Curtain up! The Lúinor Cup!",
+      "source_aliases": [
+        "Vorhang auf! Der Lúinor Cup!"
+      ],
+      "native": [
+        1,
+        7
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 52,
+      "title_id": "942be46ad03026479b074e40dd479ea7145241707f1906018051c0ce0a9099f5",
+      "entity_id": "36382c96b5ca78702184f42654c7275b62ebbda81b9dfc2baad65cafcf7ade06",
+      "split": "held_out",
+      "source_name": "Hyde vs. Phi!",
+      "source_aliases": [
+        "Hyde gegen Phi!"
+      ],
+      "native": [
+        1,
+        41
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 53,
+      "title_id": "942be46ad03026479b074e40dd479ea7145241707f1906018051c0ce0a9099f5",
+      "entity_id": "96baab06a0804d14f6cb70704ad7b5dbe28461f44e0fb187714687e2ca608b8d",
+      "split": "held_out",
+      "source_name": "Winter Knight! Battle Royale!",
+      "source_aliases": [
+        "Winter Ritter! Battle Royale!"
+      ],
+      "native": [
+        1,
+        6
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 54,
+      "title_id": "3156d409217b3a43bcd588a8d40bddfeb57b4722ffbf59db1dd9c354a940a1ae",
+      "entity_id": "cb4a20fb4ee35da2e89659e7a05b59e2d7bbfc0f02ac56188d468c6b52eec8c2",
+      "split": "development",
+      "source_name": "Howl's Moving Castle [Movie]",
+      "source_aliases": [
+        "Das wandelnde Schloss"
+      ],
+      "native": [
+        1,
+        1
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 55,
+      "title_id": "789c022a9f4420e90dbeaa84a9a20edb11c631c29ebb384ac96243f6ef0c58dc",
+      "entity_id": "e3f38abecd4e4a2aef724c628f07f89001a8d5afed1095c347753d3c8f2d80bf",
+      "split": "held_out",
+      "source_name": "ROBOT RONDO",
+      "source_aliases": [],
+      "native": [
+        1,
+        4
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 56,
+      "title_id": "789c022a9f4420e90dbeaa84a9a20edb11c631c29ebb384ac96243f6ef0c58dc",
+      "entity_id": "97b2acd3f55c5cbc7f8d210373bb6a4c3dca59024f06b2a63a8a6328a4283fa1",
+      "split": "held_out",
+      "source_name": "SUPER SPARTAN ii + JUNK JUNGLE i",
+      "source_aliases": [],
+      "native": [
+        1,
+        2
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 57,
+      "title_id": "789c022a9f4420e90dbeaa84a9a20edb11c631c29ebb384ac96243f6ef0c58dc",
+      "entity_id": "1209679df5123334da77494ee7db2addf23501a65ad7610da8f56afca17d1f05",
+      "split": "held_out",
+      "source_name": "DUMB BARTER",
+      "source_aliases": [],
+      "native": [
+        1,
+        6
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 58,
+      "title_id": "0c86db5f9f017348111d964e5e77a70dc041bfcadc7f29d539d284efc51b6fa2",
+      "entity_id": "6ae3b74e5690b2362087d8cdcd21d3ca1900df6982a4245a49b3f1811373b439",
+      "split": "development",
+      "source_name": "Tekken 1 [Double Episode in English]",
+      "source_aliases": [
+        "Tekken 1"
+      ],
+      "native": [
+        1,
+        1
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 59,
+      "title_id": "0c86db5f9f017348111d964e5e77a70dc041bfcadc7f29d539d284efc51b6fa2",
+      "entity_id": "96ed71e804568f9448dbe2319e3b7553e0a3466390564ccb441df2c9eceeb504",
+      "split": "development",
+      "source_name": "Tekken 2",
+      "source_aliases": [],
+      "native": [
+        1,
+        2
+      ],
+      "label": "no_verified_parent",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 60,
+      "title_id": "207e4b5b64bcc0a17295a16b8b58f0f2283d81dfda12161b2b24539ef14c1cbb",
+      "entity_id": "4b149b085cb8b971551bd7b5c7dacb3868e104f4c351fb68192be52f26e3b0bd",
+      "split": "held_out",
+      "source_name": "To the Future [Final Episode]",
+      "source_aliases": [],
+      "native": [
+        1,
+        12
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "10436274",
+        "season": 1,
+        "episode": 12
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "10436274",
+          "season": 1,
+          "episode": 12,
+          "language": "eng",
+          "name": "To the Future"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 61,
+      "title_id": "207e4b5b64bcc0a17295a16b8b58f0f2283d81dfda12161b2b24539ef14c1cbb",
+      "entity_id": "55aa0ef8c8b68255b9237c3d423c4789a12ba618a5b6ffa153053469e8c22048",
+      "split": "held_out",
+      "source_name": "L14 Term",
+      "source_aliases": [],
+      "native": [
+        1,
+        3
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "10436260",
+        "season": 1,
+        "episode": 3
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "10436260",
+          "season": 1,
+          "episode": 3,
+          "language": "eng",
+          "name": "L14 Term"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 62,
+      "title_id": "207e4b5b64bcc0a17295a16b8b58f0f2283d81dfda12161b2b24539ef14c1cbb",
+      "entity_id": "4b17a874ccf604d24aae6303bc5e0b14d1c50639d767591d452df2b3c96c1106",
+      "split": "held_out",
+      "source_name": "Hot Spring and Oath",
+      "source_aliases": [],
+      "native": [
+        1,
+        1
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 63,
+      "title_id": "6b34de7a1342713d22695b9aaf559a307a905b17527085c2d07a6a597d13d6a2",
+      "entity_id": "59821a8d7873d62f762fda352a334d4addf94d725db56c362c582cc9fc28418c",
+      "split": "development",
+      "source_name": "The Homeless Lady Knight Resets",
+      "source_aliases": [],
+      "native": [
+        1,
+        5
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 64,
+      "title_id": "6b34de7a1342713d22695b9aaf559a307a905b17527085c2d07a6a597d13d6a2",
+      "entity_id": "d331e27db60b99799d0c3e6fe1a2e6a99313e261879ab1ffe8bb9cc53c2984c3",
+      "split": "development",
+      "source_name": "The Religious Leader and the Savior",
+      "source_aliases": [],
+      "native": [
+        1,
+        6
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 65,
+      "title_id": "6b34de7a1342713d22695b9aaf559a307a905b17527085c2d07a6a597d13d6a2",
+      "entity_id": "1633cdb48aa8253aade59837809052f86ec70c5db927ac82a51046d67277b13e",
+      "split": "development",
+      "source_name": "Homeless Lady Knight",
+      "source_aliases": [],
+      "native": [
+        1,
+        2
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 66,
+      "title_id": "91fa46ffd2c839cb48a462e803f89ff771bb5c54ca97d24976cf36964393c079",
+      "entity_id": "83a469b4912d852d33b7be3560fe5b890851e55356e836122c5be7fac9e00880",
+      "split": "held_out",
+      "source_name": "Ren Kurogane Wants to Go Back",
+      "source_aliases": [],
+      "native": [
+        1,
+        10
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9265341",
+        "season": 1,
+        "episode": 10
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9265341",
+          "season": 1,
+          "episode": 10,
+          "language": "eng",
+          "name": "Ren Kurogane Wants to Go Back"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 67,
+      "title_id": "91fa46ffd2c839cb48a462e803f89ff771bb5c54ca97d24976cf36964393c079",
+      "entity_id": "657e4afe7e992a3b3e8268e5a82efaf95a045daa0d1a64fab2941bbe8349d99d",
+      "split": "held_out",
+      "source_name": "TINGS Does Not Shine [Final Episode]",
+      "source_aliases": [],
+      "native": [
+        1,
+        12
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9265343",
+        "season": 1,
+        "episode": 12
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9265343",
+          "season": 1,
+          "episode": 12,
+          "language": "eng",
+          "name": "TINGS Does Not Shine"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 68,
+      "title_id": "91fa46ffd2c839cb48a462e803f89ff771bb5c54ca97d24976cf36964393c079",
+      "entity_id": "ecaf13df248d0c3afd2f3954a5d4964ea635d9e83e0dd919f1ad496f0f056ffb",
+      "split": "held_out",
+      "source_name": "Kyoka Tamaki the 'Foil'",
+      "source_aliases": [],
+      "native": [
+        1,
+        3
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9263550",
+        "season": 1,
+        "episode": 3
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9263550",
+          "season": 1,
+          "episode": 3,
+          "language": "eng",
+          "name": "Kyoka Tamaki the “Foil”"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 69,
+      "title_id": "36df86e00636a7cfe6557acd663c94fa551741bfa6c475544f056734bdfc9ec0",
+      "entity_id": "8972e934d4eeb82273749614cb273e98d2218b8f84497f726b1ad23cbca221c6",
+      "split": "development",
+      "source_name": "The Fallen",
+      "source_aliases": [
+        "Die Gefallenen"
+      ],
+      "native": [
+        2,
+        1
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "11504890",
+        "season": 2,
+        "episode": 1
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "11504890",
+          "season": 2,
+          "episode": 1,
+          "language": "deu",
+          "name": "Die Gefallenen"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 70,
+      "title_id": "36df86e00636a7cfe6557acd663c94fa551741bfa6c475544f056734bdfc9ec0",
+      "entity_id": "41bb35d9efedb0e322bca51f258bc5218b53c408532f67b849461374615604c2",
+      "split": "development",
+      "source_name": "All Hope Abandon",
+      "source_aliases": [
+        "Lasst alle Hoffnung fahren"
+      ],
+      "native": [
+        1,
+        4
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "11064559",
+        "season": 1,
+        "episode": 4
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "11064559",
+          "season": 1,
+          "episode": 4,
+          "language": "deu",
+          "name": "Lasst alle Hoffnung fahren"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 71,
+      "title_id": "36df86e00636a7cfe6557acd663c94fa551741bfa6c475544f056734bdfc9ec0",
+      "entity_id": "99011e961d923c4f08ffc042cca60e463b50b63dc7b27269c3dd0d89d83f27d4",
+      "split": "development",
+      "source_name": "Inferno",
+      "source_aliases": [
+        "Die Hölle"
+      ],
+      "native": [
+        1,
+        1
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "10055846",
+        "season": 1,
+        "episode": 1
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "10055846",
+          "season": 1,
+          "episode": 1,
+          "language": "deu",
+          "name": "Die Hölle"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 72,
+      "title_id": "bf2c1c36a04741d06133e95014a77981bddaffcde929709ac88b7448c991899f",
+      "entity_id": "13085343be14ad2a9e6a0b35b4e0b9801c3599367a505ca596c4d8c60fb508dd",
+      "split": "held_out",
+      "source_name": "Animation is Fun!",
+      "source_aliases": [
+        "Die Letzte Liebe"
+      ],
+      "native": [
+        1,
+        6
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "84867",
+        "season": 1,
+        "episode": 6
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "84867",
+          "season": 1,
+          "episode": 6,
+          "language": "deu",
+          "name": "Die letzte Liebe"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 73,
+      "title_id": "bf2c1c36a04741d06133e95014a77981bddaffcde929709ac88b7448c991899f",
+      "entity_id": "3ebd6d30666aaedf5a62ca681f96619ed2fbf1928661f408936bad3cde7dc0e0",
+      "split": "held_out",
+      "source_name": "Unstoppable Youth",
+      "source_aliases": [
+        "Die Motorrad braut"
+      ],
+      "native": [
+        1,
+        5
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "84866",
+        "season": 1,
+        "episode": 5
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "84866",
+          "season": 1,
+          "episode": 5,
+          "language": "eng",
+          "name": "Unstoppable Youth"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 74,
+      "title_id": "bf2c1c36a04741d06133e95014a77981bddaffcde929709ac88b7448c991899f",
+      "entity_id": "6f3080d7ea32d2e5c7e7014904f56c11808d2baab4356b7f046c4fc9286a3cad",
+      "split": "held_out",
+      "source_name": "Swimming In the Sea of Love",
+      "source_aliases": [
+        "Feuchte Träume"
+      ],
+      "native": [
+        1,
+        4
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "84868",
+        "season": 1,
+        "episode": 4
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "84868",
+          "season": 1,
+          "episode": 4,
+          "language": "deu",
+          "name": "Feuchte Träume"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 75,
+      "title_id": "c3d8f0b6b327dd11e69aadd917860c3b489572e0c4f9e1a24ea46681febf311f",
+      "entity_id": "f92a5c997c04145278a4ad401ab53df6dc222a575790e7d2983eedddaf157a75",
+      "split": "development",
+      "source_name": "Channeled II",
+      "source_aliases": [],
+      "native": [
+        1,
+        13
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "7534079",
+        "season": 1,
+        "episode": 13
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "7534079",
+          "season": 1,
+          "episode": 13,
+          "language": "deu",
+          "name": "Channeled II"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 76,
+      "title_id": "c3d8f0b6b327dd11e69aadd917860c3b489572e0c4f9e1a24ea46681febf311f",
+      "entity_id": "24b41b96f0414dfb2404188fd91c095ed29a35ebde48991e69eecf119beafe96",
+      "split": "development",
+      "source_name": "Desertified",
+      "source_aliases": [],
+      "native": [
+        1,
+        8
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "7534072",
+        "season": 1,
+        "episode": 8
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "7534072",
+          "season": 1,
+          "episode": 8,
+          "language": "deu",
+          "name": "Desertified"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 77,
+      "title_id": "c3d8f0b6b327dd11e69aadd917860c3b489572e0c4f9e1a24ea46681febf311f",
+      "entity_id": "86847e354df39e57d358c0b87fe3f4db41c0de4fa2629a360bf50651e7d0ce7f",
+      "split": "development",
+      "source_name": "Channeled",
+      "source_aliases": [],
+      "native": [
+        1,
+        12
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "7534078",
+        "season": 1,
+        "episode": 12
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "7534078",
+          "season": 1,
+          "episode": 12,
+          "language": "deu",
+          "name": "Channeled"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 78,
+      "title_id": "51247f5c23b1a7d95bc4b12b955590ae243b6141200e4c0d0a06c469de80eafc",
+      "entity_id": "9372d01641a9fca6aae15889f650f61f317229bded16a477d2f7c187b486bd37",
+      "split": "held_out",
+      "source_name": "The Queen and Me",
+      "source_aliases": [],
+      "native": [
+        1,
+        4
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "1662711",
+        "season": 1,
+        "episode": 4
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "1662711",
+          "season": 1,
+          "episode": 4,
+          "language": "eng",
+          "name": "The Queen and Me"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 79,
+      "title_id": "51247f5c23b1a7d95bc4b12b955590ae243b6141200e4c0d0a06c469de80eafc",
+      "entity_id": "9fcbcadcf830201aa8878b6b4a4af762a47be9f0bc0fa2610e23f5aac81476f0",
+      "split": "held_out",
+      "source_name": "Those Who Seek",
+      "source_aliases": [],
+      "native": [
+        1,
+        3
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "1662701",
+        "season": 1,
+        "episode": 3
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "1662701",
+          "season": 1,
+          "episode": 3,
+          "language": "eng",
+          "name": "Those Who Seek"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 80,
+      "title_id": "51247f5c23b1a7d95bc4b12b955590ae243b6141200e4c0d0a06c469de80eafc",
+      "entity_id": "8d683eb187f21979c2a39bed0daac40946136ab6db86dc528b2b19b316fbbee2",
+      "split": "held_out",
+      "source_name": "Trinity ・ Gehenna",
+      "source_aliases": [],
+      "native": [
+        1,
+        22
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "2047281",
+        "season": 1,
+        "episode": 22
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "2047281",
+          "season": 1,
+          "episode": 22,
+          "language": "deu",
+          "name": "Trinity Gehenna"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 81,
+      "title_id": "abb082fd6a64a9aa0911f3516f374fe62ca773575556c5456b96e99e5f24295e",
+      "entity_id": "7a1b9ea9f3b213c65548523dee2c77333b64ff18426ab2756b3292baef3de3d2",
+      "split": "development",
+      "source_name": "The Sealed Dungeon",
+      "source_aliases": [],
+      "native": [
+        1,
+        6
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "11226000",
+        "season": 1,
+        "episode": 6
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "11226000",
+          "season": 1,
+          "episode": 6,
+          "language": "eng",
+          "name": "The Sealed Dungeon"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 82,
+      "title_id": "abb082fd6a64a9aa0911f3516f374fe62ca773575556c5456b96e99e5f24295e",
+      "entity_id": "d47fd180039e58a40cf15ae75c14e9d4700ebe031cebf2f898271c2651b82107",
+      "split": "development",
+      "source_name": "The Town of Lune",
+      "source_aliases": [],
+      "native": [
+        1,
+        3
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "11225997",
+        "season": 1,
+        "episode": 3
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "11225997",
+          "season": 1,
+          "episode": 3,
+          "language": "eng",
+          "name": "The Town of Lune"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 83,
+      "title_id": "abb082fd6a64a9aa0911f3516f374fe62ca773575556c5456b96e99e5f24295e",
+      "entity_id": "5e256ed1e2020087536a2e0156f705065b19183983dbdbbacaa05c345e284a2d",
+      "split": "development",
+      "source_name": "The Inferno Magician",
+      "source_aliases": [],
+      "native": [
+        1,
+        11
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "11227020",
+        "season": 1,
+        "episode": 11
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "11227020",
+          "season": 1,
+          "episode": 11,
+          "language": "eng",
+          "name": "The Inferno Magician"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 84,
+      "title_id": "19940edf9692ee00edaf3da7c6c5186c63b617dcb19f1daca2049a8f8f3e8dc0",
+      "entity_id": "656fb6a6d3815f0eb04c59d2bbeb81b523b6ed1f0bd30c64a6fba6f9df28a460",
+      "split": "held_out",
+      "source_name": "A Woman's Battle!",
+      "source_aliases": [],
+      "native": [
+        1,
+        9
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "2994891",
+        "season": 1,
+        "episode": 9
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "2994891",
+          "season": 1,
+          "episode": 9,
+          "language": "eng",
+          "name": "A Woman's Battle!"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 85,
+      "title_id": "19940edf9692ee00edaf3da7c6c5186c63b617dcb19f1daca2049a8f8f3e8dc0",
+      "entity_id": "c3b0cac4a4e68c64f43fd5d9ccdecd1f4b7ebe036c621a91989d75397a178599",
+      "split": "held_out",
+      "source_name": "No Castle Can Stand Against Me!",
+      "source_aliases": [],
+      "native": [
+        1,
+        3
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "438265",
+        "season": 1,
+        "episode": 3
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "438265",
+          "season": 1,
+          "episode": 3,
+          "language": "eng",
+          "name": "No Castle Can Stand Against Me!"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 86,
+      "title_id": "19940edf9692ee00edaf3da7c6c5186c63b617dcb19f1daca2049a8f8f3e8dc0",
+      "entity_id": "90e3e3c54d553ad4add0840e2bf514a52f176e602ca867402e2088cfc0e7e5d2",
+      "split": "held_out",
+      "source_name": "The King of Fist's Office is Falling!",
+      "source_aliases": [],
+      "native": [
+        1,
+        12
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "2994921",
+        "season": 1,
+        "episode": 12
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "2994921",
+          "season": 1,
+          "episode": 12,
+          "language": "eng",
+          "name": "The King of Fist's Office is Falling!"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 87,
+      "title_id": "166b1fab828ca9778f7f7517a64b9ab4285396ad5a0aa6bfd8df2a35e86bd7ee",
+      "entity_id": "178131f9bc286848afffc91b6e62ded44ff542ae0b1bf5047393351519c37f4a",
+      "split": "development",
+      "source_name": "The Youth National Championship",
+      "source_aliases": [
+        "Die Jugendnationalmeisterschaft"
+      ],
+      "native": [
+        1,
+        17
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "482481",
+        "season": 1,
+        "episode": 17
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "482481",
+          "season": 1,
+          "episode": 17,
+          "language": "eng",
+          "name": "The Youth National Championship"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 88,
+      "title_id": "166b1fab828ca9778f7f7517a64b9ab4285396ad5a0aa6bfd8df2a35e86bd7ee",
+      "entity_id": "63a0582d5d9da1426f36fa8a4b44d33fef6269d6d4033b8995b95c39344b57e0",
+      "split": "development",
+      "source_name": "Air acrobats",
+      "source_aliases": [
+        "Luftakrobaten"
+      ],
+      "native": [
+        3,
+        22
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4452932",
+        "season": 3,
+        "episode": 22
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4452932",
+          "season": 3,
+          "episode": 22,
+          "language": "deu",
+          "name": "Luftakrobaten"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 89,
+      "title_id": "166b1fab828ca9778f7f7517a64b9ab4285396ad5a0aa6bfd8df2a35e86bd7ee",
+      "entity_id": "13c69ede66992597e1cf98db05ed1ccaf39fadd6b8deac4cbf43d1514b1633d9",
+      "split": "development",
+      "source_name": "The tiger fights alone",
+      "source_aliases": [
+        "Der Tiger kämpft allein"
+      ],
+      "native": [
+        5,
+        5
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4452967",
+        "season": 5,
+        "episode": 5
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4452967",
+          "season": 5,
+          "episode": 5,
+          "language": "deu",
+          "name": "Der Tiger kämpft allein"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 90,
+      "title_id": "1f327d40756927112d49051b9487b1d9251bd99bbaed1d0b91e79126520a7de2",
+      "entity_id": "dbe00dee548569260ea70baa9461a04b6716d5f3f6c172d50ec94b53ad616770",
+      "split": "held_out",
+      "source_name": "The Last Play-Off!",
+      "source_aliases": [
+        "Das letzte Play-Off!"
+      ],
+      "native": [
+        1,
+        25
+      ],
+      "label": "parent_conflict",
+      "expected": null,
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "2443671",
+          "season": 1,
+          "episode": 25,
+          "language": "eng",
+          "name": "The Last Play-Off!"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 91,
+      "title_id": "1f327d40756927112d49051b9487b1d9251bd99bbaed1d0b91e79126520a7de2",
+      "entity_id": "1092f4d286266e8f3d0b95f090c6f2c3728c0acc79ba854427adb22b081e0cc9",
+      "split": "held_out",
+      "source_name": "Best in the World! The 11 Words!!",
+      "source_aliases": [],
+      "native": [
+        1,
+        121
+      ],
+      "label": "parent_conflict",
+      "expected": null,
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4063101",
+          "season": 1,
+          "episode": 121,
+          "language": "eng",
+          "name": "Best in the World! The 11 Words!!"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 92,
+      "title_id": "1f327d40756927112d49051b9487b1d9251bd99bbaed1d0b91e79126520a7de2",
+      "entity_id": "2a4befa101f3672c082b70f05df6c1d798e7d523500be7c1d3e1bf1180d675d1",
+      "split": "held_out",
+      "source_name": "The Big Wave!",
+      "source_aliases": [],
+      "native": [
+        1,
+        72
+      ],
+      "label": "parent_conflict",
+      "expected": null,
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "2976451",
+          "season": 1,
+          "episode": 72,
+          "language": "eng",
+          "name": "The Big Wave!"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 93,
+      "title_id": "1f567f1e9e3d8fb7617df79211b3ca2e644571bd449df2e965e319e0c5094bd4",
+      "entity_id": "2753429f3e90de11ecef4a33e74b209b3327e5319c6af9c5e3f2807c47721819",
+      "split": "development",
+      "source_name": "Fighter’s Secret Identity! The Shocking Super Transformation",
+      "source_aliases": [
+        "Musical-Stars"
+      ],
+      "native": [
+        5,
+        10
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "287050",
+        "season": 5,
+        "episode": 10
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "287050",
+          "season": 5,
+          "episode": 10,
+          "language": "deu",
+          "name": "Musical-Stars"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 94,
+      "title_id": "1f567f1e9e3d8fb7617df79211b3ca2e644571bd449df2e965e319e0c5094bd4",
+      "entity_id": "f53265e7a1e8c0ddc2c0e4fede39701cd0367464a7cfa7e81f9a9a24b1a80021",
+      "split": "development",
+      "source_name": "Princess Kakyu Perishes! Advent of Galaxia",
+      "source_aliases": [
+        "Galaxia erscheint"
+      ],
+      "native": [
+        5,
+        29
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "287069",
+        "season": 5,
+        "episode": 29
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "287069",
+          "season": 5,
+          "episode": 29,
+          "language": "deu",
+          "name": "Galaxia erscheint"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 95,
+      "title_id": "1f567f1e9e3d8fb7617df79211b3ca2e644571bd449df2e965e319e0c5094bd4",
+      "entity_id": "4a6a2722eb614637011e71a4db8ce01d6e7698dc1fb70889e09236c829465694",
+      "split": "development",
+      "source_name": "Venus Minako's Nurse Mayhem",
+      "source_aliases": [
+        "Grippewelle"
+      ],
+      "native": [
+        2,
+        32
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "286949",
+        "season": 2,
+        "episode": 32
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "286949",
+          "season": 2,
+          "episode": 32,
+          "language": "deu",
+          "name": "Grippewelle"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 96,
+      "title_id": "0eb245a1e146012100b7b4ec00e2d45eb21fa44b8e6803580103e27827f66858",
+      "entity_id": "2dcef325dc45bc8c47d98a873438a6144beda3dc47a990d6d111242c21c4578a",
+      "split": "held_out",
+      "source_name": "Slurping Sigh",
+      "source_aliases": [],
+      "native": [
+        2,
+        17
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4970059",
+        "season": 2,
+        "episode": 17
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4970059",
+          "season": 2,
+          "episode": 17,
+          "language": "eng",
+          "name": "Slurping Sigh"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 97,
+      "title_id": "0eb245a1e146012100b7b4ec00e2d45eb21fa44b8e6803580103e27827f66858",
+      "entity_id": "f271ccb2f0aee01996e7c0fabf46226cdac9009904cb2b25afee3c81f92f4b18",
+      "split": "held_out",
+      "source_name": "Mystery of the Ruins",
+      "source_aliases": [
+        "Das Rätsel der Ruinen"
+      ],
+      "native": [
+        1,
+        19
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "370256",
+        "season": 1,
+        "episode": 19
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "370256",
+          "season": 1,
+          "episode": 19,
+          "language": "deu",
+          "name": "Das Rätsel der Ruinen"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 98,
+      "title_id": "0eb245a1e146012100b7b4ec00e2d45eb21fa44b8e6803580103e27827f66858",
+      "entity_id": "3be40d8e013c3987c677eff3f25c677e11b1e2637de2caedb266161796b9754c",
+      "split": "held_out",
+      "source_name": "The Munchy-Bafoon",
+      "source_aliases": [],
+      "native": [
+        2,
+        42
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4970085",
+        "season": 2,
+        "episode": 42
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4970085",
+          "season": 2,
+          "episode": 42,
+          "language": "eng",
+          "name": "The Munchy Bafoon"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 99,
+      "title_id": "a00759a11542224ecb4e834eec572997118a40278380f7f4069e11a1f4eb6429",
+      "entity_id": "c0c56f94090523351f06a9eec88fd79f6f2854eca794e7a3e54905037dcf7f21",
+      "split": "development",
+      "source_name": "Anissina the Bride!?",
+      "source_aliases": [],
+      "native": [
+        3,
+        11
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 100,
+      "title_id": "a00759a11542224ecb4e834eec572997118a40278380f7f4069e11a1f4eb6429",
+      "entity_id": "504341454f7ae567100586c4b7fce0ca95cd46aa8ca5a0856195f6da619bd20c",
+      "split": "development",
+      "source_name": "Rainfall in the Desert",
+      "source_aliases": [],
+      "native": [
+        1,
+        15
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "324438",
+        "season": 1,
+        "episode": 15
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "324438",
+          "season": 1,
+          "episode": 15,
+          "language": "eng",
+          "name": "Rainfall in the Desert"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 101,
+      "title_id": "a00759a11542224ecb4e834eec572997118a40278380f7f4069e11a1f4eb6429",
+      "entity_id": "2b371785b087ded74d3852253606e474d860f2917a80cc0aac2bcd3f2a53f012",
+      "split": "development",
+      "source_name": "One Who Braves Through the Snow",
+      "source_aliases": [],
+      "native": [
+        2,
+        26
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 102,
+      "title_id": "0fa554f19c96a9d6020879ca882dbba80ff8d5837ac1f1e3284047b2b503c9d9",
+      "entity_id": "f3ed39276ec1b0b943463f18d61c2bbc67b4f315a293e55eee9afe5aef53823d",
+      "split": "held_out",
+      "source_name": "Insufficient Rank",
+      "source_aliases": [],
+      "native": [
+        6,
+        12
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "11427591",
+        "season": 6,
+        "episode": 12
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "11427591",
+          "season": 6,
+          "episode": 12,
+          "language": "eng",
+          "name": "Insufficient Rank"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 103,
+      "title_id": "0fa554f19c96a9d6020879ca882dbba80ff8d5837ac1f1e3284047b2b503c9d9",
+      "entity_id": "33361641527e4d66074434a5c7e90d0000ef21ea5c1ed677cae8553ca0072e6f",
+      "split": "held_out",
+      "source_name": "The Call",
+      "source_aliases": [],
+      "native": [
+        4,
+        7
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9173467",
+        "season": 4,
+        "episode": 7
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9173467",
+          "season": 4,
+          "episode": 7,
+          "language": "eng",
+          "name": "The Call"
+        }
+      ]
+    },
+    {
+      "provider": "aniworld.to",
+      "case": 104,
+      "title_id": "0fa554f19c96a9d6020879ca882dbba80ff8d5837ac1f1e3284047b2b503c9d9",
+      "entity_id": "c9a6cd1b0b98a05f00715a48d22f4fb1260111043c982333136b718d419d338d",
+      "split": "held_out",
+      "source_name": "The Mightiest Man",
+      "source_aliases": [],
+      "native": [
+        3,
+        14
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "8513551",
+        "season": 3,
+        "episode": 14
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "8513551",
+          "season": 3,
+          "episode": 14,
+          "language": "eng",
+          "name": "The Mightiest Man"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 0,
+      "title_id": "4e9fdf2b674a202cd1b3c2c3cc869d7a6e404a8d1cd213c63866c1a92f01fd88",
+      "entity_id": "133f0e4009b1b294946402a9a61f2533323c42005221a0e44cbc060f0675f128",
+      "split": "development",
+      "source_name": "Episode 543",
+      "source_aliases": [
+        "Dreimal schwarzer Kater"
+      ],
+      "native": [
+        33,
+        23
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 1,
+      "title_id": "4e9fdf2b674a202cd1b3c2c3cc869d7a6e404a8d1cd213c63866c1a92f01fd88",
+      "entity_id": "e3ef66aca52ca4ab54170aa666172b64c08cbd03b354219fe807b0e706319ed5",
+      "split": "development",
+      "source_name": "Episode 699",
+      "source_aliases": [
+        "Krumme Hunde"
+      ],
+      "native": [
+        38,
+        14
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 2,
+      "title_id": "4e9fdf2b674a202cd1b3c2c3cc869d7a6e404a8d1cd213c63866c1a92f01fd88",
+      "entity_id": "168d1f67f1ac5f2978c3ea5b56efc5f33b59f901d3817c8b642da738adcbf78a",
+      "split": "development",
+      "source_name": "Episode 1150",
+      "source_aliases": [
+        "Unter Wölfen"
+      ],
+      "native": [
+        50,
+        36
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 3,
+      "title_id": "4e9fdf2b674a202cd1b3c2c3cc869d7a6e404a8d1cd213c63866c1a92f01fd88",
+      "entity_id": "3ebf2aa9def94be876f80933fa3ed684fbecc93e3c3389278cfaf039be7b01b7",
+      "split": "development",
+      "source_name": "Episode 1068",
+      "source_aliases": [
+        "Her mit der Marie!"
+      ],
+      "native": [
+        48,
+        28
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 4,
+      "title_id": "4e9fdf2b674a202cd1b3c2c3cc869d7a6e404a8d1cd213c63866c1a92f01fd88",
+      "entity_id": "d2ceffa6b1de816b74115ea72505afe10e94dace20d654ceaa3765a41f13f65a",
+      "split": "development",
+      "source_name": "Episiode 1167",
+      "source_aliases": [
+        "Verschwörung"
+      ],
+      "native": [
+        51,
+        17
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 5,
+      "title_id": "dbcbd3e14d1a6d2f7ceef77adef69326c035bc9e6b83b9bb85d97c646d85127c",
+      "entity_id": "aab837d64d56ff347d72c671c7ebf179d8f888114fae7620755b262962a20d82",
+      "split": "held_out",
+      "source_name": "Episode 615",
+      "source_aliases": [
+        "Brownbeards Verzweiflung! Ruffys furioser Schlag!"
+      ],
+      "native": [
+        15,
+        35
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4655576",
+        "season": 16,
+        "episode": 36
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4655576",
+          "season": 16,
+          "episode": 36,
+          "language": "deu",
+          "name": "Brownbeards Verzweiflung – Ruffys furioser Schlag"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 6,
+      "title_id": "dbcbd3e14d1a6d2f7ceef77adef69326c035bc9e6b83b9bb85d97c646d85127c",
+      "entity_id": "0849857601075626b467995de4f5cdddd8e8a5869473efe115b01ce9fdec6d9e",
+      "split": "held_out",
+      "source_name": "Episode 943",
+      "source_aliases": [
+        "Ruffys Entschlossenheit. Triumphiere beim Sumo-Inferno!"
+      ],
+      "native": [
+        21,
+        52
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 7,
+      "title_id": "dbcbd3e14d1a6d2f7ceef77adef69326c035bc9e6b83b9bb85d97c646d85127c",
+      "entity_id": "64f756ec91db6f43f32a26639dda1be0e0d20cea4032b50b67757c720ee31ead",
+      "split": "held_out",
+      "source_name": "Episode 085",
+      "source_aliases": [
+        "Dr. Bader"
+      ],
+      "native": [
+        3,
+        8
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 8,
+      "title_id": "dbcbd3e14d1a6d2f7ceef77adef69326c035bc9e6b83b9bb85d97c646d85127c",
+      "entity_id": "79ac0e4a0af18889cd190eea7fd06756a6e8fbd877f19533b4d0b7b50da58f10",
+      "split": "held_out",
+      "source_name": "Episode 260",
+      "source_aliases": [
+        "Nero gegen Franky"
+      ],
+      "native": [
+        8,
+        32
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 9,
+      "title_id": "dbcbd3e14d1a6d2f7ceef77adef69326c035bc9e6b83b9bb85d97c646d85127c",
+      "entity_id": "c87b3cdd3b90df97471d6c9214ef20196850ef099d4b7637eb5f699eb695e36d",
+      "split": "held_out",
+      "source_name": "Episode 562",
+      "source_aliases": [
+        "Hodys Rache naht! Luft für die Noah."
+      ],
+      "native": [
+        14,
+        40
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4384777",
+        "season": 15,
+        "episode": 46
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4384777",
+          "season": 15,
+          "episode": 46,
+          "language": "deu",
+          "name": "Hodys Rache naht – Luft für die Noah"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 10,
+      "title_id": "722566ce2414ade6d7fdc48c5745b62090962d345d8a0fc22d69a269b8ee1e9f",
+      "entity_id": "abfdac47b4afdaf15249e87b0583db49f13af819767fbc602dc00c688a6343e4",
+      "split": "development",
+      "source_name": "Folge 895",
+      "source_aliases": [],
+      "native": [
+        20,
+        25
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 11,
+      "title_id": "722566ce2414ade6d7fdc48c5745b62090962d345d8a0fc22d69a269b8ee1e9f",
+      "entity_id": "9aa07e10fccc228ac1e4df8e51a4959c9981eaaec888ee5156738eafc698c53d",
+      "split": "development",
+      "source_name": "Folge 963",
+      "source_aliases": [],
+      "native": [
+        23,
+        15
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 12,
+      "title_id": "722566ce2414ade6d7fdc48c5745b62090962d345d8a0fc22d69a269b8ee1e9f",
+      "entity_id": "3dd206924c6da401ed2d5853c1e798123e0dbbf093a444ff1e49e10fa73a3932",
+      "split": "development",
+      "source_name": "Folge 876",
+      "source_aliases": [],
+      "native": [
+        20,
+        6
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 13,
+      "title_id": "722566ce2414ade6d7fdc48c5745b62090962d345d8a0fc22d69a269b8ee1e9f",
+      "entity_id": "09a6a4b9da3c4d9798fdb4e52784feaacd6a1f56470f35c0c8fc01761ddb47e8",
+      "split": "development",
+      "source_name": "Folge 937",
+      "source_aliases": [],
+      "native": [
+        22,
+        15
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 14,
+      "title_id": "722566ce2414ade6d7fdc48c5745b62090962d345d8a0fc22d69a269b8ee1e9f",
+      "entity_id": "12de582b456d57fe1a9bb12c5842ef229324f714f7c9d65a6fe8dc6759beab67",
+      "split": "development",
+      "source_name": "Folge 135",
+      "source_aliases": [],
+      "native": [
+        3,
+        19
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 15,
+      "title_id": "5d1d3f080d26660b488ae8cbee75c5cf95a163b47977baa9f196d833b8e04df5",
+      "entity_id": "d38a18d9042a98770cc234d101b34c8cb7fad7d301515b9f5aa091d144649e28",
+      "split": "held_out",
+      "source_name": "The Case of Ayumi`s Illustrated Diary Episode 989",
+      "source_aliases": [],
+      "native": [
+        28,
+        25
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 16,
+      "title_id": "5d1d3f080d26660b488ae8cbee75c5cf95a163b47977baa9f196d833b8e04df5",
+      "entity_id": "86f5bb83916befec300d607864d1834feea253c49c285161fc0e2d76d4a829e1",
+      "split": "held_out",
+      "source_name": "A June Bride Murder Case [Episode 019]",
+      "source_aliases": [
+        "Die Kapsel im Zitronentee"
+      ],
+      "native": [
+        1,
+        19
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "86064",
+        "season": 1,
+        "episode": 18
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "86064",
+          "season": 1,
+          "episode": 18,
+          "language": "deu",
+          "name": "Die Kapsel im Zitronentee"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 17,
+      "title_id": "5d1d3f080d26660b488ae8cbee75c5cf95a163b47977baa9f196d833b8e04df5",
+      "entity_id": "d52085046790700bfadcda7f32e7dfbbe9ffc03915cf06abab95b8ca9f9ec6ac",
+      "split": "held_out",
+      "source_name": "The Thoroughbred Kidnapping Case (Part 1) Episode 933",
+      "source_aliases": [],
+      "native": [
+        27,
+        7
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 18,
+      "title_id": "5d1d3f080d26660b488ae8cbee75c5cf95a163b47977baa9f196d833b8e04df5",
+      "entity_id": "fa20e5764bba426dbdd201f96f159eaf4a612bb3fc9b9b61d0005cd61edd548d",
+      "split": "held_out",
+      "source_name": "The Genius Restaurant Episode 1089",
+      "source_aliases": [],
+      "native": [
+        31,
+        22
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 19,
+      "title_id": "5d1d3f080d26660b488ae8cbee75c5cf95a163b47977baa9f196d833b8e04df5",
+      "entity_id": "c53961c7a32a215c6ca26b8cd7fc7db57ecf0c7938d4862a31ea8539b17116cb",
+      "split": "held_out",
+      "source_name": "Episode 338",
+      "source_aliases": [
+        "Die vom Sonnenuntergang eingefärbten Puppen (2)"
+      ],
+      "native": [
+        12,
+        23
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "86326",
+        "season": 11,
+        "episode": 28
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "86326",
+          "season": 11,
+          "episode": 28,
+          "language": "deu",
+          "name": "Die vom Sonnenuntergang eingefärbten Puppen (2)"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 20,
+      "title_id": "0306f01387830b99f82f2e1266735784edeb15baa24b49aea71ef14498939d11",
+      "entity_id": "8caf25f3c024eb841b99cfbbd7cafd8cbe7163f634cbd3812b702e42ac75a98c",
+      "split": "development",
+      "source_name": "The Keys of Marinus 1 (The Sea of Death)",
+      "source_aliases": [],
+      "native": [
+        1,
+        21
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 21,
+      "title_id": "0306f01387830b99f82f2e1266735784edeb15baa24b49aea71ef14498939d11",
+      "entity_id": "a280af85285338bbdc593e3126457d5f2c712f0a96f0132b033e74a111d411ee",
+      "split": "development",
+      "source_name": "The Mind Robber, Episode 3",
+      "source_aliases": [],
+      "native": [
+        6,
+        8
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 22,
+      "title_id": "0306f01387830b99f82f2e1266735784edeb15baa24b49aea71ef14498939d11",
+      "entity_id": "db0862daaddf97a174cdaa15d54b6e402094a1294cfe2cbab5e9b2559fe2d193",
+      "split": "development",
+      "source_name": "The Monster of Peladon, Part Six",
+      "source_aliases": [],
+      "native": [
+        11,
+        20
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 23,
+      "title_id": "0306f01387830b99f82f2e1266735784edeb15baa24b49aea71ef14498939d11",
+      "entity_id": "85ce12776e9183359be76f21cb3d20bd3a8e869ff065462d30c03a649c4344d2",
+      "split": "development",
+      "source_name": "Time-Flight, Part One",
+      "source_aliases": [
+        "Zeitflug – Teil 1"
+      ],
+      "native": [
+        19,
+        23
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 24,
+      "title_id": "0306f01387830b99f82f2e1266735784edeb15baa24b49aea71ef14498939d11",
+      "entity_id": "c759d8ca5f30e64a54ccb4b6db27d5760a13c73a4577431e226d803b500738ca",
+      "split": "development",
+      "source_name": "Kinda, Part Two",
+      "source_aliases": [
+        "Kinda – Teil 2"
+      ],
+      "native": [
+        19,
+        10
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 25,
+      "title_id": "15ce0a92adfaede5b672739eec69d684c8c10eb2057a731ada6abf5dcb7646a2",
+      "entity_id": "29d6d0d77f31045bd39df28c4c55c6c6e61f6ea63dcaa4e36c95d606d8ca9b0c",
+      "split": "held_out",
+      "source_name": "Episode 20",
+      "source_aliases": [
+        "Der unheimliche Marionettensammler"
+      ],
+      "native": [
+        1,
+        20
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "332019",
+        "season": 1,
+        "episode": 20
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "332019",
+          "season": 1,
+          "episode": 20,
+          "language": "deu",
+          "name": "Der unheimliche Marionettensammler"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 26,
+      "title_id": "15ce0a92adfaede5b672739eec69d684c8c10eb2057a731ada6abf5dcb7646a2",
+      "entity_id": "797bbcadc3423b89ad193007d46589a2d5b1b056ce0116c7920bfd1e557cd50b",
+      "split": "held_out",
+      "source_name": "War Begins [Episode 262]",
+      "source_aliases": [
+        "Kampf der Marionetten"
+      ],
+      "native": [
+        12,
+        20
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4311101",
+        "season": 13,
+        "episode": 2
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4311101",
+          "season": 13,
+          "episode": 2,
+          "language": "deu",
+          "name": "Kampf der Marionetten"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 27,
+      "title_id": "15ce0a92adfaede5b672739eec69d684c8c10eb2057a731ada6abf5dcb7646a2",
+      "entity_id": "1dd217c270d4c8c725d8e51c7a8dd27db7466fa2e00c928758afefa27fb21b32",
+      "split": "held_out",
+      "source_name": "Episode 77",
+      "source_aliases": [
+        "Der Silberne General"
+      ],
+      "native": [
+        4,
+        6
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "380335",
+        "season": 4,
+        "episode": 6
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "380335",
+          "season": 4,
+          "episode": 6,
+          "language": "deu",
+          "name": "Der silberne General"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 28,
+      "title_id": "15ce0a92adfaede5b672739eec69d684c8c10eb2057a731ada6abf5dcb7646a2",
+      "entity_id": "5c9e02ab41c912b124cd50b96f8e1243ba3c43a625432e2e706602bc790de00f",
+      "split": "held_out",
+      "source_name": "Izanagi and Izanami [Episode 338]",
+      "source_aliases": [
+        "Izanagi und Izanami"
+      ],
+      "native": [
+        15,
+        18
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4693644",
+        "season": 15,
+        "episode": 18
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4693644",
+          "season": 15,
+          "episode": 18,
+          "language": "deu",
+          "name": "Izanagi und Izanami"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 29,
+      "title_id": "15ce0a92adfaede5b672739eec69d684c8c10eb2057a731ada6abf5dcb7646a2",
+      "entity_id": "173b9bfca3199c800745e45bd972d90ab2caf7cee6b7c4d47fcab3f5fa5e5bbe",
+      "split": "held_out",
+      "source_name": "Episode 47",
+      "source_aliases": [
+        "Vorstoß in das Nest der Giftschlange"
+      ],
+      "native": [
+        2,
+        15
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "347860",
+        "season": 2,
+        "episode": 15
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "347860",
+          "season": 2,
+          "episode": 15,
+          "language": "deu",
+          "name": "Vorstoß in das Nest der Giftschlange"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 30,
+      "title_id": "f412fa357c3f3d56f4d65a2df1e3cafa6e4e2744a998624b04699d20c531b60d",
+      "entity_id": "f23c001742b5dcc1e120813b7ee459614ed741f20f3f23dee7bf60ac3159a296",
+      "split": "development",
+      "source_name": "Der schwarze Sheriff",
+      "source_aliases": [],
+      "native": [
+        14,
+        7
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "1140321",
+        "season": 14,
+        "episode": 7
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "1140321",
+          "season": 14,
+          "episode": 7,
+          "language": "deu",
+          "name": "Der schwarze Sheriff"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 31,
+      "title_id": "f412fa357c3f3d56f4d65a2df1e3cafa6e4e2744a998624b04699d20c531b60d",
+      "entity_id": "743b081c0b8e96f390daf94a5038da108ef924aa0ae3ca3bb31ea03eebc1476b",
+      "split": "development",
+      "source_name": "Der Blumenhändler",
+      "source_aliases": [],
+      "native": [
+        5,
+        2
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "2361051",
+        "season": 5,
+        "episode": 2
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "2361051",
+          "season": 5,
+          "episode": 2,
+          "language": "deu",
+          "name": "Der Blumenhändler"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 32,
+      "title_id": "f412fa357c3f3d56f4d65a2df1e3cafa6e4e2744a998624b04699d20c531b60d",
+      "entity_id": "21faa833ae9bfb5af1c1ecbf54234e5fd1d2b5c817dd7677ebcab663f29d2f4c",
+      "split": "development",
+      "source_name": "Für nix und für alles",
+      "source_aliases": [],
+      "native": [
+        30,
+        6
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "6001480",
+        "season": 30,
+        "episode": 6
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "6001480",
+          "season": 30,
+          "episode": 6,
+          "language": "deu",
+          "name": "Für nix und für alles"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 33,
+      "title_id": "f412fa357c3f3d56f4d65a2df1e3cafa6e4e2744a998624b04699d20c531b60d",
+      "entity_id": "4795f859f402ea06f7b2b255c69eb92b6fa5e0af8ea4b85c57e13d432ee038f7",
+      "split": "development",
+      "source_name": "Auf den Barrikaden",
+      "source_aliases": [],
+      "native": [
+        27,
+        12
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4788884",
+        "season": 27,
+        "episode": 12
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4788884",
+          "season": 27,
+          "episode": 12,
+          "language": "deu",
+          "name": "Auf den Barrikaden"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 34,
+      "title_id": "f412fa357c3f3d56f4d65a2df1e3cafa6e4e2744a998624b04699d20c531b60d",
+      "entity_id": "f98909e05b911cbf60ad597b11090a648767f45bd3fa28c194613b7ab5e48734",
+      "split": "development",
+      "source_name": "Beatlemania",
+      "source_aliases": [],
+      "native": [
+        27,
+        3
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4730182",
+        "season": 27,
+        "episode": 3
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4730182",
+          "season": 27,
+          "episode": 3,
+          "language": "deu",
+          "name": "Beatlemania"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 35,
+      "title_id": "9e30ec250b4c30ef6f0ad74cfab104944fe038c9f721df4ac294ba70fad38eae",
+      "entity_id": "b6a21bba9ff187d6426540206b32a4df57e6b759f8b1af00fff151deb7c9c57e",
+      "split": "held_out",
+      "source_name": "Tod auf der Walz",
+      "source_aliases": [],
+      "native": [
+        14,
+        14
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "5075978",
+        "season": 14,
+        "episode": 14
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "5075978",
+          "season": 14,
+          "episode": 14,
+          "language": "deu",
+          "name": "Tod auf der Walz"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 36,
+      "title_id": "9e30ec250b4c30ef6f0ad74cfab104944fe038c9f721df4ac294ba70fad38eae",
+      "entity_id": "537c69ba08708914ae6cdb804e3572c7f5796e27b7b9fdb6bfd9319ddaf7fc1f",
+      "split": "held_out",
+      "source_name": "Mord auf der Weide",
+      "source_aliases": [],
+      "native": [
+        7,
+        16
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "812381",
+        "season": 7,
+        "episode": 16
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "812381",
+          "season": 7,
+          "episode": 16,
+          "language": "deu",
+          "name": "Mord auf der Weide"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 37,
+      "title_id": "9e30ec250b4c30ef6f0ad74cfab104944fe038c9f721df4ac294ba70fad38eae",
+      "entity_id": "061cca7bed0ca38f678270af68f34fcb53728cd30f0167d1a6df18c92c38a7ea",
+      "split": "held_out",
+      "source_name": "Mord zum Nachtisch",
+      "source_aliases": [],
+      "native": [
+        25,
+        13
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "11501965",
+        "season": 25,
+        "episode": 13
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "11501965",
+          "season": 25,
+          "episode": 13,
+          "language": "deu",
+          "name": "Mord zum Nachtisch"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 38,
+      "title_id": "9e30ec250b4c30ef6f0ad74cfab104944fe038c9f721df4ac294ba70fad38eae",
+      "entity_id": "39e087a82a2e51d1213a4712ae401e492a2d44e218888dffd8835cbc7a7cb67a",
+      "split": "held_out",
+      "source_name": "Ein Star, ein Bild, ein Mord",
+      "source_aliases": [],
+      "native": [
+        14,
+        4
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "5017562",
+        "season": 14,
+        "episode": 4
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "5017562",
+          "season": 14,
+          "episode": 4,
+          "language": "deu",
+          "name": "Ein Star, ein Bild, ein Mord"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 39,
+      "title_id": "9e30ec250b4c30ef6f0ad74cfab104944fe038c9f721df4ac294ba70fad38eae",
+      "entity_id": "e2a2f53a9f4e4ab722074655d39280af7313ae33cd5796f1a3d89eb6db4d1720",
+      "split": "held_out",
+      "source_name": "Karten lügen nicht",
+      "source_aliases": [],
+      "native": [
+        13,
+        1
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "4651429",
+        "season": 13,
+        "episode": 1
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "4651429",
+          "season": 13,
+          "episode": 1,
+          "language": "deu",
+          "name": "Karten lügen nicht"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 40,
+      "title_id": "819f77b2f9a09dbcaa3600cf464958badeee468df2208ac9c1ea4fff99624477",
+      "entity_id": "6a8418e34249b16ee5cbd9f8c0b9731573a1b6bcc2e4ff5b6a5481ddea1723e2",
+      "split": "development",
+      "source_name": "Die Kindsmörderin",
+      "source_aliases": [],
+      "native": [
+        1,
+        3
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "632331",
+        "season": 1,
+        "episode": 3
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "632331",
+          "season": 1,
+          "episode": 3,
+          "language": "deu",
+          "name": "Die Kindsmörderin"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 41,
+      "title_id": "819f77b2f9a09dbcaa3600cf464958badeee468df2208ac9c1ea4fff99624477",
+      "entity_id": "048df7f85cfe56e78c15d8f95092b3e790818e25c41c2ab5f6d0cb5d34f95696",
+      "split": "development",
+      "source_name": "Juttas Erkenntnis",
+      "source_aliases": [],
+      "native": [
+        8,
+        20
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "1382421",
+        "season": 8,
+        "episode": 20
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "1382421",
+          "season": 8,
+          "episode": 20,
+          "language": "deu",
+          "name": "Juttas Erkenntnis"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 42,
+      "title_id": "819f77b2f9a09dbcaa3600cf464958badeee468df2208ac9c1ea4fff99624477",
+      "entity_id": "e1255c07c3948c6e744fbd0351ace4001109a78260d67471fd4d0a39ba8154b6",
+      "split": "development",
+      "source_name": "Feindinnen",
+      "source_aliases": [],
+      "native": [
+        2,
+        8
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "1380741",
+        "season": 2,
+        "episode": 8
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "1380741",
+          "season": 2,
+          "episode": 8,
+          "language": "deu",
+          "name": "Feindinnen"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 43,
+      "title_id": "819f77b2f9a09dbcaa3600cf464958badeee468df2208ac9c1ea4fff99624477",
+      "entity_id": "1f138e16cf274c90246e6fc6852beb92cfbea9a7037b2dfeb8b72f096ec4d98e",
+      "split": "development",
+      "source_name": "Klassenkampf",
+      "source_aliases": [],
+      "native": [
+        15,
+        4
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "2719441",
+        "season": 15,
+        "episode": 4
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "2719441",
+          "season": 15,
+          "episode": 4,
+          "language": "deu",
+          "name": "Klassenkampf"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 44,
+      "title_id": "819f77b2f9a09dbcaa3600cf464958badeee468df2208ac9c1ea4fff99624477",
+      "entity_id": "c85cc23ff06ee53008eeed882c339e16adfcc302a899fec823bfd47d2abd88aa",
+      "split": "development",
+      "source_name": "Dickes Ende",
+      "source_aliases": [],
+      "native": [
+        11,
+        25
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "1383271",
+        "season": 11,
+        "episode": 25
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "1383271",
+          "season": 11,
+          "episode": 25,
+          "language": "deu",
+          "name": "Dickes Ende"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 45,
+      "title_id": "4c80fc92dfdefd106b9c7d787058d5711628ce894a4a02525a662a0528450f69",
+      "entity_id": "301ae486617c021a26b91b7c42e11d6dad6a97cebc8d6b26bdb3e26672ff706e",
+      "split": "held_out",
+      "source_name": "Ein schmaler Grat",
+      "source_aliases": [],
+      "native": [
+        3,
+        18
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "6218765",
+        "season": 3,
+        "episode": 18
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "6218765",
+          "season": 3,
+          "episode": 18,
+          "language": "deu",
+          "name": "Ein schmaler Grat"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 46,
+      "title_id": "4c80fc92dfdefd106b9c7d787058d5711628ce894a4a02525a662a0528450f69",
+      "entity_id": "dd753b78c392247d5f46380c1cd8b05779adf029cbb4c5e2be9ccf531e4e73ea",
+      "split": "held_out",
+      "source_name": "Schuld",
+      "source_aliases": [],
+      "native": [
+        7,
+        5
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "8609452",
+        "season": 7,
+        "episode": 5
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "8609452",
+          "season": 7,
+          "episode": 5,
+          "language": "deu",
+          "name": "Schuld"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 47,
+      "title_id": "4c80fc92dfdefd106b9c7d787058d5711628ce894a4a02525a662a0528450f69",
+      "entity_id": "e8c389f4c09007c274306ae2724b21169a89f4cc442626202d676801e5e637ef",
+      "split": "held_out",
+      "source_name": "Drahtseilakt",
+      "source_aliases": [],
+      "native": [
+        11,
+        34
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "11689211",
+        "season": 11,
+        "episode": 34
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "11689211",
+          "season": 11,
+          "episode": 34,
+          "language": "deu",
+          "name": "Drahtseilakt"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 48,
+      "title_id": "4c80fc92dfdefd106b9c7d787058d5711628ce894a4a02525a662a0528450f69",
+      "entity_id": "2296f225a1e8a51b19ed15e8d9c4fd06b8918e0fab22954785d6c5f007ac4030",
+      "split": "held_out",
+      "source_name": "Liebesleiden",
+      "source_aliases": [],
+      "native": [
+        8,
+        2
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9194672",
+        "season": 8,
+        "episode": 2
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9194672",
+          "season": 8,
+          "episode": 2,
+          "language": "deu",
+          "name": "Liebesleiden"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 49,
+      "title_id": "4c80fc92dfdefd106b9c7d787058d5711628ce894a4a02525a662a0528450f69",
+      "entity_id": "9f8b2641102866473855f4ea3f148d3ac1fbf4e77e92fc4ef949ccf1f3cccfa3",
+      "split": "held_out",
+      "source_name": "Bruchstellen",
+      "source_aliases": [],
+      "native": [
+        4,
+        3
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "6533967",
+        "season": 4,
+        "episode": 3
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "6533967",
+          "season": 4,
+          "episode": 3,
+          "language": "deu",
+          "name": "Bruchstellen"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 50,
+      "title_id": "f0375a6bc1b65da0f4dfeb5a1f6707d9d592413128d9524101daa0c813e1bb3b",
+      "entity_id": "9830fe3c3f045ad7b4024f6ef62275c8af2069be5afef698f830a0fb443c52e2",
+      "split": "development",
+      "source_name": "(The Medallion of Destiny / Episode 68)",
+      "source_aliases": [],
+      "native": [
+        3,
+        6
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 51,
+      "title_id": "f0375a6bc1b65da0f4dfeb5a1f6707d9d592413128d9524101daa0c813e1bb3b",
+      "entity_id": "7289b46726083af8125bed7805fb3c3276fb8e0537578327950208ed357533b8",
+      "split": "development",
+      "source_name": "(Strongest Opponent From the Past: Merciless Fangs Strike! / Episode 29)",
+      "source_aliases": [],
+      "native": [
+        2,
+        1
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 52,
+      "title_id": "f0375a6bc1b65da0f4dfeb5a1f6707d9d592413128d9524101daa0c813e1bb3b",
+      "entity_id": "f61bbcb5c43660465d294a50cc7c5d560210bcda9acf054afe5fc8f93c6a9ecc",
+      "split": "development",
+      "source_name": "(The Giant versus Superman / Episode 53)",
+      "source_aliases": [],
+      "native": [
+        2,
+        25
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 53,
+      "title_id": "740beaa5148f03fdd9dc151f219a159181bfc433c7f29c44a2820b96548c75df",
+      "entity_id": "daa23fc9ea6a9ec46487c71d606a1e56dd52694ab673fb8780c50e3e89ba51c6",
+      "split": "held_out",
+      "source_name": "Folge 6",
+      "source_aliases": [],
+      "native": [
+        2,
+        6
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 54,
+      "title_id": "740beaa5148f03fdd9dc151f219a159181bfc433c7f29c44a2820b96548c75df",
+      "entity_id": "edcdc5aa69e040a8eca3a48ec241f8b1d20004cc72627ea4375fbec11f9ec026",
+      "split": "held_out",
+      "source_name": "Folge 4",
+      "source_aliases": [],
+      "native": [
+        4,
+        4
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 55,
+      "title_id": "740beaa5148f03fdd9dc151f219a159181bfc433c7f29c44a2820b96548c75df",
+      "entity_id": "8b949742bd863827ca43ec477b3d070cfe769b93edbe044e213d61292519ab7b",
+      "split": "held_out",
+      "source_name": "Folge 2",
+      "source_aliases": [],
+      "native": [
+        2,
+        2
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 56,
+      "title_id": "d9cc96c694cf0935a1dcdf0dde1b8226272a2e210988ab9f2ee1caf4d4d1eab6",
+      "entity_id": "35cac0b7d4322661906237f13cbcea5b4ebbb1156c3a6d2f7baa9e9325846173",
+      "split": "development",
+      "source_name": "Sunshine",
+      "source_aliases": [],
+      "native": [
+        1,
+        23
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "324566",
+        "season": 1,
+        "episode": 23
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "324566",
+          "season": 1,
+          "episode": 23,
+          "language": "eng",
+          "name": "Sunshine"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 57,
+      "title_id": "d9cc96c694cf0935a1dcdf0dde1b8226272a2e210988ab9f2ee1caf4d4d1eab6",
+      "entity_id": "9cd038e15dcfc7815d50231f5d1490199d7c9a54ad6336bab11c54d5f35d87fe",
+      "split": "development",
+      "source_name": "The Suspicious Sound of the Eight-Stringed Kin -Part One-",
+      "source_aliases": [],
+      "native": [
+        1,
+        9
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "324552",
+        "season": 1,
+        "episode": 9
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "324552",
+          "season": 1,
+          "episode": 9,
+          "language": "eng",
+          "name": "The Suspicious Sound of the Eight-Stringed Kin -Part One-"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 58,
+      "title_id": "d9cc96c694cf0935a1dcdf0dde1b8226272a2e210988ab9f2ee1caf4d4d1eab6",
+      "entity_id": "943e6f8f703ceabf0226ff67e07d5f15fb4bc28cc1714d14430ed2a99e17c816",
+      "split": "development",
+      "source_name": "The Capital that has been Invaded by Demons",
+      "source_aliases": [],
+      "native": [
+        1,
+        2
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "324545",
+        "season": 1,
+        "episode": 2
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "324545",
+          "season": 1,
+          "episode": 2,
+          "language": "eng",
+          "name": "The Capital that has been Invaded by Demons"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 59,
+      "title_id": "d083e12ef86724177a0293d7a29fb78768715b66345630f1b9dd43a439301ce8",
+      "entity_id": "1201b0f6e0eb5b226f804ea02907ffe564cae766cd966fb52303536d04f146ae",
+      "split": "held_out",
+      "source_name": "Episode 2",
+      "source_aliases": [
+        "Folge 2"
+      ],
+      "native": [
+        1,
+        2
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 60,
+      "title_id": "d083e12ef86724177a0293d7a29fb78768715b66345630f1b9dd43a439301ce8",
+      "entity_id": "4f032ace32400c3ec8618b60920bfff27a7d3d6af7527937ee61a7206f565330",
+      "split": "held_out",
+      "source_name": "Episode 10",
+      "source_aliases": [
+        "Folge 10"
+      ],
+      "native": [
+        1,
+        10
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 61,
+      "title_id": "d083e12ef86724177a0293d7a29fb78768715b66345630f1b9dd43a439301ce8",
+      "entity_id": "54c1f365fbab6e8c5d773f1dffdbc09833158655df6b4b0623a47fb6dea67fcb",
+      "split": "held_out",
+      "source_name": "Episode 4",
+      "source_aliases": [
+        "Folge 4"
+      ],
+      "native": [
+        1,
+        4
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 62,
+      "title_id": "e5d25e6f9ea3e433beb17a5ac2da846e61aa2a32afcb948bc3c480b77ce48cb6",
+      "entity_id": "10a681fbab44548f03d1d2e01eafe7b6bc4cebc83934dba8751786a8ab4d4328",
+      "split": "development",
+      "source_name": "A Last Gift",
+      "source_aliases": [
+        "Ein letztes Geschenk"
+      ],
+      "native": [
+        3,
+        9
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9672888",
+        "season": 3,
+        "episode": 9
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9672888",
+          "season": 3,
+          "episode": 9,
+          "language": "deu",
+          "name": "Ein letztes Geschenk"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 63,
+      "title_id": "e5d25e6f9ea3e433beb17a5ac2da846e61aa2a32afcb948bc3c480b77ce48cb6",
+      "entity_id": "0335d200b1519bc282a1f45e4b0aade3ff270b13d37ad2ffa9e6b1f164237411",
+      "split": "development",
+      "source_name": "Married to the Game",
+      "source_aliases": [
+        "Mit dem Spiel verheiratet"
+      ],
+      "native": [
+        4,
+        9
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "10707223",
+        "season": 4,
+        "episode": 9
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "10707223",
+          "season": 4,
+          "episode": 9,
+          "language": "eng",
+          "name": "Married to the Game"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 64,
+      "title_id": "e5d25e6f9ea3e433beb17a5ac2da846e61aa2a32afcb948bc3c480b77ce48cb6",
+      "entity_id": "6c842fcc8b2cad9a2e0a48e2ab2cbe7d0d2e011903e7075bd641b460fc4ab64c",
+      "split": "development",
+      "source_name": "Family First",
+      "source_aliases": [
+        "Familie zuerst"
+      ],
+      "native": [
+        1,
+        8
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "8072103",
+        "season": 1,
+        "episode": 8
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "8072103",
+          "season": 1,
+          "episode": 8,
+          "language": "deu",
+          "name": "Familie zuerst"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 65,
+      "title_id": "ee04b4c2e33f916a718f898895ecc346f532a3dcd4629b10bc6ce594c1f6d903",
+      "entity_id": "93389865bd4ea6f59193e76952775edb9eb2c1bfb29a1b7ed591443e7662425d",
+      "split": "held_out",
+      "source_name": "Episode 2",
+      "source_aliases": [],
+      "native": [
+        1,
+        2
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 66,
+      "title_id": "ee04b4c2e33f916a718f898895ecc346f532a3dcd4629b10bc6ce594c1f6d903",
+      "entity_id": "b67c083021e10679be05677053d942541a4c0c5d6751f6c1e49160b03cd6666d",
+      "split": "held_out",
+      "source_name": "Episode 3",
+      "source_aliases": [],
+      "native": [
+        1,
+        3
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 67,
+      "title_id": "ee04b4c2e33f916a718f898895ecc346f532a3dcd4629b10bc6ce594c1f6d903",
+      "entity_id": "d1def6407e0a49dff3e5781079832eb465439d9b82bf24b6b46302b444134c04",
+      "split": "held_out",
+      "source_name": "Episode 14",
+      "source_aliases": [],
+      "native": [
+        1,
+        14
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 68,
+      "title_id": "8991caa8dad024577a42156bb718c2ba424be3c7f38965712a6a12fcc09ee984",
+      "entity_id": "144abd4ce5397cb652c75827a253cd9853b685af4644862b00cfeafdb3e6b03f",
+      "split": "development",
+      "source_name": "Inugami Stay! Go to Your House!",
+      "source_aliases": [],
+      "native": [
+        1,
+        3
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 69,
+      "title_id": "8991caa8dad024577a42156bb718c2ba424be3c7f38965712a6a12fcc09ee984",
+      "entity_id": "36f4e3b5897acfd56f9c5bce7760959ec8548ecab0de6f17cfca6354f8326faf",
+      "split": "development",
+      "source_name": "The Age of Many Worries!",
+      "source_aliases": [],
+      "native": [
+        1,
+        9
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 70,
+      "title_id": "8991caa8dad024577a42156bb718c2ba424be3c7f38965712a6a12fcc09ee984",
+      "entity_id": "ecfdb4d7375392f8cd3da1a54d4598d093814c05af96b44a90c8442196330b54",
+      "split": "development",
+      "source_name": "Waiting in Vain for Autumn Colors!",
+      "source_aliases": [],
+      "native": [
+        1,
+        10
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 71,
+      "title_id": "208adf96a324d291a896b55e204acfe64a045644c7632b9a1767091503453ad3",
+      "entity_id": "1f0f3046d4e75c53d0e9d768c9fe9ca98f545ff8afa6a7c593e53dcee49d6902",
+      "split": "held_out",
+      "source_name": "Quarantine",
+      "source_aliases": [],
+      "native": [
+        1,
+        2
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "5940785",
+        "season": 1,
+        "episode": 2
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "5940785",
+          "season": 1,
+          "episode": 2,
+          "language": "eng",
+          "name": "Quarantine"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 72,
+      "title_id": "208adf96a324d291a896b55e204acfe64a045644c7632b9a1767091503453ad3",
+      "entity_id": "9ff047d686c73885dc691ac681b50cc24d07771b480927db1fe15097fdb7d231",
+      "split": "held_out",
+      "source_name": "High-Risk Delivery",
+      "source_aliases": [],
+      "native": [
+        1,
+        5
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 73,
+      "title_id": "208adf96a324d291a896b55e204acfe64a045644c7632b9a1767091503453ad3",
+      "entity_id": "5f0620b80cf2ab338cec32c037f837047900ec77687e1d76ec4712f54d7bf907",
+      "split": "held_out",
+      "source_name": "Nailed It",
+      "source_aliases": [],
+      "native": [
+        1,
+        3
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "5951612",
+        "season": 1,
+        "episode": 3
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "5951612",
+          "season": 1,
+          "episode": 3,
+          "language": "eng",
+          "name": "Nailed It"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 74,
+      "title_id": "2f5d64490f59261f76a4bba9d4bf29a4e3966cd51df5f85dc069408292d98ddf",
+      "entity_id": "d60b46818f0922a057679e91f31750f597df0901db0e2882d32cf6799d1d0284",
+      "split": "development",
+      "source_name": "(The Barrio)",
+      "source_aliases": [],
+      "native": [
+        1,
+        2
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9024425",
+        "season": 1,
+        "episode": 2
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9024425",
+          "season": 1,
+          "episode": 2,
+          "language": "eng",
+          "name": "The Barrio"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 75,
+      "title_id": "2f5d64490f59261f76a4bba9d4bf29a4e3966cd51df5f85dc069408292d98ddf",
+      "entity_id": "2523737a19df88a3c7fbfd981216122ff9d74df9ca77b7d8248b651712fadec0",
+      "split": "development",
+      "source_name": "(Goodbye)",
+      "source_aliases": [],
+      "native": [
+        1,
+        6
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9024429",
+        "season": 1,
+        "episode": 6
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9024429",
+          "season": 1,
+          "episode": 6,
+          "language": "eng",
+          "name": "Goodbye"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 76,
+      "title_id": "2f5d64490f59261f76a4bba9d4bf29a4e3966cd51df5f85dc069408292d98ddf",
+      "entity_id": "f5a4c6a765dd0a3060583c780b697668e29598e62afc620c78fd73060fb74a84",
+      "split": "development",
+      "source_name": "(Sabotage)",
+      "source_aliases": [],
+      "native": [
+        1,
+        8
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9034705",
+        "season": 1,
+        "episode": 8
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9034705",
+          "season": 1,
+          "episode": 8,
+          "language": "eng",
+          "name": "Sabotage"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 77,
+      "title_id": "4cd63823831af2ad5a13761c2a86308ff13c54365e80fe4ec7458a155dbfdfbd",
+      "entity_id": "3623a484bfbef264283c1f12bedf4bf40975a5d6e9164ab4f352b8ae72acc53b",
+      "split": "held_out",
+      "source_name": "The Truth",
+      "source_aliases": [
+        "Die Wahrheit"
+      ],
+      "native": [
+        1,
+        16
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "11439482",
+        "season": 1,
+        "episode": 16
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "11439482",
+          "season": 1,
+          "episode": 16,
+          "language": "deu",
+          "name": "Die Wahrheit"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 78,
+      "title_id": "4cd63823831af2ad5a13761c2a86308ff13c54365e80fe4ec7458a155dbfdfbd",
+      "entity_id": "93031d245cd5bd10e455c76058dde9bbebf7162989657237305190bc714ad30e",
+      "split": "held_out",
+      "source_name": "You Only Have One Mother ... Thank God",
+      "source_aliases": [
+        "Du hast nur eine Mutter … Gott sei Dank"
+      ],
+      "native": [
+        1,
+        12
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "11439477",
+        "season": 1,
+        "episode": 12
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "11439477",
+          "season": 1,
+          "episode": 12,
+          "language": "deu",
+          "name": "Du hast nur eine Mutter ... Gott sei Dank"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 79,
+      "title_id": "4cd63823831af2ad5a13761c2a86308ff13c54365e80fe4ec7458a155dbfdfbd",
+      "entity_id": "a2096f070752212fa1f87148f59b96556673e083a5277db3499a55be285cd7f0",
+      "split": "held_out",
+      "source_name": "The After",
+      "source_aliases": [
+        "Das Danach"
+      ],
+      "native": [
+        1,
+        5
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "11438595",
+        "season": 1,
+        "episode": 5
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "11438595",
+          "season": 1,
+          "episode": 5,
+          "language": "deu",
+          "name": "Das Danach"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 80,
+      "title_id": "8476ec50a656d0c52362a6844ad7c92b108878e8b9491212177d8ec9ee9cbc39",
+      "entity_id": "da6dfa5b67dd01a92a18a744e9678ed980060337eca91c783d39362cfd403113",
+      "split": "development",
+      "source_name": "The Grimoire of Zero",
+      "source_aliases": [
+        "Das Zauberbuch von Zero"
+      ],
+      "native": [
+        1,
+        12
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "6033053",
+        "season": 1,
+        "episode": 12
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "6033053",
+          "season": 1,
+          "episode": 12,
+          "language": "eng",
+          "name": "The Grimoire of Zero"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 81,
+      "title_id": "8476ec50a656d0c52362a6844ad7c92b108878e8b9491212177d8ec9ee9cbc39",
+      "entity_id": "e235fc64b33c5d9b38fe578c58b00030fe9879d58f929b5ae225a05544944fda",
+      "split": "development",
+      "source_name": "Duel",
+      "source_aliases": [
+        "Duell"
+      ],
+      "native": [
+        1,
+        3
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "6033043",
+        "season": 1,
+        "episode": 3
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "6033043",
+          "season": 1,
+          "episode": 3,
+          "language": "eng",
+          "name": "Duel"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 82,
+      "title_id": "8476ec50a656d0c52362a6844ad7c92b108878e8b9491212177d8ec9ee9cbc39",
+      "entity_id": "785cd6090b580f21bf9513730c8602eb87847de6ac0fa3114ed2470ddc6f21fc",
+      "split": "development",
+      "source_name": "The Witch and the Beastfallen",
+      "source_aliases": [
+        "Die Hexe und das Biest"
+      ],
+      "native": [
+        1,
+        1
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "5892878",
+        "season": 1,
+        "episode": 1
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "5892878",
+          "season": 1,
+          "episode": 1,
+          "language": "eng",
+          "name": "The Witch and the Beastfallen"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 83,
+      "title_id": "563c12444bd57f830bdc5cb2a54f95799e01ed44b65a1911791708c1728545a2",
+      "entity_id": "b4a2d4038cdfa978b1991d15ee86e045fdf6d8b8466d748bdb7d2edf32ecb6b7",
+      "split": "held_out",
+      "source_name": "I'm Haru, the New Concierge!",
+      "source_aliases": [
+        "Ich bin Haru, die neue Concierge!"
+      ],
+      "native": [
+        1,
+        1
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9642488",
+        "season": 1,
+        "episode": 1
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9642488",
+          "season": 1,
+          "episode": 1,
+          "language": "deu",
+          "name": "Ich bin Haru, die neue Concierge!"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 84,
+      "title_id": "563c12444bd57f830bdc5cb2a54f95799e01ed44b65a1911791708c1728545a2",
+      "entity_id": "5b68be71a37790191d8a5573fbbbf84b8d2f3256f8b3800d2cec0d3561376613",
+      "split": "held_out",
+      "source_name": "What's on Your Mind, Psyduck?",
+      "source_aliases": [
+        "Hat dir das Spaß gemacht, Enton?"
+      ],
+      "native": [
+        1,
+        2
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "10146071",
+        "season": 1,
+        "episode": 2
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "10146071",
+          "season": 1,
+          "episode": 2,
+          "language": "deu",
+          "name": "Hat dir das Spaß gemacht, Enton?"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 85,
+      "title_id": "563c12444bd57f830bdc5cb2a54f95799e01ed44b65a1911791708c1728545a2",
+      "entity_id": "9bdfd8002f451c355e17556854ebcf72c12fd8e8641fb16776d88aefee9c7e7d",
+      "split": "held_out",
+      "source_name": "Is That Really the Best Option?",
+      "source_aliases": [],
+      "native": [
+        1,
+        6
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "11255634",
+        "season": 1,
+        "episode": 6
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "11255634",
+          "season": 1,
+          "episode": 6,
+          "language": "eng",
+          "name": "Is That Really the Best Option?"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 86,
+      "title_id": "d9bfeea3b57cb448a8605970b850145a6212086c81560c2d56401ecc6f2c0378",
+      "entity_id": "360a8c5c60237184bf1bbfca6e1333d1e8f8d80316aa86b811e35fcf6e148ffd",
+      "split": "development",
+      "source_name": "A Shiksa Walks Into a Temple",
+      "source_aliases": [
+        "Kommt eine Schickse in eine Synagoge"
+      ],
+      "native": [
+        1,
+        2
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "10497483",
+        "season": 1,
+        "episode": 2
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "10497483",
+          "season": 1,
+          "episode": 2,
+          "language": "deu",
+          "name": "Kommt eine Schickse in eine Synagoge"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 87,
+      "title_id": "d9bfeea3b57cb448a8605970b850145a6212086c81560c2d56401ecc6f2c0378",
+      "entity_id": "5085d8c05c9039430c5a29f58a32162bb20d0cc906d999ed523401aa365a91a3",
+      "split": "development",
+      "source_name": "My Friend Joanne",
+      "source_aliases": [
+        "Meine Freundin Joanne"
+      ],
+      "native": [
+        1,
+        5
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "10497486",
+        "season": 1,
+        "episode": 5
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "10497486",
+          "season": 1,
+          "episode": 5,
+          "language": "deu",
+          "name": "Meine Freundin Joanne"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 88,
+      "title_id": "d9bfeea3b57cb448a8605970b850145a6212086c81560c2d56401ecc6f2c0378",
+      "entity_id": "8fee3d94a3aa4d6dcd5eee8b2dc1789412847e6ec4f2629d13bf5a7294217894",
+      "split": "development",
+      "source_name": "Obliterated",
+      "source_aliases": [
+        "Der Obliterator"
+      ],
+      "native": [
+        1,
+        4
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "10497485",
+        "season": 1,
+        "episode": 4
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "10497485",
+          "season": 1,
+          "episode": 4,
+          "language": "deu",
+          "name": "Der Obliterator"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 89,
+      "title_id": "28d56c221f9c950ecb72cd97f536484e0317ec4a8806d50d403f9731c54aea65",
+      "entity_id": "4ecde6e8f29549bc62c40695d3ddb065226b9e3c9f6cff9568e36cd0cf8bffdd",
+      "split": "held_out",
+      "source_name": "Comrades",
+      "source_aliases": [],
+      "native": [
+        1,
+        2
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9207158",
+        "season": 1,
+        "episode": 2
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9207158",
+          "season": 1,
+          "episode": 2,
+          "language": "eng",
+          "name": "Comrades"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 90,
+      "title_id": "28d56c221f9c950ecb72cd97f536484e0317ec4a8806d50d403f9731c54aea65",
+      "entity_id": "021f8c4100acb47b024eb41240f78f336f0f1f805b96e3df8ccb40b21613660c",
+      "split": "held_out",
+      "source_name": "Darkness in Horizon",
+      "source_aliases": [],
+      "native": [
+        1,
+        10
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9377784",
+        "season": 1,
+        "episode": 10
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9377784",
+          "season": 1,
+          "episode": 10,
+          "language": "eng",
+          "name": "Darkness in Horizon"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 91,
+      "title_id": "28d56c221f9c950ecb72cd97f536484e0317ec4a8806d50d403f9731c54aea65",
+      "entity_id": "352a8e277242b6d2cb2915df5e2decca83ef094ab07c091d6168517342dcb001",
+      "split": "held_out",
+      "source_name": "Beast Tamer vs Hero",
+      "source_aliases": [],
+      "native": [
+        1,
+        5
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "9377779",
+        "season": 1,
+        "episode": 5
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "9377779",
+          "season": 1,
+          "episode": 5,
+          "language": "eng",
+          "name": "Beast Tamer VS Hero"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 92,
+      "title_id": "bf6f032ec1e2e1d6eed0c7bb77ac208c84822d501d0b918b385dd5a7ffa52803",
+      "entity_id": "ed20608fa2bcb79839d05f1c82116c940abaa5f9d1b8feca2dd63b274b44b1c6",
+      "split": "development",
+      "source_name": "Episode 16",
+      "source_aliases": [],
+      "native": [
+        1,
+        16
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 93,
+      "title_id": "bf6f032ec1e2e1d6eed0c7bb77ac208c84822d501d0b918b385dd5a7ffa52803",
+      "entity_id": "2dfc47211789c4c3eb20854ab2ac389ec772c7e5b049a10e2df0355d4e6aaa36",
+      "split": "development",
+      "source_name": "Episode 2",
+      "source_aliases": [],
+      "native": [
+        1,
+        2
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 94,
+      "title_id": "bf6f032ec1e2e1d6eed0c7bb77ac208c84822d501d0b918b385dd5a7ffa52803",
+      "entity_id": "8fc3d2d9e09a79685976809dd6cc9e4b6bad0147dfdd8b7292735ac37642b0f1",
+      "split": "development",
+      "source_name": "Episode 12",
+      "source_aliases": [],
+      "native": [
+        1,
+        12
+      ],
+      "label": "generic_name",
+      "expected": null,
+      "canonical_evidence": []
+    },
+    {
+      "provider": "s.to",
+      "case": 95,
+      "title_id": "4d0eb6829730a4da8bd2b49613decf1b2fb8f0737e74f710a272ee60b2d7d2e3",
+      "entity_id": "a259878e448f29ea0f8a7e40b3d05f1eb2c6d6fab66cd2b67123de3309c09071",
+      "split": "held_out",
+      "source_name": "Deep Inside The Sex Factory",
+      "source_aliases": [],
+      "native": [
+        1,
+        2
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "8156765",
+        "season": 1,
+        "episode": 2
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "8156765",
+          "season": 1,
+          "episode": 2,
+          "language": "eng",
+          "name": "Deep Inside The Sex Factory"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 96,
+      "title_id": "4d0eb6829730a4da8bd2b49613decf1b2fb8f0737e74f710a272ee60b2d7d2e3",
+      "entity_id": "d26bbfeb845beaa0f9649bd2416a26e498444a0593f156448b63afafc0e71aec",
+      "split": "held_out",
+      "source_name": "Britain's Busiest Brothels",
+      "source_aliases": [],
+      "native": [
+        1,
+        3
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "8156767",
+        "season": 1,
+        "episode": 3
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "8156767",
+          "season": 1,
+          "episode": 3,
+          "language": "eng",
+          "name": "Britain's Busiest Brothels"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 97,
+      "title_id": "4d0eb6829730a4da8bd2b49613decf1b2fb8f0737e74f710a272ee60b2d7d2e3",
+      "entity_id": "c46ac2513dfef80c5e5a71081ff123ca1642420a61dbba3655cc8330a85cc145",
+      "split": "held_out",
+      "source_name": "Sex On The Streets",
+      "source_aliases": [],
+      "native": [
+        1,
+        1
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "8156762",
+        "season": 1,
+        "episode": 1
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "8156762",
+          "season": 1,
+          "episode": 1,
+          "language": "eng",
+          "name": "Sex On The Streets"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 98,
+      "title_id": "b5e1ae7c03ea79df0455f3b6e1e016943323ea49b481095fbcd24ce4bd8aae2a",
+      "entity_id": "807f7afb41a3de728d37b442c79188398c7c1cefc0ec05895990533cea3099a7",
+      "split": "development",
+      "source_name": "(A Fresh Resolve)",
+      "source_aliases": [],
+      "native": [
+        2,
+        10
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "398766",
+        "season": 2,
+        "episode": 10
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "398766",
+          "season": 2,
+          "episode": 10,
+          "language": "eng",
+          "name": "A Fresh Resolve"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 99,
+      "title_id": "b5e1ae7c03ea79df0455f3b6e1e016943323ea49b481095fbcd24ce4bd8aae2a",
+      "entity_id": "eeed17497543eb040e26db7bd1c588a874a8776127e67116d0a85b7e5fc1587f",
+      "split": "development",
+      "source_name": "(Mother`s Happiness)",
+      "source_aliases": [],
+      "native": [
+        1,
+        19
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "508081",
+        "season": 1,
+        "episode": 19
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "508081",
+          "season": 1,
+          "episode": 19,
+          "language": "eng",
+          "name": "Mother's Happiness"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 100,
+      "title_id": "b5e1ae7c03ea79df0455f3b6e1e016943323ea49b481095fbcd24ce4bd8aae2a",
+      "entity_id": "423615315a2b88efeb65d94af2fe90fc7cb551adb818efbdd81fe6ce64aa49d3",
+      "split": "development",
+      "source_name": "(One More Deciding Match)",
+      "source_aliases": [],
+      "native": [
+        4,
+        23
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "443124",
+        "season": 4,
+        "episode": 23
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "443124",
+          "season": 4,
+          "episode": 23,
+          "language": "eng",
+          "name": "One More Deciding Match"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 101,
+      "title_id": "b858fd528190ee180ac3f0c5839c5e5a6a26997f86c7d8bf1fd27fd3584fe5f0",
+      "entity_id": "618b9f40eac6510d2eecd63e275e39de322768221f13275512589da4ae9105ef",
+      "split": "held_out",
+      "source_name": "Doktor Eisenzahn?",
+      "source_aliases": [],
+      "native": [
+        1,
+        1
+      ],
+      "label": "parent_conflict",
+      "expected": null,
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "2435881",
+          "season": 1,
+          "episode": 1,
+          "language": "deu",
+          "name": "Doktor Eisenzahn"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 102,
+      "title_id": "b858fd528190ee180ac3f0c5839c5e5a6a26997f86c7d8bf1fd27fd3584fe5f0",
+      "entity_id": "f4748a4034aa79580280a02996a6e95b9b6c925b01940112de77081303757902",
+      "split": "held_out",
+      "source_name": "Tinto alias Mr. Cool",
+      "source_aliases": [],
+      "native": [
+        3,
+        7
+      ],
+      "label": "parent_conflict",
+      "expected": null,
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "2436461",
+          "season": 3,
+          "episode": 7,
+          "language": "deu",
+          "name": "Tinto alias Mr. Cool"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 103,
+      "title_id": "b858fd528190ee180ac3f0c5839c5e5a6a26997f86c7d8bf1fd27fd3584fe5f0",
+      "entity_id": "740f12386e28a577e78e3e44c191dcad5fc367772e322cbd4ad2e58bb921eee9",
+      "split": "held_out",
+      "source_name": "Filmblut",
+      "source_aliases": [],
+      "native": [
+        1,
+        11
+      ],
+      "label": "parent_conflict",
+      "expected": null,
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "2435981",
+          "season": 1,
+          "episode": 11,
+          "language": "deu",
+          "name": "Filmblut"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 104,
+      "title_id": "b5d2f7b75d3d91942f8406852d0f3ea4b71b2a3314ae323ccea52ff83eea459f",
+      "entity_id": "b66065bf2a9dc8d03fad051ce949486835376c41b492316e62f55269b5a46365",
+      "split": "development",
+      "source_name": "Three Hundred",
+      "source_aliases": [
+        "Gefangen"
+      ],
+      "native": [
+        12,
+        19
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "228521",
+        "season": 12,
+        "episode": 19
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "228521",
+          "season": 12,
+          "episode": 19,
+          "language": "deu",
+          "name": "Gefangen"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 105,
+      "title_id": "b5d2f7b75d3d91942f8406852d0f3ea4b71b2a3314ae323ccea52ff83eea459f",
+      "entity_id": "7ac1c5455818d54b15374e9229ecf1e16f5695a9dcf65ebedac2e6738b055d3d",
+      "split": "development",
+      "source_name": "After Midnight",
+      "source_aliases": [
+        "Nach Mitternacht"
+      ],
+      "native": [
+        13,
+        17
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "228545",
+        "season": 13,
+        "episode": 17
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "228545",
+          "season": 13,
+          "episode": 17,
+          "language": "deu",
+          "name": "Nach Mitternacht"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 106,
+      "title_id": "b5d2f7b75d3d91942f8406852d0f3ea4b71b2a3314ae323ccea52ff83eea459f",
+      "entity_id": "b8eb7057f088c6022f13842bd54ac3e0e967f84e465d2f42b02d8098887cc9f2",
+      "split": "development",
+      "source_name": "The Red File - Part 2",
+      "source_aliases": [
+        "Der Sturz – Teil 2"
+      ],
+      "native": [
+        2,
+        18
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "228244",
+        "season": 2,
+        "episode": 18
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "228244",
+          "season": 2,
+          "episode": 18,
+          "language": "deu",
+          "name": "Der Sturz - Teil 2"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 107,
+      "title_id": "0bcaa664b325be68ea037198014270f50d9ab5ee7d9243b06e571c1cbdb8d2fc",
+      "entity_id": "d206b1a4cdd743b8c999eae7f939b922938ad91d62f0d55911d9006f2ac40912",
+      "split": "held_out",
+      "source_name": "The Criminal Targeting Kokuri [Episode 143]",
+      "source_aliases": [
+        "Der Täter nimmt Kokuri ins Visier"
+      ],
+      "native": [
+        3,
+        39
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "7516415",
+        "season": 1,
+        "episode": 143
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "7516415",
+          "season": 1,
+          "episode": 143,
+          "language": "deu",
+          "name": "Der Täter nimmt Kokuri ins Visier"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 108,
+      "title_id": "0bcaa664b325be68ea037198014270f50d9ab5ee7d9243b06e571c1cbdb8d2fc",
+      "entity_id": "17c677b916d468364eb4e5dca51d55e564ec481dbe69da52ac13cdc4b26264b8",
+      "split": "held_out",
+      "source_name": "Wasabi and Namida [Episode 49]",
+      "source_aliases": [
+        "Wasabi und Namida"
+      ],
+      "native": [
+        1,
+        49
+      ],
+      "label": "positive",
+      "expected": {
+        "tvdb_episode_id": "6589458",
+        "season": 1,
+        "episode": 49
+      },
+      "canonical_evidence": [
+        {
+          "tvdb_episode_id": "6589458",
+          "season": 1,
+          "episode": 49,
+          "language": "deu",
+          "name": "Wasabi und Namida"
+        }
+      ]
+    },
+    {
+      "provider": "s.to",
+      "case": 109,
+      "title_id": "0bcaa664b325be68ea037198014270f50d9ab5ee7d9243b06e571c1cbdb8d2fc",
+      "entity_id": "35fc5264212e19f7ae3772f26aa301268d7c991fd742ce59e49e981e76bed22b",
+      "split": "held_out",
+      "source_name": "A New Path [Episode 15]",
+      "source_aliases": [
+        "Neue Pfade"
+      ],
+      "native": [
+        1,
+        15
+      ],
+      "label": "insufficient_names",
+      "expected": null,
+      "canonical_evidence": []
+    }
+  ],
+  "initial_label_sha256": "240385551da41f8a1ecea45466bf5f1fb0d8a860a275d0a20d756811ffd73a5e",
+  "chronology": "Title/episode IDs and development/held-out split froze before tuning. Metadata labels were reviewed after initial implementation. The held-out set is regression evidence, not a blind prospectively labelled precision trial.",
+  "review_errata": [
+    {
+      "provider": "aniworld.to",
+      "case": 37,
+      "reason": "Normalized source-name collision discovered in complete source title; literal selected-row uniqueness was insufficient."
+    },
+    {
+      "provider": "aniworld.to",
+      "cases": [
+        30,
+        31,
+        32,
+        33,
+        34
+      ],
+      "reason": "Additional verified TVDB 255925 alias/year parent and eng/deu episode metadata. This development-only evidence arrived after initial labels."
+    }
+  ],
+  "supplementary_ambiguity": {
+    "aniworld.to": [
+      {
+        "title_id": "91fa46ffd2c839cb48a462e803f89ff771bb5c54ca97d24976cf36964393c079",
+        "name": "Haru Nabutame Does Not Shine",
+        "native_season": 1,
+        "entities": [
+          {
+            "entity_id": "7ede42590df0ebe2c768df38d102070033ffb3b9745fd691361668e63576e180",
+            "display_title": "Haru Nabutame Does Not Shine"
+          },
+          {
+            "entity_id": "cb6bbf270a612d238840adaac72ccba6fef5462b1bf8cf3fcf370cb9b7d874e4",
+            "display_title": "Haru Nabutame Does Not Shine"
+          }
+        ]
+      }
+    ],
+    "s.to": [
+      {
+        "title_id": "f412fa357c3f3d56f4d65a2df1e3cafa6e4e2744a998624b04699d20c531b60d",
+        "name": "Die zwei Musketiere",
+        "native_season": 34,
+        "entities": [
+          {
+            "entity_id": "2b119702823b2505efdccb234d646e992d6d88c70ca9decaafe636cff4d86015",
+            "display_title": "Die zwei Musketiere"
+          },
+          {
+            "entity_id": "576b51b5aa098cdb2eb31598bf2e6348048809219282a28d63e7b4e59da8800d",
+            "display_title": "Die zwei Musketiere"
+          }
+        ]
+      },
+      {
+        "title_id": "f412fa357c3f3d56f4d65a2df1e3cafa6e4e2744a998624b04699d20c531b60d",
+        "name": "Fremd unter Fremden",
+        "native_season": 34,
+        "entities": [
+          {
+            "entity_id": "ac8ee6afeda2254ce9add17c517555053aff3f29a1c1dbdf4427890736f87e8d",
+            "display_title": "Fremd unter Fremden"
+          },
+          {
+            "entity_id": "ddce0bb485d35367696494b536e3af85d9463d6df5c20b9125cc8b7fada17336",
+            "display_title": "Fremd unter Fremden"
+          }
+        ]
+      }
+    ]
+  }
+}

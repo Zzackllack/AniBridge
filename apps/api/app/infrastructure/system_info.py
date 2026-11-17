@@ -52,34 +52,41 @@ def _default_route_ip() -> Optional[str]:
         return None
 
 
-def _mask_env_value(key: str, val: str) -> str:
+SECRET_ENV_WORDS = (
+    "password",
+    "passwd",
+    "pwd",
+    "secret",
+    "token",
+    "apikey",
+    "api_key",
+    "key",
+)
+
+
+def _mask_env_value(key: str, val: object) -> object:
+    """Return a startup-report value that never contains a secret fragment.
+
+    The report is diagnostic breadcrumbs, not a credential export. Partial
+    masking used to leave three leading and two trailing characters of every
+    token in the debug log; a short secret could therefore be printed almost
+    verbatim. Redact the complete value instead, and leave non-secret values
+    untouched so operators can still compare ordinary settings.
+    """
     k = (key or "").lower()
-    # Use network mask for proxy URLs if available
+    if any(word in k for word in SECRET_ENV_WORDS):
+        return "[redacted]" if val else val
+    # Use network mask for proxy URLs if available. Values from os.environ are
+    # strings, but tests and future callers may pass other objects.
     try:
-        if any(k.endswith(s) for s in ("_url",)) or "proxy" in k:
+        if isinstance(val, str) and (
+            any(k.endswith(s) for s in ("_url",)) or "proxy" in k
+        ):
             from app.infrastructure.network import _mask  # type: ignore
 
             return _mask(val)
     except Exception:
         pass
-    # Generic secret patterns
-    secret_words = (
-        "password",
-        "passwd",
-        "pwd",
-        "secret",
-        "token",
-        "apikey",
-        "api_key",
-        "key",
-    )
-    if any(sw in k for sw in secret_words):
-        if not val:
-            return val
-        # Mask all but first 3 and last 2 chars
-        if len(val) <= 6:
-            return "****"
-        return val[:3] + "****" + val[-2:]
     return val
 
 

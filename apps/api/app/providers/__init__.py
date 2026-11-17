@@ -25,6 +25,10 @@ def get_provider(key: str) -> Optional[CatalogProvider]:
     Returns:
         CatalogProvider | None: Provider instance or None when missing.
     """
+    if key == "filmo.to":
+        raise RuntimeError(
+            "Filmo requires catalog query mode; legacy scraping is unsupported"
+        )
     factory = _PROVIDER_FACTORIES.get(key)
     return factory() if factory else None
 
@@ -35,6 +39,10 @@ def list_providers() -> list[CatalogProvider]:
     Returns:
         list[CatalogProvider]: Instantiated providers for active sites.
     """
+    if "filmo.to" in CATALOG_SITES_LIST:
+        raise RuntimeError(
+            "Filmo requires catalog query mode; legacy scraping is unsupported"
+        )
     return [
         _PROVIDER_FACTORIES[site]()
         for site in CATALOG_SITES_LIST

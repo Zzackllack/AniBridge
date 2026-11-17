@@ -1,0 +1,8 @@
+# A fresh project only. Changes test inputs; uses the production local resolver.
+services:
+  init:
+    command: [/config, --provider, s.to]
+  api:
+    environment:
+      CATALOG_SITES: s.to
+      STO_BASE_URL: https://fixture.invalid

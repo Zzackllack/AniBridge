@@ -1,0 +1,344 @@
+"""Test-only closed Filmo/Byse inputs for the disposable acceptance overlay.
+
+This module is intentionally installed only by the acceptance overlay. It
+patches the outbound transport boundary; production resolution, jobs, transfer,
+progress, and client behavior continue to run normally.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import re
+import sys
+import time
+from collections.abc import Iterator
+from pathlib import Path
+from urllib.parse import urlsplit
+
+import httpx
+from app.core.downloader import provider_policy
+
+# httpx's INFO request records include full URLs. This test-only hook records
+# only its finite input class below, so keep those lower-level records quiet.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import filmo_fixture  # noqa: E402
+
+MEDIA = Path("/generated/generated.mp4")
+HLS_ROOT = Path("/generated/hls")
+ADDRESS = "192.0.2.77"  # The transport below handles this reserved address.
+# The generated input takes about 98 seconds, spanning Radarr's minute poll.
+CHUNK_DELAY_S = 0.25
+HLS_VIDEO_TRANSFER_SECONDS = 90
+EVENTS = Path("/data/filmo-acceptance-http-events.jsonl")
+VARIANT_CHOICES: list[str] = []  # Test assertion only; never written to logs.
+CAPTION_CHOICES: list[str] = []  # Test assertion only; never written to logs.
+
+ROUTES = {
+    ("fixture.invalid", "GET", "/movies"): "listing",
+    ("fixture.invalid", "GET", filmo_fixture.MOVIE_PATH): "detail",
+    ("fixture.invalid", "POST", "/n"): "mint",
+    ("fixture.invalid", "GET", "/n/fixture-wrapper-primary"): "wrapper_primary",
+    ("fixture.invalid", "GET", "/n/fixture-wrapper-alternate"): "wrapper_alternate",
+    ("bysefixture.test", "GET", "/d/Abc123"): "byse_embed_primary",
+    ("bysefixture.test", "GET", "/d/Def456"): "byse_embed_alternate",
+    ("bysefixture.test", "GET", "/api/videos/Abc123"): "byse_api",
+    ("bysefixture.test", "GET", "/api/videos/Def456"): "byse_api",
+    ("media.fixture.invalid", "GET", "/generated.mp4"): "media",
+    (
+        "media.fixture.invalid",
+        "GET",
+        "/captions/generated-german.vtt",
+    ): "caption",
+}
+URLS = {
+    f"https://{host}{path}": stage for (host, _method, path), stage in ROUTES.items()
+}
+HLS_PLAYLISTS = {
+    "/hls/master.m3u8": "hls_master",
+    "/hls/stream_0.m3u8": "hls_english_audio_playlist",
+    "/hls/stream_1.m3u8": "hls_german_audio_playlist",
+    "/hls/stream_2.m3u8": "hls_video_playlist",
+}
+HLS_SEGMENT_RE = re.compile(r"/hls/segment_([012])_([0-9]{4})\.ts\Z")
+HLS_SEGMENT_STAGES = {
+    "hls_english_audio_segment",
+    "hls_german_audio_segment",
+    "hls_video_segment",
+}
+INTERNAL_SERVICES = {"api": 8000, "catalog": 8080, "radarr": 7878, "prowlarr": 9696}
+real_client = httpx.Client
+
+
+def media_url() -> str:
+    """Use generated HLS only in the explicit HLS acceptance overlay."""
+    if (HLS_ROOT / "master.m3u8").is_file():
+        return "https://media.fixture.invalid/hls/master.m3u8"
+    return filmo_fixture.MEDIA_URL
+
+
+def hls_route(path: str) -> tuple[str, Path] | None:
+    if not (HLS_ROOT / "master.m3u8").is_file():
+        return None
+    if path in HLS_PLAYLISTS:
+        target = HLS_ROOT / Path(path).name
+        return (HLS_PLAYLISTS[path], target) if target.is_file() else None
+    match = HLS_SEGMENT_RE.fullmatch(path)
+    if match is None:
+        return None
+    target = HLS_ROOT / Path(path).name
+    if not target.is_file() or target.parent != HLS_ROOT:
+        return None
+    stage = {
+        "0": "hls_english_audio_segment",
+        "1": "hls_german_audio_segment",
+        "2": "hls_video_segment",
+    }[match[1]]
+    return stage, target
+
+
+def validate(url: str, **kwargs: object) -> tuple[str, int, str]:
+    parsed = urlsplit(url)
+    hls_url = (
+        parsed.scheme == "https"
+        and parsed.hostname == "media.fixture.invalid"
+        and not parsed.query
+        and not parsed.fragment
+        and url == f"https://media.fixture.invalid{parsed.path}"
+        and hls_route(parsed.path) is not None
+    )
+    if url in URLS or hls_url:
+        if not MEDIA.is_file():
+            raise ValueError("generated Filmo media is missing")
+        return parsed.hostname or "", 443, ADDRESS
+    raise ValueError("outside the fixed generated Filmo inputs")
+
+
+def event(stage: str, method: str = "GET") -> None:
+    """Record only a closed route class; never write URLs, tokens, or query data."""
+    allowed = set(ROUTES.values()) | set(HLS_PLAYLISTS.values()) | HLS_SEGMENT_STAGES
+    if stage not in allowed:
+        raise ValueError("undeclared generated event")
+    try:
+        with EVENTS.open("a") as stream:
+            stream.write(
+                json.dumps(
+                    {
+                        "pid": os.getpid(),
+                        "process": Path(sys.argv[0]).name,
+                        "input": stage,
+                        "method": method,
+                    }
+                )
+                + "\n"
+            )
+    except OSError:
+        # Some offline unit tests intentionally use an unmounted /data path.
+        pass
+
+
+class Body(httpx.SyncByteStream):
+    def __init__(
+        self,
+        path: Path,
+        *,
+        start: int = 0,
+        length: int | None = None,
+        delay: float = CHUNK_DELAY_S,
+    ) -> None:
+        self.path, self.start, self.length, self.delay = path, start, length, delay
+
+    def __iter__(self) -> Iterator[bytes]:
+        with self.path.open("rb") as stream:
+            stream.seek(self.start)
+            remaining = self.length
+            while remaining is None or remaining > 0:
+                block = stream.read(
+                    65536 if remaining is None else min(65536, remaining)
+                )
+                if not block:
+                    break
+                if self.delay:
+                    time.sleep(self.delay)
+                if remaining is not None:
+                    remaining -= len(block)
+                yield block
+
+
+class Transport(httpx.BaseTransport):
+    def __init__(self, fallback: httpx.BaseTransport) -> None:
+        self.fallback = fallback
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        if request.url.host != ADDRESS:
+            if (
+                request.url.scheme != "http"
+                or INTERNAL_SERVICES.get(request.url.host) != request.url.port
+            ):
+                raise ValueError("outside the disposable acceptance services")
+            return self.fallback.handle_request(request)
+        host = request.headers.get("Host", "").split(":", 1)[0].casefold()
+        route = ROUTES.get((host, request.method, request.url.path))
+        hls = hls_route(request.url.path) if host == "media.fixture.invalid" else None
+        path = None
+        if route is None and hls is not None and request.method in {"GET", "HEAD"}:
+            route, path = hls
+        elif route == "media":
+            path = MEDIA
+        if route is None or request.url.query:
+            raise ValueError("undeclared generated Filmo request")
+        event(route, request.method)
+        if route == "listing":
+            return httpx.Response(
+                200,
+                stream=httpx.ByteStream(filmo_fixture.LISTING_HTML.encode()),
+            )
+        if route == "detail":
+            return httpx.Response(
+                200,
+                headers={
+                    "Set-Cookie": "session=fixture-session; Path=/; Secure; SameSite=Lax"
+                },
+                stream=httpx.ByteStream(filmo_fixture.DETAIL_HTML.encode()),
+            )
+        if route == "mint":
+            if (
+                request.headers.get("X-CSRF-TOKEN") != "fixture-csrf-v1"
+                or request.headers.get("X-Requested-With") != "XMLHttpRequest"
+                or "session=fixture-session" not in request.headers.get("Cookie", "")
+            ):
+                return httpx.Response(419, stream=httpx.ByteStream(b"{}"))
+            try:
+                payload = json.loads(request.content)
+            except UnicodeDecodeError, json.JSONDecodeError:
+                return httpx.Response(400, stream=httpx.ByteStream(b"{}"))
+            token = payload.get("p") if isinstance(payload, dict) else None
+            wrappers = {
+                "fixture-p-primary": ("primary", "fixture-wrapper-primary"),
+                "fixture-p-alternate": ("alternate", "fixture-wrapper-alternate"),
+            }
+            selected = wrappers.get(token)
+            if selected is None:
+                return httpx.Response(404, stream=httpx.ByteStream(b"{}"))
+            VARIANT_CHOICES.append(selected[0])
+            return httpx.Response(
+                200,
+                headers={"Content-Type": "application/json"},
+                stream=httpx.ByteStream(json.dumps({"x": selected[1]}).encode()),
+            )
+        if route in {"wrapper_primary", "wrapper_alternate"}:
+            embed = (
+                filmo_fixture.PRIMARY_EMBED
+                if route == "wrapper_primary"
+                else filmo_fixture.ALTERNATE_EMBED
+            )
+            body = f'<html><body><a href="{embed}">Continue</a></body></html>'
+            return httpx.Response(200, stream=httpx.ByteStream(body.encode()))
+        if route.startswith("byse_embed_"):
+            # Deliberately no source URL: production must use its Byse decoder.
+            return httpx.Response(
+                200,
+                stream=httpx.ByteStream(b"<html><body>Generated embed</body></html>"),
+            )
+        if route == "byse_api":
+            return httpx.Response(
+                200,
+                headers={"Content-Type": "application/json"},
+                stream=httpx.ByteStream(filmo_fixture.byse_response(media_url())),
+            )
+        if route == "caption":
+            CAPTION_CHOICES.append("german-vtt")
+            return httpx.Response(
+                200,
+                headers={
+                    "Content-Length": str(len(filmo_fixture.CAPTION_VTT)),
+                    "Content-Type": "text/vtt; charset=utf-8",
+                },
+                stream=httpx.ByteStream(filmo_fixture.CAPTION_VTT),
+            )
+
+        if route.startswith("hls_"):
+            assert path is not None
+            size = path.stat().st_size
+            content_type = (
+                "application/vnd.apple.mpegurl"
+                if path.suffix == ".m3u8"
+                else "video/mp2t"
+            )
+            headers = {"Content-Length": str(size), "Content-Type": content_type}
+            delay = CHUNK_DELAY_S
+            if route == "hls_video_segment":
+                if HLS_VIDEO_TRANSFER_SECONDS <= 0:
+                    delay = 0
+                else:
+                    video_bytes = sum(
+                        segment.stat().st_size
+                        for segment in HLS_ROOT.glob("segment_2_*.ts")
+                    )
+                    chunk_count = max(1, (video_bytes + 65535) // 65536)
+                    delay = min(
+                        8.0,
+                        max(0.25, HLS_VIDEO_TRANSFER_SECONDS / chunk_count),
+                    )
+            if request.method == "HEAD":
+                return httpx.Response(200, headers=headers)
+            range_header = request.headers.get("Range")
+            if range_header:
+                match = re.fullmatch(r"bytes=0-([0-9]{0,8})", range_header)
+                if match is None:
+                    raise ValueError("unsupported generated HLS range")
+                end = min(int(match[1]) if match[1] else size - 1, size - 1)
+                length = end + 1
+                return httpx.Response(
+                    206,
+                    headers={
+                        **headers,
+                        "Content-Length": str(length),
+                        "Content-Range": f"bytes 0-{end}/{size}",
+                    },
+                    stream=Body(path, length=length, delay=delay),
+                )
+            return httpx.Response(200, headers=headers, stream=Body(path, delay=delay))
+
+        range_header = request.headers.get("Range")
+        if range_header:
+            match = re.fullmatch(r"bytes=0-([0-9]{0,8})", range_header)
+            if match is None:
+                raise ValueError("unsupported generated media range")
+            size = MEDIA.stat().st_size
+            end = min(int(match[1]) if match[1] else size - 1, size - 1)
+            length = end + 1
+            return httpx.Response(
+                206,
+                headers={
+                    "Content-Length": str(length),
+                    "Content-Range": f"bytes 0-{end}/{size}",
+                    "Content-Type": "video/mp4",
+                },
+                stream=Body(MEDIA, length=length),
+            )
+        return httpx.Response(
+            200,
+            headers={
+                "Content-Length": str(MEDIA.stat().st_size),
+                "Content-Type": "video/mp4",
+            },
+            stream=Body(MEDIA),
+        )
+
+    def close(self) -> None:
+        self.fallback.close()
+
+
+class Client(real_client):
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        if "transport" not in kwargs:
+            kwargs["transport"] = Transport(httpx.HTTPTransport(trust_env=False))
+        super().__init__(*args, **kwargs)
+
+
+provider_policy._validate_request_url = validate
+httpx.Client = Client
