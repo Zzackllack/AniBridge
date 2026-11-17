@@ -1,6 +1,9 @@
 """Query mode must still serve the user's pre-existing download history."""
 
+import os
 import sqlite3
+import time
+from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
@@ -93,6 +96,37 @@ def test_filters_include_only_matching_retained_history(
         assert jobs.filename.read_bytes() == before
     finally:
         engine.dispose()
+
+
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="POSIX timezone support")
+def test_naive_legacy_datetimes_keep_utc_epochs_on_a_local_timezone_host():
+    from app.api.qbittorrent.projection import epoch_seconds, torrent_info_record
+
+    previous = os.environ.get("TZ")
+    try:
+        os.environ["TZ"] = "Europe/Berlin"
+        time.tzset()
+        naive = datetime(2026, 10, 1, 12, 0, 0)
+        assert epoch_seconds(naive) == 1790856000
+        record = torrent_info_record(
+            SimpleNamespace(
+                hash="a" * 40,
+                name="Legacy",
+                category="",
+                save_path=None,
+                added_on=naive,
+                completion_on=None,
+                state="queued",
+            ),
+            None,
+        )
+        assert record["added_on"] == record["completion_on"] == 1790856000
+    finally:
+        if previous is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = previous
+        time.tzset()
 
 
 @pytest.mark.parametrize("endpoint", ["torrents/info", "sync/maindata"])

@@ -198,7 +198,16 @@ class SubprocessExecutor:
                     os.killpg(process.pid, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
-                await asyncio.wait_for(asyncio.shield(process.wait()), 2)
+                try:
+                    # Bounded reap. A child stuck in uninterruptible sleep can
+                    # outlive SIGKILL; that cleanup delay must not replace the
+                    # original transfer/callback failure.
+                    await asyncio.wait_for(asyncio.shield(process.wait()), 2)
+                except TimeoutError:
+                    logger.warning(
+                        "catalog child did not exit after SIGKILL; cleanup bounded job_id=%s",
+                        job_id,
+                    )
             await asyncio.gather(errors, output, return_exceptions=True)
             if timeout_reason and diagnostic:
                 _write_failure_diagnostic(

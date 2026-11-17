@@ -11,7 +11,6 @@ from catalog_core.identity import validate_external_id
 from catalog_core.json_codec import dumps, fields, integer, require
 
 from .management_auth import ManagementError
-from .management_schema import bump
 from .storage import writable
 
 
@@ -356,7 +355,6 @@ class Overrides:
                     reconcile(
                         db, current[0] if current else None, previous["provider"], now
                     )
-                    bump(db)
                     return None
                 try:
                     fields(body, set(), {"target", "reason", "enabled"})
@@ -456,7 +454,6 @@ class Overrides:
                     ),
                 )
             reconcile(db, catalog[0] if catalog else None, body["provider"], now)
-            bump(db)
             row = db.execute(
                 "SELECT * FROM catalog_override WHERE id=?", (override_id,)
             ).fetchone()

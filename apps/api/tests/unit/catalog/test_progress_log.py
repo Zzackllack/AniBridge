@@ -87,24 +87,43 @@ def test_concurrent_jobs_keep_separate_progress(messages, monkeypatch):
 def test_forced_bar_retains_step_logs_and_updates_estimated_total(
     messages, monkeypatch
 ):
-    import io
-    import sys
+    import tqdm
 
-    monkeypatch.setattr(sys, "__stdout__", io.StringIO())
-    monkeypatch.setattr(terminal_module, "PROGRESS_FORCE_BAR", True)
+    class FakeBar:
+        instances = []
+
+        def __init__(self, **kwargs):
+            self.total = kwargs["total"]
+            self.n = 0
+            self.closed = False
+            self.instances.append(self)
+
+        def refresh(self):
+            pass
+
+        def set_postfix(self, values):
+            pass
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setattr(tqdm, "tqdm", FakeBar)
+    monkeypatch.setattr(terminal_module, "is_interactive_terminal", lambda: True)
     log = JobProgressLog()
     job_id = "e" * 32
     log.start(job_id)
-    # No step-log line exists until an actual byte update, and the forced TTY
-    # path is chosen exactly as the legacy scheduler chose it.
-    assert log._jobs[job_id]._interactive is True
+    # No step-log line exists until an actual byte update. The renderer is the
+    # observable boundary here, instead of reaching into JobProgressLog.
+    assert not _steps(messages)
     log.update(job_id, {"downloaded_bytes": 25, "total_bytes": 100})
     log.update(job_id, {"downloaded_bytes": 50, "total_bytes": 200})
-    bar = log._jobs[job_id]._bar
+    assert len(FakeBar.instances) == 1
+    bar = FakeBar.instances[0]
     assert bar.total == 200 and bar.n == 50
     assert any("25%" in line for line in _steps(messages))
     log.finish(job_id)
-    assert bar.n == 50  # Failed/cancelled output is never filled to completion.
+    # Failed/cancelled output is never filled to completion.
+    assert bar.closed and bar.n == 50
 
 
 def test_invalid_progress_fields_do_not_break_the_display(messages, monkeypatch):

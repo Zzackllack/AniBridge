@@ -34,6 +34,11 @@ class ProviderSearch:
         self.active += 1
         try:
             parsed = query.parse(params)
+            # Each provider is asked for its own top ``offset+limit`` rows. A
+            # provider therefore never receives a cross-provider offset, and
+            # the merged list is sliced exactly once below. This is the RSS
+            # page contract: no provider page can be treated as already sliced,
+            # and a page after a provider outage still starts at this offset.
             window = parsed.offset + parsed.limit
             rows, total, headers, failed = [], 0, {}, []
             successful = 0

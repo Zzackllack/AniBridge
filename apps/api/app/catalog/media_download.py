@@ -238,11 +238,10 @@ def transfer(
             for number, item in enumerate(selected):
                 if item.get("protocol") is None:
                     item["protocol"] = "https"
-                allowed_protocols = (
-                    ("https", "m3u8_native")
-                    if selection is None
-                    else ("https", "http", "m3u8_native")
-                )
+                # VerifiedRH rejects every non-HTTPS scheme, including the
+                # loopback HTTP exception. Accepting "http" here would only
+                # fail later in the transport; keep the allowance truthful.
+                allowed_protocols = ("https", "m3u8_native")
                 if item.get("protocol") not in allowed_protocols:
                     raise ResolutionError("extraction_error")
                 kind = selected_kinds[number]
@@ -504,7 +503,6 @@ def _select_filmo_hls(
                 protocol = caption.get("protocol", "https")
                 if ext not in ("srt", "vtt") or protocol not in (
                     "https",
-                    "http",
                     "m3u8_native",
                 ):
                     captions_valid = False

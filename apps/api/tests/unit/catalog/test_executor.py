@@ -68,6 +68,49 @@ def test_absolute_deadline_overrides_continuous_activity_growth(tmp_path):
     assert activity.stat().st_size > 1
 
 
+def test_bounded_cleanup_timeout_does_not_mask_the_original_fault(
+    tmp_path, monkeypatch
+):
+    import inspect
+    import json
+
+    import app.catalog.executor as executor_module
+
+    class Proxy:
+        def __getattr__(self, name):
+            return getattr(asyncio, name)
+
+        async def wait_for(self, awaitable, timeout):
+            if timeout == 2:
+                if inspect.iscoroutine(awaitable):
+                    awaitable.close()
+                raise TimeoutError("synthetic unreapable child")
+            return await asyncio.wait_for(awaitable, timeout)
+
+    monkeypatch.setattr(executor_module, "asyncio", Proxy())
+    executor = SubprocessExecutor({}, (), tmp_path)
+    status = tmp_path / "status.json"
+    status.write_text(
+        json.dumps({"phase": "downloading", "progress": {"downloaded_bytes": 1}})
+    )
+
+    def progress(update):
+        raise RuntimeError("synthetic progress callback fault")
+
+    async def scenario():
+        with pytest.raises(RuntimeError, match="synthetic progress callback fault"):
+            await executor._run(
+                "timeit",
+                ["-n", "1", "-r", "1", "import time; time.sleep(60)"],
+                status=status,
+                progress=progress,
+            )
+        # Let the real child watcher reap the SIGKILLed process.
+        await asyncio.sleep(0.1)
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux child enforcement")
 def test_execution_rechecks_save_path_after_admission(tmp_path):
     download = tmp_path / "downloads"

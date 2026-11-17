@@ -23,12 +23,12 @@ COPY packages/catalog-core /build/packages/catalog-core
 RUN uv build --wheel /build/packages/catalog-core --out-dir /wheels
 COPY apps/api/pyproject.toml ./pyproject.toml
 COPY apps/api/uv.lock ./uv.lock
-RUN uv sync --frozen --no-install-project --no-install-package anibridge-catalog-core
+RUN uv sync --frozen --no-dev --no-install-project --no-install-package anibridge-catalog-core
 COPY apps/api/app/ ./app/
 COPY VERSION ./
 COPY apps/api/alembic.ini ./alembic.ini
 COPY apps/api/README.md apps/api/LICENSE ./
-RUN uv sync --frozen --no-editable --no-install-package anibridge-catalog-core \
+RUN uv sync --frozen --no-dev --no-editable --no-install-package anibridge-catalog-core \
     && uv pip install --python /app/.venv/bin/python --no-deps /wheels/anibridge_catalog_core-*.whl \
     && sha256sum /wheels/*.whl > /app/catalog-core-wheel.sha256
 

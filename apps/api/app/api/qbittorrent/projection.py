@@ -1,11 +1,25 @@
 """Shared projection of untouched legacy jobs in both qBittorrent modes."""
 
 import os
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from app.config import DOWNLOAD_DIR, QBIT_PUBLIC_SAVE_PATH
 from app.catalog.output_state import missing_output, published_output
 from app.db import ClientTask, Job
+
+
+def epoch_seconds(value: datetime) -> int:
+    """Treat SQLite's naive datetimes as UTC, matching durable job timestamps.
+
+    Calling ``datetime.timestamp()`` on a naive row uses the server's local
+    timezone. Containers usually run UTC, but a host-local deployment would
+    then report different epochs for the same stored value in legacy and
+    durable views.
+    """
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return int(value.timestamp())
 
 
 def matches_filter(row: dict, value: str | None) -> bool:
@@ -79,8 +93,8 @@ def torrent_info_record(
         "category": r.category or "",
         "save_path": save_path_val,
         "content_path": content_path or "",
-        "added_on": int(r.added_on.timestamp()),
-        "completion_on": int((r.completion_on or r.added_on).timestamp()),
+        "added_on": epoch_seconds(r.added_on),
+        "completion_on": epoch_seconds(r.completion_on or r.added_on),
         "size": int(size or 0),
         "num_seeds": 0,
         "num_leechs": 0,

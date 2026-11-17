@@ -8,7 +8,6 @@ from catalog_core import identity
 from catalog_core.json_codec import dumps, fields, integer, require
 from catalog_core.providers.adapters import adapter
 
-from .management_schema import bump
 from .storage import writable
 
 TITLE_FIELDS = {
@@ -36,8 +35,22 @@ ENTITY_FIELDS = {
 }
 
 
+def validated_provider(provider: str) -> str:
+    """Constrain SQL-interpolated provider names to the closed protocol enum.
+
+    Identifier/source text from clients is always bound as a parameter. This
+    guard is for the handful of fixed internal templates where the provider is
+    a table/cache-name fragment; it fails closed instead of escaping.
+    """
+    if type(provider) is not str or provider not in identity.PROVIDERS:
+        raise ValueError("unknown provider")
+    return provider
+
+
 def cache_kind(kind: str, provider: str) -> str:
-    return "refresh_" + kind + ":" + provider
+    if kind not in ("title", "entity", "seen"):
+        raise ValueError("unknown refresh kind")
+    return "refresh_" + kind + ":" + validated_provider(provider)
 
 
 def cached(db: sqlite3.Connection, kind: str, key: str, now: int) -> dict | None:
@@ -276,6 +289,4 @@ def save(store, db, provider: str, title: dict, data: dict, now: int) -> bool:
                     }
                 )
             put(db, kind, entity["entity_id"], {**entity, "releases": releases}, now)
-        if changed:
-            bump(db)
         return changed

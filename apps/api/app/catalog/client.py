@@ -12,6 +12,12 @@ from uuid import uuid4
 from .jobs import JobError, Jobs
 from .output_paths import output_paths
 
+# One bounded read page. Callers iterate to completion; they never materialize
+# download history in a single query.
+ALIAS_BATCH_SIZE = 100
+JOB_BATCH_SIZE = 100
+TASK_BATCH_SIZE = 100
+
 
 def epoch(value: str | None) -> int:
     if not value:
@@ -58,7 +64,7 @@ class ClientJobs:
                 batch = [
                     dict(row)
                     for row in db.execute(
-                        f"SELECT c.* FROM clienttask c WHERE {where} ORDER BY c.hash LIMIT 100",
+                        f"SELECT c.* FROM clienttask c WHERE {where} ORDER BY c.hash LIMIT {ALIAS_BATCH_SIZE}",
                         params,
                     )
                 ]
@@ -125,7 +131,7 @@ class ClientJobs:
                     for row in db.execute(
                         "SELECT d.job_id FROM durable_request d WHERE d.job_id>? "
                         f"AND EXISTS (SELECT 1 FROM clienttask c WHERE {where}) "
-                        "ORDER BY d.job_id LIMIT 100",
+                        f"ORDER BY d.job_id LIMIT {JOB_BATCH_SIZE}",
                         params,
                     )
                 ]
@@ -256,7 +262,7 @@ class ClientJobs:
             tasks = [
                 dict(row)
                 for row in db.execute(
-                    "SELECT * FROM catalog_task WHERE type='remove_aliases' AND state='queued' ORDER BY created_at LIMIT 100"
+                    f"SELECT * FROM catalog_task WHERE type='remove_aliases' AND state='queued' ORDER BY created_at LIMIT {TASK_BATCH_SIZE}"
                 )
             ]
         for task in tasks:

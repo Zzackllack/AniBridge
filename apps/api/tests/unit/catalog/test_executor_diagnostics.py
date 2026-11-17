@@ -101,21 +101,23 @@ def test_output_overflow_writes_bounded_failure_diagnostic(tmp_path, channel):
                 "1",
                 "-r",
                 "1",
-                f"import sys; sys.{channel}.write('x' * 70000)",
+                # Stay alive after overflowing so the supervisor's SIGKILL is
+                # the only possible exit. Previously the child could exit 0
+                # between the write and the read-side limit.
+                f"import sys,time; sys.{channel}.write('x' * 70000); "
+                f"sys.{channel}.flush(); time.sleep(60)",
             ],
             deadline=5,
             diagnostic=diagnostic,
         )
     )
 
-    assert code != 0
+    assert code == -9
     record = _diagnostic(diagnostic)
-    assert {
-        key: value for key, value in record.items() if key != "child_exit_code"
-    } == {
+    assert record == {
         "outcome": "extraction_error",
         "failed_stage": "timeit",
         "error_class": "output_limit",
+        "child_exit_code": -9,
         "reason": "diagnostic_limit",
     }
-    assert record["child_exit_code"] in (-9, 0)

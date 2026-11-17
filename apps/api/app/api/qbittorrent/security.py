@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import secrets
 import time
-from collections import deque
+from collections import OrderedDict, deque
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI
@@ -17,6 +18,17 @@ from starlette.responses import PlainTextResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .login_body import bounded_receive
+
+# Keep the released single-client budget. The additional global ceiling bounds
+# distributed guessing without allowing one peer address to exhaust every
+# other peer's admission. Both windows slide over one minute. This is per
+# connection peer, not per X-Forwarded-For identity: behind a reverse proxy
+# every client shares the proxy's budget unless the ASGI server itself rewrites
+# scope["client"] from a trusted proxy list.
+LOGIN_WINDOW_S = 60
+LOGIN_PER_CLIENT = 60
+LOGIN_GLOBAL = 600
+LOGIN_CLIENTS = 1024
 
 
 class QbitAuth:
@@ -55,17 +67,57 @@ class QbitAuth:
             if configured
             else ""
         )
-        self.attempts: deque[float] = deque(maxlen=60)
+        # Buckets are keyed by a process-local digest, never by a logged or
+        # persistently stored address. LRU eviction bounds memory when clients
+        # rotate addresses; the independent global window still caps abuse.
+        self._client_salt = secrets.token_bytes(16)
+        self.clients: OrderedDict[bytes, deque[float]] = OrderedDict()
+        self.global_attempts: deque[float] = deque(maxlen=LOGIN_GLOBAL)
 
-    def admit_login(self) -> int:
+    def _client_key(self, client: str | None) -> bytes:
+        return hashlib.blake2s(
+            (client or "").encode("utf-8", errors="surrogatepass"),
+            key=self._client_salt,
+            digest_size=16,
+        ).digest()
+
+    @staticmethod
+    def _retry_after(attempts: deque[float], now: float) -> int:
+        return max(1, int(attempts[0] + LOGIN_WINDOW_S - now) + 1)
+
+    def _bucket(self, key: bytes, now: float) -> deque[float]:
+        bucket = self.clients.get(key)
+        if bucket is None:
+            bucket = deque(maxlen=LOGIN_PER_CLIENT)
+            self.clients[key] = bucket
+        else:
+            self.clients.move_to_end(key)
+        while bucket and bucket[0] <= now - LOGIN_WINDOW_S:
+            bucket.popleft()
+        return bucket
+
+    def admit_login(self, client: str | None = None) -> int:
         now = time.monotonic()
-        while self.attempts and self.attempts[0] <= now - 60:
-            self.attempts.popleft()
-        if len(self.attempts) == 60:
-            return max(1, int(self.attempts[0] + 60 - now) + 1)
+        while self.global_attempts and self.global_attempts[0] <= now - LOGIN_WINDOW_S:
+            self.global_attempts.popleft()
+        if len(self.global_attempts) >= LOGIN_GLOBAL:
+            return self._retry_after(self.global_attempts, now)
+
+        key = self._client_key(client)
+        bucket = self._bucket(key, now)
+        if len(bucket) >= LOGIN_PER_CLIENT:
+            # Per-peer fairness: only this connection address is limited, and
+            # it cannot consume the shared ceiling. Forwarded headers are not
+            # trusted here, so clients that all arrive through one proxy peer
+            # intentionally share that peer's 60/min budget.
+            return self._retry_after(bucket, now)
+
         # Reserve on the event loop, before reading forms or dispatching a sync
         # handler. Concurrent bad logins cannot all pass a post-failure counter.
-        self.attempts.append(now)
+        bucket.append(now)
+        self.global_attempts.append(now)
+        while len(self.clients) > LOGIN_CLIENTS:
+            self.clients.popitem(last=False)
         return 0
 
     def credentials_match(self, username: str, password: str) -> bool:
@@ -112,7 +164,11 @@ class QbitAuthMiddleware:
             response = PlainTextResponse(
                 "Forbidden", status_code=403, headers={"Cache-Control": "no-store"}
             )
-        elif login and (delay := self.auth.admit_login()):
+        elif login and (
+            delay := self.auth.admit_login(
+                connection.client.host if connection.client else None
+            )
+        ):
             response = PlainTextResponse(
                 "Too many login attempts",
                 status_code=429,

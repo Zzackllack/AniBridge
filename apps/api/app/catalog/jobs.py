@@ -673,6 +673,15 @@ class Jobs:
                 )
 
     def recover(self, now: int, startup: bool = False) -> None:
+        """Return interrupted attempts to the retry path without deleting rows.
+
+        ``startup=False`` is the periodic/expired-lease form: only attempts whose
+        lease expired at ``now`` are consumed. ``startup=True`` is the boot and
+        shutdown form that also consumes every in-flight attempt, because no
+        previous process can still own them. Both forms rewrite the job ledger
+        and preserve the request, aliases and retained output; they are not
+        destructive cleanup.
+        """
         # Release each reader before CAS recovery writes. Keyset batches keep
         # both Python retention and write transactions independent of history.
         after = ""

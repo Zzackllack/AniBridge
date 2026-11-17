@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_caps_xml_parses(stub_aniworld_parser):
     import xml.etree.ElementTree as ET
 
@@ -12,6 +15,28 @@ def test_caps_xml_parses(stub_aniworld_parser):
     supported = tvsearch.get("supportedParams") or ""
     for expected in ("tvdbid", "tmdbid", "imdbid", "rid", "tvmazeid"):
         assert expected in supported
+
+
+def test_torznab_apikey_compare_is_unicode_safe_and_constant_time(monkeypatch):
+    from fastapi import HTTPException
+
+    from app.api.torznab import utils as torznab_utils
+
+    monkeypatch.setattr(torznab_utils, "INDEXER_API_KEY", "schöne-key")
+    torznab_utils._require_apikey("schöne-key")
+    for supplied in ("schöne-keyx", "日本語", "", None):
+        with pytest.raises(HTTPException) as error:
+            torznab_utils._require_apikey(supplied)
+        assert error.value.status_code == 401
+    calls = []
+    monkeypatch.setattr(
+        torznab_utils.hmac,
+        "compare_digest",
+        lambda left, right: calls.append((left, right)) or False,
+    )
+    with pytest.raises(HTTPException):
+        torznab_utils._require_apikey("schöne-key")
+    assert calls == [("schöne-key".encode(), "schöne-key".encode())]
 
 
 def test_slug_from_query_basic(stub_aniworld_parser, monkeypatch):

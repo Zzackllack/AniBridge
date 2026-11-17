@@ -139,6 +139,64 @@ def test_provider_discovery_movie_identity_and_independent_outage(tmp_path):
     asyncio.run(run())
 
 
+def test_paged_merge_requests_the_full_window_from_every_provider():
+
+    class FakeSearch:
+        def __init__(self, provider, rows, total):
+            self.provider, self.rows, self.total = provider, rows, total
+            self.windows = []
+
+        async def search(self, params, *, _window, **options):
+            self.windows.append(_window)
+            return list(self.rows), self.total, {}
+
+    def row(provider, release, seen):
+        return {
+            "provider": provider,
+            "release_id": release,
+            "first_seen_at": seen,
+            "mode": "download",
+        }
+
+    first = FakeSearch(
+        "aniworld.to",
+        [
+            row("aniworld.to", "a2", 100),
+            row("aniworld.to", "a1", 99),
+            row("aniworld.to", "a0", 98),
+            row("aniworld.to", "old", 1),
+        ],
+        10,
+    )
+    second = FakeSearch(
+        "s.to",
+        [
+            row("s.to", "b2", 100),
+            row("s.to", "b1", 99),
+            row("s.to", "b0", 98),
+            row("s.to", "old", 1),
+        ],
+        20,
+    )
+    search = object.__new__(ProviderSearch)
+    search.searches = [first, second]
+    search.active = 0
+
+    async def run():
+        rows, total, headers = await search.search(
+            {"t": "search", "q": "Example", "offset": "2", "limit": "2"}, now=NOW
+        )
+        assert rows == [
+            row("aniworld.to", "a1", 99),
+            row("s.to", "b1", 99),
+        ]
+        assert len(rows) == 2
+        assert total == 30 and headers == {}
+        assert first.windows == second.windows == [4]
+
+    asyncio.run(run())
+
+
 def test_empty_sibling_does_not_hide_provider_outage(tmp_path):
     from catalog_core.query_client import Unavailable
 

@@ -14,6 +14,10 @@ from app.catalog.media_tracks import validate_tracks_manifest
 from app.catalog.executor import _filmo_output_tracks_present
 from app.catalog.resolution_transport import ResolutionError
 
+# Native tools run against generated fixtures, never the network. A hard
+# timeout keeps a wedged encoder or probe from hanging the whole API suite.
+NATIVE_TOOL_TIMEOUT_S = 120
+
 
 class Body(httpx.SyncByteStream):
     def __init__(self, content: bytes):
@@ -290,6 +294,49 @@ def test_external_captions_satisfy_soft_language_when_hls_has_no_subtitle_group(
     assert "/caption.srt" in calls
 
 
+def test_filmo_rejects_plain_http_caption_offers():
+    from app.catalog.media_download import _select_filmo_hls
+
+    master = (
+        "#EXTM3U\n"
+        '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="main",NAME="English",LANGUAGE="en",URI="audio-en.m3u8"\n'
+        '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="German",LANGUAGE="de",URI="subs-de.m3u8"\n'
+        "#EXT-X-STREAM-INF:BANDWIDTH=500000,RESOLUTION=1280x720,"
+        'AUDIO="main",SUBTITLES="subs"\n'
+        "video-main.m3u8\n"
+    )
+    formats = [
+        {
+            "url": "https://media.example/video-main.m3u8",
+            "vcodec": "avc1",
+            "acodec": "none",
+        },
+        {
+            "url": "https://media.example/audio-en.m3u8",
+            "vcodec": "none",
+            "acodec": "aac",
+        },
+    ]
+    subtitles = {
+        "de": [
+            {
+                "url": "https://media.example/subs-de.m3u8",
+                "ext": "vtt",
+                "protocol": "http",
+            }
+        ]
+    }
+    with pytest.raises(ResolutionError, match="unsupported_media_tracks"):
+        _select_filmo_hls(
+            master,
+            "https://media.example/master.m3u8",
+            formats,
+            subtitles,
+            {"audio_languages": ["eng"], "subtitle_languages": ["deu"]},
+            set(),
+        )
+
+
 def test_track_manifest_rejects_symlink_and_input_mismatch(tmp_path):
     media = tmp_path / "track-0.partial-media"
     media.write_bytes(b"fixture")
@@ -476,6 +523,7 @@ def test_generated_multiaudio_and_caption_inputs_keep_language_tags(
             str(video),
         ],
         check=True,
+        timeout=NATIVE_TOOL_TIMEOUT_S,
     )
     for path, frequency in ((english, "440"), (japanese, "660")):
         subprocess.run(
@@ -495,6 +543,7 @@ def test_generated_multiaudio_and_caption_inputs_keep_language_tags(
                 str(path),
             ],
             check=True,
+            timeout=NATIVE_TOOL_TIMEOUT_S,
         )
     inputs = [video, english, japanese, subtitle, webvtt]
     track_manifest = tmp_path / "tracks.json"
@@ -558,7 +607,9 @@ def test_generated_multiaudio_and_caption_inputs_keep_language_tags(
     monkeypatch.setattr(
         local_media_child.os,
         "execv",
-        lambda binary, command: subprocess.run(command, check=True),
+        lambda binary, command: subprocess.run(
+            command, check=True, timeout=NATIVE_TOOL_TIMEOUT_S
+        ),
     )
     local_media_child.main()
     probe_path = tmp_path / "probe.json"
@@ -635,6 +686,7 @@ def test_generated_multiaudio_and_caption_inputs_keep_language_tags(
         check=True,
         capture_output=True,
         text=True,
+        timeout=NATIVE_TOOL_TIMEOUT_S,
     )
     embedded_streams = json.loads(embedded_probe.stdout)["streams"]
     embedded_languages = [

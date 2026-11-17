@@ -134,6 +134,42 @@ def test_cross_origin_and_bounded_failed_login_admission():
         )
 
 
+def test_one_client_cannot_exhaust_another_clients_login_budget(monkeypatch):
+    from app.api.qbittorrent import security
+
+    now = [1000.0]
+    monkeypatch.setattr(security.time, "monotonic", lambda: now[0])
+    auth = QbitAuth("operator", PASSWORD, SECRET, False)
+    for _ in range(security.LOGIN_PER_CLIENT):
+        assert auth.admit_login("198.51.100.10") == 0
+    assert auth.admit_login("198.51.100.10") >= 1
+    # The noisy client is out of budget, but a legitimate sibling address and
+    # an unrelated address still get the released per-client allowance.
+    assert auth.admit_login("198.51.100.11") == 0
+    assert auth.admit_login("203.0.113.20") == 0
+
+    now[0] += security.LOGIN_WINDOW_S
+    assert auth.admit_login("198.51.100.10") == 0
+
+
+def test_global_login_ceiling_bounds_distributed_guessing(monkeypatch):
+    from app.api.qbittorrent import security
+
+    now = [2000.0]
+    monkeypatch.setattr(security.time, "monotonic", lambda: now[0])
+    auth = QbitAuth("operator", PASSWORD, SECRET, False)
+    clients = security.LOGIN_GLOBAL // security.LOGIN_PER_CLIENT
+    for number in range(clients):
+        for _ in range(security.LOGIN_PER_CLIENT):
+            assert auth.admit_login(f"198.51.100.{number}") == 0
+    # Every client still has its own allowance, but the shared ceiling stops
+    # one more distributed burst until the oldest reservation expires.
+    assert auth.admit_login("203.0.113.99") >= 1
+
+    now[0] += security.LOGIN_WINDOW_S
+    assert auth.admit_login("203.0.113.99") == 0
+
+
 @pytest.mark.parametrize(
     "values",
     [

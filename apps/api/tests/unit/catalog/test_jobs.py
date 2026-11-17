@@ -172,6 +172,24 @@ def test_restart_consumes_attempt_budget_and_retry_is_explicit(tmp_path):
         jobs.action(job, "retry", NOW + 1002)
 
 
+def test_periodic_recovery_only_consumes_an_expired_lease(tmp_path):
+    jobs = setup_jobs(tmp_path)
+    job = jobs.admit(grab(tmp_path), NOW)[0]
+    assert jobs.claim(NOW)
+
+    # startup=False is the live service path. A valid lease still belongs to
+    # the running attempt and must not be rewritten just to free the row.
+    jobs.recover(NOW + 1)
+    assert jobs.get(job)["status"] == "resolving"
+    assert jobs.get(job)["attempts"] == 1
+
+    jobs.recover(NOW + 61)
+    assert jobs.get(job)["status"] == "retry_wait"
+    assert jobs.get(job)["attempts"] == 1
+    # Recovery keeps the request and alias available for the retry.
+    assert jobs.get(job)["hashes"]
+
+
 def test_capacity_and_disabled_provider(tmp_path):
     jobs = setup_jobs(tmp_path)
     jobs.queue_limit = 1

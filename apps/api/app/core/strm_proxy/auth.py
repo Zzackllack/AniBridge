@@ -12,6 +12,21 @@ from loguru import logger
 from app.config import STRM_PROXY_AUTH, STRM_PROXY_SECRET, STRM_PROXY_TOKEN_TTL_SECONDS
 
 
+def _matches(supplied: object, expected: str) -> bool:
+    """Compare credentials in constant time, including non-ASCII input.
+
+    A plain ``!=`` short-circuits at the first differing byte. ``compare_digest``
+    only accepts ASCII strings, so encode both sides and keep arbitrary query
+    text from raising instead of returning a clean 401.
+    """
+    if not isinstance(supplied, str):
+        return False
+    return hmac.compare_digest(
+        supplied.encode("utf-8", "surrogatepass"),
+        expected.encode("utf-8", "surrogatepass"),
+    )
+
+
 def _canonical_params(params: Mapping[str, str]) -> str:
     """
     Create a deterministic query string from provided parameters for signing.
@@ -130,7 +145,7 @@ def require_auth(params: Mapping[str, str], *, scope: str | None = None) -> None
         return
     secret = _require_secret()
     if mode == "apikey":
-        if params.get("apikey") != secret:
+        if not _matches(params.get("apikey"), secret):
             logger.warning("STRM proxy apikey missing or invalid.")
             raise HTTPException(status_code=401, detail="invalid apikey")
         return

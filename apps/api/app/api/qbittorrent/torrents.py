@@ -24,7 +24,7 @@ from app.core.scheduler import schedule_download, cancel_job
 
 from . import router
 from .common import public_save_path
-from .projection import matches_filter, torrent_info_record
+from .projection import epoch_seconds, matches_filter, torrent_info_record
 
 
 @router.post("/torrents/add")
@@ -232,8 +232,8 @@ def torrents_properties(session: Session = Depends(get_session), hash: str = "")
         total_size = int(job.total_bytes)
 
     now = int(time.time())
-    addition_date = int(rec.added_on.timestamp())
-    completion_date = int((rec.completion_on or rec.added_on).timestamp())
+    addition_date = epoch_seconds(rec.added_on)
+    completion_date = epoch_seconds(rec.completion_on or rec.added_on)
     seeding_time = max(0, now - completion_date) if rec.completion_on else 0
     time_elapsed = max(0, now - addition_date)
 

@@ -7,7 +7,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.catalog.client import ClientJobs
+from app.catalog.client import JOB_BATCH_SIZE, ClientJobs
 from app.catalog.qbit_http import router
 from test_jobs import setup_jobs, NOW
 
@@ -29,7 +29,14 @@ def test_all_pause_resume_batches_distinct_jobs_and_preserves_terminal_states(tm
             ("f" * 40, ids[1]),
         )
     batches = list(client.job_batches("all"))
-    assert [len(batch) for batch in batches] == [100, 100, 5]
+    # The contract is bounded pages plus complete coverage. Referencing the
+    # implementation constant makes the intent explicit without allowing a
+    # future unbounded page to pass this regression.
+    assert all(0 < len(batch) <= JOB_BATCH_SIZE for batch in batches)
+    expected_sizes = [JOB_BATCH_SIZE] * (len(ids) // JOB_BATCH_SIZE)
+    if len(ids) % JOB_BATCH_SIZE:
+        expected_sizes.append(len(ids) % JOB_BATCH_SIZE)
+    assert [len(batch) for batch in batches] == expected_sizes
     assert {job for batch in batches for job in batch} == set(ids)
     assert sum(map(len, batches)) == len(ids)
     app = FastAPI()

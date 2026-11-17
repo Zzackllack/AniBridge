@@ -171,12 +171,14 @@ jobs:
       - name: Run API behavior with native image dependencies and generated media
         if: matrix.component.name == 'api'
         run: |
+          # The worker is an API dev-only fixture dependency, never runtime code.
           # Mountpoint only; all default-path test data lives in the tmpfs.
           mkdir -p "$GITHUB_WORKSPACE/data"
           docker run --rm --log-driver none --network none --cpus 2 --memory 2g --memory-swap 2g \
             --pids-limit 128 --user 1000:1000 --entrypoint python \
             -e DATA_DIR=/tmp/anibridge-ci-tests -e DOWNLOAD_DIR=/tmp/anibridge-ci-downloads \
             -e ANIBRIDGE_UPDATE_CHECK=false \
+            -e PYTHONPATH=/source/apps/catalog-worker/src \
             --tmpfs /source/data:rw,nosuid,nodev,noexec,size=128m,uid=1000,gid=1000 \
             -v "$GITHUB_WORKSPACE:/source:ro" --workdir /source/apps/api \
             anibridge-ci:smoke -m pytest tests -q -rs -o addopts='' -o cache_dir=/tmp/pytest-cache --basetemp=/tmp/pytest-data

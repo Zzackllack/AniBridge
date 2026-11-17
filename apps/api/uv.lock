@@ -85,6 +85,11 @@ dependencies = [
     { name = "yt-dlp" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "anibridge-catalog-worker" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.13.0" },
@@ -142,6 +147,9 @@ requires-dist = [
     { name = "yt-dlp", specifier = ">=2026.7.4" },
 ]
 
+[package.metadata.requires-dev]
+dev = [{ name = "anibridge-catalog-worker", editable = "../catalog-worker" }]
+
 [[package]]
 name = "anibridge-catalog-core"
 version = "1.0.0"
@@ -161,6 +169,35 @@ requires-dist = [
     { name = "defusedxml", specifier = "==0.7.1" },
     { name = "httpx", specifier = "==0.28.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9" },
+    { name = "ruff", specifier = ">=0.14" },
+]
+
+[[package]]
+name = "anibridge-catalog-worker"
+version = "1.0.0"
+source = { editable = "../catalog-worker" }
+dependencies = [
+    { name = "anibridge-catalog-core" },
+    { name = "anyio" },
+    { name = "defusedxml" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anibridge-catalog-core", editable = "../../packages/catalog-core" },
+    { name = "anyio", specifier = ">=4.10" },
+    { name = "defusedxml", specifier = "==0.7.1" },
+    { name = "fastapi", specifier = ">=0.135.1" },
+    { name = "httpx", specifier = "==0.28.1" },
+    { name = "uvicorn", specifier = ">=0.42.0" },
 ]
 
 [package.metadata.requires-dev]

@@ -11,6 +11,7 @@ from starlette.concurrency import run_in_threadpool
 
 from .client import epoch
 from .jobs import JobError
+from .output_state import missing_output
 from .management_auth import ManagementAuth, ManagementError, version
 
 
@@ -70,7 +71,12 @@ def job_resource(jobs, job_id: str) -> dict:
     payload = json.loads(row["payload"]) if row["payload"] else {}
     state, code = row["status"], row["error_code"]
     actions = []
-    if state in ("blocked", "failed") and code != "legacy_request_incomplete":
+    # Completion is intentionally sticky after an importer or TTL removes the
+    # output. Re-adding the hash must remain a no-op, so the only way to repeat
+    # a verified transfer is this explicit operator action with If-Match.
+    # Legacy incomplete rows predate output verification and stay terminal.
+    retryable = state in ("blocked", "failed") or missing_output(row)
+    if retryable and code != "legacy_request_incomplete":
         actions.append("retry")
     if state != "completed":
         actions.append("cancel")

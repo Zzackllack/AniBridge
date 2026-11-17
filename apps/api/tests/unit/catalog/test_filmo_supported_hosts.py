@@ -2,9 +2,7 @@
 
 import asyncio
 import sqlite3
-import sys
 from contextlib import closing
-from pathlib import Path
 
 import httpx
 from catalog_core import identity, query
@@ -12,17 +10,13 @@ from catalog_core.protocol import Request
 from catalog_core.providers.filmo import parse
 from catalog_core.query_client import Cache, Client
 
-WORKER_SOURCE = Path(__file__).resolve().parents[4] / "catalog-worker" / "src"
-if str(WORKER_SOURCE) not in sys.path:
-    sys.path.insert(0, str(WORKER_SOURCE))
+from catalog_worker.config import LIMITS, Config
+from catalog_worker.query_server import create_app as create_query_app
+from catalog_worker.read_catalog import publish
+from catalog_worker.state import State
 
-from catalog_worker.config import LIMITS, Config  # noqa: E402
-from catalog_worker.query_server import create_app as create_query_app  # noqa: E402
-from catalog_worker.read_catalog import publish  # noqa: E402
-from catalog_worker.state import State  # noqa: E402
-
-from app.catalog.query_local import Search  # noqa: E402
-from app.catalog.query_providers import ProviderSearch  # noqa: E402
+from app.catalog.query_local import Search
+from app.catalog.query_providers import ProviderSearch
 
 NOW = 1_800_000_000
 TOKEN = "synthetic-filmo-host-filter-token"

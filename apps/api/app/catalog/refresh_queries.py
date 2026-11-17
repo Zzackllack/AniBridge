@@ -6,7 +6,7 @@ These fixed internal templates keep the central branch on its original indexes.
 
 import re
 
-from .refresh_observations import cache_kind
+from .refresh_observations import cache_kind, validated_provider
 from .refresh_view import qualify
 
 
@@ -91,6 +91,7 @@ def branches(
     overrides: bool,
     schema_version: int = 1,
 ):
+    provider = validated_provider(provider)
     rows = sql.startswith("SELECT r.*")
     count = sql.startswith("SELECT count(*) ")
     if not (rows or count) or "FROM release r" not in sql:

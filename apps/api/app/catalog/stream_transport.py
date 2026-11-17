@@ -79,6 +79,10 @@ class Opened:
     client: httpx.AsyncClient
     response: httpx.Response
     url: str
+    # A HEAD fallback fetched one byte to learn the representation. Without a
+    # client Range it must not advertise the probe as the entity length.
+    head_length: int | None = None
+    head_no_range: bool = False
 
     async def close(self) -> None:
         try:
@@ -87,8 +91,29 @@ class Opened:
             await self.client.aclose()
 
     @property
+    def status_code(self) -> int:
+        return (
+            200
+            if self.head_no_range and self.response.status_code == 206
+            else self.response.status_code
+        )
+
+    @property
     def headers(self) -> dict[str, str]:
-        return {k: v for k, v in self.response.headers.items() if k in ALLOWED_HEADERS}
+        values = {
+            k: v for k, v in self.response.headers.items() if k in ALLOWED_HEADERS
+        }
+        if self.head_no_range:
+            values.pop("content-range", None)
+            if self.head_length is None:
+                # Some origins answer the probe without a total. A HEAD reply
+                # may omit Content-Length, but must not claim the one-byte probe
+                # is the full representation.
+                if self.response.status_code == 206:
+                    values.pop("content-length", None)
+            else:
+                values["content-length"] = str(self.head_length)
+        return values
 
     @property
     def playlist(self) -> bool:
@@ -134,6 +159,7 @@ async def open_stream(url: str, method: str, range_header: str | None) -> Opened
         limits=httpx.Limits(max_connections=1, max_keepalive_connections=0),
     )
     response = None
+    head_fallback = False
     private_log = _PRIVATE_HTTP.set(True)
     try:
         async with asyncio.timeout(30):
@@ -158,7 +184,11 @@ async def open_stream(url: str, method: str, range_header: str | None) -> Opened
                 if method == "HEAD" and response.status_code in (405, 501):
                     await response.aclose()
                     response = None
-                    method, headers["Range"] = "GET", "bytes=0-0"
+                    head_fallback = True
+                    method = "GET"
+                    # Preserve a caller's Range. Without one, sample one byte
+                    # only to recover the full representation length below.
+                    headers["Range"] = range_header or "bytes=0-0"
                     continue
                 if response.headers.get("content-encoding", "identity") != "identity":
                     raise HTTPException(502, "Unsupported upstream encoding")
@@ -167,7 +197,25 @@ async def open_stream(url: str, method: str, range_header: str | None) -> Opened
                     url
                 ).path.lower().endswith(".mpd"):
                     raise HTTPException(502, "DASH proxy is unsupported")
-                return Opened(client, response, url)
+                head_length = None
+                if head_fallback and range_header is None:
+                    # A one-byte probe answers 206 with the real total. Present
+                    # it as the un-ranged HEAD it replaced, without inventing a
+                    # length when the origin ignores Range or sends an unknown
+                    # total.
+                    match = re.fullmatch(
+                        r"bytes 0-0/([0-9]{1,20})",
+                        response.headers.get("content-range", ""),
+                    )
+                    if response.status_code == 206 and match:
+                        head_length = int(match.group(1))
+                return Opened(
+                    client,
+                    response,
+                    url,
+                    head_length,
+                    head_fallback and range_header is None,
+                )
         raise HTTPException(502, "Upstream unavailable")
     except BaseException as exc:
         if response is not None:

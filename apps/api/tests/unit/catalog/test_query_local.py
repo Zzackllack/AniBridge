@@ -4,10 +4,8 @@ import asyncio
 import json
 import shutil
 import sqlite3
-import sys
 import time
 import xml.etree.ElementTree as ET
-from pathlib import Path
 from uuid import uuid4
 
 from contextlib import closing
@@ -22,8 +20,7 @@ from app.catalog.query_local import Search
 from app.catalog.search import rss
 from app.catalog.state_schema import STATEMENTS
 
-# Load the separate collector's read factory, without API startup imports.
-sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "catalog-worker" / "src"))
+# The collector package is an explicit API test dependency (see pyproject).
 from catalog_worker.query_server import create_app
 
 TOKEN = "disposable-query-fixture-token"
@@ -295,6 +292,23 @@ def test_query_torznab_honors_configured_swarm_counts(
             await client.close()
 
     asyncio.run(run())
+
+
+def test_sql_template_provider_must_stay_in_the_closed_enum():
+    from app.catalog.refresh_observations import cache_kind
+    from app.catalog.refresh_queries import branches
+
+    with pytest.raises(ValueError, match="unknown provider"):
+        cache_kind("seen", "aniworld.to' OR 1=1 --")
+    with pytest.raises(ValueError, match="unknown provider"):
+        branches(
+            "",
+            "catalog_read_0",
+            "aniworld.to' OR 1=1 --",
+            "SELECT count(*) FROM release r",
+            (),
+            False,
+        )
 
 
 def test_tmdb_request_uses_tmdb_episode_coordinates(tmp_path):

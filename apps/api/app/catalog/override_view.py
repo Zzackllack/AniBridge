@@ -34,8 +34,10 @@ class AttachedCatalog:
 
 class MappingView:
     def __init__(self, private, catalog, provider: str, index: int, now: int) -> None:
+        from .refresh_observations import validated_provider
+
         self.db = private
-        self.provider = provider
+        self.provider = provider = validated_provider(provider)
         self.schema_version = (
             catalog.schema_version
             if hasattr(catalog, "schema_version")

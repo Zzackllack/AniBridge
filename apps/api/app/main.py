@@ -47,6 +47,7 @@ if CATALOG_CONFIG.mode == "query":
     from app.catalog.qbit_http import router as query_qbit_router
     from app.catalog.strm_http import router as query_strm_router
     from app.catalog.management import router as management_router
+    from app.api.route_order import assert_query_precedence
     from app.catalog.management_auth import ManagementAuth
     from app.config import MANAGEMENT_API_TOKEN
 
@@ -60,6 +61,11 @@ if CATALOG_CONFIG.mode == "query":
 else:
     app.include_router(torznab_router)
 app.include_router(qbittorrent_router)
+if CATALOG_CONFIG.mode == "query":
+    # The legacy router still supplies auth/app/category/transfer endpoints,
+    # but its duplicated torrent routes must never win. Verify the intentional
+    # include order instead of relying on a future edit preserving it.
+    assert_query_precedence(app.routes)
 app.include_router(health_router)
 app.include_router(legacy_router)
 app.include_router(strm_router)

@@ -153,9 +153,17 @@ class Playback:
             )
             self.opened.add(opened)
             if request.method == "HEAD":
+                headers = opened.headers
                 response = Response(
-                    b"", status_code=opened.response.status_code, headers=opened.headers
+                    b"", status_code=opened.status_code, headers=headers
                 )
+                if (
+                    "content-length" not in headers
+                    and "content-length" in response.headers
+                ):
+                    # Response otherwise invents length zero from our empty HEAD
+                    # body, even when the upstream representation is unknown.
+                    del response.headers["content-length"]
                 await close()
                 return response
             if opened.playlist and opened.response.status_code == 200:

@@ -86,5 +86,13 @@ include = ["app*"]
 no-binary-package = ["urllib3-future"]
 extra-build-variables = { "urllib3-future" = { URLLIB3_NO_OVERRIDE = "1" } }
 
+[dependency-groups]
+# The API test suite imports the separately packaged collector only as fixture
+# wiring. Keeping it in the dev group makes the dependency explicit without
+# putting worker code in the production API environment (install with
+# `uv sync --no-dev` for the image).
+dev = ["anibridge-catalog-worker"]
+
 [tool.uv.sources]
 anibridge-catalog-core = { path = "../../packages/catalog-core", editable = true }
+anibridge-catalog-worker = { path = "../catalog-worker", editable = true }
