@@ -115,6 +115,9 @@ def test_local_correction_discovers_new_id_before_season_filter(tmp_path):
         assert total == 4 and len(rows) == 1
         assert (rows[0]["season"], rows[0]["episode"]) == (3, 9)
         assert (rows[0]["native_season"], rows[0]["native_episode"]) == (1, 2)
+        # This fixture has two native pages: both must be fetched before the
+        # local correction and final page slice. This is not a universal
+        # request count for other catalog sizes or provider merges.
         assert client.requests == 2
         with closing(sqlite3.connect(database)) as db, db:
             db.execute("DELETE FROM catalog_override")

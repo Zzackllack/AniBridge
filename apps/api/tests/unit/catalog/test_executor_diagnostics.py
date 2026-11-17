@@ -112,7 +112,9 @@ def test_output_overflow_writes_bounded_failure_diagnostic(tmp_path, channel):
         )
     )
 
-    assert code == -9
+    # The supervisor normalizes output overflow to -1; the diagnostic below
+    # must still prove that the live child was killed, rather than exiting 0.
+    assert code == -1
     record = _diagnostic(diagnostic)
     assert record == {
         "outcome": "extraction_error",
