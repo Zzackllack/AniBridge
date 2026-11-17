@@ -12,7 +12,9 @@ def test_rejected_magnet_does_not_log_private_input(client):
         assert response.status_code == 400
     finally:
         logger.remove(sink)
-    assert secret not in "".join(str(message) for message in messages)
+    captured = "".join(str(message) for message in messages)
+    assert "Received torrent add request" in captured
+    assert secret not in captured
 
 
 def test_torrent_lifecycle(client):
