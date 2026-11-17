@@ -38,6 +38,14 @@ network. `QBIT_COOKIE_SECURE` defaults to `true` for HTTPS ingress; set it to
 `false` only for trusted private HTTP. See
 [qBittorrent authentication](/api/environment#qbittorrent-authentication).
 
+Login admission allows 60 attempts per minute per connection peer and 600 per
+minute across the process. Peer buckets are bounded and use temporary keyed
+digests; raw addresses are not retained in them. Forwarded headers are not
+trusted here. Clients sharing one proxy peer share its allowance unless trusted
+ingress has already established distinct peer identities. A 429 includes
+`Retry-After`. These limits do not make the whole local API suitable for public
+exposure.
+
 ## Operations
 
 <ApiOperations
@@ -91,6 +99,19 @@ It does not report `missingFiles`, does not turn the job into `failed` or
 automatically redownload a completed transfer whose imported source was moved or
 removed.
 
+### Intentional replacement downloads
+
+Re-adding an existing hash is idempotent, including when the completed source
+is gone. It does not schedule another download. Source removal after a successful
+Sonarr/Radarr import is normal and does not mean the library copy is missing.
+
+If a replacement really is needed, use the local management API below. Read the
+job first, verify it is the intended request, and check that its `actions` list
+offers `retry`. Then POST an empty JSON object to its `/retry` endpoint, with
+the management bearer and the exact returned `ETag` in `If-Match`. This explicit
+action queues a new attempt for a completed job only when its verified source
+output is missing. Existing completed output cannot be retried this way.
+
 ## Deletion and TTL
 
 - `torrents/delete` removes the torrent alias. With `deleteFiles=true` or
@@ -116,5 +137,7 @@ Query mode also exposes optional local management endpoints when
 
 The token must be base64url of at least 32 random bytes and is independent of the
 qBittorrent credentials, `INDEXER_API_KEY`, the collector token, and STRM auth.
-Without it, these endpoints return 503. Retry is only available for failed or
-blocked jobs.
+Without it, these endpoints return 503 in query mode; legacy mode has no such
+router and returns 404. Retry is offered for failed/blocked jobs or completed
+jobs with missing verified source output, excluding incomplete migrated legacy
+requests. Always use the returned `actions` and resource version.

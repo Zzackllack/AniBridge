@@ -54,5 +54,7 @@ Optional local management endpoints:
 - `POST /api/v1/jobs/{job_id}/retry` with an empty JSON object and `If-Match`
 - `POST /api/v1/jobs/{job_id}/cancel` with an empty JSON object and `If-Match`
 
-They require `Authorization: Bearer <MANAGEMENT_API_TOKEN>` and return 503 when
-no management token is configured. See [qBittorrent Shim](/api/qbittorrent#management-api).
+These routes exist only in query mode. They require
+`Authorization: Bearer <MANAGEMENT_API_TOKEN>` and return 503 when no management
+token is configured. Legacy mode returns 404 because the router is absent.
+See [qBittorrent Shim](/api/qbittorrent#management-api).

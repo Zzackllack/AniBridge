@@ -12,7 +12,11 @@
   `QBIT_USERNAME`/`QBIT_PASSWORD` and the secret must be configured together;
   sessions expire in one hour. Logout clears the client's cookie; a copied
   cookie remains valid until expiry or credential/secret rotation. Login
-  admission is 60 attempts/minute per process, with no retained user IPs.
+  admission is 60 attempts/minute per connection peer plus a global ceiling of
+  600/minute. At most 1,024 peer buckets use process-local keyed digests, with
+  no retained raw addresses. This layer does not trust forwarded headers;
+  clients behind one proxy peer share its allowance unless trusted ingress
+  has already established distinct peer identities.
   Credentialed login input is bounded before framework parsing: 16 KiB,
   five seconds and at most 1,024 ASGI receive frames, including empty frames.
   Normal URL-encoded and multipart forms retain the framework's parser.

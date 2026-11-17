@@ -128,7 +128,8 @@ For Serienstream releases the prefix switches to `sto_`
 
 ### Query payload
 
-Query items use an opaque, versioned magnet payload (`ab_v=3`) that carries the
+Query items use an opaque, versioned magnet payload: `ab_v=2` for AniWorld,
+Serienstream and Megakino; `ab_v=3` for Filmo. It carries the
 release identity, canonical mapping when available, and — for Filmo — the selected
 source variant and declared audio/subtitle/quality metadata. Do not edit these
 fields by hand. The qBittorrent shim validates the payload, rejects disabled

@@ -5,8 +5,8 @@ outline: deep
 
 # Environment Variables
 
-Comprehensive list of env vars read in `apps/api/app/config.py` and
-`apps/api/app/catalog/config.py`.
+Configuration reference for `apps/api/app/config.py` and
+`apps/api/app/catalog/config.py`, including advanced and test-only settings.
 
 ## Paths
 
@@ -76,19 +76,21 @@ compatibility on a trusted private network.
 - `CATALOG_MODE` (`legacy|query`, default: `legacy`; blank also means legacy) —
   selects live provider scraping or collector-backed metadata search. Legacy is
   deprecated but still functional.
-- `CATALOG_API_URL` — query mode only. HTTPS origin root (no path, query,
-  fragment, or userinfo) for the collector.
+- `CATALOG_API_URL` — query mode only. HTTPS origin root with an optional single
+  trailing slash; no other path, query, fragment, or userinfo.
 - `CATALOG_SOURCE_ID` — query mode only. Source identifier, 1–64 characters from
   `a-z`, `0-9`, `.`, `_`, and `-`.
 - `CATALOG_API_TOKEN` / `CATALOG_API_TOKEN_FILE` — set exactly one in query mode.
   Tokens are 16–512 visible ASCII characters with no spaces. The file path is
   inside the API container; prefer a read-only mounted secret.
 - `CATALOG_ALLOW_PRIVATE_HTTP` (default: `false`) — permits unencrypted HTTP to
-  non-loopback hosts for trusted test networks. This does not enforce private IP
-  addresses. Loopback HTTP is always allowed.
-- `MANAGEMENT_API_TOKEN` — optional. Enables local `/api/v1/jobs/*` status,
+  other hosts for trusted test networks. This does not enforce private IP
+  addresses. Without it, HTTP is accepted only for the exact hostnames
+  `127.0.0.1` and `localhost`; `::1` and other loopback spellings need the opt-in.
+- `MANAGEMENT_API_TOKEN` — optional, query mode only. Enables local `/api/v1/jobs/*` status,
   retry, and cancel endpoints. Must be base64url of at least 32 random bytes.
-  Without it, management endpoints return 503.
+  Without it, management endpoints return 503 in query mode. Legacy mode does
+  not mount these routes and returns 404 regardless of this token.
 
 `CATALOG_CONFIG_FILE` was removed. A non-empty value fails startup; migrate file
 configuration to the environment variables above. The collector's JSON config is
@@ -151,7 +153,8 @@ appears, use manual import or disable “Analyze video files” in Sonarr. See
 - `STO_ALPHABET_URL` (default: `https://serienstream.to/serien?by=alpha`)
 - `STO_ALPHABET_HTML` (local fallback file)
 - `STO_TITLES_REFRESH_HOURS` (TTL, default: `24`)
-- `MEGAKINO_BASE_URL` (default: `https://megakino1.to`, auto-resolved at startup)
+- `MEGAKINO_BASE_URL` (default: `https://megakino1.to`, auto-resolved at startup
+  in legacy mode; query mode uses the configured origin)
 - `MEGAKINO_TITLES_REFRESH_HOURS` (default: `12`)
 - `MEGAKINO_DOMAIN_CHECK_INTERVAL_MIN` (minutes; default: `100`, 0 disables background checks)
 - `FILMO_BASE_URL` (default: `https://filmo.to`) — query mode only, and only
@@ -191,6 +194,16 @@ both cases progress stays `1`, `content_path` is empty, and
 `anibridge_output_missing` is `true`; AniBridge does not report `missingFiles` or
 rewrite the job to `failed`/`error`.
 
+## AniWorld specials metadata
+
+- `SPECIALS_METADATA_ENABLED` (default: `true`) — use external episode metadata
+  for legacy AniWorld special/movie correspondence.
+- `SPECIALS_METADATA_TIMEOUT_SECONDS` (default: `8`) — positive request timeout;
+  invalid/nonpositive values fall back to the default.
+- `SPECIALS_METADATA_CACHE_TTL_MINUTES` (default: `360`) — nonnegative cache TTL.
+- `SPECIALS_MATCH_CONFIDENCE_THRESHOLD` (default: `0.50`) — matching threshold,
+  clamped to the range 0–1. Query-mode mappings follow the catalog contract.
+
 ## Networking / VPN Policy
 
 AniBridge does not provide an in-app outbound proxy anymore. Route traffic
@@ -217,3 +230,11 @@ externally using a host VPN, VPN sidecar, or network policy outside AniBridge.
 > [!IMPORTANT]
 > Use external VPN routing for privacy and stable provider access (for example
 > a system VPN or Gluetun sidecar).
+
+## Test-only controls
+
+`ANIBRIDGE_TEST_MODE` defaults to `false`. Disposable test overlays set it to
+`true` to disable ordinary background helpers; it does not authenticate an
+installation or make retained state disposable. The outage probe also verifies
+that its configuration uses only the generated fixture catalog before changing
+cache timestamps. Keep it off in normal installations.

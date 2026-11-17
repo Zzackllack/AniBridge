@@ -88,6 +88,8 @@ Query jobs reuse `job` and `clienttask`, and add:
 - `catalog_cache`: completion-bound playback registration for proxy STRM
   requests.
 - `catalog_override`: local mapping corrections, bounded per provider.
+- `management_idempotency`: bounded replay records for idempotent management
+  mutations, separate from per-job version/ETag checks.
 
 The migrations also retain `catalog_source`, `catalog_clock`, `catalog_trust`,
 `catalog_version`, `catalog_active`, `catalog_control` and `catalog_update` for

@@ -32,7 +32,8 @@ Set all of the following in the API environment:
 
 - `CATALOG_MODE=query`
 - `CATALOG_API_URL`: HTTPS origin root, for example `https://catalog.example.invalid`.
-  It must not include a path, query, fragment, or embedded credentials.
+  One trailing slash is accepted; other paths, query, fragment, or embedded
+  credentials are rejected.
 - `CATALOG_SOURCE_ID`: 1–64 characters from `a-z`, `0-9`, `.`, `_`, and `-`.
 - Exactly one of `CATALOG_API_TOKEN` or `CATALOG_API_TOKEN_FILE`. Tokens are
   16–512 visible ASCII characters with no spaces. A token file path is resolved
@@ -48,8 +49,9 @@ locks. Docker Desktop bind mounts on macOS can accept conflicting `flock` owners
 use a Docker named volume or Linux-local storage for `DATA_DIR`. Deleting a lock
 file does not fix the filesystem.
 
-Plain HTTP is accepted only for loopback origins unless you set
-`CATALOG_ALLOW_PRIVATE_HTTP=true`. That opt-in permits unencrypted HTTP to any
+Plain HTTP is accepted for the exact hosts `127.0.0.1` and `localhost` unless you
+set `CATALOG_ALLOW_PRIVATE_HTTP=true`. Other loopback spellings, including `::1`
+and `127.0.0.2`, need that opt-in. It permits unencrypted HTTP to any
 non-loopback host; it does **not** restrict traffic to private addresses. Use it
 only on a trusted test network.
 
@@ -226,7 +228,9 @@ Query jobs are durable and local:
 Optional local management endpoints are available at `/api/v1/jobs/{id}`,
 `/retry`, and `/cancel` when `MANAGEMENT_API_TOKEN` is set. The token must be
 base64url encoding of at least 32 random bytes. Without it, management endpoints
-return 503. Retry is only offered for failed or blocked jobs.
+return 503. Retry is offered for failed/blocked jobs and completed jobs whose
+verified source output is missing. Re-adding a completed hash alone is a no-op;
+see [intentional replacement downloads](/api/qbittorrent#intentional-replacement-downloads).
 
 ## Security boundaries
 

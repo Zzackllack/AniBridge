@@ -40,7 +40,8 @@ current XPipe-generated SSH connection. Keep credentials private; do not use a
 historical socket/host assumption or disable host-key checks. The Coolify token
 is read-only. Record the selected service UUID and current image digest in the
 private plan directory; obtain them from the saved service and live inventory,
-not a checked-in operator default.
+not a checked-in operator default. Set `REVIEWED_SERVICE_ID` to that verified
+UUID before invoking the helper.
 
 ```sh
 uv run --project apps/api --frozen python \

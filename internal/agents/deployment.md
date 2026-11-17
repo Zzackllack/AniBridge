@@ -60,6 +60,9 @@ Use [SERVER.md](../../scripts/catalog/query_pilot/SERVER.md) for a new authorize
 private installation and [WORKER_UPDATES.md](../../scripts/catalog/query_pilot/WORKER_UPDATES.md)
 for an existing service. The generated Compose fixture is not a production
 collector. Collector minimum is 2 CPU/2 GiB; serving has a separate budget.
+Metadata serving needs configuration and read catalogs/leases only; do not mount
+the private worker ledger into that service. Runtime worker images create
+worker-owned `/state` and `/read` and exclude development tools.
 
 Check an existing worker's explicit `bind_host` before upgrading: the hardened
 default is loopback, while older container configurations may omit the setting

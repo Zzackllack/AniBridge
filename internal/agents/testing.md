@@ -39,9 +39,13 @@ are regression cases; their existing label chronology is not a blind trial.
 ## Native CI and images
 
 `.github/workflows/tests.yml` runs independent frozen API/core/worker jobs and
-native API/worker image jobs on AMD64/ARM64. Installed worker wheels run both
-core and worker suites. API images run the full behavioral suite with their
-native dependencies/FFmpeg. Jobs use UID1000, 2 CPU/2 GiB, no network and
+native API/worker image jobs on AMD64/ARM64. The production worker image excludes pytest/Ruff. Its `test` target adds only
+the frozen dev-tools site-packages over the same installed runtime; native CI
+verifies the production image separately and runs core/worker suites with that
+test overlay. API images run the full behavioral suite with their
+native dependencies/FFmpeg. The API worker fixture dependency is dev-only;
+its native test container adds the read-only worker source to `PYTHONPATH`,
+while production installs use `--no-dev`. Jobs use UID1000, 2 CPU/2 GiB, no network and
 Linux-local scratch; source is mounted read-only. Create the `data/` mountpoint
 before mounting its isolated tmpfs, never bind developer persistent state.
 
@@ -83,3 +87,7 @@ needed archive outside the checkout. Specifications contain current contracts
 and concise findings, not dated execution histories or repeated audit matrices.
 Open unverified acceptance work stays in
 [the current list](../specs/020-catalog-query-api-evaluation/ISSUES.md).
+
+The patched-certifi regression is an installed-environment security tripwire,
+not a provider-behavior test. Run it in candidate images as well as local uv
+environments; local success does not establish deployed package identity.
