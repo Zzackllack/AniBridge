@@ -81,6 +81,19 @@ daily, under the shared 30/minute cap. This does not add demand refresh or searc
 scraping. See spec 020's current IMPLEMENTATION.md and ISSUES.md for correspondence
 rules and unresolved acceptance work.
 
+Publication runs separately from enrichment with one serialized export slot,
+a fixed 420-second child deadline and per-provider retry backoff capped at one
+hour. Five consecutive failures raise `operator_escalation` in bounded
+publication events. Retry clocks are monotonic and process-local; restart
+resets backoff, not the durable publication cadence.
+
+Never-observable language hints become terminal after six attempts. Keep their
+path, expected labels and generation in `signal_pending`; terminal rows do not
+consume the 4096 active-hint slots or targeted claims. Repeated adverts cannot
+reopen them; genuinely new expected-language evidence can, within the active
+cap. A complete historical observation can settle them. Coverage gaps stay
+visible rather than being declared repaired by quarantine.
+
 Publication uses generations and a bounded changed-title journal introduced in
 private v6. Private v7 adds per-work failure receipts; public schema2
 is unchanged. Pre-v7 first-failure clocks remain unknown rather than backfilled.
