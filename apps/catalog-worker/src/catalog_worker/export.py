@@ -129,7 +129,20 @@ def copy(
                 db.execute("UPDATE main.catalog SET listing_checked_at=?", (checked,))
                 from .incremental_export import refresh
 
-                refresh(db, approved, schema_version=schema_version)
+                # A title edit can remove or reparent child entities, which
+                # invalidates their aliases. The journal marks direct alias
+                # changes separately because it cannot name a title partition.
+                reconcile_aliases = bool(
+                    [tid for tid in changes if not tid.startswith("@")]
+                ) or any(
+                    marker in changes for marker in ("@identity_alias", "@catalog")
+                )
+                refresh(
+                    db,
+                    approved,
+                    schema_version=schema_version,
+                    reconcile_aliases=reconcile_aliases,
+                )
             else:
                 db.execute(
                     "INSERT INTO main.catalog VALUES(1,?,?,?,?)",

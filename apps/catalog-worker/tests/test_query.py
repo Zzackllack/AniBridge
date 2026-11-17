@@ -731,7 +731,20 @@ def test_empty_targeted_ids_never_reach_sql(tmp_path):
         state.close()
 
 
-def test_progress_abort_maps_to_query_deadline(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    ("target", "operation", "params"),
+    [
+        ("catalog_worker.query_reader.query.query", "recent", {"t": "search"}),
+        (
+            "catalog_worker.query_reader.titles",
+            "titles",
+            {"t": "search", "q": "Example"},
+        ),
+    ],
+)
+def test_progress_abort_maps_to_query_deadline(
+    tmp_path, monkeypatch, target, operation, params
+):
     import sqlite3
     import threading
 
@@ -744,14 +757,14 @@ def test_progress_abort_maps_to_query_deadline(tmp_path, monkeypatch):
     def aborted(*args, **kwargs):
         raise sqlite3.OperationalError("interrupted")
 
-    monkeypatch.setattr("catalog_worker.query_reader.query.query", aborted)
+    monkeypatch.setattr(target, aborted)
     cancel = threading.Event()
     cancel.set()
     try:
         with pytest.raises(ContractError, match="query_deadline"):
             execute(
                 config.output_dir,
-                Request(operation="recent", params={"t": "search"}, limit=100),
+                Request(operation=operation, params=params, limit=100),
                 NOW,
                 cancel,
             )

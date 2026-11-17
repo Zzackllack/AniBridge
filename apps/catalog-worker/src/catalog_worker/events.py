@@ -179,6 +179,36 @@ class Events:
             )
         )
 
+    def publication(self, provider: str, telemetry: dict) -> None:
+        """Bounded retry decision; the raw child outcome stays in its own record."""
+        outcomes = {"ok", "deadline", "child_failure", "local_failure"}
+        self.handler.handle(
+            logging.LogRecord(
+                "catalog_worker",
+                logging.INFO,
+                "",
+                0,
+                json.dumps(
+                    {
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "provider": provider,
+                        "stage": "publication",
+                        "outcome": telemetry["outcome"]
+                        if telemetry["outcome"] in outcomes
+                        else "unknown",
+                        "consecutive_failures": int(telemetry["consecutive_failures"]),
+                        "retry_in_s": int(telemetry["retry_in_s"]),
+                        "backoff_s": int(telemetry["backoff_s"]),
+                        "deadline_s": int(telemetry["deadline_s"]),
+                        "operator_escalation": bool(telemetry["operator_escalation"]),
+                    },
+                    separators=(",", ":"),
+                ),
+                (),
+                None,
+            )
+        )
+
     def storage(self, status: dict) -> None:
         # Keys come only from storage.status; no configured paths or secrets.
         self.handler.handle(

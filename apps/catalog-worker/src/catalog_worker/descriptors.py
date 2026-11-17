@@ -264,13 +264,19 @@ def save(
     )
     require(len(payload) <= 8 * 1024**2, "compact descriptor limit")
     previous = state.db.execute(
-        "SELECT length(CAST(payload AS BLOB)) FROM canonical_descriptor "
+        "SELECT content_hash,length(CAST(payload AS BLOB)) FROM canonical_descriptor "
         "WHERE external_id=?",
         (external,),
     ).fetchone()
-    required = max(0, len(payload) - (previous[0] if previous else 0))
+    required = max(0, len(payload) - (previous[1] if previous else 0))
     if required:
         _make_room(state.db, external, required, guard, budget)
+    if previous is not None:
+        # Successful reacquisition resolves the recorded corruption for this ID.
+        state.db.execute(
+            "DELETE FROM quarantine WHERE kind='descriptor' AND digest=?",
+            (previous[0],),
+        )
     state.db.execute(
         "INSERT INTO canonical_descriptor VALUES(?,?,?,?,?) ON CONFLICT(external_id) DO UPDATE SET content_hash=excluded.content_hash,payload=excluded.payload,acquired_at=excluded.acquired_at,next_due=excluded.next_due",
         (
@@ -308,6 +314,17 @@ def cached(
             except ValueError, UnicodeError, RecursionError:
                 # Reject the whole cache entry and reacquire through the normal
                 # durable retry/admission path; retain existing accepted maps.
+                # Invalidate once (durable, visible) instead of re-reading and
+                # re-decoding the same corrupt payload on every candidate check.
+                with state.db:
+                    state.db.execute(
+                        "UPDATE canonical_descriptor SET next_due=0 WHERE external_id=? AND content_hash=?",
+                        (external, row[3]),
+                    )
+                    state.db.execute(
+                        "INSERT OR IGNORE INTO quarantine VALUES(?,?,?,?,?,0)",
+                        (row[3], "descriptor", len(row[0]), 0, now),
+                    )
                 continue
             if imdb and data.get("imdbId") != imdb:
                 continue

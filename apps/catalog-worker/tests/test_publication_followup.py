@@ -7,10 +7,11 @@ from pathlib import Path
 
 import pytest
 from catalog_core import schema
+from test_query import NOW, seed
+
 from catalog_worker import read_catalog
 from catalog_worker.publication_state import pending
 from catalog_worker.state import State
-from test_query import NOW, seed
 
 
 def rows(config, metadata):
@@ -81,6 +82,38 @@ def test_incremental_projection_equals_independent_full_export(tmp_path, change)
         )
         assert full["counts"] == incremental["counts"]
         assert full["release_summary"] == incremental["release_summary"]
+    finally:
+        state.close()
+
+
+def test_incremental_identity_alias_merge_matches_full_and_drops_stale(tmp_path):
+    """Aliases are merged by verified diff, never rewritten wholesale."""
+    state, config = seed(tmp_path)
+    independent = replace(config, output_dir=tmp_path / "independent")
+    try:
+        title_id = state.db.execute("SELECT title_id FROM title").fetchone()[0]
+        entity_id = state.db.execute("SELECT entity_id FROM entity").fetchone()[0]
+        with state.db:
+            state.db.execute(
+                "INSERT INTO identity_alias VALUES('title',?,?)", ("a" * 64, title_id)
+            )
+            state.db.execute(
+                "INSERT INTO identity_alias VALUES('entity',?,?)",
+                ("b" * 64, entity_id),
+            )
+        incremental = read_catalog.publish(config, state, NOW + 2)
+        full = read_catalog.publish(independent, state, NOW + 2, full=True)
+        aliases = rows(config, incremental)["identity_alias"]
+        assert aliases == rows(independent, full)["identity_alias"]
+        assert {row[0] for row in aliases} == {"title", "entity"}
+
+        with state.db:
+            state.db.execute("DELETE FROM identity_alias WHERE kind='title'")
+        incremental = read_catalog.publish(config, state, NOW + 3)
+        full = read_catalog.publish(independent, state, NOW + 3, full=True)
+        aliases = rows(config, incremental)["identity_alias"]
+        assert aliases == rows(independent, full)["identity_alias"]
+        assert aliases and {row[0] for row in aliases} == {"entity"}
     finally:
         state.close()
 

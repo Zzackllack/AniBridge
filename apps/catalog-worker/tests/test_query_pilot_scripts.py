@@ -118,6 +118,7 @@ def test_generated_client_environment_is_literal_shell_data(tmp_path, monkeypatc
         capture_output=True,
         text=True,
         check=True,
+        timeout=30,
     )
     assert result.stdout == source
 

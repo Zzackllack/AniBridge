@@ -60,6 +60,9 @@ def used(directory: Path) -> int:
             processes = list(proc.iterdir())
         except OSError:
             raise ValueError("storage_inventory_unavailable") from None
+        # Resolve once: this loop may inspect thousands of descriptors per check
+        # and resolving the same prefix for each deleted target is pure overhead.
+        resolved = directory.resolve()
         for process in processes:
             if not process.name.isdecimal():
                 continue
@@ -73,7 +76,7 @@ def used(directory: Path) -> int:
                     if not target.endswith(" (deleted)"):
                         continue
                     target_path = Path(target.removesuffix(" (deleted)"))
-                    if not target_path.is_relative_to(directory.resolve()):
+                    if not target_path.is_relative_to(resolved):
                         continue
                     stat = descriptor.stat()
                     key = (stat.st_dev, stat.st_ino)

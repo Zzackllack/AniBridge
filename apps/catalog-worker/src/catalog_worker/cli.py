@@ -17,7 +17,8 @@ from .collector import Collector
 from .config import load
 from .events import Events
 from .pipeline import Pipeline
-from .publication_state import pending
+from .publication_retry import PublicationGate, publish_loop, publish_once
+from .publication_state import due
 from .read_catalog import provider_root
 from .state import State
 from .storage import check, migration_reserve, recover_scratch
@@ -68,6 +69,21 @@ async def collect(path: Path, once: bool) -> None:
         )
         loop = asyncio.get_running_loop()
         loop.add_signal_handler(signal.SIGTERM, asyncio.current_task().cancel)
+        gates = {
+            provider: PublicationGate(config.limits["publish_interval_s"])
+            for provider in config.providers
+        }
+        wakeups = {provider: asyncio.Event() for provider in config.providers}
+
+        def export(state: State, deadline: int):
+            # The child pins a WAL read snapshot and acknowledges only its
+            # generation. Collection stays active throughout export/validation;
+            # newer generations remain pending.
+            return run_child_async(
+                "catalog_worker.query_publish",
+                [str(path), state.provider],
+                deadline,
+            )
 
         async def maintain(state: State) -> None:
             while True:
@@ -90,29 +106,24 @@ async def collect(path: Path, once: bool) -> None:
                         enricher.last_work,
                         time.monotonic() - started,
                     )
-                    meta = state.meta()
-                    if (
-                        state.db.execute("SELECT 1 FROM release LIMIT 1").fetchone()
-                        and (
-                            pending(config, state, int(time.time()))
-                            or not (
-                                provider_root(config.output_dir, state.provider)
-                                / "current.json"
-                            ).exists()
-                        )
-                        and time.time() - meta["published_at"]
-                        >= config.limits["publish_interval_s"]
+                    # Publication cadence is wall-clock (durable published_at),
+                    # but retry backoff is monotonic so a clock rollback cannot
+                    # postpone publication for hours.
+                    if due(config, state, int(time.time())) and (
+                        once or gates[state.provider].ready(time.monotonic())
                     ):
-                        # The child pins a WAL read snapshot and acknowledges
-                        # only its generation. Collection stays active throughout
-                        # export/validation; newer generations remain pending.
-                        async with publication_slot:
-                            records = await run_child_async(
-                                "catalog_worker.query_publish",
-                                [str(path), state.provider],
-                                420,
+                        if once:
+                            await publish_once(
+                                events,
+                                state.provider,
+                                lambda deadline: export(state, deadline),
+                                gates[state.provider],
                             )
-                            events.child(state.provider, records, exit_code=0)
+                        else:
+                            # Backoff, the guarded child deadline and the export
+                            # itself live in a separate task. Awaiting a 420 s
+                            # child here starved this provider's enrichment.
+                            wakeups[state.provider].set()
                 except (ChildFailure, ChildDeadline) as exc:
                     events.child(state.provider, exc.records, exc.exit_code, exc.reason)
                 except (ValueError, OSError, sqlite3.Error) as exc:
@@ -123,11 +134,27 @@ async def collect(path: Path, once: bool) -> None:
 
         if once:
             await pipeline.run(once=True)
-            await asyncio.gather(*(maintain(state) for state in states))
+            # Bind every maintain coroutine so the finally block can cancel and
+            # join siblings when one of them raises.
+            tasks = [asyncio.create_task(maintain(state)) for state in states]
+            await asyncio.gather(*tasks)
         else:
             tasks = [
                 asyncio.create_task(pipeline.run()),
                 *(asyncio.create_task(maintain(state)) for state in states),
+                *(
+                    asyncio.create_task(
+                        publish_loop(
+                            events,
+                            state.provider,
+                            lambda deadline, state=state: export(state, deadline),
+                            gates[state.provider],
+                            wakeups[state.provider],
+                            publication_slot,
+                        )
+                    )
+                    for state in states
+                ),
             ]
             await asyncio.gather(*tasks)
     finally:
@@ -164,6 +191,7 @@ async def collect_title(
     owner = ProcessLock(config.state_dir / "worker.lock")
     state = None
     collector = None
+    enricher = None
     try:
         check(config, startup=True, state_reserve=migration_reserve(config))
         state = State(config.state_dir / f"{provider}.sqlite", provider)
@@ -188,32 +216,36 @@ async def collect_title(
                 64 * 1024**2, config.limits["state_disk_bytes"] // 16
             ),
         )
-        async with asyncio.timeout(120):
-            for _ in range(30):
-                work = state.claim_title(
-                    tid, int(time.time()), config.limits["title_deadline_s"]
-                )
-                if work is None:
-                    break
-                from .collector import Plan
-
-                plan = Plan(int(time.time()), False, work, work["path"])
-                if plan is None:
-                    break
-                ready = await collector.collect(plan)
-                collector.apply(ready)
-                if ready.outcome == "admission_deferred":
-                    await asyncio.sleep(ready.retry_after)
-                    continue
-                if ready.outcome != "ok":
-                    raise ValueError(
-                        "selected title metadata unavailable: " + ready.outcome
+        try:
+            async with asyncio.timeout(120):
+                for _ in range(30):
+                    work = state.claim_title(
+                        tid, int(time.time()), config.limits["title_deadline_s"]
                     )
-            await enricher.tick(state, int(time.time()), title_id=tid)
+                    if work is None:
+                        break
+                    from .collector import Plan
+
+                    plan = Plan(int(time.time()), False, work, work["path"])
+                    ready = await collector.collect(plan)
+                    collector.apply(ready)
+                    if ready.outcome == "admission_deferred":
+                        await asyncio.sleep(ready.retry_after)
+                        continue
+                    if ready.outcome != "ok":
+                        raise ValueError(
+                            "selected title metadata unavailable: " + ready.outcome
+                        )
+                await enricher.tick(state, int(time.time()), title_id=tid)
+        except TimeoutError:
+            # A durable admission deferral can exceed the whole selected-title
+            # budget. Report the deferral instead of masking it as a raw timeout.
+            raise ValueError("selected title metadata deferred") from None
         publish(config, state, int(time.time()))
     finally:
-        if collector is not None:
+        if enricher is not None:
             await enricher.close()
+        if collector is not None:
             await collector.close()
         if state is not None:
             state.close()

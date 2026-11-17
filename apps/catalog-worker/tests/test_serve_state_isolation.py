@@ -56,7 +56,14 @@ def test_serve_and_populated_query_work_without_a_private_state_directory(
             assert response.status_code == 200 and response.json()["total"] == 2
 
     # The fixture's published rows must still be recent at the server's clock.
-    monkeypatch.setattr("catalog_worker.query_server.time.time", lambda: NOW)
+    # Inject the clock through the app factory instead of patching the stdlib
+    # process-wide time.time, which would affect unrelated threads.
+    from catalog_worker.query_server import create_app
+
+    monkeypatch.setattr(
+        "catalog_worker.query_server.create_app",
+        lambda root, token, **options: create_app(root, token, now=NOW, **options),
+    )
     asyncio.run(run())
     assert seen["access_log"] is False
     assert inaccessible.read_bytes() == b"no private worker volume"

@@ -137,7 +137,12 @@ class State:
     def _collapse(
         self, kind: str, old: int, new: int, candidate: object, now: int
     ) -> bool:
-        if not old or new >= old * 0.9:
+        # A complete listing with zero titles is indistinguishable from a broken
+        # parser or a vanished site. Anti-shrink already protects a non-empty
+        # baseline; a fresh bootstrap has none, so quarantine the empty result
+        # instead of advancing listing_checked_at and publishing it as healthy.
+        empty_listing = kind == "listing" and new == 0
+        if not empty_listing and (not old or new >= old * 0.9):
             return False
         digest = (
             candidate.digest()

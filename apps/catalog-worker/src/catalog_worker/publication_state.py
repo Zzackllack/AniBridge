@@ -9,6 +9,23 @@ from .publication_base import policy
 from .state import State
 
 
+def due(config: Config, state: State, now: int) -> bool:
+    """Positive local evidence plus the normal content/freshness cadence."""
+    from .read_catalog import provider_root
+
+    if not state.db.execute("SELECT 1 FROM release LIMIT 1").fetchone():
+        return False
+    meta = state.meta()
+    if now - meta["published_at"] < config.limits["publish_interval_s"]:
+        return False
+    return (
+        pending(config, state, now)
+        or not (
+            provider_root(config.output_dir, state.provider) / "current.json"
+        ).exists()
+    )
+
+
 def pending(config: Config, state: State, now: int) -> bool:
     """Content uses the normal cadence; routine observations have their own clock."""
     row = state.db.execute("SELECT * FROM publication_meta").fetchone()
@@ -18,7 +35,7 @@ def pending(config: Config, state: State, now: int) -> bool:
     try:
         prior = loads(row["receipt"].encode()) if row["receipt"] else {}
         stale_policy = any(prior.get(k) != v for k, v in policy(config).items())
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         stale_policy = True
     if stale_policy:
         return age >= interval

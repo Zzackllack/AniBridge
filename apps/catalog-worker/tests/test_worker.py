@@ -25,8 +25,9 @@ def seed(path):
 
 def test_parser_positive_languages_and_structure():
     page = parse(
-        b'<html><body><h1>Example</h1><li data-lang-key="1" data-link-target="/redirect/private"></li><li data-lang-key="2" data-link-target="/redirect/private2"></li><li data-lang-key="3" data-link-target="/redirect/private3"></li><li data-lang-key="99" data-link-target="/redirect/private4"></li></body></html>',
+        b'<html><body><h1>Example</h1><div class="hosterSiteVideo"><li data-lang-key="1" data-link-target="/redirect/private"></li><li data-lang-key="2" data-link-target="/redirect/private2"></li><li data-lang-key="3" data-link-target="/redirect/private3"></li><li data-lang-key="99" data-link-target="/redirect/private4"></li></div></body></html>',
         "detail",
+        EPISODE,
     )
     assert page.languages == ("de-dub", "de-sub", "en-sub")
     assert page.unknown_languages == 1
@@ -71,6 +72,27 @@ def test_count_collapse_and_challenge_keep_good_rows(tmp_path):
     with pytest.raises(ValueError, match="clock_error"):
         state.clock(NOW - 1000) if state.clock(NOW) else None
     state.close()
+
+
+def test_empty_complete_listing_is_quarantined_until_explicitly_approved(tmp_path):
+    """A fresh bootstrap must not publish a zero-title catalog as healthy."""
+    state = State(tmp_path / "worker.sqlite", "aniworld.to")
+    try:
+        assert not state.listing(Page((), (), 0, None), NOW)
+        assert state.db.execute("SELECT count(*) FROM title").fetchone()[0] == 0
+        assert state.meta()["listing_checked_at"] == 0
+        assert state.meta()["state"] == "parser_error"
+        assert state.meta()["next_listing"] == NOW + 86400
+        anomaly = state.db.execute(
+            "SELECT digest,kind,old_count,new_count FROM quarantine"
+        ).fetchone()
+        assert tuple(anomaly)[1:] == ("listing", 0, 0)
+        # Only an inspected, explicitly approved digest may accept an empty site.
+        state.approve(anomaly["digest"])
+        assert state.listing(Page((), (), 0, None), NOW + 1)
+        assert state.meta()["listing_checked_at"] == NOW + 1
+    finally:
+        state.close()
 
 
 def test_leases_request_caps_and_expired_claim(tmp_path):

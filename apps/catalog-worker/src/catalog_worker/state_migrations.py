@@ -244,11 +244,13 @@ def upgrade_matching(db: sqlite3.Connection, checkpoint) -> None:
         raise
 
 
-def rollback_matching(filename: Path, provider: str) -> None:
+def rollback_matching(filename: Path, provider: str, *, now: int | None = None) -> None:
     """Stopped-writer code rollback: remove v5 private caches, retain all v4 data.
 
     This never restores a ledger backup over newer observations. Accepted maps,
     leases, first-seen, retry history and old recovery copies remain untouched.
+    ``now`` is an explicit clock for callers that must not patch the standard
+    library's process-wide ``time.time``.
     """
     version = preflight(filename, provider)
     require(version in (5, 6, 7, 8), "rollback requires matching state")
@@ -262,7 +264,7 @@ def rollback_matching(filename: Path, provider: str) -> None:
         # The old worker cannot read this durable limiter. Don't erase an active
         # window and admit another burst immediately after the code downgrade.
         require(
-            last is None or time.time() >= last + 60,
+            last is None or (time.time() if now is None else now) >= last + 60,
             "canonical admission window active; retry rollback after 60 seconds",
         )
         db.execute("BEGIN IMMEDIATE")

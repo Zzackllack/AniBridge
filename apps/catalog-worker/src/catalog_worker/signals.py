@@ -4,6 +4,7 @@ A capped page has no sequence number. Overlap never establishes completeness;
 loss of overlap, an outage, unknown labels and parser failures latch a gap.
 """
 
+import hashlib
 import json
 from typing import TYPE_CHECKING
 
@@ -18,18 +19,49 @@ if TYPE_CHECKING:
 from .transactions import atomic
 
 MAX_PENDING = 4096
+# Overflow stays fail-closed: an observation that cannot be retained must roll
+# back rather than silently drop an obligation. Terminal handling below keeps
+# never-observable expectations from reaching this bound.
+# A feed can advertise a language that never appears on the detail page. After
+# this many successful-but-incomplete checks the obligation is quarantined with
+# its evidence instead of filling the durable hint budget forever.
+MAX_EXPECTED_MISSES = 6
+TERMINAL_RETRY_S = 86400
+QUARANTINE_KIND = "signal"
+
+
+def quarantine_digest(path: str) -> str:
+    """Stable anomaly identity for one never-observable feed obligation."""
+    return hashlib.sha256(("signal:" + path).encode()).hexdigest()
 
 
 class Signals:
-    def __init__(self, state: "State") -> None:
+    def __init__(self, state: State) -> None:
         self.state, self.db = state, state.db
 
     def status(self) -> dict:
         result = dict(self.db.execute("SELECT * FROM signal_meta").fetchone())
+        # Terminal obligations keep their labels/generation as evidence but no
+        # longer consume the active hint budget or targeted claims.
         count, oldest = self.db.execute(
-            "SELECT count(*),min(first_observed) FROM signal_pending"
+            "SELECT count(*),min(first_observed) FROM signal_pending WHERE failures<?",
+            (MAX_EXPECTED_MISSES,),
         ).fetchone()
-        result.update(pending=count, oldest_pending=oldest)
+        terminal, oldest_terminal = self.db.execute(
+            "SELECT count(*),min(first_observed) FROM signal_pending WHERE failures>=?",
+            (MAX_EXPECTED_MISSES,),
+        ).fetchone()
+        result.update(
+            pending=count,
+            oldest_pending=oldest,
+            terminal_pending=terminal,
+            oldest_terminal=oldest_terminal,
+        )
+        quarantined, oldest_quarantined = self.db.execute(
+            "SELECT count(*),min(created_at) FROM quarantine WHERE kind=?",
+            (QUARANTINE_KIND,),
+        ).fetchone()
+        result.update(quarantined=quarantined, oldest_quarantined=oldest_quarantined)
         result["gap_parents_pending"] = self.db.execute(
             "SELECT count(*) FROM work WHERE kind IN ('title','season') AND ? IS NOT NULL AND (checked_at IS NULL OR checked_at<=?)",
             (result["gap_since"], result["gap_since"]),
@@ -63,24 +95,46 @@ class Signals:
             )
 
     def enqueue(self, path: str, tid: str, kind: str, now: int, language=None) -> None:
+        existing = self.db.execute(
+            "SELECT expected,failures FROM signal_pending WHERE path=?", (path,)
+        ).fetchone()
+        expected = set(json.loads(existing["expected"])) if existing else set()
+        terminal = existing is not None and existing["failures"] >= MAX_EXPECTED_MISSES
+        novel = language is not None and language not in expected
+        # A repeated advertisement of an expectation we already track is not new
+        # evidence: the `.accept` window can drop and re-advertise the same
+        # (path, language). Never reset terminal state, bump the generation or
+        # pull polling earlier on that repeat.
+        if existing is not None and not novel:
+            return
+        if language:
+            expected.add(language)
         require(
-            self.db.execute(
-                "SELECT 1 FROM signal_pending WHERE path=?", (path,)
-            ).fetchone()
-            or self.db.execute("SELECT count(*) FROM signal_pending").fetchone()[0]
+            (existing is not None and not terminal)
+            or self.db.execute(
+                "SELECT count(*) FROM signal_pending WHERE failures<?",
+                (MAX_EXPECTED_MISSES,),
+            ).fetchone()[0]
             < MAX_PENDING,
             "signal pending overflow",
+        )
+        # Fresh advertisement after a quarantine is positive new evidence: drop
+        # the anomaly and reopen one bounded attempt window. A repeated advert
+        # for an already-expected language returns above and keeps the anomaly.
+        self.db.execute(
+            "DELETE FROM quarantine WHERE kind=? AND digest=?",
+            (QUARANTINE_KIND, quarantine_digest(path)),
         )
         self.db.execute(
             "INSERT INTO work(path,title_id,kind,due) VALUES(?,?,?,?) ON CONFLICT(path) DO UPDATE SET due=min(work.due,excluded.due)",
             (path, tid, kind, now),
         )
-        old = self.db.execute(
-            "SELECT expected FROM signal_pending WHERE path=?", (path,)
-        ).fetchone()
-        expected = set(json.loads(old[0])) if old else set()
-        if language:
-            expected.add(language)
+        if terminal:
+            # Reopen the bounded window; keep first_observed and add the new
+            # language. failures resets only because the evidence is genuinely new.
+            self.db.execute(
+                "UPDATE signal_pending SET failures=0 WHERE path=?", (path,)
+            )
         self.db.execute(
             "INSERT INTO signal_pending(path,due,first_observed,expected) VALUES(?,?,?,?) "
             "ON CONFLICT(path) DO UPDATE SET expected=excluded.expected,generation=generation+1,due=min(signal_pending.due,excluded.due)",
@@ -173,9 +227,9 @@ class Signals:
         def targeted():
             return self.db.execute(
                 "SELECT w.*,p.generation AS signal_generation FROM signal_pending p JOIN work w USING(path) "
-                "WHERE p.due<=? AND w.due<=? AND w.lease_until<=? "
+                "WHERE p.due<=? AND p.failures<? AND w.due<=? AND w.lease_until<=? "
                 "ORDER BY CASE w.kind WHEN 'title' THEN 0 WHEN 'season' THEN 1 ELSE 2 END,p.first_observed,w.path LIMIT 1",
-                (now, now, now),
+                (now, MAX_EXPECTED_MISSES, now, now),
             ).fetchone()
 
         def new():
@@ -201,8 +255,8 @@ class Signals:
             return self.db.execute(
                 "SELECT * FROM work w WHERE checked_at IS NULL AND due<=? AND lease_until<=? "
                 "AND NOT EXISTS(SELECT 1 FROM omissions o WHERE o.kind='title' AND o.id=w.title_id AND o.tombstoned=1) "
-                "AND NOT EXISTS(SELECT 1 FROM signal_pending p WHERE p.path=w.path) ORDER BY due,path LIMIT 1",
-                (now, now),
+                "AND NOT EXISTS(SELECT 1 FROM signal_pending p WHERE p.path=w.path AND p.failures<?) ORDER BY due,path LIMIT 1",
+                (now, now, MAX_EXPECTED_MISSES),
             ).fetchone()
 
         def deferred_new():
@@ -213,8 +267,8 @@ class Signals:
             return self.db.execute(
                 "SELECT * FROM work w WHERE checked_at IS NULL AND failures=0 AND due>? AND lease_until<=? "
                 "AND NOT EXISTS(SELECT 1 FROM omissions o WHERE o.kind='title' AND o.id=w.title_id AND o.tombstoned=1) "
-                "AND NOT EXISTS(SELECT 1 FROM signal_pending p WHERE p.path=w.path) ORDER BY due,path LIMIT 1",
-                (now, now),
+                "AND NOT EXISTS(SELECT 1 FROM signal_pending p WHERE p.path=w.path AND p.failures<?) ORDER BY due,path LIMIT 1",
+                (now, now, MAX_EXPECTED_MISSES),
             ).fetchone()
 
         def history():
@@ -231,7 +285,7 @@ class Signals:
                 "(w.due<=? AND (w.checked_at<=? OR w.failures>0)) OR "
                 "(w.failures=0 AND w.kind IN ('title','season') AND "
                 "((s.changed_at>? AND w.checked_at<=?) OR w.checked_at<=(SELECT gap_since FROM signal_meta)))) "
-                "AND NOT EXISTS(SELECT 1 FROM signal_pending p WHERE p.path=w.path) "
+                "AND NOT EXISTS(SELECT 1 FROM signal_pending p WHERE p.path=w.path AND p.failures<?) "
                 "AND NOT EXISTS(SELECT 1 FROM omissions o WHERE o.kind='title' AND o.id=w.title_id AND o.tombstoned=1) "
                 "ORDER BY CASE WHEN w.failures>0 THEN 0 WHEN w.kind IN ('title','season') AND s.changed_at>? THEN 1 ELSE 2 END,w.checked_at,w.path LIMIT 1",
                 (
@@ -240,6 +294,7 @@ class Signals:
                     now - reconciliation_s,
                     now - 2592000,
                     now - active_s,
+                    MAX_EXPECTED_MISSES,
                     now - 2592000,
                 ),
             ).fetchone()
@@ -274,14 +329,25 @@ class Signals:
 
     def settle(self, work: dict, now: int, *, success: bool) -> None:
         generation = work.get("signal_generation")
-        if generation is None:
-            return
         with atomic(self.db):
             row = self.db.execute(
-                "SELECT * FROM signal_pending WHERE path=? AND generation=?",
-                (work["path"], generation),
+                "SELECT * FROM signal_pending WHERE path=?", (work["path"],)
             ).fetchone()
             if row is None:
+                if generation is not None:
+                    # A concurrent newly observed variant must survive this old checkpoint.
+                    self.db.execute(
+                        "UPDATE work SET due=min(due,(SELECT due FROM signal_pending WHERE path=?)) WHERE path=? AND EXISTS(SELECT 1 FROM signal_pending WHERE path=?)",
+                        (work["path"], work["path"], work["path"]),
+                    )
+                return
+            if generation is None:
+                # A normal historical detail recheck may resolve a terminal
+                # obligation, but it must never consume an active hint it did
+                # not claim.
+                if row["failures"] < MAX_EXPECTED_MISSES:
+                    return
+            elif row["generation"] != generation:
                 # A concurrent newly observed variant must survive this old checkpoint.
                 self.db.execute(
                     "UPDATE work SET due=min(due,(SELECT due FROM signal_pending WHERE path=?)) WHERE path=? AND EXISTS(SELECT 1 FROM signal_pending WHERE path=?)",
@@ -299,11 +365,55 @@ class Signals:
             checked = self.db.execute(
                 "SELECT checked_at FROM work WHERE path=?", (work["path"],)
             ).fetchone()[0]
-            if success and checked == now and set(expected) <= observed:
+            missing = sorted(set(expected) - observed)
+            if success and checked == now and not missing:
+                # Every advertised language is real. Drop the obligation (and
+                # its anomaly) without claiming the feed window is complete:
+                # coverage/gap_since and observation_gap stay historical.
                 self.db.execute(
-                    "DELETE FROM signal_pending WHERE path=? AND generation=?",
-                    (work["path"], generation),
+                    "DELETE FROM signal_pending WHERE path=?", (work["path"],)
                 )
+                self.db.execute(
+                    "DELETE FROM quarantine WHERE kind=? AND digest=?",
+                    (QUARANTINE_KIND, quarantine_digest(work["path"])),
+                )
+            elif success and row["failures"] + 1 >= MAX_EXPECTED_MISSES:
+                # Never-observable expectation: keep the path, labels,
+                # generation and first observation as durable evidence, but
+                # release the active hint budget. Active claims/accounting
+                # exclude this terminal row; a fresh advertised language can
+                # reopen it.
+                self.db.execute(
+                    "INSERT INTO quarantine VALUES(?,?,?,?,?,0) "
+                    "ON CONFLICT(digest) DO UPDATE SET old_count=excluded.old_count,new_count=excluded.new_count",
+                    (
+                        quarantine_digest(work["path"]),
+                        QUARANTINE_KIND,
+                        len(expected),
+                        len(observed),
+                        now,
+                    ),
+                )
+                due = self.db.execute(
+                    "SELECT due FROM work WHERE path=?", (work["path"],)
+                ).fetchone()[0]
+                terminal_due = max(due, now + TERMINAL_RETRY_S)
+                self.db.execute(
+                    "UPDATE work SET due=? WHERE path=?", (terminal_due, work["path"])
+                )
+                self.db.execute(
+                    "UPDATE signal_pending SET failures=?,due=? WHERE path=?",
+                    (MAX_EXPECTED_MISSES, terminal_due, work["path"]),
+                )
+                self.db.execute(
+                    "UPDATE signal_meta SET coverage='gap',gap_since=coalesce(gap_since,?)",
+                    (now,),
+                )
+                if missing:
+                    self.db.execute(
+                        "INSERT INTO observation_gap VALUES(?,?) ON CONFLICT(path) DO UPDATE SET unknown_languages=max(observation_gap.unknown_languages,excluded.unknown_languages)",
+                        (work["path"], len(missing)),
+                    )
             else:
                 due = self.db.execute(
                     "SELECT due FROM work WHERE path=?", (work["path"],)
@@ -321,7 +431,7 @@ class Signals:
                     (
                         retry_due,
                         work["path"],
-                        generation,
+                        row["generation"],
                     ),
                 )
                 self.db.execute(

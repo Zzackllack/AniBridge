@@ -36,6 +36,14 @@ MATCHER = "exact-title-year-3"
 ORIGIN = "https://skyhook.sonarr.tv"
 
 
+class _CacheWriteFailure(Exception):
+    """A local descriptor/cache write failed after a verified remote match."""
+
+    def __init__(self, cause: Exception) -> None:
+        super().__init__("canonical cache write failed")
+        self.cause = cause
+
+
 def titles(payload: object) -> tuple[CanonicalTitle, ...]:
     require(
         isinstance(payload, list) and len(payload) <= 1000,
@@ -235,6 +243,128 @@ class Enricher:
                 return None
         return None
 
+    def _persist(
+        self,
+        state: State,
+        row: dict,
+        mapped: tuple,
+        compact_ids: dict[str, str],
+        details: dict,
+        canonical_episodes: list,
+        acquired_at: int,
+        digest: str,
+        now: int,
+    ) -> str | None:
+        """Write a verified mapping and its descriptor in the caller's transaction.
+
+        The caller owns commit/rollback so the final scheduler/``mapping_input``
+        acknowledgment can share the same transaction. No network await may run
+        while this transaction is open.
+        """
+        candidate, evidence = mapped
+        # Never silently replace a different previously accepted mapping.
+        previous = state.db.execute(
+            "SELECT namespace,external_id FROM canonical_title WHERE title_id=?",
+            (row["title_id"],),
+        ).fetchall()
+        if any(r[0] in compact_ids and compact_ids[r[0]] != r[1] for r in previous):
+            return "conflict"
+        for namespace, external_id in compact_ids.items():
+            state.db.execute(
+                "INSERT INTO canonical_title VALUES(?,?,?,?,?,?,?) ON CONFLICT(mapping_id) DO UPDATE SET checked_at=excluded.checked_at",
+                (
+                    mapping_id(state.provider, row["title_id"], namespace, external_id),
+                    row["title_id"],
+                    namespace,
+                    external_id,
+                    (
+                        RADARR_MOVIE_PROVENANCE
+                        if self.sources.get("movie") == "radarr"
+                        else "tmdb-v3"
+                    )
+                    if row["media_type"] == "movie"
+                    # Existing allowlist authority tag is kept; compact
+                    # private evidence records the API.
+                    else "skyhook-v1",
+                    evidence if namespace == candidate.namespace else "explicit_id",
+                    now,
+                ),
+            )
+        outcome = None
+        if row["media_type"] == "series":
+            descriptors.save(
+                state,
+                candidate.external_id,
+                details,
+                canonical_episodes,
+                acquired_at,
+                canonical_cache.refresh_delay(state, row["title_id"], now),
+                guard=self.storage_guard,
+                budget=self.descriptor_budget,
+            )
+            canonical_cache.store(
+                state,
+                row["title_id"],
+                digest,
+                self.matcher,
+                acquired_at,
+                canonical_episodes,
+            )
+            outcome = canonical_cache.apply(
+                state, row["title_id"], acquired_at, examined_at=now
+            )
+        state.db.execute("UPDATE worker_meta SET dirty=1")
+        return outcome
+
+    def _finish(
+        self,
+        state: State,
+        row: dict,
+        digest: str,
+        now: int,
+        *,
+        outcome: str,
+        failures: int,
+        mapped: bool,
+        retry_after: int | None = None,
+    ) -> None:
+        """Acknowledge one tick inside the caller's transaction.
+
+        Used in the same transaction as a verified match's descriptor/cache
+        writes, and in the separate failure/unmatched transaction.
+        """
+        delay = (
+            (300, 1800, 7200, 21600)[min(failures - 1, 3)]
+            if failures
+            else (604800 if row["changed_at"] > now - 2592000 else 2592000)
+            if mapped
+            else 86400
+        )
+        if retry_after is not None:
+            delay = max(delay, min(86400, max(1, retry_after)))
+        if (
+            mapped
+            and row["media_type"] == "series"
+            and canonical_cache.missing(state, row["title_id"])
+        ):
+            delay = min(
+                delay,
+                canonical_cache.refresh_delay(state, row["title_id"], now),
+            )
+        state.db.execute("UPDATE canonical_scheduler SET slot=(slot+1)%5")
+        state.db.execute(
+            "UPDATE mapping_input SET input_hash=?,matcher=?,checked_at=?,next_due=?,outcome=?,failures=? WHERE title_id=?",
+            (
+                digest,
+                self.matcher,
+                now,
+                now + delay,
+                outcome,
+                failures,
+                row["title_id"],
+            ),
+        )
+
     async def tick(
         self, state: State, now: int, *, title_id: str | None = None
     ) -> bool:
@@ -340,6 +470,7 @@ class Enricher:
             reused_descriptor = False
             failures = row["failures"]
             retry_after = None
+            recorded = False
             try:
                 self.failure_phase = "search"
                 if row["media_type"] == "movie":
@@ -384,7 +515,7 @@ class Enricher:
                             names, row["year"], row["media_type"], tuple(candidates)
                         )
                     if mapped:
-                        candidate, evidence = mapped
+                        candidate, _ = mapped
                         shared = descriptors.cached(
                             self.states,
                             candidate.external_id,
@@ -494,10 +625,53 @@ class Enricher:
                     compact_ids = identifiers(
                         mapped[0], details, row["media_type"] == "movie"
                     )
+                    # Descriptor/cache writes are local state, not network
+                    # evidence. A full budget or storage quota must degrade this
+                    # title; otherwise it escapes tick() and the same title is
+                    # retried every maintain tick without per-title backoff.
+                    try:
+                        # One transaction: verified mapping + descriptor + cache
+                        # apply + the scheduler/mapping_input acknowledgment. No
+                        # network await runs below this point.
+                        with state.db:
+                            persisted = self._persist(
+                                state,
+                                row,
+                                mapped,
+                                compact_ids,
+                                details,
+                                canonical_episodes,
+                                acquired_at,
+                                digest,
+                                now,
+                            )
+                            if persisted is not None:
+                                outcome = persisted
+                            self._finish(
+                                state,
+                                row,
+                                digest,
+                                now,
+                                outcome=outcome,
+                                failures=0,
+                                mapped=True,
+                            )
+                    except (ValueError, OSError, TimeoutError) as exc:
+                        raise _CacheWriteFailure(exc) from exc
+                    else:
+                        recorded = True
                 failures = 0
             except AdmissionDeferred:
                 self.last_work = "admission_deferred"
                 return False
+            except _CacheWriteFailure as exc:
+                mapped, outcome, failures = None, "source_failure", failures + 1
+                self.last_failure = Failure(
+                    "cache",
+                    "timeout"
+                    if isinstance(exc.cause, TimeoutError)
+                    else "local_resource",
+                )
             # KeyError is defense in depth for a malformed provider payload that
             # slipped past a typed check; it must not kill the per-provider
             # maintain task for every later title.
@@ -505,104 +679,20 @@ class Enricher:
                 mapped, outcome, failures = None, "source_failure", failures + 1
                 retry_after = getattr(exc, "retry_after", None)
                 self.last_failure = Failure.from_error(self.failure_phase, exc)
-            delay = (
-                (300, 1800, 7200, 21600)[min(failures - 1, 3)]
-                if failures
-                else (604800 if row["changed_at"] > now - 2592000 else 2592000)
-                if mapped
-                else 86400
-            )
-            if retry_after is not None:
-                delay = max(delay, min(86400, max(1, retry_after)))
-            with state.db:
-                state.db.execute("UPDATE canonical_scheduler SET slot=(slot+1)%5")
-                if mapped:
-                    candidate, evidence = mapped
-                    # Never silently replace a different previously accepted mapping.
-                    previous = state.db.execute(
-                        "SELECT namespace,external_id FROM canonical_title WHERE title_id=?",
-                        (row["title_id"],),
-                    ).fetchall()
-                    if any(
-                        r[0] in compact_ids and compact_ids[r[0]] != r[1]
-                        for r in previous
-                    ):
-                        outcome = "conflict"
-                    else:
-                        for namespace, external_id in compact_ids.items():
-                            state.db.execute(
-                                "INSERT INTO canonical_title VALUES(?,?,?,?,?,?,?) ON CONFLICT(mapping_id) DO UPDATE SET checked_at=excluded.checked_at",
-                                (
-                                    mapping_id(
-                                        state.provider,
-                                        row["title_id"],
-                                        namespace,
-                                        external_id,
-                                    ),
-                                    row["title_id"],
-                                    namespace,
-                                    external_id,
-                                    (
-                                        RADARR_MOVIE_PROVENANCE
-                                        if self.sources.get("movie") == "radarr"
-                                        else "tmdb-v3"
-                                    )
-                                    if row["media_type"] == "movie"
-                                    # Existing allowlist authority tag is kept;
-                                    # compact private evidence records the API.
-                                    else "skyhook-v1",
-                                    evidence
-                                    if namespace == candidate.namespace
-                                    else "explicit_id",
-                                    now,
-                                ),
-                            )
-                        if row["media_type"] == "series":
-                            descriptors.save(
-                                state,
-                                candidate.external_id,
-                                details,
-                                canonical_episodes,
-                                acquired_at,
-                                canonical_cache.refresh_delay(
-                                    state, row["title_id"], now
-                                ),
-                                guard=self.storage_guard,
-                                budget=self.descriptor_budget,
-                            )
-                            canonical_cache.store(
-                                state,
-                                row["title_id"],
-                                digest,
-                                self.matcher,
-                                acquired_at,
-                                canonical_episodes,
-                            )
-                            outcome = canonical_cache.apply(
-                                state, row["title_id"], acquired_at, examined_at=now
-                            )
-                        state.db.execute("UPDATE worker_meta SET dirty=1")
-                if (
-                    mapped
-                    and row["media_type"] == "series"
-                    and canonical_cache.missing(state, row["title_id"])
-                ):
-                    delay = min(
-                        delay,
-                        canonical_cache.refresh_delay(state, row["title_id"], now),
-                    )
-                state.db.execute(
-                    "UPDATE mapping_input SET input_hash=?,matcher=?,checked_at=?,next_due=?,outcome=?,failures=? WHERE title_id=?",
-                    (
+            if not recorded:
+                # A local match failure rolled back the verified transaction, so
+                # its retryable per-title failure gets a fresh transaction.
+                with state.db:
+                    self._finish(
+                        state,
+                        row,
                         digest,
-                        self.matcher,
                         now,
-                        now + delay,
-                        outcome,
-                        failures,
-                        row["title_id"],
-                    ),
-                )
+                        outcome=outcome,
+                        failures=failures,
+                        mapped=bool(mapped),
+                        retry_after=retry_after,
+                    )
             if self.last_failure is not None and self.on_failure is not None:
                 self.on_failure(state.provider, row["title_id"], self.last_failure)
             self.last_work = (

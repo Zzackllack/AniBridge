@@ -319,3 +319,94 @@ def test_unexpected_key_error_becomes_a_bounded_source_failure(tmp_path, monkeyp
     assert reports == [Failure("descriptor", "invalid_payload")]
     assert state.db.execute("SELECT failures FROM mapping_input").fetchone()[0] == 1
     state.close()
+
+
+@pytest.mark.parametrize("failure", ["descriptor_budget", "storage_full"])
+def test_series_descriptor_persistence_failure_stays_a_retryable_title(
+    tmp_path, monkeypatch, failure
+):
+    """A full budget/quota must degrade one title, never kill every provider."""
+    from catalog_core.json_codec import ContractError
+
+    state = ready(tmp_path)
+    item = {"tvdbId": 123, "title": "Example", "year": 2020, "episodes": []}
+
+    async def fetch(origin, path, **kwargs):
+        return Fetch("ok", json.dumps([item] if "search" in path else item).encode())
+
+    if failure == "descriptor_budget":
+
+        def exhausted(*args, **kwargs):
+            raise ContractError("descriptor_budget")
+
+        monkeypatch.setattr("catalog_worker.canonical.descriptors.save", exhausted)
+        enricher = Enricher({}, fetcher=fetch, clock=lambda: NOW)
+    else:
+
+        def exhausted(reserve):
+            raise ValueError("storage_full")
+
+        enricher = Enricher(
+            {}, fetcher=fetch, clock=lambda: NOW, storage_guard=exhausted
+        )
+    reports = []
+    enricher.on_failure = lambda provider, tid, error: reports.append(error)
+    try:
+        assert asyncio.run(enricher.tick(state, NOW))
+        row = state.db.execute("SELECT * FROM mapping_input").fetchone()
+        assert row["outcome"] == "source_failure" and row["failures"] == 1
+        assert row["next_due"] == NOW + 300
+        assert reports == [Failure("cache", "local_resource")]
+        # The failed transaction left no partial mapping or descriptor reference.
+        assert not state.db.execute("SELECT 1 FROM canonical_title").fetchone()
+        assert not state.db.execute("SELECT 1 FROM canonical_descriptor").fetchone()
+        assert not asyncio.run(enricher.tick(state, NOW + 1))
+    finally:
+        state.close()
+
+
+def test_final_mapping_ack_failure_rolls_back_the_whole_verified_match(tmp_path):
+    """The success ack and the descriptor/cache writes are one transaction.
+
+    A sqlite writer abort on the final ``mapping_input`` update must propagate
+    (genuine writer faults stay fatal) and must leave no accepted mapping,
+    descriptor, cache or replay row behind.
+    """
+    import sqlite3
+
+    state = ready(tmp_path)
+    item = {"tvdbId": 123, "title": "Example", "year": 2020, "episodes": []}
+
+    async def fetch(origin, path, **kwargs):
+        return Fetch("ok", json.dumps([item] if "search" in path else item).encode())
+
+    try:
+        before = dict(state.db.execute("SELECT * FROM mapping_input").fetchone())
+        work_before = list(state.db.execute("SELECT * FROM work"))
+        slot = state.db.execute("SELECT slot FROM canonical_scheduler").fetchone()[0]
+        with state.db:
+            state.db.execute(
+                "CREATE TRIGGER reject_success_ack BEFORE UPDATE OF outcome ON mapping_input "
+                "WHEN NEW.outcome='matched' BEGIN SELECT RAISE(ABORT,'ack rejected'); END"
+            )
+        with pytest.raises(sqlite3.IntegrityError, match="ack rejected"):
+            asyncio.run(Enricher({}, fetcher=fetch, clock=lambda: NOW).tick(state, NOW))
+        assert (
+            dict(state.db.execute("SELECT * FROM mapping_input").fetchone()) == before
+        )
+        for table in (
+            "canonical_title",
+            "canonical_descriptor",
+            "canonical_cache",
+            "canonical_hint",
+            "canonical_hint_identity",
+            "matching_replay",
+        ):
+            assert not state.db.execute(f"SELECT 1 FROM {table}").fetchone(), table
+        assert list(state.db.execute("SELECT * FROM work")) == work_before
+        assert (
+            state.db.execute("SELECT slot FROM canonical_scheduler").fetchone()[0]
+            == slot
+        )
+    finally:
+        state.close()

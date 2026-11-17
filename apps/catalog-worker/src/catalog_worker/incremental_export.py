@@ -64,8 +64,44 @@ def upsert(
     db.execute("DROP TABLE selected")
 
 
+def reconcile_identity_alias(
+    db: sqlite3.Connection, approved: frozenset[str], schema_version: int
+) -> None:
+    """Merge only added/changed/removed aliases; never rewrite identical rows.
+
+    The publication journal records identity_alias as one marker, so the affected
+    partitions cannot be selected directly. A set difference against the ledger
+    view is still verifiable and bounded by alias rows (far below release
+    history), and it keeps every unchanged artifact row byte-identical.
+    """
+    sql, values = query("identity_alias", approved, schema_version)
+    db.execute(
+        "CREATE TEMP TABLE ledger_identity_alias(kind TEXT, old_id TEXT, current_id TEXT)"
+    )
+    db.execute(f"INSERT INTO ledger_identity_alias {sql}", values)
+    db.execute(
+        "CREATE INDEX ledger_identity_alias_row ON ledger_identity_alias(kind,old_id,current_id)"
+    )
+    db.execute(
+        "DELETE FROM main.identity_alias WHERE NOT EXISTS ("
+        "SELECT 1 FROM ledger_identity_alias l "
+        "WHERE l.kind=main.identity_alias.kind AND l.old_id=main.identity_alias.old_id "
+        "AND l.current_id=main.identity_alias.current_id)"
+    )
+    db.execute(
+        "INSERT INTO main.identity_alias SELECT * FROM ledger_identity_alias l "
+        "WHERE NOT EXISTS (SELECT 1 FROM main.identity_alias m "
+        "WHERE m.kind=l.kind AND m.old_id=l.old_id)"
+    )
+    db.execute("DROP TABLE ledger_identity_alias")
+
+
 def refresh(
-    db: sqlite3.Connection, approved: frozenset[str], schema_version: int = 2
+    db: sqlite3.Connection,
+    approved: frozenset[str],
+    schema_version: int = 2,
+    *,
+    reconcile_aliases: bool = True,
 ) -> None:
     """All deletions apply only to the changed partitions and source tombstones."""
     upsert(db, "title_data", approved, schema_version)
@@ -94,6 +130,5 @@ def refresh(
     db.execute(
         "DELETE FROM main.title_data WHERE title_key IN affected_title AND title_id NOT IN (SELECT id FROM keep_title_data)"
     )
-    db.execute("DELETE FROM main.identity_alias")
-    sql, values = query("identity_alias", approved, schema_version)
-    db.execute(f"INSERT INTO main.identity_alias {sql}", values)
+    if reconcile_aliases:
+        reconcile_identity_alias(db, approved, schema_version)

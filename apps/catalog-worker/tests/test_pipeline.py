@@ -5,6 +5,7 @@ import sqlite3
 import sys
 
 import pytest
+
 from catalog_worker.aniworld import Link, Page
 from catalog_worker.collector import Collector, Plan, Ready
 from catalog_worker.config import LIMITS, Config
@@ -135,12 +136,21 @@ def test_slow_provider_and_writer_error_do_not_stop_others(tmp_path):
 @pytest.mark.parametrize("queue_size", [1, 32])
 def test_acknowledgement_and_queue_bound_stop_reservation(tmp_path, queue_size):
     group = collectors(tmp_path, ready_queue_size=queue_size)
+    # Reservation is bounded by retained-result capacity, fetch concurrency and
+    # the number of producers, independently of event-loop scheduling.
+    expected = min(len(group) * 2, LIMITS["fetch_concurrency"][0], queue_size)
 
     async def scenario():
         parsed = []
+        admitted = asyncio.Event()
 
         async def collect(c, plan):
             parsed.append((c.state.provider, plan.path))
+            if len(parsed) == expected:
+                admitted.set()
+            # Park every admitted producer inside its page until the test has
+            # observed the bound; no wall-clock sleep decides the assertion.
+            await admitted.wait()
             return Ready(plan, Page((), (), 0, "Observed"))
 
         for c in group:
@@ -152,18 +162,24 @@ def test_acknowledgement_and_queue_bound_stop_reservation(tmp_path, queue_size):
             for c in group
             for _ in range(2)
         ]
-        await asyncio.sleep(0.05)
-        assert len(parsed) == min(4, queue_size)
-        assert pipeline.ready.qsize() <= queue_size
-        assert all(not t.done() for t in tasks)
-        writer = asyncio.create_task(pipeline.writer())
         try:
             async with asyncio.timeout(2):
-                await asyncio.gather(*tasks)
-            await pipeline.ready.join()
+                await admitted.wait()
+            assert len(parsed) == expected
+            assert pipeline.ready.qsize() <= queue_size
+            assert all(not t.done() for t in tasks)
+            writer = asyncio.create_task(pipeline.writer())
+            try:
+                async with asyncio.timeout(2):
+                    await asyncio.gather(*tasks)
+                await pipeline.ready.join()
+            finally:
+                writer.cancel()
+                await asyncio.gather(writer, return_exceptions=True)
         finally:
-            writer.cancel()
-            await asyncio.gather(writer, return_exceptions=True)
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     try:
         asyncio.run(scenario())
@@ -193,6 +209,103 @@ def test_providers_can_keep_collecting_with_an_independent_publisher(tmp_path):
     finally:
         for c in group:
             c.state.close()
+
+
+def test_deterministic_payload_rejection_records_backoff_not_a_refetch_loop(tmp_path):
+    """A poison page must leave a durable failure receipt, not expire and retry."""
+    from catalog_core import release_metadata
+
+    limits = {key: bounds[0] for key, bounds in LIMITS.items()}
+    config = Config(
+        {"filmo.to": "https://fixture.invalid"},
+        {"tv": "off"},
+        tmp_path,
+        tmp_path / "output",
+        tmp_path / "key",
+        "fixture",
+        "127.0.0.1",
+        1,
+        limits,
+    )
+    state = State(tmp_path / "filmo.to.sqlite", "filmo.to")
+    state.listing(Page((Link("/movies/example", "Poster Name"),), (), 0, None), NOW)
+    collector = Collector(config, state, clock=lambda: NOW)
+    try:
+        work = state.claim(NOW)
+        plan = Plan(NOW, False, work, work["path"])
+        offer = release_metadata.validate(
+            {
+                "variant_anchor": "817:provider-row",
+                "native_id": "817",
+                "host": "VOE",
+                "language_label": "Deutsch Dub",
+                "audio_languages": ["deu"],
+                "subtitle_languages": None,
+                "audio_role": "dubbed",
+                "subtitle_mode": "unknown",
+                "quality": {"labels": ["1080p"], "source": "web", "resolution": 1080},
+            }
+        )
+        ready = Ready(plan, Page((), (), 0, "Title", offers=(offer, offer)))
+        with pytest.raises(ValueError, match="duplicate source variant"):
+            collector.apply(ready)
+        row = state.db.execute(
+            "SELECT * FROM work WHERE path=?", (plan.path,)
+        ).fetchone()
+        assert row["failures"] == 1 and row["lease_until"] == 0
+        assert row["due"] == NOW + 3600
+        receipt = state.db.execute("SELECT * FROM work_failure").fetchone()
+        assert (receipt["outcome"], receipt["parser_reason"]) == (
+            "unexpected_structure",
+            "structure_changed",
+        )
+        assert state.meta()["state"] == "parser_error"
+        # Until the durable deadline the same page is not re-claimed at all.
+        assert state.claim(NOW + 1) is None or state.claim(NOW + 1)["path"] != plan.path
+        retry = state.claim(NOW + 3600)
+        assert retry["path"] == plan.path and retry["failures"] == 1
+        again = Ready(
+            Plan(NOW + 3600, False, retry, retry["path"]),
+            Page((), (), 0, "Title", offers=(offer, offer)),
+        )
+        with pytest.raises(ValueError, match="duplicate source variant"):
+            collector.apply(again)
+        escalated = state.db.execute(
+            "SELECT failures,due FROM work WHERE path=?", (plan.path,)
+        ).fetchone()
+        assert escalated["failures"] == 2
+        assert escalated["due"] > retry["due"]
+    finally:
+        state.close()
+
+
+def test_rejected_page_clears_its_sql_deadline_before_failure_checkpoint(
+    tmp_path, monkeypatch
+):
+    group = collectors(tmp_path)
+    collector = group[0]
+    state = collector.state
+    work = state.claim(NOW)
+    plan = Plan(NOW, False, work, work["path"])
+
+    def reject(_ready):
+        # A rejected page can consume its remaining SQL budget. Its durable
+        # recovery checkpoint must still run after the observation rolls back.
+        state.db.set_progress_handler(lambda: 1, 1)
+        raise ValueError("invalid provider payload")
+
+    monkeypatch.setattr(collector, "_apply", reject)
+    try:
+        with pytest.raises(ValueError, match="invalid provider payload"):
+            collector.apply(Ready(plan, Page((), (), 0, "Title")))
+        row = state.db.execute(
+            "SELECT failures,lease_until FROM work WHERE path=?", (work["path"],)
+        ).fetchone()
+        assert (row["failures"], row["lease_until"]) == (1, 0)
+        assert state.db.execute("SELECT 1 FROM work_failure").fetchone()
+    finally:
+        for item in group:
+            item.state.close()
 
 
 def test_page_slice_deadline_and_redirect_request_budget(tmp_path):

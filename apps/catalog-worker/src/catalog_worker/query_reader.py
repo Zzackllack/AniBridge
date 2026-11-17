@@ -230,5 +230,12 @@ def execute(
             )
             response.check_request(request, metadata["source_id"])
             return response
+        except sqlite3.OperationalError:
+            # The 2 s progress handler aborts every SQL stage, not only the
+            # final query: candidate search, native-season entity batching,
+            # title/alias projections and episode maps all share the budget.
+            if interrupted():
+                raise ContractError("query_deadline") from None
+            raise
         finally:
             db.close()

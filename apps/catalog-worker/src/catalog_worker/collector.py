@@ -405,11 +405,33 @@ class Collector:
         try:
             require(time.monotonic() < deadline, "title_deadline")
             self._apply(ready)
-        except ValueError:
+        except ValueError as exc:
+            # Recovery writes have their own bounded SQLite lock timeout. The
+            # expired page budget must not interrupt their failure checkpoint.
+            self.state.db.set_progress_handler(None, 0)
+            if str(exc) == "title_deadline":
+                # Queue/writer slowness: release the lease and retry without
+                # charging a payload failure to this page.
+                self.state.defer(ready.plan, int(self.clock()), 1)
+                return
             if ready.plan.signal:
                 # Admission overflow rolls back the observation and then exposes
                 # the gap. Keep the old window, and retry after consumers drain.
                 Signals(self.state).failed(ready.plan.now, 900)
+            else:
+                # A deterministic payload rejection (for example a duplicated
+                # source variant) rolled back inside atomic(). Without a durable
+                # failure receipt the same page was re-fetched and re-failed
+                # forever on every lease expiry, burning the provider budget.
+                failed_at = math.ceil(self.clock())
+                with atomic(self.state.db):
+                    self.state.failure(
+                        ready.plan.work,
+                        "unexpected_structure",
+                        failed_at,
+                        parser_reason="structure_changed",
+                        schedule_listing=ready.plan.listing,
+                    )
             raise
         finally:
             self.state.db.set_progress_handler(None, 0)

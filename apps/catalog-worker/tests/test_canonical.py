@@ -2,6 +2,7 @@ import asyncio
 import json
 
 from catalog_core.identity import entity_id, title_id
+
 from catalog_worker.aniworld import Link, Page, parse
 from catalog_worker.canonical import Enricher
 from catalog_worker.state import State
@@ -33,6 +34,7 @@ def test_provider_metadata_keeps_year_and_explicit_id_only():
     page = parse(
         b'<html><body><h1 data-alternativetitles="Other, Another">Example</h1><span itemprop="startDate"><a href="https://aniworld.to/animes/jahr/2020">2020</a></span><a data-imdb="tt1234567" href="https://www.imdb.com/title/tt1234567">IMDB</a><a href="/anime/stream/example/staffel-1">Season 1</a></body></html>',
         "detail",
+        TITLE,
     )
     assert (page.year, page.explicit_imdb, page.aliases) == (
         2020,
@@ -147,6 +149,7 @@ def test_explicit_id_must_match_search_and_detail(tmp_path):
 
 def test_reviewed_season_requires_known_mapping_and_compare_and_swap(tmp_path):
     import pytest
+
     from catalog_worker.review import season
 
     state = ready(tmp_path)
@@ -197,6 +200,7 @@ def test_private_episode_cache_reuses_series_after_language_and_entity_changes(
     tmp_path,
 ):
     from catalog_core.providers.recent import Change, Window
+
     from catalog_worker.review import season
     from catalog_worker.signals import Signals
 

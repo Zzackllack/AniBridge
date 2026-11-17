@@ -28,7 +28,7 @@ from catalog_worker.transport import Fetch
     ],
 )
 def test_invalid_shared_descriptor_falls_back_to_remote_without_state_loss(
-    tmp_path, damage
+    tmp_path, damage, monkeypatch
 ):
     state, _ = seed(tmp_path)
     other, other_tid = seed(tmp_path, provider="s.to")
@@ -82,6 +82,26 @@ def test_invalid_shared_descriptor_falls_back_to_remote_without_state_loss(
         assert state.db.execute("SELECT failures FROM mapping_input").fetchone()[0] == 0
         for table, rows in before.items():
             assert list(state.db.execute(f"SELECT * FROM {table}")) == rows
+        # The corrupt row is invalidated once and recorded, not re-decoded on
+        # every candidate check; referenced evidence rows are otherwise retained.
+        corrupt = other.db.execute(
+            "SELECT content_hash,next_due FROM canonical_descriptor WHERE external_id='123'"
+        ).fetchone()
+        assert corrupt["next_due"] == 0
+        assert tuple(
+            other.db.execute("SELECT kind,digest FROM quarantine").fetchone()
+        ) == (
+            "descriptor",
+            corrupt["content_hash"],
+        )
+        monkeypatch.setattr(
+            "catalog_worker.descriptors.decode",
+            lambda *args: pytest.fail("corrupt descriptor was decoded again"),
+        )
+        assert descriptors.cached([other], "123", NOW, None) is None
+        with other.db:
+            descriptors.save(other, "123", response, [], NOW + 1, 600)
+        assert not other.db.execute("SELECT 1 FROM quarantine").fetchone()
     finally:
         state.close()
         other.close()

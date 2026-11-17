@@ -116,6 +116,148 @@ def test_normal_multi_provider_command_resumes_and_keeps_failed_provider(
         backup(config)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="collector child resource bounds require Linux"
+)
+def test_once_mode_cancels_and_joins_sibling_maintain_tasks(tmp_path, monkeypatch):
+    """A failing maintain coroutine must not orphan the other provider's task."""
+    config_file = tmp_path / "config.json"
+    config_file.write_text(
+        json.dumps(
+            {
+                "providers": {
+                    "aniworld.to": "https://ani.invalid",
+                    "s.to": "https://sto.invalid",
+                },
+                "canonical_sources": {"tv": "off", "movie": "off"},
+                "state_dir": str(tmp_path / "state"),
+                "output_dir": str(tmp_path / "read"),
+                "source_id": "once-cleanup",
+            }
+        )
+    )
+    cancelled = asyncio.Event()
+    closed = []
+
+    class FailingEnricher:
+        last_work = "idle"
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def tick(self, state, now, *, title_id=None):
+            if state.provider == "aniworld.to":
+                raise RuntimeError("injected maintain failure")
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.set()
+
+        async def close(self):
+            closed.append(True)
+
+    class NoCollect:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def run(self, once=False):
+            assert once
+
+    monkeypatch.setattr(cli, "Enricher", FailingEnricher)
+    monkeypatch.setattr(cli, "Pipeline", NoCollect)
+    with pytest.raises(RuntimeError, match="injected maintain failure"):
+        asyncio.run(cli.collect(config_file, once=True))
+    assert cancelled.is_set() and closed == [True]
+    # The process lock must be released after the failed once-mode run.
+    from catalog_core.files import ProcessLock
+
+    ProcessLock(tmp_path / "state" / "worker.lock").close()
+
+
+def test_provider_contract_error_is_retried_without_stopping_other_providers(
+    tmp_path, monkeypatch
+):
+    """Qualified H2 mechanism: a tick exception is retried, not a run crash.
+
+    The first-worker report claimed a whole-collector/gather crashloop for
+    descriptor-budget/storage errors. Baseline ``cli.collect`` already caught
+    ``ValueError`` (and ``ContractError`` is one) in the maintain loop; the real
+    defect was the missing per-title durable backoff. This regression pins that
+    a failing provider is retried on the next maintain tick while the other
+    provider keeps ticking.
+    """
+    from types import SimpleNamespace
+
+    from catalog_core.json_codec import ContractError
+
+    config_file = tmp_path / "config.json"
+    config_file.write_text(
+        json.dumps(
+            {
+                "providers": {
+                    "aniworld.to": "https://ani.invalid",
+                    "s.to": "https://sto.invalid",
+                },
+                "canonical_sources": {"tv": "off", "movie": "off"},
+                "state_dir": str(tmp_path / "state"),
+                "output_dir": str(tmp_path / "read"),
+                "source_id": "contract-retry",
+            }
+        )
+    )
+    ticks = {"aniworld.to": 0, "s.to": 0}
+
+    class FailingEnricher:
+        last_work = "idle"
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def tick(self, state, now, *, title_id=None):
+            ticks[state.provider] += 1
+            if state.provider == "aniworld.to":
+                raise ContractError("descriptor_budget")
+            return True
+
+        async def close(self):
+            pass
+
+    class StubCollector:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def close(self):
+            pass
+
+    class StubPipeline:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def run(self, once=False):
+            pass
+
+    monkeypatch.setattr(cli, "Enricher", FailingEnricher)
+    monkeypatch.setattr(cli, "Collector", StubCollector)
+    monkeypatch.setattr(cli, "Pipeline", StubPipeline)
+    # collect() refuses non-Linux hosts before the loop; the loop itself is
+    # platform-neutral once collectors are stubbed.
+    monkeypatch.setattr(cli, "sys", SimpleNamespace(platform="linux"))
+
+    async def scenario():
+        task = asyncio.create_task(cli.collect(config_file, once=False))
+        try:
+            async with asyncio.timeout(10):
+                while ticks["aniworld.to"] < 2 or ticks["s.to"] < 2:
+                    await asyncio.sleep(0.01)
+            assert ticks["aniworld.to"] >= 2
+            assert ticks["s.to"] >= 2
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    asyncio.run(scenario())
+
+
 def test_failed_backup_set_cannot_be_restored(tmp_path):
     import sqlite3
 
@@ -139,6 +281,41 @@ def test_failed_backup_set_cannot_be_restored(tmp_path):
     assert (config.state_dir / "backup/INCOMPLETE").is_file()
     with pytest.raises(ValueError, match="already exists"):
         backup(config)
+
+
+def test_backup_syncs_copied_databases_before_clearing_the_fence(tmp_path, monkeypatch):
+    from test_pipeline import collectors
+
+    from catalog_worker import backup as module
+
+    group = collectors(tmp_path)
+    try:
+        config = group[0].config
+        fence = config.state_dir / "backup" / "INCOMPLETE"
+        synced = []
+        original = module._sync_file
+
+        def observed(path):
+            # The set must not look restorable before its bytes are durable.
+            synced.append((path.name, fence.exists()))
+            original(path)
+
+        monkeypatch.setattr(module, "_sync_file", observed)
+        root = backup(config)
+        assert synced == [
+            ("aniworld.to.sqlite", True),
+            ("s.to.sqlite", True),
+            ("megakino.sqlite", True),
+        ]
+        assert not fence.exists()
+        assert sorted(path.name for path in root.glob("*.sqlite")) == [
+            "aniworld.to.sqlite",
+            "megakino.sqlite",
+            "s.to.sqlite",
+        ]
+    finally:
+        for collector in group:
+            collector.state.close()
 
 
 def test_generated_token_file_is_private_from_creation(tmp_path):

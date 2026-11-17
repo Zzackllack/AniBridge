@@ -1,5 +1,6 @@
 """One no-overwrite SQLite backup set, charged to the same worker budget."""
 
+import os
 import sqlite3
 from contextlib import closing
 from pathlib import Path
@@ -10,6 +11,12 @@ from catalog_core.json_codec import dumps, require
 from .config import Config
 from .source_cooldowns import FILENAME, SourceCooldowns
 from .storage import check
+
+
+def _sync_file(path: Path) -> None:
+    """Persist copied database bytes before the set may lose its INCOMPLETE fence."""
+    with path.open("rb") as stream:
+        os.fsync(stream.fileno())
 
 
 def backup(config: Config) -> Path:
@@ -33,21 +40,27 @@ def backup(config: Config) -> Path:
     fsync_directory(config.state_dir)
     try:
         for path in files:
+            destination = root / path.name
             with (
                 closing(
                     sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)
                 ) as source,
-                closing(sqlite3.connect(root / path.name)) as target,
+                closing(sqlite3.connect(destination)) as target,
             ):
                 source.backup(target)
+                target.commit()
                 require(
                     target.execute("PRAGMA integrity_check").fetchone()[0] == "ok",
                     "invalid backup",
                 )
+            _sync_file(destination)
         cooldown = config.state_dir / FILENAME
         if cooldown.exists():
             receipt = SourceCooldowns(cooldown)
             atomic_write(root / FILENAME, dumps({"version": 1, "until": receipt.until}))
+        # Every file and the directory entry must be durable before the set is
+        # allowed to look restorable without the fence.
+        fsync_directory(root)
         incomplete.unlink()
         fsync_directory(root)
         return root

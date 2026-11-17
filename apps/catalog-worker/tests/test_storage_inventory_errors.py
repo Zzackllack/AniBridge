@@ -1,6 +1,9 @@
 """Unknown storage cannot be counted as zero bytes for quota admission."""
 
 import os
+import sys
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -63,3 +66,15 @@ def test_proc_inventory_io_failure_is_not_counted_as_empty(tmp_path, monkeypatch
     monkeypatch.setattr(Path, "iterdir", iterdir)
     with pytest.raises(ValueError, match="storage_inventory_unavailable"):
         used(tmp_path)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux /proc accounting")
+def test_unlinked_open_sqlite_scratch_stays_charged(tmp_path):
+    """Do not cache away bytes SQLite still holds through unlinked descriptors."""
+    root = tmp_path / "state"
+    root.mkdir()
+    with tempfile.NamedTemporaryFile(dir=root, delete=False) as stream:
+        stream.write(b"x" * 8192)
+        stream.flush()
+        Path(stream.name).unlink()
+        assert used(root) >= 8192

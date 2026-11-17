@@ -48,6 +48,11 @@ def report(config: Config) -> dict:
             signal = dict(db.execute("SELECT * FROM signal_meta").fetchone())
             if provider in {"megakino", "filmo.to"}:
                 signal["coverage"] = "unsupported"
+            # Never-observable advertised languages are quarantined with counts
+            # instead of filling the durable pending budget forever.
+            signal["quarantined_expected"] = db.execute(
+                "SELECT count(*) FROM quarantine WHERE kind='signal'"
+            ).fetchone()[0]
             ambiguous_hints = db.execute(
                 "SELECT count(*) FROM canonical_hint WHERE episode IS NULL"
             ).fetchone()[0]

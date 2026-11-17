@@ -213,3 +213,45 @@ def test_operator_override_clears_a_persisted_origin_cooldown(tmp_path):
     assert clear(path, [origin]) == 0
     with pytest.raises(ValueError, match="unexpected canonical cooldown origin"):
         clear(path, ["https://unexpected.invalid"])
+
+
+def test_cross_process_cooldown_writes_merge_and_readers_refresh(tmp_path):
+    """Two private snapshots must not erase each other's Retry-After."""
+    from catalog_worker.source_cooldowns import FILENAME, SourceCooldowns, clear
+
+    path = tmp_path / FILENAME
+    skyhook, radarr = "https://skyhook.sonarr.tv", "https://api.radarr.video"
+    collector = SourceCooldowns(path)
+    one_off = SourceCooldowns(path)
+    # Each process loaded the receipt before the other wrote anything.
+    collector.pause(skyhook, 600, NOW)
+    one_off.pause(radarr, 900, NOW)
+    surviving = SourceCooldowns(path)
+    assert surviving.delay(skyhook, NOW) == 600
+    assert surviving.delay(radarr, NOW) == 900
+    # A long-lived instance observes a later clear from the other process.
+    assert collector.delay(skyhook, NOW) == 600
+    assert clear(path, [skyhook]) == 1
+    assert collector.delay(skyhook, NOW) == 0
+    assert one_off.delay(radarr, NOW) == 900
+
+
+def test_busy_cooldown_writer_fails_closed_without_an_unbounded_wait(
+    tmp_path, monkeypatch
+):
+    import fcntl
+
+    from catalog_worker import source_cooldowns
+
+    path = tmp_path / source_cooldowns.FILENAME
+    origin = "https://skyhook.sonarr.tv"
+    receipt = source_cooldowns.SourceCooldowns(path)
+    receipt.pause(origin, 600, NOW)
+    before = path.read_bytes()
+    monkeypatch.setattr(source_cooldowns, "LOCK_TIMEOUT_S", 0.01)
+    with path.with_name(path.name + ".lock").open("a+b") as other:
+        fcntl.flock(other.fileno(), fcntl.LOCK_EX)
+        with pytest.raises(source_cooldowns.CooldownWriteError):
+            receipt.pause(origin, 1200, NOW)
+    assert path.read_bytes() == before
+    assert receipt.delay(origin, NOW) == 600

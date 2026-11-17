@@ -110,12 +110,18 @@ def decisions(state: State, tid: str, *, contextual: bool = False) -> list[Decis
         if len(parents) == 1
         else None
     )
+    # Constant per title: querying it once per episode entity cost ~O(100k)
+    # indexed reads on a single rematch of a long show with no single parent.
+    attempted = (
+        None
+        if len(parents) == 1
+        else db.execute(
+            "SELECT checked_at,outcome FROM mapping_input WHERE title_id=?", (tid,)
+        ).fetchone()
+    )
     for eid, native, name in entities:
         mid = parents[0][0] if len(parents) == 1 else None
         if len(parents) != 1:
-            attempted = db.execute(
-                "SELECT checked_at,outcome FROM mapping_input WHERE title_id=?", (tid,)
-            ).fetchone()
             reason = (
                 "parent_conflict"
                 if parents

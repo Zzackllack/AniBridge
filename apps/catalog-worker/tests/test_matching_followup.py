@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from catalog_core.identity import entity_id, mapping_id
+
 from catalog_worker import canonical_cache, descriptors
 from catalog_worker.aniworld import Link, Page
 from catalog_worker.canonical import Enricher
@@ -685,20 +686,16 @@ def test_reviewed_cohort_wording_pairs_keep_canonical_ids_and_native_coordinates
         state.close()
 
 
-def test_code_rollback_cannot_forget_an_active_admission_window(tmp_path, monkeypatch):
-    from catalog_worker import state_migrations
-
+def test_code_rollback_cannot_forget_an_active_admission_window(tmp_path):
     state, _ = seed(tmp_path)
     filename = Path(state.db.execute("PRAGMA database_list").fetchone()[2])
     with state.db:
         state.db.execute("INSERT INTO canonical_request_start VALUES(?)", (NOW,))
     state.close()
-    monkeypatch.setattr(state_migrations.time, "time", lambda: NOW + 59)
     with pytest.raises(ValueError, match="admission window active"):
-        rollback_matching(filename, "aniworld.to")
+        rollback_matching(filename, "aniworld.to", now=NOW + 59)
     assert preflight(filename, "aniworld.to") == 7
-    monkeypatch.setattr(state_migrations.time, "time", lambda: NOW + 60)
-    rollback_matching(filename, "aniworld.to")
+    rollback_matching(filename, "aniworld.to", now=NOW + 60)
     assert preflight(filename, "aniworld.to") == 4
 
 
